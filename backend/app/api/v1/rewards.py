@@ -1,0 +1,144 @@
+import uuid
+import math
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.core.database import get_db
+from app.core.dependencies import CurrentUser, require_permission
+from app.schemas.rewards import GrantBonusRequest, ManualAdjustRequest
+from app.services import rewards_service
+from app.models.rewards import POINTS_TABLE, LEVEL_THRESHOLDS, REWARDS_LEVELS
+
+router = APIRouter(prefix="/patients/{patient_id}/rewards", tags=["Smile Rewards"])
+
+
+def _iso(dt):
+    return dt.isoformat() if dt else None
+
+
+def _serialize_account(account) -> dict:
+    progress = rewards_service.compute_level_progress(account.total_points, account.level)
+    return {
+        "id": str(account.id),
+        "patient_id": str(account.patient_id),
+        "level": account.level,
+        "total_points": account.total_points,
+        "benefits_suspended": account.benefits_suspended,
+        "last_visit_date": _iso(account.last_visit_date),
+        "level_updated_at": _iso(account.level_updated_at),
+        "progress": progress,
+    }
+
+
+def _serialize_tx(tx) -> dict:
+    return {
+        "id": str(tx.id),
+        "transaction_type": tx.transaction_type,
+        "points": tx.points,
+        "balance_after": tx.balance_after,
+        "description": tx.description,
+        "appointment_id": str(tx.appointment_id) if tx.appointment_id else None,
+        "created_at": _iso(tx.created_at),
+    }
+
+
+@router.get("")
+async def get_rewards_account(
+    patient_id: uuid.UUID,
+    user: Annotated[object, require_permission("view_rewards")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    account = await rewards_service.get_account_for_patient(db, user.clinic_id, patient_id)
+    return {"success": True, "data": _serialize_account(account)}
+
+
+@router.get("/transactions")
+async def get_transactions(
+    patient_id: uuid.UUID,
+    user: Annotated[object, require_permission("view_rewards")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    page: int = Query(default=1, ge=1),
+    per_page: int = Query(default=20, ge=1, le=50),
+):
+    transactions, total = await rewards_service.get_transactions(
+        db, user.clinic_id, patient_id, page, per_page
+    )
+    return {
+        "success": True,
+        "data": [_serialize_tx(t) for t in transactions],
+        "meta": {
+            "total": total,
+            "page": page,
+            "per_page": per_page,
+            "pages": math.ceil(total / per_page) if total else 0,
+        },
+    }
+
+
+@router.post("/bonus")
+async def grant_bonus(
+    patient_id: uuid.UUID,
+    body: GrantBonusRequest,
+    user: Annotated[object, require_permission("manage_rewards")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    account = await rewards_service.grant_bonus(
+        db, user.clinic_id, patient_id, body.bonus_type, body.appointment_id
+    )
+    points_given = POINTS_TABLE[body.bonus_type]
+    return {
+        "success": True,
+        "data": {
+            "message": f"Bono '{body.bonus_type}' acreditado: +{points_given} pts.",
+            "account": _serialize_account(account),
+        },
+    }
+
+
+@router.post("/adjust")
+async def manual_adjust(
+    patient_id: uuid.UUID,
+    body: ManualAdjustRequest,
+    user: Annotated[object, require_permission("manage_rewards")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    account = await rewards_service.manual_adjust(
+        db, user.clinic_id, patient_id, body.points, body.description
+    )
+    sign = "+" if body.points > 0 else ""
+    return {
+        "success": True,
+        "data": {
+            "message": f"Ajuste aplicado: {sign}{body.points} pts.",
+            "account": _serialize_account(account),
+        },
+    }
+
+
+# ─── Endpoint global: información del programa ──────────────────────────────
+
+levels_router = APIRouter(prefix="/rewards", tags=["Smile Rewards"])
+
+
+@levels_router.get("/levels")
+async def get_levels_info(
+    user: Annotated[object, require_permission("view_rewards")],
+):
+    """Retorna la definición de niveles y umbrales para mostrar en UI."""
+    levels = []
+    order = ["starter", "bronze", "silver", "gold", "diamond"]
+    for lvl in order:
+        levels.append({
+            "level": lvl,
+            "threshold": LEVEL_THRESHOLDS[lvl],
+            "is_max": lvl == "diamond",
+        })
+    return {
+        "success": True,
+        "data": {
+            "levels": levels,
+            "points_table": POINTS_TABLE,
+        },
+    }

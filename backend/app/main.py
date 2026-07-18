@@ -77,6 +77,9 @@ async def health_check():
 
 # Routers
 from app.api.v1 import auth, patients, appointments  # noqa: E402
+from app.api.v1.rewards import router as rewards_router, levels_router  # noqa: E402
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(patients.router, prefix="/api/v1")
 app.include_router(appointments.router, prefix="/api/v1")
+app.include_router(rewards_router, prefix="/api/v1")
+app.include_router(levels_router, prefix="/api/v1")
