@@ -2,9 +2,11 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from fastapi.exceptions import RequestValidationError
 
 from app.core.config import get_settings
 from app.core.redis import get_redis, close_redis
+from app.core.exceptions import SmileOSException
 
 settings = get_settings()
 
@@ -36,16 +38,34 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(SmileOSException)
+async def smileos_exception_handler(request: Request, exc: SmileOSException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"success": False, "error": exc.detail},
+    )
+
+
+@app.exception_handler(RequestValidationError)
+async def validation_exception_handler(request: Request, exc: RequestValidationError):
+    first_error = exc.errors()[0] if exc.errors() else {}
+    message = first_error.get("msg", "Error de validación.").replace("Value error, ", "")
+    return JSONResponse(
+        status_code=422,
+        content={
+            "success": False,
+            "error": {"code": "VALIDATION_ERROR", "message": message},
+        },
+    )
+
+
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={
             "success": False,
-            "error": {
-                "code": "INTERNAL_ERROR",
-                "message": "Error interno del servidor.",
-            },
+            "error": {"code": "INTERNAL_ERROR", "message": "Error interno del servidor."},
         },
     )
 
@@ -55,6 +75,6 @@ async def health_check():
     return {"success": True, "data": {"status": "ok", "version": "0.1.0"}}
 
 
-# Los routers se registran aquí a medida que se implementan los módulos
-# from app.api.v1 import auth, patients, appointments, ...
-# app.include_router(auth.router, prefix="/api/v1")
+# Routers
+from app.api.v1 import auth  # noqa: E402
+app.include_router(auth.router, prefix="/api/v1")
