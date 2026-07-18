@@ -1,0 +1,158 @@
+import uuid
+from datetime import datetime, timezone
+
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, func, or_, update
+from sqlalchemy.orm import selectinload
+
+from app.models.patient import Patient
+from app.models.rewards import RewardsAccount
+from app.schemas.patient import PatientCreate, PatientUpdate
+from app.core.exceptions import NotFoundError, ConflictError
+
+
+async def create_patient(
+    db: AsyncSession, clinic_id: uuid.UUID, data: PatientCreate
+) -> Patient:
+    patient = Patient(
+        clinic_id=clinic_id,
+        first_name=data.first_name.strip(),
+        last_name=data.last_name.strip(),
+        date_of_birth=data.date_of_birth,
+        gender=data.gender,
+        id_number=data.id_number,
+        phone=data.phone,
+        phone_secondary=data.phone_secondary,
+        email=data.email,
+        address=data.address,
+        emergency_contact_name=data.emergency_contact_name,
+        emergency_contact_phone=data.emergency_contact_phone,
+        blood_type=data.blood_type,
+        allergies=data.allergies,
+        medical_conditions=data.medical_conditions,
+        current_medications=data.current_medications,
+        referred_by_patient_id=data.referred_by_patient_id,
+        notes=data.notes,
+    )
+    db.add(patient)
+    await db.flush()
+
+    db.add(RewardsAccount(
+        clinic_id=clinic_id,
+        patient_id=patient.id,
+        total_points=0,
+        level="starter",
+    ))
+    await db.flush()
+
+    # Re-fetch con relaciones cargadas para evitar lazy-load en contexto async
+    return await get_patient(db, clinic_id, patient.id)
+
+
+async def get_patient(
+    db: AsyncSession, clinic_id: uuid.UUID, patient_id: uuid.UUID
+) -> Patient:
+    result = await db.execute(
+        select(Patient)
+        .options(selectinload(Patient.rewards_account))
+        .where(Patient.id == patient_id, Patient.clinic_id == clinic_id)
+    )
+    patient = result.scalar_one_or_none()
+    if not patient:
+        raise NotFoundError("Paciente")
+    return patient
+
+
+async def list_patients(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    search: str | None = None,
+    level: str | None = None,
+    active_only: bool = True,
+    page: int = 1,
+    per_page: int = 20,
+) -> tuple[list[Patient], int]:
+    base = (
+        select(Patient)
+        .options(selectinload(Patient.rewards_account))
+        .where(Patient.clinic_id == clinic_id)
+    )
+
+    if active_only:
+        base = base.where(Patient.is_active == True)
+
+    if search:
+        term = f"%{search.strip().lower()}%"
+        base = base.where(
+            or_(
+                func.lower(Patient.first_name + " " + Patient.last_name).like(term),
+                Patient.phone.like(term),
+                func.lower(Patient.email).like(term),
+                Patient.id_number.like(term),
+            )
+        )
+
+    if level:
+        base = base.join(RewardsAccount, Patient.id == RewardsAccount.patient_id).where(
+            RewardsAccount.level == level
+        )
+
+    # Contar total antes de paginar
+    count_q = select(func.count()).select_from(base.subquery())
+    total: int = await db.scalar(count_q) or 0
+
+    # Ordenar y paginar
+    base = base.order_by(Patient.first_name, Patient.last_name)
+    base = base.offset((page - 1) * per_page).limit(per_page)
+
+    result = await db.execute(base)
+    patients = list(result.scalars().all())
+
+    return patients, total
+
+
+async def update_patient(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    patient_id: uuid.UUID,
+    data: PatientUpdate,
+) -> Patient:
+    patient = await get_patient(db, clinic_id, patient_id)
+
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(patient, field, value)
+
+    await db.flush()
+    # Re-fetch para obtener timestamps actualizados y relaciones cargadas
+    return await get_patient(db, clinic_id, patient_id)
+
+
+async def deactivate_patient(
+    db: AsyncSession, clinic_id: uuid.UUID, patient_id: uuid.UUID
+) -> None:
+    patient = await get_patient(db, clinic_id, patient_id)
+    patient.is_active = False
+    await db.flush()
+
+
+async def search_patients_simple(
+    db: AsyncSession, clinic_id: uuid.UUID, q: str, limit: int = 10
+) -> list[Patient]:
+    """Búsqueda rápida para autocompletar en formularios de citas."""
+    term = f"%{q.strip().lower()}%"
+    result = await db.execute(
+        select(Patient)
+        .options(selectinload(Patient.rewards_account))
+        .where(
+            Patient.clinic_id == clinic_id,
+            Patient.is_active == True,
+            or_(
+                func.lower(Patient.first_name + " " + Patient.last_name).like(term),
+                Patient.phone.like(term),
+            ),
+        )
+        .order_by(Patient.first_name, Patient.last_name)
+        .limit(limit)
+    )
+    return list(result.scalars().all())

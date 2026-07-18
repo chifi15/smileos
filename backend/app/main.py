@@ -76,5 +76,6 @@ async def health_check():
 
 
 # Routers
-from app.api.v1 import auth  # noqa: E402
+from app.api.v1 import auth, patients  # noqa: E402
 app.include_router(auth.router, prefix="/api/v1")
+app.include_router(patients.router, prefix="/api/v1")
