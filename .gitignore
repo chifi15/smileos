@@ -1,0 +1,42 @@
+# Python
+.venv/
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+dist/
+build/
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+htmlcov/
+.coverage
+
+# Environment
+.env
+.env.local
+.env.production
+
+# Node
+node_modules/
+.next/
+out/
+*.tsbuildinfo
+.npm
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Docker
+*.log
+
+# Uploads / media (local dev only)
+uploads/
