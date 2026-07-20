@@ -332,7 +332,7 @@ async def complete_item(
     patient_id: uuid.UUID,
     plan_id: uuid.UUID,
     item_id: uuid.UUID,
-    appointment_id: uuid.UUID,
+    appointment_id: uuid.UUID | None,
 ) -> TreatmentPlan:
     plan = await get_treatment_plan(db, clinic_id, patient_id, plan_id)
     item = await _get_item(db, clinic_id, item_id)
@@ -344,18 +344,19 @@ async def complete_item(
             f"Solo se pueden completar ítems 'pending' o 'in_progress' (estado actual: {item.status})."
         )
 
-    appt_result = await db.execute(
-        select(Appointment).where(
-            Appointment.id == appointment_id,
-            Appointment.clinic_id == clinic_id,
-            Appointment.patient_id == patient_id,
-            Appointment.status.in_(["completed", "in_progress"]),
+    if appointment_id is not None:
+        appt_result = await db.execute(
+            select(Appointment).where(
+                Appointment.id == appointment_id,
+                Appointment.clinic_id == clinic_id,
+                Appointment.patient_id == patient_id,
+                Appointment.status.in_(["completed", "in_progress"]),
+            )
         )
-    )
-    if not appt_result.scalar_one_or_none():
-        raise ValidationError(
-            "La cita indicada no existe o no pertenece a este paciente."
-        )
+        if not appt_result.scalar_one_or_none():
+            raise ValidationError(
+                "La cita indicada no existe o no pertenece a este paciente."
+            )
 
     # Determinar antes de acumular si es el primer tratamiento completado
     is_first = await _is_first_treatment_completion(db, patient_id)

@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from sqlalchemy import String, Boolean, DateTime, Text, ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.core.database import Base
 from app.models.base import UUIDMixin, TimestampMixin
 
@@ -97,3 +97,19 @@ class RewardsTransaction(UUIDMixin, Base):
     )
 
     account: Mapped["RewardsAccount"] = relationship(back_populates="transactions")
+
+
+class RewardsConfig(UUIDMixin, TimestampMixin, Base):
+    """Configuración personalizada del programa Smile Rewards por clínica."""
+    __tablename__ = "rewards_config"
+
+    clinic_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinics.id"), unique=True, nullable=False
+    )
+    # Solo guarda los overrides respecto a los defaults. Vacío = usar defaults.
+    points_overrides: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="'{}'")
+    level_overrides: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="'{}'")
+    # {key: {"label": str, "points": int}} — tipos manuales definidos por el usuario
+    custom_types: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="'{}'")
+    # {level: {"discount_pct": int, "perks": [str]}} — beneficios por nivel
+    level_benefits: Mapped[dict] = mapped_column(JSONB, nullable=False, server_default="'{}'")

@@ -76,4 +76,4 @@ class TreatmentItemUpdate(BaseModel):
 
 
 class CompleteItemRequest(BaseModel):
-    appointment_id: uuid.UUID
+    appointment_id: uuid.UUID | None = None

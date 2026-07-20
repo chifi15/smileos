@@ -5,11 +5,12 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, Plus, Trash2, Play, CheckCircle2, XCircle } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Play, CheckCircle2, XCircle, ScanLine } from "lucide-react";
 import { usePlan, useDeleteItem, useStartItem, useCancelItem, useUpdatePlan } from "@/hooks/useTreatments";
 import { usePatient } from "@/hooks/usePatients";
 import AddItemModal from "@/components/treatments/AddItemModal";
 import CompleteItemModal from "@/components/treatments/CompleteItemModal";
+import ImportFromOdontogramModal from "@/components/treatments/ImportFromOdontogramModal";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
@@ -39,6 +40,7 @@ export default function TreatmentPlanDetailPage() {
   const { data: patient } = usePatient(patientId);
   const { data: plan, isLoading } = usePlan(patientId, planId);
   const [showAddItem, setShowAddItem] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [completeTarget, setCompleteTarget] = useState<CompleteTarget | null>(null);
 
   const deleteItem = useDeleteItem(patientId, planId);
@@ -145,10 +147,16 @@ export default function TreatmentPlanDetailPage() {
         <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
           <h2 className="font-semibold text-slate-800">Procedimientos</h2>
           {plan.status === "active" && (
-            <Button size="sm" onClick={() => setShowAddItem(true)}>
-              <Plus size={15} />
-              Agregar
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
+                <ScanLine size={15} />
+                Desde odontograma
+              </Button>
+              <Button size="sm" onClick={() => setShowAddItem(true)}>
+                <Plus size={15} />
+                Agregar
+              </Button>
+            </div>
           )}
         </div>
 
@@ -156,9 +164,15 @@ export default function TreatmentPlanDetailPage() {
           <div className="flex flex-col items-center gap-3 py-10 text-slate-400">
             <p className="text-sm">No hay procedimientos en este plan.</p>
             {plan.status === "active" && (
-              <Button size="sm" onClick={() => setShowAddItem(true)}>
-                Agregar procedimiento
-              </Button>
+              <div className="flex gap-2">
+                <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
+                  <ScanLine size={15} />
+                  Desde odontograma
+                </Button>
+                <Button size="sm" onClick={() => setShowAddItem(true)}>
+                  Agregar procedimiento
+                </Button>
+              </div>
             )}
           </div>
         ) : (
@@ -280,6 +294,12 @@ export default function TreatmentPlanDetailPage() {
       </div>
 
       {/* Modals */}
+      <ImportFromOdontogramModal
+        open={showImport}
+        onClose={() => setShowImport(false)}
+        patientId={patientId}
+        planId={planId}
+      />
       <AddItemModal
         open={showAddItem}
         onClose={() => setShowAddItem(false)}

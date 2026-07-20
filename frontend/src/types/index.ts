@@ -347,6 +347,28 @@ export interface RewardsTransaction {
   created_at: string;
 }
 
+export interface RewardsPointEntry {
+  key: string;
+  label: string;
+  points: number;
+  is_system: boolean;
+  trigger: "auto" | "manual";
+}
+
+export interface RewardsLevelEntry {
+  level: RewardsLevel;
+  label: string;
+  threshold: number;
+  is_editable: boolean;
+  discount_pct: number;
+  perks: string[];
+}
+
+export interface RewardsConfig {
+  points_table: RewardsPointEntry[];
+  level_thresholds: RewardsLevelEntry[];
+}
+
 // ─── Shared ───────────────────────────────────────────────────────────────────
 
 export interface PaginatedMeta {

@@ -1,6 +1,5 @@
 import uuid
 from datetime import datetime
-from typing import Literal
 from pydantic import BaseModel, field_validator
 
 
@@ -34,11 +33,8 @@ class RewardsTransactionOut(BaseModel):
     created_at: str
 
 
-BonusType = Literal["review", "birthday_visit", "consecutive_semesters"]
-
-
 class GrantBonusRequest(BaseModel):
-    bonus_type: BonusType
+    bonus_type: str  # validado en el servicio (sistema + custom)
     appointment_id: uuid.UUID | None = None
 
 
@@ -60,3 +56,20 @@ class ManualAdjustRequest(BaseModel):
         if not v:
             raise ValueError("La descripción es obligatoria.")
         return v
+
+
+class CustomTypeData(BaseModel):
+    label: str
+    points: int
+
+
+class LevelBenefitData(BaseModel):
+    discount_pct: int = 0
+    perks: list[str] = []
+
+
+class RewardsConfigUpdate(BaseModel):
+    points_overrides: dict[str, int] = {}
+    level_overrides: dict[str, int] = {}
+    custom_types: dict[str, CustomTypeData] = {}
+    level_benefits: dict[str, LevelBenefitData] = {}

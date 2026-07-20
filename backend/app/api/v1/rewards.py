@@ -7,9 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentUser, require_permission
-from app.schemas.rewards import GrantBonusRequest, ManualAdjustRequest
+from app.schemas.rewards import GrantBonusRequest, ManualAdjustRequest, RewardsConfigUpdate
 from app.services import rewards_service
-from app.models.rewards import POINTS_TABLE, LEVEL_THRESHOLDS, REWARDS_LEVELS
 
 router = APIRouter(prefix="/patients/{patient_id}/rewards", tags=["Smile Rewards"])
 
@@ -18,8 +17,8 @@ def _iso(dt):
     return dt.isoformat() if dt else None
 
 
-def _serialize_account(account) -> dict:
-    progress = rewards_service.compute_level_progress(account.total_points, account.level)
+def _serialize_account(account, thresholds: dict | None = None) -> dict:
+    progress = rewards_service.compute_level_progress(account.total_points, account.level, thresholds)
     return {
         "id": str(account.id),
         "patient_id": str(account.patient_id),
@@ -50,8 +49,9 @@ async def get_rewards_account(
     user: Annotated[object, require_permission("view_rewards")],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    cfg = await rewards_service.get_effective_config(db, user.clinic_id)
     account = await rewards_service.get_account_for_patient(db, user.clinic_id, patient_id)
-    return {"success": True, "data": _serialize_account(account)}
+    return {"success": True, "data": _serialize_account(account, cfg["level_thresholds"])}
 
 
 @router.get("/transactions")
@@ -87,12 +87,30 @@ async def grant_bonus(
     account = await rewards_service.grant_bonus(
         db, user.clinic_id, patient_id, body.bonus_type, body.appointment_id
     )
-    points_given = POINTS_TABLE[body.bonus_type]
+    cfg = await rewards_service.get_effective_config(db, user.clinic_id)
+    points_given = cfg["points_table"].get(body.bonus_type, 0)
     return {
         "success": True,
         "data": {
             "message": f"Bono '{body.bonus_type}' acreditado: +{points_given} pts.",
-            "account": _serialize_account(account),
+            "account": _serialize_account(account, cfg["level_thresholds"]),
+        },
+    }
+
+
+@router.post("/expire")
+async def expire_rewards_points(
+    patient_id: uuid.UUID,
+    user: Annotated[object, require_permission("manage_rewards")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    cfg = await rewards_service.get_effective_config(db, user.clinic_id)
+    account = await rewards_service.expire_points_manual(db, user.clinic_id, patient_id)
+    return {
+        "success": True,
+        "data": {
+            "message": "Puntos expirados. El paciente regresa al nivel Starter.",
+            "account": _serialize_account(account, cfg["level_thresholds"]),
         },
     }
 
@@ -107,38 +125,55 @@ async def manual_adjust(
     account = await rewards_service.manual_adjust(
         db, user.clinic_id, patient_id, body.points, body.description
     )
+    cfg = await rewards_service.get_effective_config(db, user.clinic_id)
     sign = "+" if body.points > 0 else ""
     return {
         "success": True,
         "data": {
             "message": f"Ajuste aplicado: {sign}{body.points} pts.",
-            "account": _serialize_account(account),
+            "account": _serialize_account(account, cfg["level_thresholds"]),
         },
     }
 
 
-# ─── Endpoint global: información del programa ──────────────────────────────
+# ─── Endpoints globales del programa ─────────────────────────────────────────
 
 levels_router = APIRouter(prefix="/rewards", tags=["Smile Rewards"])
+
+
+@levels_router.get("/config")
+async def get_rewards_config(
+    user: Annotated[object, require_permission("view_rewards")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    data = await rewards_service.get_rewards_config(db, user.clinic_id)
+    return {"success": True, "data": data}
+
+
+@levels_router.put("/config")
+async def update_rewards_config(
+    body: RewardsConfigUpdate,
+    user: Annotated[object, require_permission("manage_rewards")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    custom_types_dict = {k: v.model_dump() for k, v in body.custom_types.items()}
+    level_benefits_dict = {k: v.model_dump() for k, v in body.level_benefits.items()}
+    data = await rewards_service.update_rewards_config(
+        db,
+        user.clinic_id,
+        body.points_overrides,
+        body.level_overrides,
+        custom_types_dict,
+        level_benefits_dict if level_benefits_dict else None,
+    )
+    return {"success": True, "data": data}
 
 
 @levels_router.get("/levels")
 async def get_levels_info(
     user: Annotated[object, require_permission("view_rewards")],
+    db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Retorna la definición de niveles y umbrales para mostrar en UI."""
-    levels = []
-    order = ["starter", "bronze", "silver", "gold", "diamond"]
-    for lvl in order:
-        levels.append({
-            "level": lvl,
-            "threshold": LEVEL_THRESHOLDS[lvl],
-            "is_max": lvl == "diamond",
-        })
-    return {
-        "success": True,
-        "data": {
-            "levels": levels,
-            "points_table": POINTS_TABLE,
-        },
-    }
+    """Compatibilidad: retorna config completa en formato legado."""
+    data = await rewards_service.get_rewards_config(db, user.clinic_id)
+    return {"success": True, "data": data}

@@ -111,6 +111,33 @@ export function useAddItem(patientId: string, planId: string, onSuccess?: () => 
   });
 }
 
+export function useAddMultipleItems(patientId: string, planId: string, onSuccess?: (count: number) => void) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (items: Array<{
+      procedure_id: string;
+      tooth_fdi?: string | null;
+      priority?: "normal" | "urgent";
+      notes?: string | null;
+      quoted_price?: number | null;
+    }>) => {
+      for (const item of items) {
+        await apiClient.post(`${base(patientId)}/${planId}/items`, item);
+      }
+      return items.length;
+    },
+    onSuccess: (count) => {
+      qc.invalidateQueries({ queryKey: ["treatments", patientId, planId] });
+      toast.success(`${count} procedimiento${count !== 1 ? "s" : ""} agregado${count !== 1 ? "s" : ""} al plan.`);
+      onSuccess?.(count);
+    },
+    onError: (err: any) => {
+      qc.invalidateQueries({ queryKey: ["treatments", patientId, planId] });
+      toast.error(err?.response?.data?.detail || "Error al agregar procedimientos.");
+    },
+  });
+}
+
 export function useDeleteItem(patientId: string, planId: string) {
   const qc = useQueryClient();
   return useMutation({

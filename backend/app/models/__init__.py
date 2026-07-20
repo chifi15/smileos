@@ -4,7 +4,7 @@ from app.models.patient import Patient
 from app.models.appointment import Appointment
 from app.models.clinical_record import ClinicalRecord
 from app.models.treatment import ProcedureCatalog, TreatmentPlan, TreatmentPlanItem
-from app.models.rewards import RewardsAccount, RewardsTransaction
+from app.models.rewards import RewardsAccount, RewardsTransaction, RewardsConfig
 from app.models.photo import PatientPhoto
 from app.models.audit import AuditLog
 
@@ -23,6 +23,7 @@ __all__ = [
     "TreatmentPlanItem",
     "RewardsAccount",
     "RewardsTransaction",
+    "RewardsConfig",
     "PatientPhoto",
     "AuditLog",
 ]

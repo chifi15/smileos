@@ -17,7 +17,12 @@ export function useOdontogram(patientId: string, kind: string = "inicial") {
   });
 }
 
-export function useUpdateOdontogram(patientId: string, kind: string = "inicial", onSuccess?: () => void) {
+export function useUpdateOdontogram(
+  patientId: string,
+  kind: string = "inicial",
+  onSuccess?: () => void,
+  onError?: () => void,
+) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: {
@@ -32,11 +37,13 @@ export function useUpdateOdontogram(patientId: string, kind: string = "inicial",
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["odontogram", patientId, kind] });
-      toast.success("Odontograma guardado.");
+      toast.success("Guardado.", { id: "odontogram-save" });
       onSuccess?.();
     },
     onError: (err: any) => {
+      qc.invalidateQueries({ queryKey: ["odontogram", patientId, kind] });
       toast.error(err?.response?.data?.detail || "Error al guardar el odontograma.");
+      onError?.();
     },
   });
 }

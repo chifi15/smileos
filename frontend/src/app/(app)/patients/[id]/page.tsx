@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { usePatient, useDeactivatePatient, useDeletePatientPermanent } from "@/hooks/usePatients";
 import { useCreateTransaction, useExchangeRate } from "@/hooks/useFinances";
+import { useRewardsConfig } from "@/hooks/useRewards";
 import {
   REWARDS_LEVEL_LABELS,
   REWARDS_LEVEL_COLORS,
@@ -210,6 +211,7 @@ export default function PatientDetailPage() {
   const { id } = useParams<{ id: string }>();
   const router = useRouter();
   const { data: patient, isLoading } = usePatient(id);
+  const { data: rewardsConfig } = useRewardsConfig();
   const deactivate = useDeactivatePatient();
   const deletePermanent = useDeletePatientPermanent();
   const [showPayment, setShowPayment] = useState(false);
@@ -485,30 +487,54 @@ export default function PatientDetailPage() {
         )}
 
         {/* Rewards summary */}
-        {patient.rewards && (
-          <InfoCard title="Smile Rewards" icon={Star}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs text-slate-400">Nivel actual</p>
-                <Badge
-                  label={REWARDS_LEVEL_LABELS[patient.rewards.level as RewardsLevel]}
-                  className={`mt-1 ${REWARDS_LEVEL_COLORS[patient.rewards.level as RewardsLevel]}`}
-                />
+        {patient.rewards && (() => {
+          const levelData = rewardsConfig?.level_thresholds.find(
+            (l) => l.level === patient.rewards!.level
+          );
+          return (
+            <InfoCard title="Smile Rewards" icon={Star}>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs text-slate-400">Nivel actual</p>
+                  <Badge
+                    label={REWARDS_LEVEL_LABELS[patient.rewards.level as RewardsLevel]}
+                    className={`mt-1 ${REWARDS_LEVEL_COLORS[patient.rewards.level as RewardsLevel]}`}
+                  />
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-slate-400">Puntos acumulados</p>
+                  <p className="text-2xl font-bold text-slate-800">
+                    {patient.rewards.total_points.toLocaleString("es-NI")}
+                  </p>
+                </div>
               </div>
-              <div className="text-right">
-                <p className="text-xs text-slate-400">Puntos acumulados</p>
-                <p className="text-2xl font-bold text-slate-800">
-                  {patient.rewards.total_points.toLocaleString("es-NI")}
-                </p>
-              </div>
-            </div>
-            {patient.rewards.benefits_suspended && (
-              <div className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
-                Beneficios suspendidos por inactividad mayor a 12 meses.
-              </div>
-            )}
-          </InfoCard>
-        )}
+
+              {/* Beneficios del nivel actual */}
+              {levelData && (levelData.discount_pct > 0 || levelData.perks.length > 0) && (
+                <div className="rounded-lg bg-slate-50 px-3 py-2.5 space-y-1.5">
+                  <p className="text-xs font-semibold text-slate-500">Beneficios del nivel</p>
+                  {levelData.discount_pct > 0 && (
+                    <p className="text-xs font-bold text-green-700">
+                      {levelData.discount_pct}% de descuento en tratamientos
+                    </p>
+                  )}
+                  {levelData.perks.map((perk, i) => (
+                    <div key={i} className="flex items-start gap-1.5">
+                      <span className="text-green-500 shrink-0 text-xs mt-0.5">✓</span>
+                      <span className="text-xs text-slate-600">{perk}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {patient.rewards.benefits_suspended && (
+                <div className="rounded-md bg-amber-50 px-3 py-2 text-xs text-amber-700">
+                  Beneficios suspendidos por inactividad mayor a 12 meses.
+                </div>
+              )}
+            </InfoCard>
+          );
+        })()}
       </div>
 
       {showPayment && (

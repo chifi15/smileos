@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import {
-  ChevronLeft, Save, History, Plus, Trash2, Calculator,
+  ChevronLeft, History, Plus, Trash2, Calculator,
   Stethoscope, ClipboardList, Copy,
 } from "lucide-react";
 import { usePatient } from "@/hooks/usePatients";
@@ -120,20 +120,18 @@ function SnapshotViewer({ patientId, kind, onClose }: {
 function OdontogramSection({ patientId, kind }: { patientId: string; kind: string }) {
   const { data: teeth = [], isLoading } = useOdontogram(patientId, kind);
   const [pendingChanges, setPendingChanges] = useState<Record<number, PendingChange>>({});
-  const [snapshotNotes, setSnapshotNotes] = useState("");
   const [showHistory, setShowHistory] = useState(false);
   const [confirmCopy, setConfirmCopy] = useState(false);
 
-  const update = useUpdateOdontogram(patientId, kind, () => {
-    setPendingChanges({});
-    setSnapshotNotes("");
-  });
+  const update = useUpdateOdontogram(
+    patientId,
+    kind,
+    () => setPendingChanges({}),
+    () => setPendingChanges({}),
+  );
   const copyFromInicial = useCopyInicialToTratamiento(patientId);
 
-  const hasPending = Object.keys(pendingChanges).length > 0;
-
-  // Build previewTeeth from all 32 fixed numbers so pending changes are
-  // always visible even while the DB data is still loading.
+  // Build previewTeeth — optimistic overlay on top of persisted DB data.
   const teethByNum = new Map(teeth.map((t) => [t.tooth_number, t]));
   const ALL_NUMS = [18,17,16,15,14,13,12,11,21,22,23,24,25,26,27,28,
                     31,32,33,34,35,36,37,38,41,42,43,44,45,46,47,48];
@@ -151,12 +149,9 @@ function OdontogramSection({ patientId, kind }: { patientId: string; kind: strin
   });
 
   function handleToothChange(num: number, condition: ToothCondition, notes: string | null) {
+    // Optimistic update for immediate visual feedback; save persists to DB right away.
     setPendingChanges((prev) => ({ ...prev, [num]: { condition, notes } }));
-  }
-
-  function handleSave() {
-    if (!hasPending) return;
-    update.mutate({ teeth: pendingChanges, snapshot_notes: snapshotNotes.trim() || null });
+    update.mutate({ teeth: { [num]: { condition, notes } }, snapshot_notes: null });
   }
 
   const affected = previewTeeth.filter((t) => t.condition !== "sano");
@@ -204,48 +199,10 @@ function OdontogramSection({ patientId, kind }: { patientId: string; kind: strin
           <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
             <OdontogramChart
               teeth={previewTeeth}
-              editable
+              editable={!update.isPending}
               onChange={handleToothChange}
             />
           </div>
-
-          {hasPending && (
-            <div className="rounded-xl bg-blue-50 border border-blue-200 p-4 space-y-3">
-              <p className="text-sm font-medium text-blue-800">
-                {Object.keys(pendingChanges).length} pieza(s) modificada(s) sin guardar
-              </p>
-              <div className="space-y-1">
-                {Object.entries(pendingChanges).map(([num, change]) => (
-                  <div key={num} className="flex items-center gap-2 text-xs text-blue-700">
-                    <span className="w-6 font-mono">{num}</span>
-                    <span>→ {TOOTH_CONDITION_LABELS[change.condition]}</span>
-                    {change.notes && <span className="text-blue-500">— {change.notes}</span>}
-                  </div>
-                ))}
-              </div>
-              <input
-                type="text"
-                className="w-full rounded-lg border border-blue-300 bg-white px-3 py-2 text-sm placeholder-blue-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                placeholder="Nota del registro (ej: Evaluación inicial, Post-tratamiento...)"
-                value={snapshotNotes}
-                onChange={(e) => setSnapshotNotes(e.target.value)}
-              />
-              <div className="flex justify-end gap-2">
-                <Button variant="secondary" size="sm" onClick={() => setPendingChanges({})}>
-                  Descartar cambios
-                </Button>
-                <Button
-                  size="sm"
-                  loading={update.isPending}
-                  onClick={handleSave}
-                  className="bg-blue-600 hover:bg-blue-700"
-                >
-                  <Save size={14} />
-                  Guardar odontograma
-                </Button>
-              </div>
-            </div>
-          )}
 
           <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
             <h2 className="font-semibold text-slate-800 mb-3 text-sm">

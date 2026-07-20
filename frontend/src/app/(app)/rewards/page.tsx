@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Star } from "lucide-react";
+import { Star, Settings } from "lucide-react";
 import PatientSearch from "@/components/ui/PatientSearch";
 
 export default function RewardsPage() {
@@ -31,6 +32,16 @@ export default function RewardsPage() {
           onChange={handleSelect}
           placeholder="Buscar paciente..."
         />
+
+        <div className="mt-6 border-t border-slate-100 pt-5">
+          <Link
+            href="/rewards/config"
+            className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-slate-800 transition-colors rounded-lg px-4 py-2 hover:bg-slate-50 border border-slate-200"
+          >
+            <Settings size={15} />
+            Configurar programa de puntos
+          </Link>
+        </div>
       </div>
     </div>
   );

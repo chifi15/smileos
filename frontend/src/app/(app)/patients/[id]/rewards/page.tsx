@@ -5,9 +5,26 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, Star, TrendingUp, TrendingDown, SlidersHorizontal } from "lucide-react";
+import {
+  ChevronLeft,
+  Star,
+  TrendingUp,
+  TrendingDown,
+  SlidersHorizontal,
+  ChevronDown,
+  ChevronUp,
+  Zap,
+  Hand,
+  Flame,
+} from "lucide-react";
 import { usePatient } from "@/hooks/usePatients";
-import { useRewardsAccount, useRewardsTransactions, useAdjustRewards } from "@/hooks/useRewards";
+import {
+  useRewardsAccount,
+  useRewardsTransactions,
+  useAdjustRewards,
+  useRewardsConfig,
+  useExpireRewards,
+} from "@/hooks/useRewards";
 import { REWARDS_LEVEL_LABELS, REWARDS_LEVEL_COLORS, RewardsLevel } from "@/types";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -28,12 +45,33 @@ const TX_TYPE_LABELS: Record<string, string> = {
   welcome: "Bienvenida",
   birthday_visit: "Cumpleaños",
   adjustment: "Ajuste manual",
+  points_expired: "Puntos vencidos",
+};
+
+const LEVEL_ORDER = ["starter", "bronze", "silver", "gold", "diamond"] as const;
+
+const LEVEL_ICONS: Record<string, string> = {
+  starter: "⬜",
+  bronze: "🥉",
+  silver: "🥈",
+  gold: "🥇",
+  diamond: "💎",
+};
+
+const LEVEL_BADGE_COLORS: Record<string, string> = {
+  starter: "bg-slate-100 border-slate-200 text-slate-600",
+  bronze: "bg-amber-50 border-amber-200 text-amber-800",
+  silver: "bg-gray-100 border-gray-200 text-gray-700",
+  gold: "bg-yellow-50 border-yellow-200 text-yellow-800",
+  diamond: "bg-violet-50 border-violet-200 text-violet-800",
 };
 
 const adjustTypeOptions = [
   { value: "manual_add", label: "Agregar puntos" },
   { value: "manual_deduct", label: "Descontar puntos" },
 ];
+
+// ─── Modal de ajuste ──────────────────────────────────────────────────────────
 
 interface AdjustModalProps {
   open: boolean;
@@ -109,6 +147,122 @@ function AdjustModal({ open, onClose, patientId }: AdjustModalProps) {
   );
 }
 
+// ─── Panel "Cómo funciona el programa" ───────────────────────────────────────
+
+function ProgramInfoPanel() {
+  const [open, setOpen] = useState(false);
+  const { data: config, isLoading } = useRewardsConfig();
+
+  const autoTypes = config?.points_table.filter((e) => e.trigger === "auto") ?? [];
+  const manualTypes = config?.points_table.filter((e) => e.trigger === "manual") ?? [];
+
+  return (
+    <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-50 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <Star size={16} className="text-yellow-500" />
+          <span className="font-semibold text-slate-800 text-sm">Cómo funciona el programa</span>
+        </div>
+        {open ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
+      </button>
+
+      {open && (
+        <div className="border-t border-slate-100 px-5 py-4 space-y-5">
+          {isLoading ? (
+            <div className="flex justify-center py-4"><Spinner /></div>
+          ) : (
+            <>
+              {/* Niveles con beneficios */}
+              <div>
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Niveles y beneficios</p>
+                <div className="space-y-2">
+                  {config?.level_thresholds.map((lvl) => (
+                    <div
+                      key={lvl.level}
+                      className={`rounded-lg border px-3 py-2.5 ${LEVEL_BADGE_COLORS[lvl.level]}`}
+                    >
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <span className="text-base">{LEVEL_ICONS[lvl.level]}</span>
+                          <span className="text-sm font-semibold">{lvl.label}</span>
+                          {lvl.discount_pct > 0 && (
+                            <span className="rounded-full bg-white/60 px-2 py-0.5 text-xs font-bold">
+                              {lvl.discount_pct}% descuento
+                            </span>
+                          )}
+                        </div>
+                        <span className="text-xs opacity-70">{lvl.threshold.toLocaleString("es-NI")} pts</span>
+                      </div>
+                      {lvl.perks.length > 0 && (
+                        <ul className="mt-1.5 space-y-0.5">
+                          {lvl.perks.map((perk, i) => (
+                            <li key={i} className="flex items-start gap-1.5 text-xs opacity-80">
+                              <span className="mt-0.5 shrink-0">✓</span>
+                              <span>{perk}</span>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Política de inactividad */}
+              <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2.5">
+                <p className="text-xs font-semibold text-amber-700 mb-0.5">Política de inactividad</p>
+                <p className="text-xs text-amber-600">
+                  Si un paciente no tiene visitas durante <strong>12 meses consecutivos</strong>,
+                  sus puntos se vencen automáticamente y regresa al nivel Starter.
+                </p>
+              </div>
+
+              {/* Puntos automáticos */}
+              <div>
+                <div className="flex items-center gap-1.5 mb-2">
+                  <Zap size={13} className="text-amber-500" />
+                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Puntos automáticos</p>
+                </div>
+                <div className="divide-y divide-slate-50 rounded-lg border border-slate-100 overflow-hidden">
+                  {autoTypes.map((entry) => (
+                    <div key={entry.key} className="flex items-center justify-between px-3 py-2 bg-white">
+                      <span className="text-sm text-slate-700">{entry.label}</span>
+                      <span className="text-sm font-semibold text-green-600">+{entry.points} pts</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Bonos manuales */}
+              {manualTypes.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Hand size={13} className="text-violet-500" />
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Bonos manuales</p>
+                  </div>
+                  <div className="divide-y divide-slate-50 rounded-lg border border-slate-100 overflow-hidden">
+                    {manualTypes.map((entry) => (
+                      <div key={entry.key} className="flex items-center justify-between px-3 py-2 bg-white">
+                        <span className="text-sm text-slate-700">{entry.label}</span>
+                        <span className="text-sm font-semibold text-violet-600">+{entry.points} pts</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Página principal ─────────────────────────────────────────────────────────
+
 export default function PatientRewardsPage() {
   const { id } = useParams<{ id: string }>();
   const { data: patient } = usePatient(id);
@@ -116,6 +270,7 @@ export default function PatientRewardsPage() {
   const [page, setPage] = useState(1);
   const { data: txData, isLoading: loadingTx } = useRewardsTransactions(id, page);
   const [showAdjust, setShowAdjust] = useState(false);
+  const expire = useExpireRewards(id);
 
   const transactions = txData?.data ?? [];
   const meta = txData?.meta;
@@ -135,10 +290,30 @@ export default function PatientRewardsPage() {
           <h1 className="mt-2 text-xl font-semibold text-slate-800">Smile Rewards</h1>
         </div>
         {account && (
-          <Button variant="secondary" size="sm" onClick={() => setShowAdjust(true)}>
-            <SlidersHorizontal size={15} />
-            Ajuste manual
-          </Button>
+          <div className="flex gap-2">
+            <Button variant="secondary" size="sm" onClick={() => setShowAdjust(true)}>
+              <SlidersHorizontal size={15} />
+              Ajuste manual
+            </Button>
+            {account.total_points > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="text-red-500 hover:bg-red-50"
+                loading={expire.isPending}
+                onClick={() => {
+                  if (window.confirm(
+                    `¿Expirar los ${account.total_points.toLocaleString("es-NI")} puntos de ${patient?.full_name}?\n\nEsto los dejará en 0 y regresará al nivel Starter. Esta acción no se puede deshacer.`
+                  )) {
+                    expire.mutate();
+                  }
+                }}
+              >
+                <Flame size={15} />
+                Expirar puntos
+              </Button>
+            )}
+          </div>
         )}
       </div>
 
@@ -150,7 +325,7 @@ export default function PatientRewardsPage() {
         </div>
       ) : (
         <>
-          {/* Account card */}
+          {/* Cuenta */}
           <div className="rounded-xl bg-white p-6 shadow-sm border border-slate-100">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
@@ -169,11 +344,10 @@ export default function PatientRewardsPage() {
                 </div>
               </div>
 
-              {/* Progress to next level */}
               {account.progress.next_level && (
                 <div className="w-64">
                   <div className="flex justify-between text-xs text-slate-500 mb-1">
-                    <span>Progreso hacia {REWARDS_LEVEL_LABELS[account.progress.next_level as RewardsLevel]}</span>
+                    <span>Hacia {REWARDS_LEVEL_LABELS[account.progress.next_level as RewardsLevel]}</span>
                     <span>{account.progress.progress_pct}%</span>
                   </div>
                   <div className="h-2 w-full rounded-full bg-slate-100">
@@ -202,7 +376,7 @@ export default function PatientRewardsPage() {
             )}
           </div>
 
-          {/* Transactions */}
+          {/* Historial de transacciones */}
           <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
             <div className="px-5 py-4 border-b border-slate-100">
               <h2 className="font-semibold text-slate-800">Historial de transacciones</h2>
@@ -287,6 +461,9 @@ export default function PatientRewardsPage() {
           </div>
         </>
       )}
+
+      {/* Panel "Cómo funciona" siempre visible */}
+      <ProgramInfoPanel />
 
       <AdjustModal
         open={showAdjust}
