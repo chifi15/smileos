@@ -22,6 +22,7 @@ class ProcedureCatalog(UUIDMixin, TimestampMixin, Base):
     description: Mapped[str | None] = mapped_column(Text)
     default_duration_minutes: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
     default_price: Mapped[float | None] = mapped_column(Numeric(10, 2))
+    operational_cost: Mapped[float | None] = mapped_column(Numeric(10, 2))
     category: Mapped[str | None] = mapped_column(String(50))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     is_system: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)

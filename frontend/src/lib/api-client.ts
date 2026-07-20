@@ -17,9 +17,6 @@ export interface ApiError {
 const apiClient: AxiosInstance = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000",
   withCredentials: true, // httpOnly cookie para refresh token
-  headers: {
-    "Content-Type": "application/json",
-  },
 });
 
 // Inyectar access token desde memoria en cada request
@@ -36,7 +33,8 @@ apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const original = error.config;
-    if (error.response?.status === 401 && !original._retry) {
+    const isAuthEndpoint = original.url?.includes("/auth/");
+    if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
       original._retry = true;
       try {
         const { data } = await axios.post(

@@ -13,10 +13,11 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
-    await get_redis()
+    try:
+        await get_redis()
+    except Exception:
+        pass  # Redis is optional; app runs without it
     yield
-    # Shutdown
     await close_redis()
 
 
@@ -76,10 +77,21 @@ async def health_check():
 
 
 # Routers
-from app.api.v1 import auth, patients, appointments  # noqa: E402
+from app.api.v1 import auth, patients, appointments, catalog, treatments, dashboard, photos, odontogram, finances  # noqa: E402
+from app.api.v1.odontogram import quote_router  # noqa: E402
+from app.api.v1.settings import settings_router, users_router  # noqa: E402
 from app.api.v1.rewards import router as rewards_router, levels_router  # noqa: E402
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(patients.router, prefix="/api/v1")
 app.include_router(appointments.router, prefix="/api/v1")
 app.include_router(rewards_router, prefix="/api/v1")
 app.include_router(levels_router, prefix="/api/v1")
+app.include_router(catalog.router, prefix="/api/v1")
+app.include_router(treatments.router, prefix="/api/v1")
+app.include_router(dashboard.router, prefix="/api/v1")
+app.include_router(photos.router, prefix="/api/v1")
+app.include_router(odontogram.router, prefix="/api/v1")
+app.include_router(quote_router, prefix="/api/v1")
+app.include_router(settings_router, prefix="/api/v1")
+app.include_router(users_router, prefix="/api/v1")
+app.include_router(finances.router, prefix="/api/v1")

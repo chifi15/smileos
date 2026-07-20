@@ -40,3 +40,4 @@ Thumbs.db
 
 # Uploads / media (local dev only)
 uploads/
+backend/media/

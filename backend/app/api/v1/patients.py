@@ -1,7 +1,8 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -157,3 +158,35 @@ async def deactivate_patient(
 ):
     await patient_service.deactivate_patient(db, user.clinic_id, patient_id)
     return {"success": True, "data": {"message": "Paciente desactivado correctamente."}}
+
+
+@router.post("/{patient_id}/reactivate", status_code=200)
+async def reactivate_patient(
+    patient_id: uuid.UUID,
+    user: Annotated[object, require_permission("manage_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    patient = await patient_service.get_patient(db, user.clinic_id, patient_id)
+    patient.is_active = True
+    await db.commit()
+    return {"success": True, "data": {"message": "Paciente reactivado."}}
+
+
+@router.delete("/{patient_id}/permanent", status_code=200)
+async def delete_patient_permanent(
+    patient_id: uuid.UUID,
+    user: Annotated[object, require_permission("delete_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Elimina el paciente de forma permanente. Falla si tiene registros vinculados."""
+    patient = await patient_service.get_patient(db, user.clinic_id, patient_id)
+    try:
+        await db.delete(patient)
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Este paciente tiene registros vinculados (citas, tratamientos, finanzas, etc.). Usa 'Desactivar' en su lugar.",
+        )
+    return {"success": True, "data": {"message": "Paciente eliminado permanentemente."}}

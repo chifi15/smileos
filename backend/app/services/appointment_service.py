@@ -40,9 +40,6 @@ async def _validate_slot(
 ) -> None:
     """Valida horario de trabajo, festivos y solapamiento de citas."""
     local_dt = scheduled_at.astimezone(CLINIC_TZ)
-    db_day = local_dt.isoweekday() % 7  # 0=Dom, 1=Lun ... 6=Sáb
-    local_time = local_dt.time()
-    end_local = _end_time(local_dt, duration_minutes).time()
     appt_date = local_dt.date()
 
     # 1. Día festivo
@@ -55,33 +52,7 @@ async def _validate_slot(
     if holiday:
         raise ValidationError(f"El {appt_date} es día festivo: {holiday.description or 'Día no laborable'}.")
 
-    # 2. Horario de trabajo
-    wh = await db.scalar(
-        select(WorkingHours).where(
-            WorkingHours.clinic_id == clinic_id,
-            WorkingHours.day_of_week == db_day,
-        )
-    )
-    if not wh or not wh.is_working_day:
-        days = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"]
-        raise ValidationError(f"La clínica no atiende los {days[db_day]}.")
-
-    in_morning = (
-        wh.morning_open and wh.morning_close
-        and local_time >= wh.morning_open
-        and end_local <= wh.morning_close
-    )
-    in_afternoon = (
-        wh.afternoon_open and wh.afternoon_close
-        and local_time >= wh.afternoon_open
-        and end_local <= wh.afternoon_close
-    )
-    if not in_morning and not in_afternoon:
-        raise ValidationError(
-            "El horario solicitado está fuera del horario de atención de la clínica."
-        )
-
-    # 3. Solapamiento con otras citas del mismo dentista
+    # 2. Solapamiento con otras citas del mismo dentista
     end_at = _end_time(scheduled_at, duration_minutes)
     # Solapamiento: existing_start < new_end AND existing_end > new_start
     # make_interval(years, months, weeks, days, hours, mins) — posicional

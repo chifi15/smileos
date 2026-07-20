@@ -1,6 +1,7 @@
 import uuid
 from datetime import time
-from sqlalchemy import String, Boolean, Integer, SmallInteger, Time, Date, ForeignKey, UniqueConstraint
+from decimal import Decimal
+from sqlalchemy import String, Boolean, Integer, SmallInteger, Time, Date, ForeignKey, UniqueConstraint, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.core.database import Base
@@ -49,6 +50,7 @@ class ClinicSettings(UUIDMixin, TimestampMixin, Base):
     # Financiero
     currency_code: Mapped[str] = mapped_column(String(3), default="NIO", nullable=False)
     currency_symbol: Mapped[str] = mapped_column(String(5), default="C$", nullable=False)
+    usd_exchange_rate: Mapped[Decimal] = mapped_column(Numeric(10, 4), default=Decimal("37.0"), nullable=False, server_default="37.0")
 
     # v0.2
     whatsapp_reminder_hours_before: Mapped[int | None] = mapped_column(Integer, default=24)
