@@ -16,6 +16,7 @@ import {
   Zap,
   Hand,
   Flame,
+  Users,
 } from "lucide-react";
 import { usePatient } from "@/hooks/usePatients";
 import {
@@ -24,6 +25,7 @@ import {
   useAdjustRewards,
   useRewardsConfig,
   useExpireRewards,
+  useGrantReferral,
 } from "@/hooks/useRewards";
 import { REWARDS_LEVEL_LABELS, REWARDS_LEVEL_COLORS, RewardsLevel } from "@/types";
 import Badge from "@/components/ui/Badge";
@@ -271,6 +273,7 @@ export default function PatientRewardsPage() {
   const { data: txData, isLoading: loadingTx } = useRewardsTransactions(id, page);
   const [showAdjust, setShowAdjust] = useState(false);
   const expire = useExpireRewards(id);
+  const grantReferral = useGrantReferral(id);
 
   const transactions = txData?.data ?? [];
   const meta = txData?.meta;
@@ -294,6 +297,21 @@ export default function PatientRewardsPage() {
             <Button variant="secondary" size="sm" onClick={() => setShowAdjust(true)}>
               <SlidersHorizontal size={15} />
               Ajuste manual
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              loading={grantReferral.isPending}
+              onClick={() => {
+                if (window.confirm(
+                  `¿Otorgar bono de referido a ${patient?.full_name}?\n\nSe acreditarán los puntos de "Referido completado" a este paciente.`
+                )) {
+                  grantReferral.mutate();
+                }
+              }}
+            >
+              <Users size={15} />
+              Referido
             </Button>
             {account.total_points > 0 && (
               <Button

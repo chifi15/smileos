@@ -59,6 +59,26 @@ export function useAdjustRewards(patientId: string, onSuccess?: () => void) {
   });
 }
 
+export function useGrantReferral(patientId: string, onSuccess?: () => void) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post(
+        `/api/v1/patients/${patientId}/rewards/referral`
+      );
+      return data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["rewards", patientId] });
+      toast.success("Bono de referido acreditado.");
+      onSuccess?.();
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.detail || "Error al acreditar el bono.");
+    },
+  });
+}
+
 export function useExpireRewards(patientId: string, onSuccess?: () => void) {
   const qc = useQueryClient();
   return useMutation({

@@ -98,6 +98,23 @@ async def grant_bonus(
     }
 
 
+@router.post("/referral")
+async def grant_referral_bonus(
+    patient_id: uuid.UUID,
+    user: Annotated[object, require_permission("manage_rewards")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    account, pts = await rewards_service.grant_referral_bonus(db, user.clinic_id, patient_id)
+    cfg = await rewards_service.get_effective_config(db, user.clinic_id)
+    return {
+        "success": True,
+        "data": {
+            "message": f"Bono de referido acreditado: +{pts} pts.",
+            "account": _serialize_account(account, cfg["level_thresholds"]),
+        },
+    }
+
+
 @router.post("/expire")
 async def expire_rewards_points(
     patient_id: uuid.UUID,

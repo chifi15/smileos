@@ -501,6 +501,26 @@ async def get_transactions(
 
 # ─── Acciones manuales ────────────────────────────────────────────────────────
 
+async def grant_referral_bonus(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    patient_id: uuid.UUID,
+) -> tuple[RewardsAccount, int]:
+    cfg = await get_effective_config(db, clinic_id)
+    account = await get_account_for_patient(db, clinic_id, patient_id)
+    points = cfg["points_table"].get("referral_completed", POINTS_TABLE["referral_completed"])
+
+    await _add_transaction(db, account, None, "referral_completed", points)
+
+    old_level = account.level
+    account.level = calculate_level(account.total_points, cfg["level_thresholds"])
+    if account.level != old_level:
+        account.level_updated_at = datetime.now(timezone.utc)
+
+    await db.flush()
+    return await get_account_for_patient(db, clinic_id, patient_id), points
+
+
 async def grant_bonus(
     db: AsyncSession,
     clinic_id: uuid.UUID,
