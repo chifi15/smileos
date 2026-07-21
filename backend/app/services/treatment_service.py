@@ -273,8 +273,6 @@ async def remove_item(
 
     if item.treatment_plan_id != plan.id:
         raise NotFoundError("Ítem de tratamiento")
-    if item.status == "completed":
-        raise ValidationError("No se puede eliminar un ítem completado.")
 
     await db.delete(item)
     await db.flush()
@@ -379,6 +377,35 @@ async def complete_item(
 
     await db.flush()
     await _check_plan_completion(db, plan_id)
+    return await get_treatment_plan(db, clinic_id, patient_id, plan_id)
+
+
+async def reopen_item(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    patient_id: uuid.UUID,
+    plan_id: uuid.UUID,
+    item_id: uuid.UUID,
+) -> TreatmentPlan:
+    plan = await get_treatment_plan(db, clinic_id, patient_id, plan_id)
+    item = await _get_item(db, clinic_id, item_id)
+
+    if item.treatment_plan_id != plan.id:
+        raise NotFoundError("Ítem de tratamiento")
+    if item.status not in ("completed", "cancelled"):
+        raise ValidationError(
+            f"Solo se pueden reabrir ítems completados o cancelados (estado actual: {item.status})."
+        )
+
+    item.status = "pending"
+    item.completed_at = None
+    item.completed_in_appointment_id = None
+
+    if plan.status == "completed":
+        plan.status = "active"
+        plan.completed_at = None
+
+    await db.flush()
     return await get_treatment_plan(db, clinic_id, patient_id, plan_id)
 
 

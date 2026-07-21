@@ -177,6 +177,7 @@ function makeItemAction(action: string, label: string) {
 export const useStartItem = makeItemAction("start", "Procedimiento iniciado.");
 export const useCancelItem = makeItemAction("cancel", "Procedimiento cancelado.");
 export const useCompleteItem = makeItemAction("complete", "Procedimiento completado.");
+export const useReopenItem = makeItemAction("reopen", "Procedimiento reabierto.");
 
 export function useDeletePlan(patientId: string, onSuccess?: () => void) {
   const qc = useQueryClient();

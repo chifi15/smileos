@@ -204,6 +204,20 @@ async def cancel_item(
     return {"success": True, "data": _serialize_plan(plan)}
 
 
+@router.post("/{plan_id}/items/{item_id}/reopen")
+async def reopen_item(
+    patient_id: uuid.UUID,
+    plan_id: uuid.UUID,
+    item_id: uuid.UUID,
+    user: Annotated[object, require_permission("manage_treatments")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    plan = await treatment_service.reopen_item(
+        db, user.clinic_id, patient_id, plan_id, item_id
+    )
+    return {"success": True, "data": _serialize_plan(plan)}
+
+
 @router.post("/{plan_id}/items/{item_id}/complete")
 async def complete_item(
     patient_id: uuid.UUID,

@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, Plus, Trash2, Play, CheckCircle2, XCircle, ScanLine } from "lucide-react";
-import { usePlan, useDeleteItem, useStartItem, useCancelItem, useUpdatePlan } from "@/hooks/useTreatments";
+import { ChevronLeft, Plus, Trash2, Play, CheckCircle2, XCircle, ScanLine, RotateCcw } from "lucide-react";
+import { usePlan, useDeleteItem, useStartItem, useCancelItem, useUpdatePlan, useReopenItem } from "@/hooks/useTreatments";
 import { usePatient } from "@/hooks/usePatients";
 import AddItemModal from "@/components/treatments/AddItemModal";
 import CompleteItemModal from "@/components/treatments/CompleteItemModal";
@@ -46,6 +46,7 @@ export default function TreatmentPlanDetailPage() {
   const deleteItem = useDeleteItem(patientId, planId);
   const startItem = useStartItem(patientId, planId);
   const cancelItem = useCancelItem(patientId, planId);
+  const reopenItem = useReopenItem(patientId, planId);
   const updatePlan = useUpdatePlan(patientId, planId);
 
   if (isLoading) {
@@ -183,7 +184,7 @@ export default function TreatmentPlanDetailPage() {
                 const status = item.status as TreatmentItemStatus;
                 const canAct = plan.status === "active";
                 const isWorking =
-                  deleteItem.isPending || startItem.isPending || cancelItem.isPending;
+                  deleteItem.isPending || startItem.isPending || cancelItem.isPending || reopenItem.isPending;
 
                 return (
                   <div key={item.id} className="flex items-start gap-4 px-5 py-4">
@@ -238,7 +239,7 @@ export default function TreatmentPlanDetailPage() {
                     </div>
 
                     {/* Actions */}
-                    {canAct && !["completed", "cancelled"].includes(status) && (
+                    {(canAct || ["completed", "cancelled"].includes(status)) && (
                       <div className="flex shrink-0 gap-1">
                         {status === "pending" && (
                           <button
@@ -264,14 +265,26 @@ export default function TreatmentPlanDetailPage() {
                             <CheckCircle2 size={14} />
                           </button>
                         )}
-                        <button
-                          title="Cancelar ítem"
-                          className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
-                          onClick={() => cancelItem.mutate({ itemId: item.id })}
-                          disabled={isWorking}
-                        >
-                          <XCircle size={14} />
-                        </button>
+                        {!["completed", "cancelled"].includes(status) && (
+                          <button
+                            title="Cancelar ítem"
+                            className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+                            onClick={() => cancelItem.mutate({ itemId: item.id })}
+                            disabled={isWorking}
+                          >
+                            <XCircle size={14} />
+                          </button>
+                        )}
+                        {["completed", "cancelled"].includes(status) && (
+                          <button
+                            title="Reabrir (volver a pendiente)"
+                            className="rounded-md p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                            onClick={() => reopenItem.mutate({ itemId: item.id })}
+                            disabled={isWorking}
+                          >
+                            <RotateCcw size={14} />
+                          </button>
+                        )}
                         <button
                           title="Eliminar"
                           className="rounded-md p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
