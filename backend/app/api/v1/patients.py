@@ -11,6 +11,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentUser, require_permission
+from app.core.exceptions import NotFoundError
 from app.schemas.patient import PatientCreate, PatientUpdate, PatientOut, PatientListItem, RewardsSummary
 from app.services import patient_service
 
@@ -246,16 +247,16 @@ async def delete_patient_permanent(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Elimina el paciente y todos sus registros vinculados de forma permanente."""
+    # Vaciamos el identity map antes de operar para que get_db no haga flush de
+    # ningún objeto ORM al commitar al finalizar el request.
+    db.sync_session.expunge_all()
     try:
-        await patient_service.delete_patient_permanent(db, user.clinic_id, patient_id)
+        await patient_service.delete_patient_permanent(user.clinic_id, patient_id)
+    except NotFoundError:
+        raise HTTPException(status_code=404, detail="Paciente no encontrado.")
     except Exception as e:
-        await db.rollback()
         logging.exception("Error al eliminar paciente %s", patient_id)
         raise HTTPException(status_code=500, detail=f"Error al eliminar paciente: {str(e)}")
-    # engine.begin() ya commitió los cambios en una conexión separada.
-    # Limpiamos el identity map antes del commit para que la sesión ORM no intente
-    # hacer flush de objetos fantasma (ej. PatientPhoto con patient_id=None).
-    db.sync_session.expunge_all()
     return {"success": True, "data": {"message": "Paciente eliminado permanentemente."}}
 
 

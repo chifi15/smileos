@@ -203,21 +203,18 @@ async def deactivate_patient(
 
 
 async def delete_patient_permanent(
-    db: AsyncSession, clinic_id: uuid.UUID, patient_id: uuid.UUID
+    clinic_id: uuid.UUID, patient_id: uuid.UUID
 ) -> None:
     """Elimina el paciente y todos sus registros vinculados en orden seguro."""
-    count = await db.scalar(
-        select(func.count(Patient.id)).where(
-            Patient.id == patient_id, Patient.clinic_id == clinic_id
-        )
-    )
-    if not count:
-        raise NotFoundError("Paciente")
-
-    # Usamos engine.begin() directamente para BYPASEAR completamente la sesión ORM
-    # y su identity map. Ningún objeto ORM entra en memoria → ningún cascade posible.
     pid = {"pid": patient_id}
     async with engine.begin() as conn:
+        # Existencia verificada aquí para no tocar la sesión ORM en absoluto.
+        row = await conn.execute(
+            text("SELECT 1 FROM patients WHERE id = :pid AND clinic_id = :cid LIMIT 1"),
+            {"pid": patient_id, "cid": clinic_id},
+        )
+        if not row.first():
+            raise NotFoundError("Paciente")
         await conn.execute(
             text("DELETE FROM treatment_plan_items WHERE treatment_plan_id IN (SELECT id FROM treatment_plans WHERE patient_id = :pid)"),
             pid,
