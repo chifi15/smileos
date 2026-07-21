@@ -158,10 +158,14 @@ export function useDeletePatientPermanent() {
       toast.success("Paciente eliminado permanentemente.");
     },
     onError: (err: unknown) => {
+      const data = (err as any)?.response?.data;
       const msg =
-        (err as any)?.response?.data?.detail ||
+        data?.detail ||
+        data?.error?.message ||
+        data?.message ||
+        JSON.stringify(data) ||
         "Error al eliminar el paciente.";
-      toast.error(msg);
+      toast.error(msg, { duration: 8000 });
     },
   });
 }

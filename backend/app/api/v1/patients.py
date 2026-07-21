@@ -1,7 +1,8 @@
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+import logging
+from fastapi import APIRouter, Depends, Query, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -183,6 +184,11 @@ async def delete_patient_permanent(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Elimina el paciente y todos sus registros vinculados de forma permanente."""
-    await patient_service.delete_patient_permanent(db, user.clinic_id, patient_id)
-    await db.commit()
+    try:
+        await patient_service.delete_patient_permanent(db, user.clinic_id, patient_id)
+        await db.commit()
+    except Exception as e:
+        await db.rollback()
+        logging.exception("Error al eliminar paciente %s", patient_id)
+        raise HTTPException(status_code=500, detail=f"Error al eliminar paciente: {str(e)}")
     return {"success": True, "data": {"message": "Paciente eliminado permanentemente."}}
