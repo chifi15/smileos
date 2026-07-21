@@ -70,7 +70,7 @@ async def get_patient(
 ) -> Patient:
     result = await db.execute(
         select(Patient)
-        .options(selectinload(Patient.rewards_account), selectinload(Patient.referred_by))
+        .options(selectinload(Patient.rewards_account))
         .where(Patient.id == patient_id, Patient.clinic_id == clinic_id)
     )
     patient = result.scalar_one_or_none()

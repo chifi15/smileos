@@ -38,7 +38,7 @@ class EvolutionUpdate(BaseModel):
     attendance: Literal["asistio", "no_asistio"] | None = None
 
 
-def _serialize(patient) -> dict:
+def _serialize(patient, referred_by_name: str | None = None) -> dict:
     rewards = patient.rewards_account
     return {
         "id": str(patient.id),
@@ -63,7 +63,7 @@ def _serialize(patient) -> dict:
         "current_medications": patient.current_medications,
         "chief_complaint": patient.chief_complaint,
         "referred_by_patient_id": str(patient.referred_by_patient_id) if patient.referred_by_patient_id else None,
-        "referred_by_name": patient.referred_by.full_name if patient.referred_by else None,
+        "referred_by_name": referred_by_name,
         "is_active": patient.is_active,
         "patient_number": patient.patient_number,
         "first_visit_date": patient.first_visit_date.isoformat() if patient.first_visit_date else None,
@@ -160,6 +160,19 @@ async def search_patients(
     }
 
 
+async def _get_referrer_name(db, referred_by_patient_id) -> str | None:
+    if not referred_by_patient_id:
+        return None
+    from app.models.patient import Patient as _Patient
+    result = await db.execute(
+        select(_Patient.first_name, _Patient.last_name).where(
+            _Patient.id == referred_by_patient_id
+        )
+    )
+    row = result.one_or_none()
+    return f"{row.first_name} {row.last_name}" if row else None
+
+
 @router.get("/{patient_id}")
 async def get_patient(
     patient_id: uuid.UUID,
@@ -167,7 +180,8 @@ async def get_patient(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     patient = await patient_service.get_patient(db, user.clinic_id, patient_id)
-    return {"success": True, "data": _serialize(patient)}
+    referred_by_name = await _get_referrer_name(db, patient.referred_by_patient_id)
+    return {"success": True, "data": _serialize(patient, referred_by_name)}
 
 
 @router.patch("/{patient_id}")
@@ -205,9 +219,10 @@ async def set_referral(
     patient, points_awarded = await patient_service.set_referral(
         db, user.clinic_id, patient_id, body.referrer_patient_id
     )
+    referred_by_name = await _get_referrer_name(db, patient.referred_by_patient_id)
     return {
         "success": True,
-        "data": _serialize(patient),
+        "data": _serialize(patient, referred_by_name),
         "points_awarded": points_awarded,
     }
 
