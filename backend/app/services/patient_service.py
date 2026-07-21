@@ -6,6 +6,7 @@ from sqlalchemy import select, func, or_, update, text
 from sqlalchemy.orm import selectinload
 
 from sqlalchemy import delete as sa_delete
+from app.core.database import engine
 
 from app.models.patient import Patient
 from app.models.rewards import RewardsAccount, RewardsTransaction
@@ -213,31 +214,31 @@ async def delete_patient_permanent(
     if not count:
         raise NotFoundError("Paciente")
 
-    # text() puro: zero ORM involvement, sin cascade, sin synchronize_session.
-    # asyncpg acepta uuid.UUID directamente como parámetro.
+    # Usamos engine.begin() directamente para BYPASEAR completamente la sesión ORM
+    # y su identity map. Ningún objeto ORM entra en memoria → ningún cascade posible.
     pid = {"pid": patient_id}
-
-    await db.execute(
-        text("DELETE FROM treatment_plan_items WHERE treatment_plan_id IN (SELECT id FROM treatment_plans WHERE patient_id = :pid)"),
-        pid,
-    )
-    await db.execute(text("DELETE FROM treatment_plans WHERE patient_id = :pid"), pid)
-    await db.execute(text("DELETE FROM odontogram_teeth WHERE patient_id = :pid"), pid)
-    await db.execute(text("DELETE FROM odontogram_snapshots WHERE patient_id = :pid"), pid)
-    await db.execute(text("DELETE FROM treatment_quotes WHERE patient_id = :pid"), pid)
-    await db.execute(text("DELETE FROM appointments WHERE patient_id = :pid"), pid)
-    await db.execute(text("DELETE FROM clinical_records WHERE patient_id = :pid"), pid)
-    await db.execute(text("DELETE FROM patient_evolutions WHERE patient_id = :pid"), pid)
-    await db.execute(
-        text("DELETE FROM rewards_transactions WHERE account_id IN (SELECT id FROM rewards_accounts WHERE patient_id = :pid)"),
-        pid,
-    )
-    await db.execute(text("DELETE FROM rewards_accounts WHERE patient_id = :pid"), pid)
-    await db.execute(text("DELETE FROM patient_photos WHERE patient_id = :pid"), pid)
-    await db.execute(text("UPDATE finance_transactions SET patient_id = NULL WHERE patient_id = :pid"), pid)
-    await db.execute(text("UPDATE patients SET referred_by_patient_id = NULL WHERE referred_by_patient_id = :pid"), pid)
-    await db.execute(text("DELETE FROM patients WHERE id = :pid"), pid)
-    await db.flush()
+    async with engine.begin() as conn:
+        await conn.execute(
+            text("DELETE FROM treatment_plan_items WHERE treatment_plan_id IN (SELECT id FROM treatment_plans WHERE patient_id = :pid)"),
+            pid,
+        )
+        await conn.execute(text("DELETE FROM treatment_plans WHERE patient_id = :pid"), pid)
+        await conn.execute(text("DELETE FROM odontogram_teeth WHERE patient_id = :pid"), pid)
+        await conn.execute(text("DELETE FROM odontogram_snapshots WHERE patient_id = :pid"), pid)
+        await conn.execute(text("DELETE FROM treatment_quotes WHERE patient_id = :pid"), pid)
+        await conn.execute(text("DELETE FROM appointments WHERE patient_id = :pid"), pid)
+        await conn.execute(text("DELETE FROM clinical_records WHERE patient_id = :pid"), pid)
+        await conn.execute(text("DELETE FROM patient_evolutions WHERE patient_id = :pid"), pid)
+        await conn.execute(
+            text("DELETE FROM rewards_transactions WHERE account_id IN (SELECT id FROM rewards_accounts WHERE patient_id = :pid)"),
+            pid,
+        )
+        await conn.execute(text("DELETE FROM rewards_accounts WHERE patient_id = :pid"), pid)
+        await conn.execute(text("DELETE FROM patient_photos WHERE patient_id = :pid"), pid)
+        await conn.execute(text("UPDATE finance_transactions SET patient_id = NULL WHERE patient_id = :pid"), pid)
+        await conn.execute(text("UPDATE patients SET referred_by_patient_id = NULL WHERE referred_by_patient_id = :pid"), pid)
+        await conn.execute(text("DELETE FROM patients WHERE id = :pid"), pid)
+    # engine.begin() hace commit automático al salir del bloque (o rollback si hay error)
 
 
 async def search_patients_simple(
