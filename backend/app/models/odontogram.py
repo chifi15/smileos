@@ -18,6 +18,9 @@ TOOTH_CONDITIONS = (
     "fractura",
     "necrosis_pulpar",
     "desgaste",
+    "amalgama",
+    "resina",
+    "material_temporal",
 )
 
 # Piezas adultas FDI: 11-18, 21-28, 31-38, 41-48

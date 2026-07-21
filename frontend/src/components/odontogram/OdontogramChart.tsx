@@ -8,9 +8,9 @@ const UPPER_ROW = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 2
 const LOWER_ROW = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38];
 
 const ALL_CONDITIONS: ToothCondition[] = [
-  "sano", "caries", "obturado", "endodoncia",
-  "corona", "extraccion_indicada", "extraido", "implante", "fractura",
-  "necrosis_pulpar", "desgaste",
+  "sano", "caries", "obturado", "amalgama", "resina", "material_temporal",
+  "endodoncia", "corona", "extraccion_indicada", "extraido", "implante",
+  "fractura", "necrosis_pulpar", "desgaste",
 ];
 
 // Configuración visual por condición
@@ -32,6 +32,9 @@ const CONDITION_STYLE: Record<ToothCondition, {
   fractura:            { bg: "#ffe4e6", border: "#be123c", label: "#881337", dot: "#be123c", symbol: "⚡" },
   necrosis_pulpar:     { bg: "#111827", border: "#111827", label: "#f9fafb", dot: "#f9fafb", symbol: "✦" },
   desgaste:            { bg: "#fffbeb", border: "#92400e", label: "#78350f", dot: "#92400e", symbol: "▽" },
+  amalgama:            { bg: "#e2e8f0", border: "#475569", label: "#1e293b", dot: "#475569", symbol: "▣" },
+  resina:              { bg: "#ecfeff", border: "#0891b2", label: "#164e63", dot: "#0891b2", symbol: "◎" },
+  material_temporal:   { bg: "#fff7ed", border: "#fb923c", label: "#9a3412", dot: "#fb923c", symbol: "⊗" },
 };
 
 // Forma SVG del diente

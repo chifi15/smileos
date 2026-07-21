@@ -515,7 +515,10 @@ export type ToothCondition =
   | "implante"
   | "fractura"
   | "necrosis_pulpar"
-  | "desgaste";
+  | "desgaste"
+  | "amalgama"
+  | "resina"
+  | "material_temporal";
 
 export const TOOTH_CONDITION_LABELS: Record<ToothCondition, string> = {
   sano: "Sano",
@@ -529,6 +532,9 @@ export const TOOTH_CONDITION_LABELS: Record<ToothCondition, string> = {
   fractura: "Fractura",
   necrosis_pulpar: "Necrosis Pulpar",
   desgaste: "Desgaste",
+  amalgama: "Amalgama",
+  resina: "Resina",
+  material_temporal: "Material Temporal",
 };
 
 export const TOOTH_CONDITION_COLORS: Record<ToothCondition, { bg: string; border: string; text: string; symbol: string }> = {
@@ -543,6 +549,9 @@ export const TOOTH_CONDITION_COLORS: Record<ToothCondition, { bg: string; border
   fractura:            { bg: "bg-rose-100",    border: "border-rose-600",   text: "text-rose-800",   symbol: "⚡" },
   necrosis_pulpar:     { bg: "bg-gray-900",    border: "border-gray-900",   text: "text-white",      symbol: "✦"  },
   desgaste:            { bg: "bg-amber-50",    border: "border-amber-700",  text: "text-amber-800",  symbol: "▽"  },
+  amalgama:            { bg: "bg-slate-200",   border: "border-slate-500",  text: "text-slate-800",  symbol: "▣"  },
+  resina:              { bg: "bg-cyan-50",     border: "border-cyan-600",   text: "text-cyan-800",   symbol: "◎"  },
+  material_temporal:   { bg: "bg-orange-50",   border: "border-orange-400", text: "text-orange-700", symbol: "⊗"  },
 };
 
 export interface OdontogramTooth {
