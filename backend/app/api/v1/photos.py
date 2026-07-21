@@ -1,5 +1,6 @@
 import uuid
-from typing import Annotated, Literal
+from datetime import date
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, Form, UploadFile, File, Query
 from fastapi.responses import StreamingResponse
@@ -7,7 +8,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import require_permission
-from app.schemas.photo import PhotoType, PhotoUpdate
+from app.core.exceptions import NotFoundError
+from app.schemas.photo import PhotoType, PhotoUpdate, PhotoReorderRequest
 from app.services import photo_service
 
 router = APIRouter(
@@ -27,6 +29,7 @@ def _serialize(p) -> dict:
         "file_size_bytes": p.file_size_bytes,
         "caption": p.caption,
         "taken_at": p.taken_at.isoformat() if p.taken_at else None,
+        "sort_order": p.sort_order,
         "uploaded_by": {
             "id": str(p.uploaded_by.id),
             "full_name": p.uploaded_by.full_name,
@@ -45,6 +48,7 @@ async def upload_photo(
     photo_type: PhotoType = Form(...),
     caption: str | None = Form(default=None),
     appointment_id: uuid.UUID | None = Form(default=None),
+    taken_at: date | None = Form(default=None),
 ):
     photo = await photo_service.upload_photo(
         db,
@@ -55,6 +59,7 @@ async def upload_photo(
         photo_type,
         caption,
         appointment_id,
+        taken_at_date=taken_at,
     )
     return {"success": True, "data": _serialize(photo)}
 
@@ -68,6 +73,17 @@ async def list_photos(
 ):
     photos = await photo_service.list_photos(db, user.clinic_id, patient_id, photo_type)
     return {"success": True, "data": [_serialize(p) for p in photos]}
+
+
+@router.put("/reorder")
+async def reorder_photos(
+    patient_id: uuid.UUID,
+    body: PhotoReorderRequest,
+    user: Annotated[object, require_permission("manage_photos")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    await photo_service.reorder_photos(db, user.clinic_id, patient_id, body.order)
+    return {"success": True}
 
 
 @router.get("/{photo_id}")
@@ -91,7 +107,10 @@ async def get_photo_file(
     """Sirve el archivo de imagen directamente (autenticado)."""
     photo = await photo_service.get_photo(db, user.clinic_id, patient_id, photo_id)
     from app.core import storage
-    data = storage.read_file(photo.storage_path)
+    try:
+        data = storage.read_file(photo.storage_path)
+    except (FileNotFoundError, OSError):
+        raise NotFoundError("Archivo de fotografía")
     return StreamingResponse(
         iter([data]),
         media_type=photo.mime_type,

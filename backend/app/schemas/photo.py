@@ -18,3 +18,7 @@ class PhotoUpdate(BaseModel):
     caption: str | None = None
     photo_type: PhotoType | None = None
     appointment_id: uuid.UUID | None = None
+
+
+class PhotoReorderRequest(BaseModel):
+    order: list[uuid.UUID]

@@ -46,6 +46,7 @@ class PatientPhoto(UUIDMixin, TimestampMixin, Base):
     caption: Mapped[str | None] = mapped_column(Text)
     taken_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
 
     # Relaciones
     patient: Mapped["Patient"] = relationship(back_populates="photos")

@@ -48,3 +48,16 @@ export function useDeletePhoto(patientId: string) {
     onError: () => toast.error("Error al eliminar la fotografía."),
   });
 }
+
+export function useReorderPhotos(patientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (order: string[]) =>
+      apiClient.put(`/api/v1/patients/${patientId}/photos/reorder`, { order }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["photos", patientId] });
+      toast.success("Orden guardado.");
+    },
+    onError: () => toast.error("Error al guardar el orden."),
+  });
+}

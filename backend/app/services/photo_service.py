@@ -1,5 +1,5 @@
 import uuid
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from fastapi import UploadFile
@@ -60,6 +60,7 @@ async def upload_photo(
     photo_type: str,
     caption: str | None,
     appointment_id: uuid.UUID | None,
+    taken_at_date: date | None = None,
 ) -> PatientPhoto:
     await _verify_patient(db, clinic_id, patient_id)
 
@@ -96,6 +97,11 @@ async def upload_photo(
 
     storage.save_file(storage_path, data)
 
+    if taken_at_date:
+        taken_at = datetime(taken_at_date.year, taken_at_date.month, taken_at_date.day, tzinfo=timezone.utc)
+    else:
+        taken_at = datetime.now(timezone.utc)
+
     photo = PatientPhoto(
         id=photo_id,
         clinic_id=clinic_id,
@@ -108,7 +114,7 @@ async def upload_photo(
         mime_type=file.content_type,
         file_size_bytes=len(data),
         caption=caption,
-        taken_at=datetime.now(timezone.utc),
+        taken_at=taken_at,
     )
     db.add(photo)
     await db.flush()
@@ -129,7 +135,7 @@ async def list_photos(
     )
     if photo_type:
         q = q.where(PatientPhoto.photo_type == photo_type)
-    q = q.options(*_LOAD_OPTIONS).order_by(PatientPhoto.taken_at.desc())
+    q = q.options(*_LOAD_OPTIONS).order_by(PatientPhoto.sort_order.asc(), PatientPhoto.taken_at.desc())
     result = await db.execute(q)
     return list(result.scalars().all())
 
@@ -183,3 +189,25 @@ async def get_photo_file_path(
     if not path.exists():
         raise NotFoundError("Archivo de fotografía")
     return path
+
+
+async def reorder_photos(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    patient_id: uuid.UUID,
+    photo_ids: list[uuid.UUID],
+) -> None:
+    await _verify_patient(db, clinic_id, patient_id)
+    for i, photo_id in enumerate(photo_ids):
+        result = await db.execute(
+            select(PatientPhoto).where(
+                PatientPhoto.id == photo_id,
+                PatientPhoto.clinic_id == clinic_id,
+                PatientPhoto.patient_id == patient_id,
+                PatientPhoto.is_active == True,  # noqa: E712
+            )
+        )
+        photo = result.scalar_one_or_none()
+        if photo:
+            photo.sort_order = i
+    await db.flush()

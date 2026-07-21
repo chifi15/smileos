@@ -460,6 +460,7 @@ export interface PatientPhoto {
   appointment_id: string | null;
   taken_at: string | null;
   created_at: string;
+  sort_order: number;
 }
 
 // ─── Clinic Settings ──────────────────────────────────────────────────────────

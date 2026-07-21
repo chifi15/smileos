@@ -1,14 +1,45 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, ImagePlus, Trash2, X, ChevronLeft as Prev, ChevronRight as Next, Camera } from "lucide-react";
+import {
+  ChevronLeft,
+  ImagePlus,
+  Trash2,
+  X,
+  ChevronLeft as Prev,
+  ChevronRight as Next,
+  Camera,
+  GripVertical,
+  ArrowLeftRight,
+  Check,
+} from "lucide-react";
 import { useDropzone } from "react-dropzone";
+import {
+  DndContext,
+  DragEndEvent,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  arrayMove,
+  rectSortingStrategy,
+  useSortable,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { usePatient } from "@/hooks/usePatients";
-import { usePatientPhotos, useUploadPhoto, useDeletePhoto } from "@/hooks/usePhotos";
+import {
+  usePatientPhotos,
+  useUploadPhoto,
+  useDeletePhoto,
+  useReorderPhotos,
+} from "@/hooks/usePhotos";
 import { PatientPhoto, PhotoType, PHOTO_TYPE_LABELS } from "@/types";
 import AuthImage from "@/components/ui/AuthImage";
 import Badge from "@/components/ui/Badge";
@@ -33,6 +64,8 @@ const photoTypeOptions = (Object.keys(PHOTO_TYPE_LABELS) as PhotoType[]).map((k)
   value: k,
   label: PHOTO_TYPE_LABELS[k],
 }));
+
+// ─── Upload Modal ─────────────────────────────────────────────────────────────
 
 interface UploadModalProps {
   open: boolean;
@@ -112,7 +145,9 @@ function UploadModal({ open, onClose, patientId }: UploadModalProps) {
             <Camera size={32} className="text-slate-300" />
             <div className="text-center">
               <p className="text-sm font-medium text-slate-600">
-                {isDragActive ? "Suelta la imagen aquí" : "Arrastra una imagen o haz clic para seleccionar"}
+                {isDragActive
+                  ? "Suelta la imagen aquí"
+                  : "Arrastra una imagen o haz clic para seleccionar"}
               </p>
               <p className="mt-1 text-xs text-slate-400">JPG, PNG o WebP</p>
             </div>
@@ -157,17 +192,15 @@ function UploadModal({ open, onClose, patientId }: UploadModalProps) {
         <Button variant="secondary" onClick={handleClose}>
           Cancelar
         </Button>
-        <Button
-          onClick={handleSubmit}
-          disabled={!file}
-          loading={upload.isPending}
-        >
+        <Button onClick={handleSubmit} disabled={!file} loading={upload.isPending}>
           Subir
         </Button>
       </div>
     </Modal>
   );
 }
+
+// ─── Lightbox ─────────────────────────────────────────────────────────────────
 
 interface LightboxProps {
   photos: PatientPhoto[];
@@ -178,7 +211,14 @@ interface LightboxProps {
   onNext: () => void;
 }
 
-function PhotoLightbox({ photos, index, patientId, onClose, onPrev, onNext }: LightboxProps) {
+function PhotoLightbox({
+  photos,
+  index,
+  patientId,
+  onClose,
+  onPrev,
+  onNext,
+}: LightboxProps) {
   const photo = photos[index];
 
   useEffect(() => {
@@ -196,7 +236,6 @@ function PhotoLightbox({ photos, index, patientId, onClose, onPrev, onNext }: Li
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/90"
       onClick={onClose}
     >
-      {/* Close */}
       <button
         className="absolute top-4 right-4 rounded-full bg-white/10 p-2 text-white hover:bg-white/20 transition-colors"
         onClick={onClose}
@@ -204,27 +243,30 @@ function PhotoLightbox({ photos, index, patientId, onClose, onPrev, onNext }: Li
         <X size={20} />
       </button>
 
-      {/* Prev */}
       {index > 0 && (
         <button
           className="absolute left-4 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 transition-colors"
-          onClick={(e) => { e.stopPropagation(); onPrev(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onPrev();
+          }}
         >
           <Prev size={20} />
         </button>
       )}
 
-      {/* Next */}
       {index < photos.length - 1 && (
         <button
           className="absolute right-4 rounded-full bg-white/10 p-3 text-white hover:bg-white/20 transition-colors"
-          onClick={(e) => { e.stopPropagation(); onNext(); }}
+          onClick={(e) => {
+            e.stopPropagation();
+            onNext();
+          }}
         >
           <Next size={20} />
         </button>
       )}
 
-      {/* Image */}
       <div
         className="flex flex-col items-center gap-3 max-w-4xl max-h-screen p-8"
         onClick={(e) => e.stopPropagation()}
@@ -237,13 +279,17 @@ function PhotoLightbox({ photos, index, patientId, onClose, onPrev, onNext }: Li
         <div className="flex items-center gap-3">
           <Badge
             label={PHOTO_TYPE_LABELS[photo.photo_type]}
-            className={`${PHOTO_TYPE_COLORS[photo.photo_type]}`}
+            className={PHOTO_TYPE_COLORS[photo.photo_type]}
           />
           {photo.caption && (
             <p className="text-sm text-white/80">{photo.caption}</p>
           )}
           <p className="text-xs text-white/50">
-            {format(parseISO(photo.taken_at ?? photo.created_at), "d MMM yyyy", { locale: es })}
+            {format(
+              parseISO(photo.taken_at ?? photo.created_at),
+              "d MMM yyyy",
+              { locale: es }
+            )}
           </p>
           <p className="text-xs text-white/40">
             {index + 1} / {photos.length}
@@ -254,22 +300,165 @@ function PhotoLightbox({ photos, index, patientId, onClose, onPrev, onNext }: Li
   );
 }
 
+// ─── Sortable Card ────────────────────────────────────────────────────────────
+
+interface SortableCardProps {
+  photo: PatientPhoto;
+  patientId: string;
+  globalIndex: number;
+  reorderMode: boolean;
+  onOpen: (index: number) => void;
+  onDelete: (photoId: string, e: React.MouseEvent) => void;
+}
+
+function SortablePhotoCard({
+  photo,
+  patientId,
+  globalIndex,
+  reorderMode,
+  onOpen,
+  onDelete,
+}: SortableCardProps) {
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: photo.id });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group relative overflow-hidden rounded-xl border bg-white shadow-sm transition-shadow ${
+        reorderMode
+          ? "border-blue-200 cursor-default"
+          : "border-slate-100 cursor-pointer hover:shadow-md"
+      }`}
+      onClick={reorderMode ? undefined : () => onOpen(globalIndex)}
+    >
+      {/* Drag handle */}
+      {reorderMode && (
+        <div
+          {...attributes}
+          {...listeners}
+          className="absolute top-2 left-2 z-10 rounded-md bg-white/90 p-1.5 shadow text-slate-400 hover:text-slate-600 cursor-grab active:cursor-grabbing"
+        >
+          <GripVertical size={14} />
+        </div>
+      )}
+
+      <AuthImage
+        src={`/api/v1/patients/${patientId}/photos/${photo.id}/file`}
+        alt={photo.caption ?? ""}
+        className="aspect-square w-full"
+      />
+
+      {!reorderMode && (
+        <button
+          className="absolute right-2 top-2 rounded-full bg-white/90 p-1.5 text-slate-400 opacity-0 shadow transition-opacity group-hover:opacity-100 hover:bg-red-50 hover:text-red-500"
+          onClick={(e) => onDelete(photo.id, e)}
+          title="Eliminar"
+        >
+          <Trash2 size={13} />
+        </button>
+      )}
+
+      <div className="p-2">
+        {photo.caption && (
+          <p className="truncate text-xs text-slate-600">{photo.caption}</p>
+        )}
+        <p className="text-xs text-slate-400">
+          {format(
+            parseISO(photo.taken_at ?? photo.created_at),
+            "d MMM yyyy",
+            { locale: es }
+          )}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function PatientPhotosPage() {
   const { id } = useParams<{ id: string }>();
   const { data: patient } = usePatient(id);
   const { data: photos = [], isLoading } = usePatientPhotos(id);
   const deletePhoto = useDeletePhoto(id);
+  const reorderPhotos = useReorderPhotos(id);
+
   const [showUpload, setShowUpload] = useState(false);
   const [lightboxIndex, setLightboxIndex] = useState<number>(-1);
+  const [reorderMode, setReorderMode] = useState(false);
+  // Local ordered IDs for optimistic drag feedback
+  const [orderedIds, setOrderedIds] = useState<string[]>([]);
 
-  const groupedPhotos = (Object.keys(PHOTO_TYPE_LABELS) as PhotoType[]).reduce(
-    (acc, type) => {
-      const group = photos.filter((p) => p.photo_type === type);
-      if (group.length > 0) acc[type] = group;
-      return acc;
-    },
-    {} as Partial<Record<PhotoType, PatientPhoto[]>>
+  // Sync local order when server data changes (and not dragging)
+  useEffect(() => {
+    setOrderedIds(photos.map((p) => p.id));
+  }, [photos]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
+
+  // Build ordered photo list from IDs
+  const orderedPhotos = useMemo(() => {
+    const map = Object.fromEntries(photos.map((p) => [p.id, p]));
+    return orderedIds.map((id) => map[id]).filter(Boolean) as PatientPhoto[];
+  }, [photos, orderedIds]);
+
+  // Group preserving custom order within each type
+  const groupedPhotos = useMemo(
+    () =>
+      (Object.keys(PHOTO_TYPE_LABELS) as PhotoType[]).reduce((acc, type) => {
+        const group = orderedPhotos.filter((p) => p.photo_type === type);
+        if (group.length > 0) acc[type] = group;
+        return acc;
+      }, {} as Partial<Record<PhotoType, PatientPhoto[]>>),
+    [orderedPhotos]
+  );
+
+  function handleDragEnd(event: DragEndEvent, type: PhotoType) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+
+    const group = groupedPhotos[type]!;
+    const oldIndex = group.findIndex((p) => p.id === active.id);
+    const newIndex = group.findIndex((p) => p.id === over.id);
+    const newGroup = arrayMove(group, oldIndex, newIndex);
+
+    // Reconstruct full ordered list with this group replaced
+    const newOrderedIds = (Object.keys(PHOTO_TYPE_LABELS) as PhotoType[]).flatMap(
+      (t) => {
+        if (t === type) return newGroup.map((p) => p.id);
+        return (groupedPhotos[t] ?? []).map((p) => p.id);
+      }
+    );
+    setOrderedIds(newOrderedIds);
+  }
+
+  function handleSaveOrder() {
+    reorderPhotos.mutate(orderedIds, {
+      onSuccess: () => setReorderMode(false),
+    });
+  }
+
+  function handleCancelReorder() {
+    setOrderedIds(photos.map((p) => p.id));
+    setReorderMode(false);
+  }
 
   function handleDelete(photoId: string, e: React.MouseEvent) {
     e.stopPropagation();
@@ -280,7 +469,7 @@ export default function PatientPhotosPage() {
 
   return (
     <div className="p-6 space-y-5">
-      {/* Breadcrumb */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <Link
@@ -292,11 +481,43 @@ export default function PatientPhotosPage() {
           </Link>
           <h1 className="mt-2 text-xl font-semibold text-slate-800">Fotografías</h1>
         </div>
-        <Button onClick={() => setShowUpload(true)}>
-          <ImagePlus size={16} />
-          Subir foto
-        </Button>
+
+        <div className="flex items-center gap-2">
+          {photos.length > 1 && !reorderMode && (
+            <Button variant="secondary" size="sm" onClick={() => setReorderMode(true)}>
+              <ArrowLeftRight size={14} />
+              Reordenar
+            </Button>
+          )}
+          {reorderMode && (
+            <>
+              <Button variant="secondary" size="sm" onClick={handleCancelReorder}>
+                Cancelar
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSaveOrder}
+                loading={reorderPhotos.isPending}
+              >
+                <Check size={14} />
+                Guardar orden
+              </Button>
+            </>
+          )}
+          {!reorderMode && (
+            <Button onClick={() => setShowUpload(true)}>
+              <ImagePlus size={16} />
+              Subir foto
+            </Button>
+          )}
+        </div>
       </div>
+
+      {reorderMode && (
+        <p className="text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-4 py-2">
+          Arrastra las fotos para cambiar el orden dentro de cada grupo. Haz clic en "Guardar orden" cuando termines.
+        </p>
+      )}
 
       {isLoading ? (
         <div className="flex justify-center py-16">
@@ -321,43 +542,36 @@ export default function PatientPhotosPage() {
                     ({group.length})
                   </span>
                 </h2>
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
-                  {group.map((photo) => {
-                    const globalIndex = photos.findIndex((p) => p.id === photo.id);
-                    return (
-                      <div
-                        key={photo.id}
-                        className="group relative cursor-pointer overflow-hidden rounded-xl border border-slate-100 bg-white shadow-sm hover:shadow-md transition-shadow"
-                        onClick={() => setLightboxIndex(globalIndex)}
-                      >
-                        <AuthImage
-                          src={`/api/v1/patients/${id}/photos/${photo.id}/file`}
-                          alt={photo.caption ?? ""}
-                          className="aspect-square w-full"
-                        />
-                        <button
-                          className="absolute right-2 top-2 rounded-full bg-white/90 p-1.5 text-slate-400 opacity-0 shadow transition-opacity group-hover:opacity-100 hover:bg-red-50 hover:text-red-500"
-                          onClick={(e) => handleDelete(photo.id, e)}
-                          title="Eliminar"
-                        >
-                          <Trash2 size={13} />
-                        </button>
-                        <div className="p-2">
-                          {photo.caption && (
-                            <p className="truncate text-xs text-slate-600">{photo.caption}</p>
-                          )}
-                          <p className="text-xs text-slate-400">
-                            {format(
-                              parseISO(photo.taken_at ?? photo.created_at),
-                              "d MMM yyyy",
-                              { locale: es }
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+
+                <DndContext
+                  sensors={sensors}
+                  collisionDetection={closestCenter}
+                  onDragEnd={(e) => handleDragEnd(e, type)}
+                >
+                  <SortableContext
+                    items={group.map((p) => p.id)}
+                    strategy={rectSortingStrategy}
+                  >
+                    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+                      {group.map((photo) => {
+                        const globalIndex = orderedPhotos.findIndex(
+                          (p) => p.id === photo.id
+                        );
+                        return (
+                          <SortablePhotoCard
+                            key={photo.id}
+                            photo={photo}
+                            patientId={id}
+                            globalIndex={globalIndex}
+                            reorderMode={reorderMode}
+                            onOpen={setLightboxIndex}
+                            onDelete={handleDelete}
+                          />
+                        );
+                      })}
+                    </div>
+                  </SortableContext>
+                </DndContext>
               </div>
             )
           )}
@@ -372,12 +586,14 @@ export default function PatientPhotosPage() {
 
       {lightboxIndex >= 0 && (
         <PhotoLightbox
-          photos={photos}
+          photos={orderedPhotos}
           index={lightboxIndex}
           patientId={id}
           onClose={() => setLightboxIndex(-1)}
           onPrev={() => setLightboxIndex((i) => Math.max(0, i - 1))}
-          onNext={() => setLightboxIndex((i) => Math.min(photos.length - 1, i + 1))}
+          onNext={() =>
+            setLightboxIndex((i) => Math.min(orderedPhotos.length - 1, i + 1))
+          }
         />
       )}
     </div>
