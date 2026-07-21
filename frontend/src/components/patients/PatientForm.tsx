@@ -95,18 +95,19 @@ export default function PatientForm({
             onChange={field("last_name")}
             required
           />
-          <div>
-            <Input
-              label="Fecha de nacimiento"
-              type="date"
-              value={values.date_of_birth}
-              onChange={field("date_of_birth")}
-            />
-            {calcAge(values.date_of_birth) && (
-              <p className="mt-1 text-xs text-slate-500 font-medium">
-                Edad: {calcAge(values.date_of_birth)}
-              </p>
-            )}
+          <Input
+            label="Fecha de nacimiento"
+            type="date"
+            value={values.date_of_birth}
+            onChange={field("date_of_birth")}
+          />
+          <div className="flex flex-col gap-1">
+            <label className="text-sm font-medium text-slate-700">Edad</label>
+            <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700">
+              {calcAge(values.date_of_birth) ?? (
+                <span className="text-slate-400">—</span>
+              )}
+            </div>
           </div>
           <Select
             label="Género"
