@@ -14,6 +14,7 @@ from app.models.treatment import TreatmentPlan, TreatmentPlanItem
 from app.models.appointment import Appointment
 from app.models.clinical_record import ClinicalRecord
 from app.models.finance import FinanceTransaction
+from app.models.photo import PatientPhoto
 from app.schemas.patient import PatientCreate, PatientUpdate
 from app.core.exceptions import NotFoundError, ConflictError
 
@@ -227,21 +228,24 @@ async def delete_patient_permanent(
     await db.execute(sa_delete(RewardsTransaction).where(RewardsTransaction.account_id.in_(account_ids_q)))
     await db.execute(sa_delete(RewardsAccount).where(RewardsAccount.patient_id == patient_id))
 
-    # 6. Finanzas: desvincular (no eliminar registros financieros)
+    # 6. Fotografías
+    await db.execute(sa_delete(PatientPhoto).where(PatientPhoto.patient_id == patient_id))
+
+    # 7. Finanzas: desvincular (no eliminar registros financieros)
     await db.execute(
         update(FinanceTransaction)
         .where(FinanceTransaction.patient_id == patient_id)
         .values(patient_id=None)
     )
 
-    # 7. Quitar referencia de otros pacientes que fueron referidos por este
+    # 8. Quitar referencia de otros pacientes que fueron referidos por este
     await db.execute(
         update(Patient)
         .where(Patient.referred_by_patient_id == patient_id)
         .values(referred_by_patient_id=None)
     )
 
-    # 8. Paciente
+    # 9. Paciente
     await db.delete(patient)
     await db.flush()
 
