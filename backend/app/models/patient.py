@@ -55,7 +55,7 @@ class Patient(UUIDMixin, TimestampMixin, Base):
     appointments: Mapped[list["Appointment"]] = relationship(back_populates="patient")
     rewards_account: Mapped["RewardsAccount"] = relationship(back_populates="patient", uselist=False)
     treatment_plans: Mapped[list["TreatmentPlan"]] = relationship(back_populates="patient")
-    photos: Mapped[list["PatientPhoto"]] = relationship(back_populates="patient")
+    photos: Mapped[list["PatientPhoto"]] = relationship(back_populates="patient", passive_deletes=True)
     referred_by: Mapped["Patient | None"] = relationship(
         foreign_keys=[referred_by_patient_id], remote_side="Patient.id"
     )

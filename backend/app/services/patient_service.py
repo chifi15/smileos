@@ -205,48 +205,66 @@ async def delete_patient_permanent(
     db: AsyncSession, clinic_id: uuid.UUID, patient_id: uuid.UUID
 ) -> None:
     """Elimina el paciente y todos sus registros vinculados en orden seguro."""
-    patient = await get_patient(db, clinic_id, patient_id)
+    # Verificar existencia sin cargar el objeto en el identity map de SQLAlchemy,
+    # porque cargar el Patient dispara cascade ORM al hacer el DELETE final.
+    count = await db.scalar(
+        select(func.count(Patient.id)).where(
+            Patient.id == patient_id, Patient.clinic_id == clinic_id
+        )
+    )
+    if not count:
+        raise NotFoundError("Paciente")
+
+    # synchronize_session=False en todos los deletes para que el ORM no intente
+    # sincronizar objetos en memoria ni disparar cascade — el DB CASCADE en
+    # patient_photos.patient_id maneja las fotos automáticamente.
+    _no_sync: dict = {"synchronize_session": False}
 
     # 1. TreatmentPlanItems → TreatmentPlans
     plan_ids_q = select(TreatmentPlan.id).where(TreatmentPlan.patient_id == patient_id)
-    await db.execute(sa_delete(TreatmentPlanItem).where(TreatmentPlanItem.treatment_plan_id.in_(plan_ids_q)))
-    await db.execute(sa_delete(TreatmentPlan).where(TreatmentPlan.patient_id == patient_id))
+    await db.execute(sa_delete(TreatmentPlanItem).where(TreatmentPlanItem.treatment_plan_id.in_(plan_ids_q)), execution_options=_no_sync)
+    await db.execute(sa_delete(TreatmentPlan).where(TreatmentPlan.patient_id == patient_id), execution_options=_no_sync)
 
     # 2. Odontograma
-    await db.execute(sa_delete(OdontogramTooth).where(OdontogramTooth.patient_id == patient_id))
-    await db.execute(sa_delete(OdontogramSnapshot).where(OdontogramSnapshot.patient_id == patient_id))
-    await db.execute(sa_delete(TreatmentQuote).where(TreatmentQuote.patient_id == patient_id))
+    await db.execute(sa_delete(OdontogramTooth).where(OdontogramTooth.patient_id == patient_id), execution_options=_no_sync)
+    await db.execute(sa_delete(OdontogramSnapshot).where(OdontogramSnapshot.patient_id == patient_id), execution_options=_no_sync)
+    await db.execute(sa_delete(TreatmentQuote).where(TreatmentQuote.patient_id == patient_id), execution_options=_no_sync)
 
     # 3. Citas
-    await db.execute(sa_delete(Appointment).where(Appointment.patient_id == patient_id))
+    await db.execute(sa_delete(Appointment).where(Appointment.patient_id == patient_id), execution_options=_no_sync)
 
     # 4. Historia clínica
-    await db.execute(sa_delete(ClinicalRecord).where(ClinicalRecord.patient_id == patient_id))
+    await db.execute(sa_delete(ClinicalRecord).where(ClinicalRecord.patient_id == patient_id), execution_options=_no_sync)
 
     # 5. Rewards: transacciones → cuenta
     account_ids_q = select(RewardsAccount.id).where(RewardsAccount.patient_id == patient_id)
-    await db.execute(sa_delete(RewardsTransaction).where(RewardsTransaction.account_id.in_(account_ids_q)))
-    await db.execute(sa_delete(RewardsAccount).where(RewardsAccount.patient_id == patient_id))
+    await db.execute(sa_delete(RewardsTransaction).where(RewardsTransaction.account_id.in_(account_ids_q)), execution_options=_no_sync)
+    await db.execute(sa_delete(RewardsAccount).where(RewardsAccount.patient_id == patient_id), execution_options=_no_sync)
 
-    # 6. Fotografías
-    await db.execute(sa_delete(PatientPhoto).where(PatientPhoto.patient_id == patient_id))
+    # 6. Fotografías (el FK tiene ondelete="CASCADE" pero lo hacemos explícito por claridad)
+    await db.execute(sa_delete(PatientPhoto).where(PatientPhoto.patient_id == patient_id), execution_options=_no_sync)
 
     # 7. Finanzas: desvincular (no eliminar registros financieros)
     await db.execute(
         update(FinanceTransaction)
         .where(FinanceTransaction.patient_id == patient_id)
-        .values(patient_id=None)
+        .values(patient_id=None),
+        execution_options=_no_sync,
     )
 
     # 8. Quitar referencia de otros pacientes que fueron referidos por este
     await db.execute(
         update(Patient)
         .where(Patient.referred_by_patient_id == patient_id)
-        .values(referred_by_patient_id=None)
+        .values(referred_by_patient_id=None),
+        execution_options=_no_sync,
     )
 
-    # 9. Paciente (Core DELETE para evitar cascade ORM sobre FK en memoria)
-    await db.execute(sa_delete(Patient).where(Patient.id == patient_id))
+    # 9. Paciente — synchronize_session=False garantiza cero cascade ORM
+    await db.execute(
+        sa_delete(Patient).where(Patient.id == patient_id),
+        execution_options=_no_sync,
+    )
     await db.flush()
 
 
