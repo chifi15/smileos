@@ -61,7 +61,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     "clinic_owner": PERMISSIONS,  # acceso total
 
     "admin": frozenset({
-        "view_patients", "manage_patients",
+        "view_patients", "manage_patients", "delete_patients",
         "view_appointments", "manage_appointments", "complete_appointments",
         "view_clinical_records", "manage_clinical_records", "add_addenda",
         "view_treatments", "manage_treatments",
@@ -75,7 +75,7 @@ ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
     }),
 
     "dentist": frozenset({
-        "view_patients", "manage_patients",
+        "view_patients", "manage_patients", "delete_patients",
         "view_appointments", "manage_appointments", "complete_appointments",
         "view_clinical_records", "manage_clinical_records", "add_addenda",
         "view_treatments", "manage_treatments",
