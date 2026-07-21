@@ -215,23 +215,26 @@ async def delete_patient_permanent(
         )
         if not row.first():
             raise NotFoundError("Paciente")
-        await conn.execute(
-            text("DELETE FROM treatment_plan_items WHERE treatment_plan_id IN (SELECT id FROM treatment_plans WHERE patient_id = :pid)"),
-            pid,
-        )
-        await conn.execute(text("DELETE FROM treatment_plans WHERE patient_id = :pid"), pid)
-        await conn.execute(text("DELETE FROM odontogram_teeth WHERE patient_id = :pid"), pid)
-        await conn.execute(text("DELETE FROM odontogram_snapshots WHERE patient_id = :pid"), pid)
-        await conn.execute(text("DELETE FROM treatment_quotes WHERE patient_id = :pid"), pid)
-        await conn.execute(text("DELETE FROM appointments WHERE patient_id = :pid"), pid)
+        # Primero lo que referencia appointments (FK sin ondelete → deben ir antes)
         await conn.execute(text("DELETE FROM clinical_records WHERE patient_id = :pid"), pid)
-        await conn.execute(text("DELETE FROM patient_evolutions WHERE patient_id = :pid"), pid)
         await conn.execute(
             text("DELETE FROM rewards_transactions WHERE account_id IN (SELECT id FROM rewards_accounts WHERE patient_id = :pid)"),
             pid,
         )
-        await conn.execute(text("DELETE FROM rewards_accounts WHERE patient_id = :pid"), pid)
         await conn.execute(text("DELETE FROM patient_photos WHERE patient_id = :pid"), pid)
+        await conn.execute(
+            text("DELETE FROM treatment_plan_items WHERE treatment_plan_id IN (SELECT id FROM treatment_plans WHERE patient_id = :pid)"),
+            pid,
+        )
+        # Ahora appointments es seguro (ningún hijo lo referencia ya)
+        await conn.execute(text("DELETE FROM appointments WHERE patient_id = :pid"), pid)
+        # Resto de tablas hijas del paciente
+        await conn.execute(text("DELETE FROM treatment_plans WHERE patient_id = :pid"), pid)
+        await conn.execute(text("DELETE FROM odontogram_teeth WHERE patient_id = :pid"), pid)
+        await conn.execute(text("DELETE FROM odontogram_snapshots WHERE patient_id = :pid"), pid)
+        await conn.execute(text("DELETE FROM treatment_quotes WHERE patient_id = :pid"), pid)
+        await conn.execute(text("DELETE FROM patient_evolutions WHERE patient_id = :pid"), pid)
+        await conn.execute(text("DELETE FROM rewards_accounts WHERE patient_id = :pid"), pid)
         await conn.execute(text("UPDATE finance_transactions SET patient_id = NULL WHERE patient_id = :pid"), pid)
         await conn.execute(text("UPDATE patients SET referred_by_patient_id = NULL WHERE referred_by_patient_id = :pid"), pid)
         await conn.execute(text("DELETE FROM patients WHERE id = :pid"), pid)
