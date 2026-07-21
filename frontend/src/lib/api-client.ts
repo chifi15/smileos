@@ -28,6 +28,30 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+// Mutex para evitar múltiples refreshes simultáneos
+let _refreshPromise: Promise<string> | null = null;
+
+async function refreshToken(): Promise<string> {
+  if (_refreshPromise) return _refreshPromise;
+
+  _refreshPromise = axios
+    .post(
+      `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/refresh`,
+      {},
+      { withCredentials: true }
+    )
+    .then((res) => {
+      const token = res.data.data.access_token;
+      setAccessToken(token);
+      return token;
+    })
+    .finally(() => {
+      _refreshPromise = null;
+    });
+
+  return _refreshPromise;
+}
+
 // Renovar access token automáticamente con el refresh token
 apiClient.interceptors.response.use(
   (response) => response,
@@ -37,13 +61,8 @@ apiClient.interceptors.response.use(
     if (error.response?.status === 401 && !original._retry && !isAuthEndpoint) {
       original._retry = true;
       try {
-        const { data } = await axios.post(
-          `${process.env.NEXT_PUBLIC_API_URL}/api/v1/auth/refresh`,
-          {},
-          { withCredentials: true }
-        );
-        setAccessToken(data.data.access_token);
-        original.headers.Authorization = `Bearer ${data.data.access_token}`;
+        const token = await refreshToken();
+        original.headers.Authorization = `Bearer ${token}`;
         return apiClient(original);
       } catch {
         clearAccessToken();

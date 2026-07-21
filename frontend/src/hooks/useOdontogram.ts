@@ -121,5 +121,8 @@ export function useSaveTreatmentQuote(patientId: string) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["quote", patientId] });
     },
+    onError: () => {
+      toast.error("Error al guardar la cotización. Verifica tu conexión.", { id: "quote-save" });
+    },
   });
 }
