@@ -48,8 +48,13 @@ async def create_evolution(
     )
     db.add(evo)
     await db.flush()
-    await db.refresh(evo, ["created_by"])
-    return evo
+    # Re-query to eager-load the relationship
+    result = await db.execute(
+        select(PatientEvolution)
+        .where(PatientEvolution.id == evo.id)
+        .options(selectinload(PatientEvolution.created_by))
+    )
+    return result.scalar_one()
 
 
 async def update_evolution(

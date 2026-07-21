@@ -33,7 +33,12 @@ export function useCreateEvolution(patientId: string, onSuccess?: () => void) {
       onSuccess?.();
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.error?.message || "Error al guardar la nota.");
+      const msg =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Error al guardar la nota.";
+      toast.error(msg);
     },
   });
 }
@@ -59,7 +64,12 @@ export function useUpdateEvolution(patientId: string) {
       toast.success("Nota actualizada.");
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.error?.message || "Error al actualizar la nota.");
+      const msg =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.detail ||
+        err?.message ||
+        "Error al actualizar la nota.";
+      toast.error(msg);
     },
   });
 }
