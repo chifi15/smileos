@@ -109,6 +109,18 @@ export default function PatientForm({
               )}
             </div>
           </div>
+          <Input
+            label="Ciudad"
+            value={values.city}
+            onChange={field("city")}
+            placeholder="Masaya, Managua..."
+          />
+          <Input
+            label="País"
+            value={values.country}
+            onChange={field("country")}
+            placeholder="Nicaragua"
+          />
           <Select
             label="Género"
             value={values.gender}
@@ -120,7 +132,6 @@ export default function PatientForm({
             value={values.id_number}
             onChange={field("id_number")}
             placeholder="001-000000-0000X"
-            className="sm:col-span-2"
           />
         </div>
       </Section>
@@ -165,18 +176,6 @@ export default function PatientForm({
             onChange={field("address")}
             placeholder="Colonia, calle, número de casa"
             className="sm:col-span-2"
-          />
-          <Input
-            label="Ciudad"
-            value={values.city}
-            onChange={field("city")}
-            placeholder="Masaya, Managua..."
-          />
-          <Input
-            label="País"
-            value={values.country}
-            onChange={field("country")}
-            placeholder="Nicaragua"
           />
           <Input
             label="Contacto de emergencia"
