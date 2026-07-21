@@ -248,11 +248,14 @@ async def delete_patient_permanent(
     """Elimina el paciente y todos sus registros vinculados de forma permanente."""
     try:
         await patient_service.delete_patient_permanent(db, user.clinic_id, patient_id)
-        await db.commit()
     except Exception as e:
         await db.rollback()
         logging.exception("Error al eliminar paciente %s", patient_id)
         raise HTTPException(status_code=500, detail=f"Error al eliminar paciente: {str(e)}")
+    # engine.begin() ya commitió los cambios en una conexión separada.
+    # Limpiamos el identity map antes del commit para que la sesión ORM no intente
+    # hacer flush de objetos fantasma (ej. PatientPhoto con patient_id=None).
+    db.sync_session.expunge_all()
     return {"success": True, "data": {"message": "Paciente eliminado permanentemente."}}
 
 
