@@ -1,9 +1,13 @@
 import uuid
-from typing import Annotated
+from datetime import date as date_type
+from typing import Annotated, Literal
 
 import logging
 from fastapi import APIRouter, Depends, Query, HTTPException
+from pydantic import BaseModel, field_validator
+from sqlalchemy import select, desc, text
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentUser, require_permission
@@ -11,6 +15,27 @@ from app.schemas.patient import PatientCreate, PatientUpdate, PatientOut, Patien
 from app.services import patient_service
 
 router = APIRouter(prefix="/patients", tags=["Pacientes"])
+
+
+# ─── Evolución clínica ────────────────────────────────────────────────────────
+
+class EvolutionCreate(BaseModel):
+    date: date_type
+    note: str
+    attendance: Literal["asistio", "no_asistio"] | None = None
+
+    @field_validator("note")
+    @classmethod
+    def note_not_empty(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("La nota no puede estar vacía.")
+        return v.strip()
+
+
+class EvolutionUpdate(BaseModel):
+    date: date_type | None = None
+    note: str | None = None
+    attendance: Literal["asistio", "no_asistio"] | None = None
 
 
 def _serialize(patient) -> dict:
@@ -192,3 +217,120 @@ async def delete_patient_permanent(
         logging.exception("Error al eliminar paciente %s", patient_id)
         raise HTTPException(status_code=500, detail=f"Error al eliminar paciente: {str(e)}")
     return {"success": True, "data": {"message": "Paciente eliminado permanentemente."}}
+
+
+def _serialize_evo(evo) -> dict:
+    return {
+        "id": str(evo.id),
+        "patient_id": str(evo.patient_id),
+        "date": evo.date.isoformat(),
+        "note": evo.note,
+        "attendance": evo.attendance,
+        "created_by": {
+            "id": str(evo.created_by.id),
+            "full_name": evo.created_by.full_name,
+        } if evo.created_by else None,
+        "created_at": evo.created_at.isoformat(),
+        "updated_at": evo.updated_at.isoformat(),
+    }
+
+
+async def _get_evo(db: AsyncSession, clinic_id: uuid.UUID, patient_id: uuid.UUID, evolution_id: uuid.UUID):
+    from app.models.evolution import PatientEvolution
+    result = await db.execute(
+        select(PatientEvolution)
+        .where(
+            PatientEvolution.id == evolution_id,
+            PatientEvolution.clinic_id == clinic_id,
+            PatientEvolution.patient_id == patient_id,
+        )
+        .options(selectinload(PatientEvolution.created_by))
+    )
+    evo = result.scalar_one_or_none()
+    if not evo:
+        raise HTTPException(status_code=404, detail="Nota de evolución no encontrada.")
+    return evo
+
+
+@router.get("/{patient_id}/evolutions")
+async def list_evolutions(
+    patient_id: uuid.UUID,
+    user: Annotated[object, require_permission("view_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from app.models.evolution import PatientEvolution
+    result = await db.execute(
+        select(PatientEvolution)
+        .where(
+            PatientEvolution.clinic_id == user.clinic_id,
+            PatientEvolution.patient_id == patient_id,
+        )
+        .options(selectinload(PatientEvolution.created_by))
+        .order_by(desc(PatientEvolution.date), desc(PatientEvolution.created_at))
+    )
+    evos = list(result.scalars().all())
+    return {"success": True, "data": [_serialize_evo(e) for e in evos]}
+
+
+@router.post("/{patient_id}/evolutions", status_code=201)
+async def create_evolution(
+    patient_id: uuid.UUID,
+    body: EvolutionCreate,
+    user: Annotated[object, require_permission("manage_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from app.models.evolution import PatientEvolution
+    evo = PatientEvolution(
+        clinic_id=user.clinic_id,
+        patient_id=patient_id,
+        created_by_id=user.id,
+        date=body.date,
+        note=body.note,
+        attendance=body.attendance,
+    )
+    db.add(evo)
+    await db.flush()
+    result = await db.execute(
+        select(PatientEvolution)
+        .where(PatientEvolution.id == evo.id)
+        .options(selectinload(PatientEvolution.created_by))
+    )
+    evo = result.scalar_one()
+    await db.commit()
+    return {"success": True, "data": _serialize_evo(evo)}
+
+
+@router.patch("/{patient_id}/evolutions/{evolution_id}")
+async def update_evolution(
+    patient_id: uuid.UUID,
+    evolution_id: uuid.UUID,
+    body: EvolutionUpdate,
+    user: Annotated[object, require_permission("manage_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    evo = await _get_evo(db, user.clinic_id, patient_id, evolution_id)
+    data = body.model_dump(exclude_unset=True)
+    for k, v in data.items():
+        setattr(evo, k, v)
+    await db.commit()
+    await db.refresh(evo)
+    result = await db.execute(
+        select(evo.__class__)
+        .where(evo.__class__.id == evo.id)
+        .options(selectinload(evo.__class__.created_by))
+    )
+    evo = result.scalar_one()
+    return {"success": True, "data": _serialize_evo(evo)}
+
+
+@router.delete("/{patient_id}/evolutions/{evolution_id}")
+async def delete_evolution(
+    patient_id: uuid.UUID,
+    evolution_id: uuid.UUID,
+    user: Annotated[object, require_permission("manage_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    evo = await _get_evo(db, user.clinic_id, patient_id, evolution_id)
+    await db.delete(evo)
+    await db.commit()
+    return {"success": True}
