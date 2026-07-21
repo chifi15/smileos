@@ -463,7 +463,15 @@ async def get_account_for_patient(
     )
     account = result.scalar_one_or_none()
     if not account:
-        raise NotFoundError("Cuenta Smile Rewards")
+        # Paciente creado antes del sistema de rewards; crear cuenta automáticamente.
+        account = RewardsAccount(
+            clinic_id=clinic_id,
+            patient_id=patient_id,
+            total_points=0,
+            level="starter",
+        )
+        db.add(account)
+        await db.flush()
 
     if account.last_visit_date:
         cutoff = datetime.now(timezone.utc) - timedelta(days=365)
