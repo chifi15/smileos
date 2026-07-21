@@ -658,3 +658,19 @@ export interface TransactionCreatePayload {
   transaction_date: string;
   notes?: string;
 }
+
+
+// ─── Evolución Clínica ────────────────────────────────────────────────────────
+
+export type EvolutionAttendance = "asistio" | "no_asistio";
+
+export interface PatientEvolution {
+  id: string;
+  patient_id: string;
+  date: string;
+  note: string;
+  attendance: EvolutionAttendance | null;
+  created_by: { id: string; full_name: string } | null;
+  created_at: string;
+  updated_at: string;
+}
