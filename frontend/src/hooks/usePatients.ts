@@ -156,6 +156,7 @@ export function useDeletePatientPermanent() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["patients"] });
       toast.success("Paciente eliminado permanentemente.");
+      router.push("/patients");
     },
     onError: (err: unknown) => {
       const data = (err as any)?.response?.data;
@@ -178,7 +179,7 @@ export function useSetReferral(patientId: string, onSuccess?: () => void) {
         referrer_patient_id: referrerPatientId,
       }),
     onSuccess: (res) => {
-      qc.invalidateQueries({ queryKey: ["patient", patientId] });
+      qc.invalidateQueries({ queryKey: ["patients", patientId] });
       const pointsAwarded = (res.data as any).points_awarded;
       if (pointsAwarded) {
         toast.success("Referidor asignado. Se otorgaron los puntos de referido.");
@@ -188,7 +189,9 @@ export function useSetReferral(patientId: string, onSuccess?: () => void) {
       onSuccess?.();
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.detail || "Error al asignar el referidor.");
+      const data = err?.response?.data;
+      const msg = data?.detail || data?.error?.message || "Error al asignar el referidor.";
+      toast.error(msg);
     },
   });
 }
