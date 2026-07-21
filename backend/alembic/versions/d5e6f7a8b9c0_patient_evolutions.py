@@ -1,7 +1,7 @@
 """add patient_evolutions table
 
-Revision ID: a1b2c3d4e5f6
-Revises: f3a4b5c6d7e8
+Revision ID: d5e6f7a8b9c0
+Revises: c3d4e5f6a7b8
 Create Date: 2026-07-20
 
 """
@@ -9,8 +9,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import UUID
 
-revision = 'a1b2c3d4e5f6'
-down_revision = 'f3a4b5c6d7e8'
+revision = 'd5e6f7a8b9c0'
+down_revision = 'c3d4e5f6a7b8'
 branch_labels = None
 depends_on = None
 
