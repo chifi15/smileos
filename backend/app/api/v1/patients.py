@@ -63,6 +63,7 @@ def _serialize(patient) -> dict:
         "current_medications": patient.current_medications,
         "chief_complaint": patient.chief_complaint,
         "referred_by_patient_id": str(patient.referred_by_patient_id) if patient.referred_by_patient_id else None,
+        "referred_by_name": patient.referred_by.full_name if patient.referred_by else None,
         "is_active": patient.is_active,
         "patient_number": patient.patient_number,
         "first_visit_date": patient.first_visit_date.isoformat() if patient.first_visit_date else None,
@@ -188,6 +189,27 @@ async def deactivate_patient(
 ):
     await patient_service.deactivate_patient(db, user.clinic_id, patient_id)
     return {"success": True, "data": {"message": "Paciente desactivado correctamente."}}
+
+
+class SetReferralRequest(BaseModel):
+    referrer_patient_id: uuid.UUID | None
+
+
+@router.patch("/{patient_id}/referral")
+async def set_referral(
+    patient_id: uuid.UUID,
+    body: SetReferralRequest,
+    user: Annotated[object, require_permission("manage_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    patient, points_awarded = await patient_service.set_referral(
+        db, user.clinic_id, patient_id, body.referrer_patient_id
+    )
+    return {
+        "success": True,
+        "data": _serialize(patient),
+        "points_awarded": points_awarded,
+    }
 
 
 @router.post("/{patient_id}/reactivate", status_code=200)

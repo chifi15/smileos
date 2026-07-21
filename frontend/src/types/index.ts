@@ -187,6 +187,7 @@ export interface PatientDetail {
   current_medications: string | null;
   chief_complaint: string | null;
   referred_by_patient_id: string | null;
+  referred_by_name: string | null;
   is_active: boolean;
   patient_number: number | null;
   first_visit_date: string | null;

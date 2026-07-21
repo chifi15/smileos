@@ -169,3 +169,26 @@ export function useDeletePatientPermanent() {
     },
   });
 }
+
+export function useSetReferral(patientId: string, onSuccess?: () => void) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (referrerPatientId: string | null) =>
+      apiClient.patch(`/api/v1/patients/${patientId}/referral`, {
+        referrer_patient_id: referrerPatientId,
+      }),
+    onSuccess: (res) => {
+      qc.invalidateQueries({ queryKey: ["patient", patientId] });
+      const pointsAwarded = (res.data as any).points_awarded;
+      if (pointsAwarded) {
+        toast.success("Referidor asignado. Se otorgaron los puntos de referido.");
+      } else {
+        toast.success("Referidor actualizado.");
+      }
+      onSuccess?.();
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.detail || "Error al asignar el referidor.");
+    },
+  });
+}

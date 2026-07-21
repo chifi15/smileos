@@ -70,7 +70,7 @@ async def get_patient(
 ) -> Patient:
     result = await db.execute(
         select(Patient)
-        .options(selectinload(Patient.rewards_account))
+        .options(selectinload(Patient.rewards_account), selectinload(Patient.referred_by))
         .where(Patient.id == patient_id, Patient.clinic_id == clinic_id)
     )
     patient = result.scalar_one_or_none()
@@ -142,6 +142,54 @@ async def update_patient(
     await db.flush()
     # Re-fetch para obtener timestamps actualizados y relaciones cargadas
     return await get_patient(db, clinic_id, patient_id)
+
+
+async def set_referral(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    patient_id: uuid.UUID,
+    referrer_patient_id: uuid.UUID | None,
+) -> tuple[Patient, bool]:
+    """
+    Asigna o limpia el referidor del paciente.
+    Retorna (patient_actualizado, puntos_otorgados).
+    Los puntos se otorgan solo si es la primera vez (referred_by_patient_id era None).
+    """
+    from app.core.exceptions import ValidationError
+    from app.services import rewards_service
+
+    if referrer_patient_id is not None and referrer_patient_id == patient_id:
+        raise ValidationError("Un paciente no puede referirse a sí mismo.")
+
+    patient = await get_patient(db, clinic_id, patient_id)
+    was_none = patient.referred_by_patient_id is None
+    is_new_referrer = referrer_patient_id != patient.referred_by_patient_id
+
+    if not is_new_referrer:
+        return patient, False
+
+    # Validar que el referidor pertenece a la misma clínica
+    if referrer_patient_id is not None:
+        referrer = await db.execute(
+            select(Patient).where(
+                Patient.id == referrer_patient_id,
+                Patient.clinic_id == clinic_id,
+                Patient.is_active == True,  # noqa: E712
+            )
+        )
+        if not referrer.scalar_one_or_none():
+            raise ValidationError("El paciente referidor no existe o no está activo.")
+
+    patient.referred_by_patient_id = referrer_patient_id
+    await db.flush()
+
+    # Solo otorgamos puntos si es la primera asignación
+    points_awarded = False
+    if referrer_patient_id is not None and was_none:
+        await rewards_service.grant_referral_bonus(db, clinic_id, referrer_patient_id)
+        points_awarded = True
+
+    return await get_patient(db, clinic_id, patient_id), points_awarded
 
 
 async def deactivate_patient(

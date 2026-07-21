@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { differenceInYears, parseISO, format } from "date-fns";
@@ -22,8 +22,10 @@ import {
   Banknote,
   X,
   NotebookPen,
+  Users,
+  Search,
 } from "lucide-react";
-import { usePatient, useDeactivatePatient, useDeletePatientPermanent } from "@/hooks/usePatients";
+import { usePatient, useDeactivatePatient, useDeletePatientPermanent, useSetReferral, usePatientSearch } from "@/hooks/usePatients";
 import { useCreateTransaction, useExchangeRate } from "@/hooks/useFinances";
 import { useRewardsConfig } from "@/hooks/useRewards";
 import {
@@ -205,6 +207,161 @@ function InfoCard({
       </div>
       <div className="space-y-3">{children}</div>
     </div>
+  );
+}
+
+// ─── Referral Section ─────────────────────────────────────────────────────────
+
+interface ReferralSectionProps {
+  patientId: string;
+  currentReferrerId: string | null;
+  currentReferrerName: string | null;
+}
+
+function ReferralSection({ patientId, currentReferrerId, currentReferrerName }: ReferralSectionProps) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<{ id: string; full_name: string } | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const setReferral = useSetReferral(patientId, () => setOpen(false));
+  const { data: results = [], isFetching } = usePatientSearch(query);
+
+  // Filter out self
+  const filtered = results.filter((p) => p.id !== patientId);
+
+  useEffect(() => {
+    if (open) {
+      setQuery("");
+      setSelected(null);
+      setTimeout(() => inputRef.current?.focus(), 50);
+    }
+  }, [open]);
+
+  function handleConfirm() {
+    if (!selected) return;
+    setReferral.mutate(selected.id);
+  }
+
+  return (
+    <>
+      <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Users size={15} className="text-slate-400" />
+            <h3 className="text-sm font-semibold text-slate-700">Referido por</h3>
+          </div>
+          <button
+            onClick={() => setOpen(true)}
+            className="text-xs text-blue-600 hover:text-blue-700 font-medium transition-colors"
+          >
+            {currentReferrerId ? "Cambiar" : "Asignar"}
+          </button>
+        </div>
+
+        <div className="mt-3">
+          {currentReferrerName && currentReferrerId ? (
+            <Link
+              href={`/patients/${currentReferrerId}`}
+              className="inline-flex items-center gap-2 text-sm font-medium text-slate-700 hover:text-blue-600 transition-colors"
+            >
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-violet-100 text-violet-600 text-xs font-bold shrink-0">
+                {currentReferrerName.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase()}
+              </div>
+              {currentReferrerName}
+            </Link>
+          ) : (
+            <p className="text-sm text-slate-400">Sin referidor asignado.</p>
+          )}
+        </div>
+      </div>
+
+      {/* Modal */}
+      {open && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+              <h2 className="text-base font-semibold text-slate-800">Asignar referidor</h2>
+              <button onClick={() => setOpen(false)} className="text-slate-400 hover:text-slate-600">
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-3">
+              {currentReferrerId && (
+                <p className="text-xs text-amber-600 bg-amber-50 rounded-lg px-3 py-2">
+                  Este paciente ya tiene un referidor. Los puntos solo se otorgan la primera vez.
+                </p>
+              )}
+
+              {/* Search input */}
+              <div className="relative">
+                <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+                <input
+                  ref={inputRef}
+                  type="text"
+                  value={query}
+                  onChange={(e) => { setQuery(e.target.value); setSelected(null); }}
+                  placeholder="Buscar paciente por nombre..."
+                  className="w-full rounded-lg border border-slate-200 pl-8 pr-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+              </div>
+
+              {/* Results */}
+              {query.trim().length >= 2 && (
+                <div className="max-h-48 overflow-y-auto rounded-lg border border-slate-100 divide-y divide-slate-50">
+                  {isFetching ? (
+                    <div className="py-4 text-center text-xs text-slate-400">Buscando...</div>
+                  ) : filtered.length === 0 ? (
+                    <div className="py-4 text-center text-xs text-slate-400">Sin resultados.</div>
+                  ) : (
+                    filtered.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => setSelected(p)}
+                        className={`w-full text-left px-4 py-2.5 text-sm transition-colors ${
+                          selected?.id === p.id
+                            ? "bg-blue-50 text-blue-700 font-medium"
+                            : "hover:bg-slate-50 text-slate-700"
+                        }`}
+                      >
+                        {p.full_name}
+                        {p.phone && <span className="ml-2 text-xs text-slate-400">{p.phone}</span>}
+                      </button>
+                    ))
+                  )}
+                </div>
+              )}
+
+              {/* Selected preview */}
+              {selected && (
+                <div className="flex items-center gap-2 rounded-lg bg-blue-50 border border-blue-100 px-3 py-2">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-blue-600 text-white text-xs font-bold shrink-0">
+                    {selected.full_name.split(" ").slice(0, 2).map((w: string) => w[0]).join("").toUpperCase()}
+                  </div>
+                  <span className="text-sm font-medium text-blue-700">{selected.full_name}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex justify-end gap-3 px-5 pb-5">
+              <button
+                onClick={() => setOpen(false)}
+                className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50 transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleConfirm}
+                disabled={!selected || setReferral.isPending}
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              >
+                {setReferral.isPending ? "Guardando..." : "Confirmar"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 }
 
@@ -564,6 +721,13 @@ export default function PatientDetailPage() {
           );
         })()}
       </div>
+
+      {/* Referral */}
+      <ReferralSection
+        patientId={id}
+        currentReferrerId={patient.referred_by_patient_id}
+        currentReferrerName={patient.referred_by_name}
+      />
 
       {showPayment && (
         <QuickPaymentModal
