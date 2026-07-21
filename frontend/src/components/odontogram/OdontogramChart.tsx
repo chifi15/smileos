@@ -137,7 +137,7 @@ function ToothCell({ tooth, number, isUpper, editable, onClick, isSelected }: To
       title={`${number} — ${TOOTH_CONDITION_LABELS[condition]}`}
     >
       {isUpper && (
-        <span className="text-[9px] font-mono" style={{ color: style.label }}>
+        <span className="text-[9px] font-mono text-slate-500">
           {number}
         </span>
       )}
@@ -149,7 +149,7 @@ function ToothCell({ tooth, number, isUpper, editable, onClick, isSelected }: To
         <ToothSVG isUpper={isUpper} condition={condition} isSelected={isSelected} />
       </div>
       {!isUpper && (
-        <span className="text-[9px] font-mono" style={{ color: style.label }}>
+        <span className="text-[9px] font-mono text-slate-500">
           {number}
         </span>
       )}
