@@ -28,14 +28,18 @@ def _serialize(patient) -> dict:
         "phone_secondary": patient.phone_secondary,
         "email": patient.email,
         "address": patient.address,
+        "city": patient.city,
+        "country": patient.country,
         "emergency_contact_name": patient.emergency_contact_name,
         "emergency_contact_phone": patient.emergency_contact_phone,
         "blood_type": patient.blood_type,
         "allergies": patient.allergies,
         "medical_conditions": patient.medical_conditions,
         "current_medications": patient.current_medications,
+        "chief_complaint": patient.chief_complaint,
         "referred_by_patient_id": str(patient.referred_by_patient_id) if patient.referred_by_patient_id else None,
         "is_active": patient.is_active,
+        "patient_number": patient.patient_number,
         "first_visit_date": patient.first_visit_date.isoformat() if patient.first_visit_date else None,
         "notes": patient.notes,
         "rewards": {
@@ -57,6 +61,7 @@ def _serialize_list_item(patient) -> dict:
         "phone": patient.phone,
         "email": patient.email,
         "is_active": patient.is_active,
+        "patient_number": patient.patient_number,
         "rewards_level": rewards.level if rewards else None,
         "rewards_points": rewards.total_points if rewards else None,
         "first_visit_date": patient.first_visit_date.isoformat() if patient.first_visit_date else None,
@@ -110,7 +115,7 @@ async def list_patients(
 async def search_patients(
     user: Annotated[object, require_permission("view_patients")],
     db: Annotated[AsyncSession, Depends(get_db)],
-    q: str = Query(min_length=2, description="Término de búsqueda"),
+    q: str = Query(default="", description="Término de búsqueda (vacío = todos)"),
     limit: int = Query(default=10, ge=1, le=20),
 ):
     """Búsqueda rápida para autocompletar en formularios."""

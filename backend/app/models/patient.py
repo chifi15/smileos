@@ -26,6 +26,8 @@ class Patient(UUIDMixin, TimestampMixin, Base):
     phone_secondary: Mapped[str | None] = mapped_column(String(20))
     email: Mapped[str | None] = mapped_column(String(255))
     address: Mapped[str | None] = mapped_column(String(500))
+    city: Mapped[str | None] = mapped_column(String(100))
+    country: Mapped[str | None] = mapped_column(String(100))
     emergency_contact_name: Mapped[str | None] = mapped_column(String(200))
     emergency_contact_phone: Mapped[str | None] = mapped_column(String(20))
 
@@ -40,8 +42,12 @@ class Patient(UUIDMixin, TimestampMixin, Base):
         UUID(as_uuid=True), ForeignKey("patients.id")
     )
 
+    # Motivo de consulta
+    chief_complaint: Mapped[str | None] = mapped_column(Text)
+
     # Estado
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    patient_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
     first_visit_date: Mapped[date | None] = mapped_column(Date)
     notes: Mapped[str | None] = mapped_column(Text)
 

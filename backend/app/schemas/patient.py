@@ -15,6 +15,8 @@ class PatientCreate(BaseModel):
     phone_secondary: str | None = None
     email: EmailStr | None = None
     address: str | None = None
+    city: str | None = None
+    country: str | None = None
     emergency_contact_name: str | None = None
     emergency_contact_phone: str | None = None
 
@@ -23,6 +25,7 @@ class PatientCreate(BaseModel):
     medical_conditions: str | None = None
     current_medications: str | None = None
 
+    chief_complaint: str | None = None
     referred_by_patient_id: uuid.UUID | None = None
     notes: str | None = None
 
@@ -46,6 +49,8 @@ class PatientUpdate(BaseModel):
     phone_secondary: str | None = None
     email: EmailStr | None = None
     address: str | None = None
+    city: str | None = None
+    country: str | None = None
     emergency_contact_name: str | None = None
     emergency_contact_phone: str | None = None
 
@@ -53,6 +58,8 @@ class PatientUpdate(BaseModel):
     allergies: str | None = None
     medical_conditions: str | None = None
     current_medications: str | None = None
+
+    chief_complaint: str | None = None
     notes: str | None = None
 
 
@@ -77,14 +84,18 @@ class PatientOut(BaseModel):
     phone_secondary: str | None
     email: str | None
     address: str | None
+    city: str | None
+    country: str | None
     emergency_contact_name: str | None
     emergency_contact_phone: str | None
     blood_type: str | None
     allergies: str | None
     medical_conditions: str | None
     current_medications: str | None
+    chief_complaint: str | None
     referred_by_patient_id: uuid.UUID | None
     is_active: bool
+    patient_number: int | None
     first_visit_date: date | None
     notes: str | None
     rewards: RewardsSummary | None
@@ -101,6 +112,7 @@ class PatientListItem(BaseModel):
     phone: str | None
     email: str | None
     is_active: bool
+    patient_number: int | None
     rewards_level: str | None
     rewards_points: int | None
     first_visit_date: date | None

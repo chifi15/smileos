@@ -255,9 +255,16 @@ export default function PatientsPage() {
                         )}>
                           {p.full_name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase()}
                         </div>
-                        <span className={cn("font-medium", showInactive ? "text-slate-500" : "text-slate-800")}>
-                          {p.full_name}
-                        </span>
+                        <div>
+                          <span className={cn("font-medium block", showInactive ? "text-slate-500" : "text-slate-800")}>
+                            {p.full_name}
+                          </span>
+                          {p.patient_number && (
+                            <span className="text-[10px] font-mono text-slate-400">
+                              #{String(p.patient_number).padStart(3, "0")}
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-4 py-3 text-slate-600">{age(p.date_of_birth)}</td>

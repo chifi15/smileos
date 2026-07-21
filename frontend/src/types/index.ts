@@ -157,6 +157,7 @@ export interface PatientListItem {
   phone: string | null;
   email: string | null;
   is_active: boolean;
+  patient_number: number | null;
   rewards_level: RewardsLevel | null;
   rewards_points: number | null;
   first_visit_date: string | null;
@@ -176,14 +177,18 @@ export interface PatientDetail {
   phone_secondary: string | null;
   email: string | null;
   address: string | null;
+  city: string | null;
+  country: string | null;
   emergency_contact_name: string | null;
   emergency_contact_phone: string | null;
   blood_type: string | null;
   allergies: string | null;
   medical_conditions: string | null;
   current_medications: string | null;
+  chief_complaint: string | null;
   referred_by_patient_id: string | null;
   is_active: boolean;
+  patient_number: number | null;
   first_visit_date: string | null;
   notes: string | null;
   rewards: {
@@ -205,12 +210,15 @@ export interface PatientFormValues {
   phone_secondary: string;
   email: string;
   address: string;
+  city: string;
+  country: string;
   emergency_contact_name: string;
   emergency_contact_phone: string;
   blood_type: string;
   allergies: string;
   medical_conditions: string;
   current_medications: string;
+  chief_complaint: string;
   notes: string;
 }
 
@@ -224,12 +232,15 @@ export const EMPTY_PATIENT_FORM: PatientFormValues = {
   phone_secondary: "",
   email: "",
   address: "",
+  city: "",
+  country: "",
   emergency_contact_name: "",
   emergency_contact_phone: "",
   blood_type: "",
   allergies: "",
   medical_conditions: "",
   current_medications: "",
+  chief_complaint: "",
   notes: "",
 };
 
@@ -502,7 +513,9 @@ export type ToothCondition =
   | "extraccion_indicada"
   | "extraido"
   | "implante"
-  | "fractura";
+  | "fractura"
+  | "necrosis_pulpar"
+  | "desgaste";
 
 export const TOOTH_CONDITION_LABELS: Record<ToothCondition, string> = {
   sano: "Sano",
@@ -514,6 +527,8 @@ export const TOOTH_CONDITION_LABELS: Record<ToothCondition, string> = {
   extraido: "Extraído",
   implante: "Implante",
   fractura: "Fractura",
+  necrosis_pulpar: "Necrosis Pulpar",
+  desgaste: "Desgaste",
 };
 
 export const TOOTH_CONDITION_COLORS: Record<ToothCondition, { bg: string; border: string; text: string; symbol: string }> = {
@@ -526,6 +541,8 @@ export const TOOTH_CONDITION_COLORS: Record<ToothCondition, { bg: string; border
   extraido:            { bg: "bg-slate-100",   border: "border-slate-400",  text: "text-slate-500",  symbol: "✕"  },
   implante:            { bg: "bg-green-100",   border: "border-green-600",  text: "text-green-700",  symbol: "⌇"  },
   fractura:            { bg: "bg-rose-100",    border: "border-rose-600",   text: "text-rose-800",   symbol: "⚡" },
+  necrosis_pulpar:     { bg: "bg-gray-900",    border: "border-gray-900",   text: "text-white",      symbol: "✦"  },
+  desgaste:            { bg: "bg-amber-50",    border: "border-amber-700",  text: "text-amber-800",  symbol: "▽"  },
 };
 
 export interface OdontogramTooth {

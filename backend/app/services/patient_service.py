@@ -14,6 +14,11 @@ from app.core.exceptions import NotFoundError, ConflictError
 async def create_patient(
     db: AsyncSession, clinic_id: uuid.UUID, data: PatientCreate
 ) -> Patient:
+    max_num = await db.scalar(
+        select(func.max(Patient.patient_number)).where(Patient.clinic_id == clinic_id)
+    )
+    next_number = (max_num or 0) + 1
+
     patient = Patient(
         clinic_id=clinic_id,
         first_name=data.first_name.strip(),
@@ -25,13 +30,17 @@ async def create_patient(
         phone_secondary=data.phone_secondary,
         email=data.email,
         address=data.address,
+        city=data.city,
+        country=data.country,
         emergency_contact_name=data.emergency_contact_name,
         emergency_contact_phone=data.emergency_contact_phone,
         blood_type=data.blood_type,
         allergies=data.allergies,
         medical_conditions=data.medical_conditions,
         current_medications=data.current_medications,
+        chief_complaint=data.chief_complaint,
         referred_by_patient_id=data.referred_by_patient_id,
+        patient_number=next_number,
         notes=data.notes,
     )
     db.add(patient)
@@ -139,20 +148,21 @@ async def deactivate_patient(
 async def search_patients_simple(
     db: AsyncSession, clinic_id: uuid.UUID, q: str, limit: int = 10
 ) -> list[Patient]:
-    """Búsqueda rápida para autocompletar en formularios de citas."""
-    term = f"%{q.strip().lower()}%"
-    result = await db.execute(
+    """Búsqueda rápida para autocompletar. Si q está vacío retorna los más recientes."""
+    base_q = (
         select(Patient)
         .options(selectinload(Patient.rewards_account))
-        .where(
-            Patient.clinic_id == clinic_id,
-            Patient.is_active == True,
+        .where(Patient.clinic_id == clinic_id, Patient.is_active == True)
+    )
+    if q.strip():
+        term = f"%{q.strip().lower()}%"
+        base_q = base_q.where(
             or_(
                 func.lower(Patient.first_name + " " + Patient.last_name).like(term),
                 Patient.phone.like(term),
-            ),
-        )
-        .order_by(Patient.first_name, Patient.last_name)
-        .limit(limit)
-    )
+            )
+        ).order_by(Patient.first_name, Patient.last_name)
+    else:
+        base_q = base_q.order_by(Patient.created_at.desc())
+    result = await db.execute(base_q.limit(limit))
     return list(result.scalars().all())

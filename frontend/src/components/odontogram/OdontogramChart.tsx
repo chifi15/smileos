@@ -10,6 +10,7 @@ const LOWER_ROW = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 3
 const ALL_CONDITIONS: ToothCondition[] = [
   "sano", "caries", "obturado", "endodoncia",
   "corona", "extraccion_indicada", "extraido", "implante", "fractura",
+  "necrosis_pulpar", "desgaste",
 ];
 
 // Configuración visual por condición
@@ -29,6 +30,8 @@ const CONDITION_STYLE: Record<ToothCondition, {
   extraido:            { bg: "#f1f5f9", border: "#94a3b8", label: "#64748b", dot: "#94a3b8", symbol: "✕" },
   implante:            { bg: "#dcfce7", border: "#16a34a", label: "#14532d", dot: "#16a34a", symbol: "⌇" },
   fractura:            { bg: "#ffe4e6", border: "#be123c", label: "#881337", dot: "#be123c", symbol: "⚡" },
+  necrosis_pulpar:     { bg: "#111827", border: "#111827", label: "#f9fafb", dot: "#f9fafb", symbol: "✦" },
+  desgaste:            { bg: "#fffbeb", border: "#92400e", label: "#78350f", dot: "#92400e", symbol: "▽" },
 };
 
 // Forma SVG del diente

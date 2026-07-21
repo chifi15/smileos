@@ -16,6 +16,8 @@ TOOTH_CONDITIONS = (
     "extraido",
     "implante",
     "fractura",
+    "necrosis_pulpar",
+    "desgaste",
 )
 
 # Piezas adultas FDI: 11-18, 21-28, 31-38, 41-48

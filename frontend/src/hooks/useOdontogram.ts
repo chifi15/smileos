@@ -33,16 +33,21 @@ export function useUpdateOdontogram(
         `/api/v1/patients/${patientId}/odontogram`,
         { ...body, kind }
       );
-      return data.data;
+      return data.data as OdontogramTooth[];
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["odontogram", patientId, kind] });
+    onSuccess: (updatedTeeth) => {
+      // Actualizar caché directamente con la respuesta del backend (sin re-fetch)
+      qc.setQueryData(["odontogram", patientId, kind], updatedTeeth);
       toast.success("Guardado.", { id: "odontogram-save" });
       onSuccess?.();
     },
     onError: (err: any) => {
       qc.invalidateQueries({ queryKey: ["odontogram", patientId, kind] });
-      toast.error(err?.response?.data?.detail || "Error al guardar el odontograma.");
+      const msg =
+        err?.response?.data?.error?.message ||
+        err?.response?.data?.detail ||
+        "Error al guardar el odontograma.";
+      toast.error(msg, { id: "odontogram-save" });
       onError?.();
     },
   });

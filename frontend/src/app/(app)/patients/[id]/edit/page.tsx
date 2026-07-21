@@ -19,12 +19,15 @@ function patientToForm(p: PatientDetail): PatientFormValues {
     phone_secondary: p.phone_secondary ?? "",
     email: p.email ?? "",
     address: p.address ?? "",
+    city: p.city ?? "",
+    country: p.country ?? "",
     emergency_contact_name: p.emergency_contact_name ?? "",
     emergency_contact_phone: p.emergency_contact_phone ?? "",
     blood_type: p.blood_type ?? "",
     allergies: p.allergies ?? "",
     medical_conditions: p.medical_conditions ?? "",
     current_medications: p.current_medications ?? "",
+    chief_complaint: p.chief_complaint ?? "",
     notes: p.notes ?? "",
   };
 }

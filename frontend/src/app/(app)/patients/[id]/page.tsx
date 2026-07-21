@@ -295,7 +295,14 @@ export default function PatientDetailPage() {
               {initials}
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-800">{patient.full_name}</h1>
+              <div className="flex items-center gap-2">
+                <h1 className="text-2xl font-bold text-slate-800">{patient.full_name}</h1>
+                {patient.patient_number && (
+                  <span className="text-sm font-mono font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                    #{String(patient.patient_number).padStart(3, "0")}
+                  </span>
+                )}
+              </div>
               <div className="mt-1.5 flex flex-wrap items-center gap-2">
                 {patient.rewards?.level && (
                   <Badge
@@ -454,6 +461,8 @@ export default function PatientDetailPage() {
           <InfoRow label="Teléfono alternativo" value={patient.phone_secondary} />
           <InfoRow label="Correo" value={patient.email} />
           <InfoRow label="Dirección" value={patient.address} />
+          <InfoRow label="Ciudad" value={patient.city} />
+          <InfoRow label="País" value={patient.country} />
           <div className="border-t border-slate-100 pt-3">
             <p className="mb-2 text-xs font-medium text-slate-500">Emergencia</p>
             <InfoRow label="Nombre" value={patient.emergency_contact_name} />
@@ -479,6 +488,12 @@ export default function PatientDetailPage() {
 
       {/* Bottom row */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Chief complaint */}
+        {patient.chief_complaint && (
+          <InfoCard title="Motivo de consulta" icon={ClipboardList}>
+            <p className="text-sm text-slate-700 whitespace-pre-line">{patient.chief_complaint}</p>
+          </InfoCard>
+        )}
         {/* Notes */}
         {patient.notes && (
           <InfoCard title="Notas internas" icon={AlertTriangle}>

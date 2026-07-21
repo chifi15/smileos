@@ -35,11 +35,12 @@ export default function PatientSearch({ value, onChange, placeholder }: PatientS
     queryFn: async () => {
       const { data } = await apiClient.get<{ data: SearchResult[] }>(
         "/api/v1/patients/search",
-        { params: { q: debounced, limit: 8 } }
+        { params: { q: debounced, limit: 10 } }
       );
       return data.data;
     },
-    enabled: debounced.length >= 2,
+    enabled: open,
+    staleTime: 30_000,
   });
 
   useEffect(() => {
@@ -87,7 +88,7 @@ export default function PatientSearch({ value, onChange, placeholder }: PatientS
         />
       </div>
 
-      {open && debounced.length >= 2 && (
+      {open && (
         <div className="absolute z-20 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
           {!data || data.length === 0 ? (
             <p className="px-4 py-3 text-sm text-slate-400">Sin resultados.</p>

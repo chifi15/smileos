@@ -19,6 +19,8 @@ const TREATABLE: ToothCondition[] = [
   "extraccion_indicada",
   "implante",
   "fractura",
+  "necrosis_pulpar",
+  "desgaste",
 ];
 
 // Prioridad sugerida por condición

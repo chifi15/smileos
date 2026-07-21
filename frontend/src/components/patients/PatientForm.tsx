@@ -1,11 +1,22 @@
 "use client";
 
 import { useState, FormEvent } from "react";
+import { differenceInYears, parseISO } from "date-fns";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import { PatientFormValues, EMPTY_PATIENT_FORM } from "@/types";
+
+function calcAge(dob: string): string | null {
+  if (!dob) return null;
+  try {
+    const age = differenceInYears(new Date(), parseISO(dob));
+    return `${age} años`;
+  } catch {
+    return null;
+  }
+}
 
 interface PatientFormProps {
   defaultValues?: Partial<PatientFormValues>;
@@ -84,12 +95,19 @@ export default function PatientForm({
             onChange={field("last_name")}
             required
           />
-          <Input
-            label="Fecha de nacimiento"
-            type="date"
-            value={values.date_of_birth}
-            onChange={field("date_of_birth")}
-          />
+          <div>
+            <Input
+              label="Fecha de nacimiento"
+              type="date"
+              value={values.date_of_birth}
+              onChange={field("date_of_birth")}
+            />
+            {calcAge(values.date_of_birth) && (
+              <p className="mt-1 text-xs text-slate-500 font-medium">
+                Edad: {calcAge(values.date_of_birth)}
+              </p>
+            )}
+          </div>
           <Select
             label="Género"
             value={values.gender}
@@ -104,6 +122,17 @@ export default function PatientForm({
             className="sm:col-span-2"
           />
         </div>
+      </Section>
+
+      {/* Chief complaint */}
+      <Section title="Motivo de consulta">
+        <Textarea
+          label="Motivo de consulta"
+          value={values.chief_complaint}
+          onChange={field("chief_complaint")}
+          rows={3}
+          placeholder="¿Por qué viene el paciente? Describe el motivo principal de la visita..."
+        />
       </Section>
 
       {/* Contact */}
@@ -135,6 +164,18 @@ export default function PatientForm({
             onChange={field("address")}
             placeholder="Colonia, calle, número de casa"
             className="sm:col-span-2"
+          />
+          <Input
+            label="Ciudad"
+            value={values.city}
+            onChange={field("city")}
+            placeholder="Masaya, Managua..."
+          />
+          <Input
+            label="País"
+            value={values.country}
+            onChange={field("country")}
+            placeholder="Nicaragua"
           />
           <Input
             label="Contacto de emergencia"
