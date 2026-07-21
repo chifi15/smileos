@@ -245,8 +245,8 @@ async def delete_patient_permanent(
         .values(referred_by_patient_id=None)
     )
 
-    # 9. Paciente
-    await db.delete(patient)
+    # 9. Paciente (Core DELETE para evitar cascade ORM sobre FK en memoria)
+    await db.execute(sa_delete(Patient).where(Patient.id == patient_id))
     await db.flush()
 
 
