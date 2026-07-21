@@ -8,7 +8,7 @@ const UPPER_ROW = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 2
 const LOWER_ROW = [48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38];
 
 const ALL_CONDITIONS: ToothCondition[] = [
-  "sano", "caries", "obturado", "amalgama", "resina", "material_temporal",
+  "sano", "caries", "amalgama", "resina", "material_temporal",
   "endodoncia", "corona", "extraccion_indicada", "extraido", "implante",
   "fractura", "necrosis_pulpar", "desgaste",
 ];
@@ -23,7 +23,6 @@ const CONDITION_STYLE: Record<ToothCondition, {
 }> = {
   sano:                { bg: "#ffffff", border: "#94a3b8", label: "#64748b", dot: "#e2e8f0", symbol: null },
   caries:              { bg: "#fee2e2", border: "#ef4444", label: "#b91c1c", dot: "#ef4444", symbol: "●" },
-  obturado:            { bg: "#dbeafe", border: "#3b82f6", label: "#1d4ed8", dot: "#3b82f6", symbol: "■" },
   endodoncia:          { bg: "#ede9fe", border: "#7c3aed", label: "#5b21b6", dot: "#7c3aed", symbol: "⊕" },
   corona:              { bg: "#fef9c3", border: "#ca8a04", label: "#92400e", dot: "#ca8a04", symbol: "♛" },
   extraccion_indicada: { bg: "#ffedd5", border: "#ea580c", label: "#9a3412", dot: "#ea580c", symbol: "↓" },

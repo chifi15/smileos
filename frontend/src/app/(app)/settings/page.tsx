@@ -3,10 +3,10 @@
 import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { Building2, Users, Copy, CheckCircle2, UserPlus, Tag, Plus, Pencil, Check, X } from "lucide-react";
+import { Building2, Users, Copy, CheckCircle2, UserPlus, Tag, Plus, Pencil, Check, X, Trash2 } from "lucide-react";
 import { useClinicSettings, useUpdateSettings } from "@/hooks/useSettings";
 import { useAllUsers, useCreateUser } from "@/hooks/useUsers";
-import { useProcedures, useUpdateProcedurePrice, useCreateProcedure } from "@/hooks/useCatalog";
+import { useProcedures, useUpdateProcedurePrice, useCreateProcedure, useDeleteProcedure } from "@/hooks/useCatalog";
 import { ClinicUser, UserRole, Procedure } from "@/types";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -445,24 +445,77 @@ function EditableAmount({
 }
 
 function PriceRow({ proc }: { proc: Procedure }) {
-  const updatePrice = useUpdateProcedurePrice();
+  const update = useUpdateProcedurePrice();
+  const deleteProcedure = useDeleteProcedure();
+  const [editingName, setEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState(proc.name);
+
+  function saveName() {
+    const trimmed = nameInput.trim();
+    if (trimmed && trimmed !== proc.name) {
+      update.mutate({ id: proc.id, name: trimmed });
+    }
+    setEditingName(false);
+  }
+
+  function handleDelete() {
+    if (window.confirm(`¿Eliminar "${proc.name}" del catálogo?`)) {
+      deleteProcedure.mutate(proc.id);
+    }
+  }
 
   return (
     <div className="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors gap-4">
-      <span className="text-sm text-slate-700 flex-1 min-w-0 truncate">{proc.name}</span>
+      {/* Nombre editable */}
+      <div className="flex items-center gap-1.5 flex-1 min-w-0">
+        {editingName ? (
+          <>
+            <input
+              autoFocus
+              type="text"
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") { setNameInput(proc.name); setEditingName(false); } }}
+              className="flex-1 rounded border border-blue-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button onClick={saveName} disabled={update.isPending} className="text-green-600 hover:text-green-700 disabled:opacity-50 shrink-0">
+              <Check size={14} />
+            </button>
+            <button onClick={() => { setNameInput(proc.name); setEditingName(false); }} className="text-slate-400 hover:text-slate-600 shrink-0">
+              <X size={14} />
+            </button>
+          </>
+        ) : (
+          <>
+            <span className="text-sm text-slate-700 truncate">{proc.name}</span>
+            <button onClick={() => { setNameInput(proc.name); setEditingName(true); }} className="text-slate-300 hover:text-blue-500 transition-colors shrink-0">
+              <Pencil size={12} />
+            </button>
+          </>
+        )}
+      </div>
+      {/* Precio y costo */}
       <div className="flex items-center gap-6 flex-shrink-0">
         <EditableAmount
           label="Precio:"
           value={proc.default_price}
-          onSave={(price) => updatePrice.mutate({ id: proc.id, price })}
-          isPending={updatePrice.isPending}
+          onSave={(price) => update.mutate({ id: proc.id, price })}
+          isPending={update.isPending}
         />
         <EditableAmount
           label="Costo op.:"
           value={proc.operational_cost ?? null}
-          onSave={(operational_cost) => updatePrice.mutate({ id: proc.id, operational_cost })}
-          isPending={updatePrice.isPending}
+          onSave={(operational_cost) => update.mutate({ id: proc.id, operational_cost })}
+          isPending={update.isPending}
         />
+        <button
+          onClick={handleDelete}
+          disabled={deleteProcedure.isPending}
+          className="text-slate-300 hover:text-red-500 transition-colors disabled:opacity-50"
+          title="Eliminar procedimiento"
+        >
+          <Trash2 size={14} />
+        </button>
       </div>
     </div>
   );

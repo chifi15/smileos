@@ -9,7 +9,6 @@ from app.models.base import UUIDMixin, TimestampMixin
 TOOTH_CONDITIONS = (
     "sano",
     "caries",
-    "obturado",
     "endodoncia",
     "corona",
     "extraccion_indicada",

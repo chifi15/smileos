@@ -507,7 +507,6 @@ export interface QuoteItem {
 export type ToothCondition =
   | "sano"
   | "caries"
-  | "obturado"
   | "endodoncia"
   | "corona"
   | "extraccion_indicada"
@@ -523,7 +522,6 @@ export type ToothCondition =
 export const TOOTH_CONDITION_LABELS: Record<ToothCondition, string> = {
   sano: "Sano",
   caries: "Caries",
-  obturado: "Obturado",
   endodoncia: "Endodoncia",
   corona: "Corona",
   extraccion_indicada: "Extracción indicada",
@@ -540,7 +538,6 @@ export const TOOTH_CONDITION_LABELS: Record<ToothCondition, string> = {
 export const TOOTH_CONDITION_COLORS: Record<ToothCondition, { bg: string; border: string; text: string; symbol: string }> = {
   sano:                { bg: "bg-white",       border: "border-slate-400",  text: "text-slate-500",  symbol: "·"  },
   caries:              { bg: "bg-red-100",     border: "border-red-500",    text: "text-red-700",    symbol: "●"  },
-  obturado:            { bg: "bg-blue-100",    border: "border-blue-500",   text: "text-blue-700",   symbol: "■"  },
   endodoncia:          { bg: "bg-purple-100",  border: "border-purple-600", text: "text-purple-700", symbol: "⊕"  },
   corona:              { bg: "bg-yellow-100",  border: "border-yellow-500", text: "text-yellow-800", symbol: "♛"  },
   extraccion_indicada: { bg: "bg-orange-100",  border: "border-orange-500", text: "text-orange-700", symbol: "↓"  },
