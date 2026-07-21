@@ -5,12 +5,11 @@ import { ScanLine, AlertTriangle } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Spinner from "@/components/ui/Spinner";
-import { useOdontogram } from "@/hooks/useOdontogram";
+import { useOdontogram, useTreatmentQuote } from "@/hooks/useOdontogram";
 import { useProcedures } from "@/hooks/useCatalog";
 import { useAddMultipleItems } from "@/hooks/useTreatments";
 import { TOOTH_CONDITION_LABELS, ToothCondition } from "@/types";
 
-// Condiciones que requieren tratamiento (sano y extraído quedan fuera)
 const TREATABLE: ToothCondition[] = [
   "caries",
   "obturado",
@@ -23,14 +22,10 @@ const TREATABLE: ToothCondition[] = [
   "desgaste",
 ];
 
-// Prioridad sugerida por condición
 const CONDITION_PRIORITY: Partial<Record<ToothCondition, "urgent" | "normal">> = {
   extraccion_indicada: "urgent",
   fractura: "urgent",
 };
-
-
-// ─── Tipos locales ────────────────────────────────────────────────────────────
 
 interface ToothRow {
   tooth_number: number;
@@ -39,6 +34,7 @@ interface ToothRow {
   selected: boolean;
   procedure_id: string;
   priority: "normal" | "urgent";
+  price: number | null;
 }
 
 interface Props {
@@ -48,16 +44,14 @@ interface Props {
   planId: string;
 }
 
-// ─── Componente ───────────────────────────────────────────────────────────────
-
 export default function ImportFromOdontogramModal({ open, onClose, patientId, planId }: Props) {
   const { data: teeth = [], isLoading: loadingOdonto } = useOdontogram(patientId, "inicial");
   const { data: procedures = [], isLoading: loadingProcs } = useProcedures();
+  const { data: quote = [] } = useTreatmentQuote(patientId);
   const addMultiple = useAddMultipleItems(patientId, planId, () => onClose());
 
   const [rows, setRows] = useState<ToothRow[]>([]);
 
-  // Inicializar filas cuando cargan los datos
   const treatableTeeth = useMemo(
     () =>
       teeth
@@ -66,26 +60,66 @@ export default function ImportFromOdontogramModal({ open, onClose, patientId, pl
     [teeth]
   );
 
+  // Build a lookup: toothNumber → list of quote items for that tooth
+  const quoteByTooth = useMemo(() => {
+    const map = new Map<number, typeof quote>();
+    for (const item of quote) {
+      if (item.toothNumber != null) {
+        if (!map.has(item.toothNumber)) map.set(item.toothNumber, []);
+        map.get(item.toothNumber)!.push(item);
+      }
+    }
+    return map;
+  }, [quote]);
+
   useEffect(() => {
     if (!open || procedures.length === 0) return;
     setRows(
-      treatableTeeth.map((t) => ({
-        tooth_number: t.tooth_number,
-        condition: t.condition as ToothCondition,
-        notes: t.notes,
-        selected: true,
-        procedure_id: "",
-        priority: CONDITION_PRIORITY[t.condition as ToothCondition] ?? "normal",
-      }))
+      treatableTeeth.map((t) => {
+        const toothQuotes = quoteByTooth.get(t.tooth_number) ?? [];
+        // Pre-select procedure and price from the first matching quote item for this tooth
+        const firstQuote = toothQuotes[0];
+        const matchedProc = firstQuote
+          ? procedures.find((p) => p.id === firstQuote.procedureId)
+          : undefined;
+        return {
+          tooth_number: t.tooth_number,
+          condition: t.condition as ToothCondition,
+          notes: t.notes,
+          selected: true,
+          procedure_id: firstQuote?.procedureId ?? "",
+          priority: CONDITION_PRIORITY[t.condition as ToothCondition] ?? "normal",
+          price: firstQuote?.price ?? matchedProc?.default_price ?? null,
+        };
+      })
     );
-  }, [open, treatableTeeth, procedures]);
+  }, [open, treatableTeeth, procedures, quoteByTooth]);
 
   function toggleRow(idx: number) {
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, selected: !r.selected } : r)));
   }
+
+  function handleProcedureChange(idx: number, procedureId: string) {
+    setRows((prev) =>
+      prev.map((r, i) => {
+        if (i !== idx) return r;
+        // Look for a matching quote item for this tooth + procedure
+        const toothQuotes = quoteByTooth.get(r.tooth_number) ?? [];
+        const matched = toothQuotes.find((q) => q.procedureId === procedureId);
+        const proc = procedures.find((p) => p.id === procedureId);
+        return {
+          ...r,
+          procedure_id: procedureId,
+          price: matched?.price ?? proc?.default_price ?? null,
+        };
+      })
+    );
+  }
+
   function setField<K extends keyof ToothRow>(idx: number, field: K, value: ToothRow[K]) {
     setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, [field]: value } : r)));
   }
+
   function selectAll() {
     setRows((prev) => prev.map((r) => ({ ...r, selected: true })));
   }
@@ -103,14 +137,13 @@ export default function ImportFromOdontogramModal({ open, onClose, patientId, pl
       tooth_fdi: String(r.tooth_number),
       priority: r.priority,
       notes: r.notes || null,
-      quoted_price: null,
+      quoted_price: r.price,
     }));
     addMultiple.mutate(items);
   }
 
   const isLoading = loadingOdonto || loadingProcs;
 
-  // Opciones del select de procedimientos
   const procOptions = [
     { value: "", label: "Seleccionar procedimiento..." },
     ...procedures
@@ -202,12 +235,12 @@ export default function ImportFromOdontogramModal({ open, onClose, patientId, pl
                   </div>
                 </div>
 
-                {/* Selectores: procedimiento + prioridad */}
+                {/* Selectores: procedimiento + prioridad + precio */}
                 {row.selected && (
-                  <div className="ml-7 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_120px]">
+                  <div className="ml-7 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_110px_100px]">
                     <select
                       value={row.procedure_id}
-                      onChange={(e) => setField(idx, "procedure_id", e.target.value)}
+                      onChange={(e) => handleProcedureChange(idx, e.target.value)}
                       className={[
                         "w-full rounded-lg border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400",
                         !row.procedure_id
@@ -231,6 +264,20 @@ export default function ImportFromOdontogramModal({ open, onClose, patientId, pl
                       <option value="normal">Normal</option>
                       <option value="urgent">Urgente</option>
                     </select>
+                    <div className="relative">
+                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">C$</span>
+                      <input
+                        type="number"
+                        min="0"
+                        step="1"
+                        placeholder="0"
+                        value={row.price ?? ""}
+                        onChange={(e) =>
+                          setField(idx, "price", e.target.value === "" ? null : parseFloat(e.target.value) || 0)
+                        }
+                        className="w-full rounded-lg border border-slate-200 bg-white pl-7 pr-2 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      />
+                    </div>
                   </div>
                 )}
 
@@ -250,9 +297,16 @@ export default function ImportFromOdontogramModal({ open, onClose, patientId, pl
           )}
 
           <div className="flex items-center justify-between pt-1">
-            <p className="text-sm text-slate-500">
-              {selected.length} diente{selected.length !== 1 ? "s" : ""} seleccionado{selected.length !== 1 ? "s" : ""}
-            </p>
+            <div>
+              <p className="text-sm text-slate-500">
+                {selected.length} diente{selected.length !== 1 ? "s" : ""} seleccionado{selected.length !== 1 ? "s" : ""}
+              </p>
+              {selected.length > 0 && (
+                <p className="text-xs text-slate-400 mt-0.5">
+                  Total: C$ {selected.reduce((s, r) => s + (r.price ?? 0), 0).toLocaleString("es-NI")}
+                </p>
+              )}
+            </div>
             <div className="flex gap-3">
               <Button variant="secondary" onClick={onClose}>
                 Cancelar
