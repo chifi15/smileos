@@ -5,36 +5,19 @@ import { ScanLine, AlertTriangle } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Spinner from "@/components/ui/Spinner";
-import { useOdontogram, useTreatmentQuote } from "@/hooks/useOdontogram";
+import { useTreatmentQuote } from "@/hooks/useOdontogram";
 import { useProcedures } from "@/hooks/useCatalog";
 import { useAddMultipleItems } from "@/hooks/useTreatments";
-import { TOOTH_CONDITION_LABELS, ToothCondition } from "@/types";
+import { QuoteItem } from "@/types";
 
-const TREATABLE: ToothCondition[] = [
-  "caries",
-  "obturado",
-  "endodoncia",
-  "corona",
-  "extraccion_indicada",
-  "implante",
-  "fractura",
-  "necrosis_pulpar",
-  "desgaste",
-];
-
-const CONDITION_PRIORITY: Partial<Record<ToothCondition, "urgent" | "normal">> = {
-  extraccion_indicada: "urgent",
-  fractura: "urgent",
-};
-
-interface ToothRow {
-  tooth_number: number;
-  condition: ToothCondition;
-  notes: string | null;
-  selected: boolean;
-  procedure_id: string;
-  priority: "normal" | "urgent";
+interface ImportRow {
+  id: string;           // quote item id
+  toothNumber: number | null;
+  procedureId: string;
+  procedureName: string;
   price: number | null;
+  priority: "normal" | "urgent";
+  selected: boolean;
 }
 
 interface Props {
@@ -44,262 +27,197 @@ interface Props {
   planId: string;
 }
 
+function toothLabel(n: number | null) {
+  return n != null ? `Diente ${n}` : "Sin pieza";
+}
+
 export default function ImportFromOdontogramModal({ open, onClose, patientId, planId }: Props) {
-  const { data: teeth = [], isLoading: loadingOdonto } = useOdontogram(patientId, "inicial");
+  const { data: quote = [], isLoading: loadingQuote } = useTreatmentQuote(patientId);
   const { data: procedures = [], isLoading: loadingProcs } = useProcedures();
-  const { data: quote = [] } = useTreatmentQuote(patientId);
   const addMultiple = useAddMultipleItems(patientId, planId, () => onClose());
 
-  const [rows, setRows] = useState<ToothRow[]>([]);
-
-  const treatableTeeth = useMemo(
-    () =>
-      teeth
-        .filter((t) => TREATABLE.includes(t.condition as ToothCondition))
-        .sort((a, b) => a.tooth_number - b.tooth_number),
-    [teeth]
-  );
-
-  // Build a lookup: toothNumber → list of quote items for that tooth
-  const quoteByTooth = useMemo(() => {
-    const map = new Map<number, typeof quote>();
-    for (const item of quote) {
-      if (item.toothNumber != null) {
-        if (!map.has(item.toothNumber)) map.set(item.toothNumber, []);
-        map.get(item.toothNumber)!.push(item);
-      }
-    }
-    return map;
-  }, [quote]);
+  const [rows, setRows] = useState<ImportRow[]>([]);
 
   useEffect(() => {
-    if (!open || procedures.length === 0) return;
+    if (!open || loadingQuote) return;
     setRows(
-      treatableTeeth.map((t) => {
-        const toothQuotes = quoteByTooth.get(t.tooth_number) ?? [];
-        // Pre-select procedure and price from the first matching quote item for this tooth
-        const firstQuote = toothQuotes[0];
-        const matchedProc = firstQuote
-          ? procedures.find((p) => p.id === firstQuote.procedureId)
-          : undefined;
-        return {
-          tooth_number: t.tooth_number,
-          condition: t.condition as ToothCondition,
-          notes: t.notes,
-          selected: true,
-          procedure_id: firstQuote?.procedureId ?? "",
-          priority: CONDITION_PRIORITY[t.condition as ToothCondition] ?? "normal",
-          price: firstQuote?.price ?? matchedProc?.default_price ?? null,
-        };
-      })
+      quote.map((item: QuoteItem) => ({
+        id: item.id,
+        toothNumber: item.toothNumber,
+        procedureId: item.procedureId,
+        procedureName: item.procedureName,
+        price: item.price,
+        priority: "normal",
+        selected: true,
+      }))
     );
-  }, [open, treatableTeeth, procedures, quoteByTooth]);
+  }, [open, quote, loadingQuote]);
 
-  function toggleRow(idx: number) {
-    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, selected: !r.selected } : r)));
+  function toggle(id: string) {
+    setRows((prev) => prev.map((r) => r.id === id ? { ...r, selected: !r.selected } : r));
   }
-
-  function handleProcedureChange(idx: number, procedureId: string) {
-    setRows((prev) =>
-      prev.map((r, i) => {
-        if (i !== idx) return r;
-        // Look for a matching quote item for this tooth + procedure
-        const toothQuotes = quoteByTooth.get(r.tooth_number) ?? [];
-        const matched = toothQuotes.find((q) => q.procedureId === procedureId);
-        const proc = procedures.find((p) => p.id === procedureId);
-        return {
-          ...r,
-          procedure_id: procedureId,
-          price: matched?.price ?? proc?.default_price ?? null,
-        };
-      })
-    );
+  function setField<K extends keyof ImportRow>(id: string, field: K, value: ImportRow[K]) {
+    setRows((prev) => prev.map((r) => r.id === id ? { ...r, [field]: value } : r));
   }
-
-  function setField<K extends keyof ToothRow>(idx: number, field: K, value: ToothRow[K]) {
-    setRows((prev) => prev.map((r, i) => (i === idx ? { ...r, [field]: value } : r)));
-  }
-
-  function selectAll() {
-    setRows((prev) => prev.map((r) => ({ ...r, selected: true })));
-  }
-  function deselectAll() {
-    setRows((prev) => prev.map((r) => ({ ...r, selected: false })));
-  }
+  function selectAll() { setRows((prev) => prev.map((r) => ({ ...r, selected: true }))); }
+  function deselectAll() { setRows((prev) => prev.map((r) => ({ ...r, selected: false }))); }
 
   const selected = rows.filter((r) => r.selected);
-  const missingProc = selected.some((r) => !r.procedure_id);
+
+  const procOptions = [
+    { value: "", label: "Seleccionar..." },
+    ...procedures.filter((p) => p.is_active).map((p) => ({
+      value: p.id,
+      label: p.code ? `${p.code} — ${p.name}` : p.name,
+    })),
+  ];
 
   function handleAdd() {
-    if (missingProc) return;
     const items = selected.map((r) => ({
-      procedure_id: r.procedure_id,
-      tooth_fdi: String(r.tooth_number),
+      procedure_id: r.procedureId,
+      tooth_fdi: r.toothNumber != null ? String(r.toothNumber) : null,
       priority: r.priority,
-      notes: r.notes || null,
+      notes: null,
       quoted_price: r.price,
     }));
     addMultiple.mutate(items);
   }
 
-  const isLoading = loadingOdonto || loadingProcs;
+  // Group rows by tooth for display
+  const groupedKeys = useMemo(() => {
+    const seen = new Set<string>();
+    const keys: string[] = [];
+    for (const r of rows) {
+      const key = r.toothNumber != null ? String(r.toothNumber) : "__none__";
+      if (!seen.has(key)) { seen.add(key); keys.push(key); }
+    }
+    return keys;
+  }, [rows]);
 
-  const procOptions = [
-    { value: "", label: "Seleccionar procedimiento..." },
-    ...procedures
-      .filter((p) => p.is_active)
-      .map((p) => ({
-        value: p.id,
-        label: p.code ? `${p.code} — ${p.name}` : p.name,
-      })),
-  ];
+  const byTooth = useMemo(() => {
+    const map = new Map<string, ImportRow[]>();
+    for (const r of rows) {
+      const key = r.toothNumber != null ? String(r.toothNumber) : "__none__";
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(r);
+    }
+    return map;
+  }, [rows]);
+
+  const isLoading = loadingQuote || loadingProcs;
 
   return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title="Importar desde odontograma"
-      size="lg"
-    >
+    <Modal open={open} onClose={onClose} title="Importar desde cotización" size="lg">
       {isLoading ? (
-        <div className="flex justify-center py-10">
-          <Spinner />
-        </div>
-      ) : treatableTeeth.length === 0 ? (
+        <div className="flex justify-center py-10"><Spinner /></div>
+      ) : quote.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-10 text-slate-400">
           <ScanLine size={32} className="opacity-40" />
           <p className="text-sm text-center">
-            El odontograma inicial no tiene dientes con condiciones que requieran tratamiento.
+            La cotización del odontograma está vacía.
           </p>
-          <p className="text-xs text-slate-400">
-            Registra las condiciones en el odontograma del paciente primero.
+          <p className="text-xs text-slate-400 text-center">
+            Agrega procedimientos en la sección "Cotización" del odontograma del paciente primero.
           </p>
-          <Button variant="secondary" size="sm" onClick={onClose}>
-            Cerrar
-          </Button>
+          <Button variant="secondary" size="sm" onClick={onClose}>Cerrar</Button>
         </div>
       ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <p className="text-sm text-slate-500">
-              Se encontraron <strong className="text-slate-800">{treatableTeeth.length}</strong> dientes con
-              condiciones que pueden requerir tratamiento.
+              <strong className="text-slate-800">{quote.length}</strong> procedimiento{quote.length !== 1 ? "s" : ""} en la cotización
             </p>
             <div className="flex gap-2">
-              <button onClick={selectAll} className="text-xs text-blue-600 hover:underline">
-                Seleccionar todos
-              </button>
+              <button onClick={selectAll} className="text-xs text-blue-600 hover:underline">Seleccionar todos</button>
               <span className="text-slate-300">·</span>
-              <button onClick={deselectAll} className="text-xs text-slate-400 hover:underline">
-                Deseleccionar
-              </button>
+              <button onClick={deselectAll} className="text-xs text-slate-400 hover:underline">Deseleccionar</button>
             </div>
           </div>
 
-          <div className="divide-y divide-slate-100 rounded-xl border border-slate-200 overflow-hidden max-h-[55vh] overflow-y-auto">
-            {rows.map((row, idx) => (
-              <div
-                key={row.tooth_number}
-                className={[
-                  "px-4 py-3 transition-colors",
-                  row.selected ? "bg-white" : "bg-slate-50 opacity-60",
-                ].join(" ")}
-              >
-                {/* Fila principal: checkbox + diente + condición */}
-                <div className="flex items-center gap-3 mb-2">
-                  <input
-                    type="checkbox"
-                    checked={row.selected}
-                    onChange={() => toggleRow(idx)}
-                    className="h-4 w-4 rounded border-slate-300 accent-blue-600"
-                  />
-                  <div className="flex items-center gap-2 flex-1">
-                    <span className="font-semibold text-slate-800 text-sm">
-                      Diente {row.tooth_number}
+          <div className="rounded-xl border border-slate-200 overflow-hidden max-h-[55vh] overflow-y-auto">
+            {groupedKeys.map((key) => {
+              const toothRows = byTooth.get(key)!;
+              const toothNum = key !== "__none__" ? parseInt(key) : null;
+              return (
+                <div key={key} className="border-b border-slate-100 last:border-b-0">
+                  {/* Tooth header */}
+                  <div className="px-4 py-2 bg-slate-50 flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                      {toothLabel(toothNum)}
                     </span>
-                    <span
-                      className={[
-                        "rounded-full px-2 py-0.5 text-xs font-medium",
-                        row.condition === "extraccion_indicada" || row.condition === "fractura"
-                          ? "bg-red-100 text-red-700"
-                          : row.condition === "caries"
-                          ? "bg-amber-100 text-amber-700"
-                          : "bg-slate-100 text-slate-600",
-                      ].join(" ")}
-                    >
-                      {TOOTH_CONDITION_LABELS[row.condition]}
+                    <span className="text-xs text-slate-400">
+                      {toothRows.length} procedimiento{toothRows.length !== 1 ? "s" : ""}
                     </span>
-                    {row.condition === "extraccion_indicada" && (
-                      <AlertTriangle size={13} className="text-red-500" />
-                    )}
                   </div>
-                </div>
 
-                {/* Selectores: procedimiento + prioridad + precio */}
-                {row.selected && (
-                  <div className="ml-7 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_110px_100px]">
-                    <select
-                      value={row.procedure_id}
-                      onChange={(e) => handleProcedureChange(idx, e.target.value)}
+                  {/* Procedures for this tooth */}
+                  {toothRows.map((row) => (
+                    <div
+                      key={row.id}
                       className={[
-                        "w-full rounded-lg border px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400",
-                        !row.procedure_id
-                          ? "border-amber-300 bg-amber-50"
-                          : "border-slate-200 bg-white",
+                        "px-4 py-3 transition-colors border-t border-slate-50",
+                        row.selected ? "bg-white" : "bg-slate-50 opacity-60",
                       ].join(" ")}
                     >
-                      {procOptions.map((o) => (
-                        <option key={o.value} value={o.value}>
-                          {o.label}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      value={row.priority}
-                      onChange={(e) =>
-                        setField(idx, "priority", e.target.value as "normal" | "urgent")
-                      }
-                      className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
-                    >
-                      <option value="normal">Normal</option>
-                      <option value="urgent">Urgente</option>
-                    </select>
-                    <div className="relative">
-                      <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">C$</span>
-                      <input
-                        type="number"
-                        min="0"
-                        step="1"
-                        placeholder="0"
-                        value={row.price ?? ""}
-                        onChange={(e) =>
-                          setField(idx, "price", e.target.value === "" ? null : parseFloat(e.target.value) || 0)
-                        }
-                        className="w-full rounded-lg border border-slate-200 bg-white pl-7 pr-2 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-400"
-                      />
+                      <div className="flex items-center gap-3">
+                        <input
+                          type="checkbox"
+                          checked={row.selected}
+                          onChange={() => toggle(row.id)}
+                          className="h-4 w-4 rounded border-slate-300 accent-blue-600 shrink-0"
+                        />
+                        <div className="flex-1 grid grid-cols-1 gap-2 sm:grid-cols-[1fr_110px_100px]">
+                          {/* Procedure */}
+                          <select
+                            value={row.procedureId}
+                            onChange={(e) => {
+                              const proc = procedures.find((p) => p.id === e.target.value);
+                              setField(row.id, "procedureId", e.target.value);
+                              if (proc) setField(row.id, "procedureName", proc.name);
+                            }}
+                            className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          >
+                            {procOptions.map((o) => (
+                              <option key={o.value} value={o.value}>{o.label}</option>
+                            ))}
+                          </select>
+                          {/* Priority */}
+                          <select
+                            value={row.priority}
+                            onChange={(e) => setField(row.id, "priority", e.target.value as "normal" | "urgent")}
+                            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                          >
+                            <option value="normal">Normal</option>
+                            <option value="urgent">Urgente</option>
+                          </select>
+                          {/* Price */}
+                          <div className="relative">
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">C$</span>
+                            <input
+                              type="number"
+                              min="0"
+                              step="1"
+                              placeholder="0"
+                              value={row.price ?? ""}
+                              onChange={(e) =>
+                                setField(row.id, "price", e.target.value === "" ? null : parseFloat(e.target.value) || 0)
+                              }
+                              className="w-full rounded-lg border border-slate-200 bg-white pl-7 pr-2 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                )}
-
-                {/* Notas del odontograma */}
-                {row.selected && row.notes && (
-                  <p className="ml-7 mt-1 text-xs text-slate-400 italic">{row.notes}</p>
-                )}
-              </div>
-            ))}
+                  ))}
+                </div>
+              );
+            })}
           </div>
-
-          {missingProc && selected.length > 0 && (
-            <p className="text-xs text-amber-600 flex items-center gap-1.5">
-              <AlertTriangle size={13} />
-              Asigna un procedimiento a cada diente seleccionado antes de continuar.
-            </p>
-          )}
 
           <div className="flex items-center justify-between pt-1">
             <div>
               <p className="text-sm text-slate-500">
-                {selected.length} diente{selected.length !== 1 ? "s" : ""} seleccionado{selected.length !== 1 ? "s" : ""}
+                {selected.length} procedimiento{selected.length !== 1 ? "s" : ""} seleccionado{selected.length !== 1 ? "s" : ""}
               </p>
               {selected.length > 0 && (
                 <p className="text-xs text-slate-400 mt-0.5">
@@ -308,13 +226,11 @@ export default function ImportFromOdontogramModal({ open, onClose, patientId, pl
               )}
             </div>
             <div className="flex gap-3">
-              <Button variant="secondary" onClick={onClose}>
-                Cancelar
-              </Button>
+              <Button variant="secondary" onClick={onClose}>Cancelar</Button>
               <Button
                 onClick={handleAdd}
                 loading={addMultiple.isPending}
-                disabled={selected.length === 0 || missingProc}
+                disabled={selected.length === 0}
               >
                 Agregar al plan ({selected.length})
               </Button>
