@@ -5,8 +5,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, update
 from sqlalchemy.orm import selectinload
 
+from sqlalchemy import delete as sa_delete
+
 from app.models.patient import Patient
-from app.models.rewards import RewardsAccount
+from app.models.rewards import RewardsAccount, RewardsTransaction
+from app.models.odontogram import OdontogramTooth, OdontogramSnapshot, TreatmentQuote
+from app.models.treatment import TreatmentPlan, TreatmentPlanItem
+from app.models.appointment import Appointment
+from app.models.clinical_record import ClinicalRecord
 from app.schemas.patient import PatientCreate, PatientUpdate
 from app.core.exceptions import NotFoundError, ConflictError
 
@@ -142,6 +148,38 @@ async def deactivate_patient(
 ) -> None:
     patient = await get_patient(db, clinic_id, patient_id)
     patient.is_active = False
+    await db.flush()
+
+
+async def delete_patient_permanent(
+    db: AsyncSession, clinic_id: uuid.UUID, patient_id: uuid.UUID
+) -> None:
+    """Elimina el paciente y todos sus registros vinculados en orden seguro."""
+    patient = await get_patient(db, clinic_id, patient_id)
+
+    # 1. TreatmentPlanItems → TreatmentPlans
+    plan_ids_q = select(TreatmentPlan.id).where(TreatmentPlan.patient_id == patient_id)
+    await db.execute(sa_delete(TreatmentPlanItem).where(TreatmentPlanItem.treatment_plan_id.in_(plan_ids_q)))
+    await db.execute(sa_delete(TreatmentPlan).where(TreatmentPlan.patient_id == patient_id))
+
+    # 2. Odontograma
+    await db.execute(sa_delete(OdontogramTooth).where(OdontogramTooth.patient_id == patient_id))
+    await db.execute(sa_delete(OdontogramSnapshot).where(OdontogramSnapshot.patient_id == patient_id))
+    await db.execute(sa_delete(TreatmentQuote).where(TreatmentQuote.patient_id == patient_id))
+
+    # 3. Citas
+    await db.execute(sa_delete(Appointment).where(Appointment.patient_id == patient_id))
+
+    # 4. Historia clínica
+    await db.execute(sa_delete(ClinicalRecord).where(ClinicalRecord.patient_id == patient_id))
+
+    # 5. Rewards: transacciones → cuenta
+    account_ids_q = select(RewardsAccount.id).where(RewardsAccount.patient_id == patient_id)
+    await db.execute(sa_delete(RewardsTransaction).where(RewardsTransaction.account_id.in_(account_ids_q)))
+    await db.execute(sa_delete(RewardsAccount).where(RewardsAccount.patient_id == patient_id))
+
+    # 6. Paciente
+    await db.delete(patient)
     await db.flush()
 
 
