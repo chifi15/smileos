@@ -7,6 +7,7 @@ from app.models.treatment import ProcedureCatalog, TreatmentPlan, TreatmentPlanI
 from app.models.rewards import RewardsAccount, RewardsTransaction, RewardsConfig
 from app.models.photo import PatientPhoto
 from app.models.audit import AuditLog
+from app.models.evolution import PatientEvolution
 
 __all__ = [
     "Clinic",
@@ -26,4 +27,5 @@ __all__ = [
     "RewardsConfig",
     "PatientPhoto",
     "AuditLog",
+    "PatientEvolution",
 ]
