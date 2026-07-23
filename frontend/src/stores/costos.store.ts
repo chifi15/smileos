@@ -50,6 +50,6 @@ export const useCostosStore = create<CostosState>()(
 
       resetToSeed: () => set({ products: SEED_PRODUCTS, treatments: SEED_TREATMENTS }),
     }),
-    { name: "smileos-costos-v1" }
+    { name: "smileos-costos-v2" }
   )
 );

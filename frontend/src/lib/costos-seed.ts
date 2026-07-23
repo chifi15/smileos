@@ -453,6 +453,505 @@ export const SEED_PRODUCTS: Product[] = [
     portionDescription: "0.2g",
     supplier: "",
   },
+
+  // ── Fresas ────────────────────────────────────────────────────────────────
+  {
+    id: "p080",
+    name: "Fresa redonda pequeña",
+    category: "instrumental",
+    unitPrice: 11.20,
+    presentation: "5 usos",
+    portionDescription: "1 uso",
+    supplier: "GLOBAL",
+  },
+  {
+    id: "p081",
+    name: "Fresa redonda grande",
+    category: "instrumental",
+    unitPrice: 16.00,
+    presentation: "5 usos",
+    portionDescription: "1 uso",
+    supplier: "GLOBAL",
+  },
+  {
+    id: "p082",
+    name: "Fresa fisuro",
+    category: "instrumental",
+    unitPrice: 1.60,
+    presentation: "5 usos",
+    portionDescription: "1 uso",
+    supplier: "",
+  },
+  {
+    id: "p083",
+    name: "Fresa cilíndrica",
+    category: "instrumental",
+    unitPrice: 14.80,
+    presentation: "5 usos",
+    portionDescription: "1 uso",
+    supplier: "",
+  },
+  {
+    id: "p084",
+    name: "Fresa Cilíndrica Punta Activa",
+    category: "instrumental",
+    unitPrice: 29.60,
+    presentation: "5 usos",
+    portionDescription: "1 uso",
+    supplier: "",
+  },
+  {
+    id: "p085",
+    name: "Fresa Troncónica Fina",
+    category: "instrumental",
+    unitPrice: 14.80,
+    presentation: "5 usos",
+    portionDescription: "1 uso",
+    supplier: "",
+  },
+  {
+    id: "p086",
+    name: "Fresa Llama",
+    category: "instrumental",
+    unitPrice: 14.80,
+    presentation: "5 usos",
+    portionDescription: "1 uso",
+    supplier: "",
+  },
+  {
+    id: "p087",
+    name: "Fresa Troncónica Ancha",
+    category: "instrumental",
+    unitPrice: 29.60,
+    presentation: "5 usos",
+    portionDescription: "1 uso",
+    supplier: "",
+  },
+
+  // ── Preparación / Diagnóstico ─────────────────────────────────────────────
+  {
+    id: "p090",
+    name: "Detector de caries",
+    category: "restauracion",
+    unitPrice: 3.08,
+    presentation: "6ml",
+    portionDescription: "0.02ml",
+    supplier: "ONLINE",
+  },
+  {
+    id: "p091",
+    name: "Arenador (abrasivo)",
+    category: "profilaxis",
+    unitPrice: 3.01,
+    presentation: "800g",
+    portionDescription: "5g",
+    supplier: "ONLINE",
+  },
+
+  // ── Restauración (nuevos materiales) ──────────────────────────────────────
+  {
+    id: "p092",
+    name: "Dique de goma (hoja)",
+    category: "restauracion",
+    unitPrice: 26.72,
+    presentation: "36 uds",
+    portionDescription: "1 unidad",
+    supplier: "ONLINE",
+  },
+  {
+    id: "p093",
+    name: "Hilo dental encerado Oral B",
+    category: "restauracion",
+    unitPrice: 1.10,
+    presentation: "2500cm",
+    portionDescription: "25cm",
+    supplier: "",
+  },
+  {
+    id: "p094",
+    name: "Barrera gingival",
+    category: "restauracion",
+    unitPrice: 18.33,
+    presentation: "2.4g",
+    portionDescription: "0.1g",
+    supplier: "ORTHODENTAL",
+  },
+  {
+    id: "p095",
+    name: "Ionómero fotocurado",
+    category: "restauracion",
+    unitPrice: 51.80,
+    presentation: "2.5g",
+    portionDescription: "0.1g",
+    supplier: "PRODENICSA",
+  },
+  {
+    id: "p096",
+    name: "Ácido Fosfórico Ultradent",
+    category: "restauracion",
+    unitPrice: 22.20,
+    presentation: "30ml",
+    portionDescription: "0.18ml",
+    supplier: "",
+  },
+  {
+    id: "p097",
+    name: "Adhesivo Universal",
+    category: "restauracion",
+    unitPrice: 17.92,
+    presentation: "3ml",
+    portionDescription: "0.04ml",
+    supplier: "ORTHODENTAL",
+  },
+  {
+    id: "p098",
+    name: "Adhesivo 6ta generación",
+    category: "restauracion",
+    unitPrice: 65.59,
+    presentation: "11ml",
+    portionDescription: "0.13ml",
+    supplier: "ONLINE",
+  },
+  {
+    id: "p099",
+    name: "Adhesivo 4ta generación",
+    category: "restauracion",
+    unitPrice: 45.09,
+    presentation: "16ml",
+    portionDescription: "0.13ml",
+    supplier: "ONLINE",
+  },
+  {
+    id: "p100",
+    name: "Microaplicador MagicBrush",
+    category: "restauracion",
+    unitPrice: 4.63,
+    presentation: "400 uds",
+    portionDescription: "1 unidad",
+    supplier: "ONLINE",
+  },
+  {
+    id: "p101",
+    name: "Clorhexidina",
+    category: "restauracion",
+    unitPrice: 0.47,
+    presentation: "100ml",
+    portionDescription: "0.2ml",
+    supplier: "ORTHODENTAL",
+  },
+  {
+    id: "p102",
+    name: "Hidróxido de calcio (pasta restauración)",
+    category: "restauracion",
+    unitPrice: 11.77,
+    presentation: "11g",
+    portionDescription: "0.1g",
+    supplier: "Zela",
+  },
+  {
+    id: "p103",
+    name: "Resina fluida",
+    category: "restauracion",
+    unitPrice: 63.91,
+    presentation: "2.2g",
+    portionDescription: "0.1g",
+    supplier: "INDENT",
+  },
+  {
+    id: "p104",
+    name: "Resina pasta",
+    category: "restauracion",
+    unitPrice: 48.68,
+    presentation: "3.8g",
+    portionDescription: "0.1g",
+    supplier: "ONLINE",
+  },
+  {
+    id: "p105",
+    name: "Tinte de resina",
+    category: "restauracion",
+    unitPrice: 12.95,
+    presentation: "2g",
+    portionDescription: "0.02g",
+    supplier: "INDENT",
+  },
+  {
+    id: "p106",
+    name: "Humectante (Wetting Resin)",
+    category: "restauracion",
+    unitPrice: 14.80,
+    presentation: "2.4ml",
+    portionDescription: "0.04ml",
+    supplier: "ORTHODENTAL",
+  },
+  // Resina Clase II — matrices y teflón
+  {
+    id: "p107",
+    name: "Teflón TDV",
+    category: "restauracion",
+    unitPrice: 3.55,
+    presentation: "500cm",
+    portionDescription: "3cm",
+    supplier: "",
+  },
+  {
+    id: "p108",
+    name: "Teflón común",
+    category: "restauracion",
+    unitPrice: 0.25,
+    presentation: "1500cm",
+    portionDescription: "5cm",
+    supplier: "",
+  },
+  {
+    id: "p109",
+    name: "Cuñas",
+    category: "restauracion",
+    unitPrice: 1.44,
+    presentation: "400 uds",
+    portionDescription: "1 unidad",
+    supplier: "",
+  },
+  {
+    id: "p110",
+    name: "Bandas seccionales",
+    category: "restauracion",
+    unitPrice: 6.66,
+    presentation: "100 uds",
+    portionDescription: "1 unidad",
+    supplier: "",
+  },
+
+  // ── Pulido ────────────────────────────────────────────────────────────────
+  {
+    id: "p111",
+    name: "Papel de articular",
+    category: "instrumental",
+    unitPrice: 3.70,
+    presentation: "100 uds",
+    portionDescription: "1 unidad",
+    supplier: "",
+  },
+  {
+    id: "p112",
+    name: "Pasta de pulido Jiffy",
+    category: "restauracion",
+    unitPrice: 10.36,
+    presentation: "5g",
+    portionDescription: "0.1g",
+    supplier: "INDENT",
+  },
+  {
+    id: "p113",
+    name: "Glicerina",
+    category: "otros",
+    unitPrice: 0.20,
+    presentation: "20ml",
+    portionDescription: "0.1ml",
+    supplier: "",
+  },
+  {
+    id: "p114",
+    name: "Permaseal",
+    category: "restauracion",
+    unitPrice: 7.71,
+    presentation: "2.4ml",
+    portionDescription: "0.04ml",
+    supplier: "ORTHODENTAL",
+  },
+  {
+    id: "p115",
+    name: "Lubricante instrumental",
+    category: "instrumental",
+    unitPrice: 1.11,
+    presentation: "500ml",
+    portionDescription: "0.5ml",
+    supplier: "",
+  },
+
+  // ── Exodoncia ─────────────────────────────────────────────────────────────
+  {
+    id: "p116",
+    name: "Gasa 2×2 (quirúrgica)",
+    category: "desechable",
+    unitPrice: 0.56,
+    presentation: "200 uds",
+    portionDescription: "1 unidad",
+    supplier: "",
+  },
+  {
+    id: "p117",
+    name: "Gasa 4×4",
+    category: "desechable",
+    unitPrice: 5.18,
+    presentation: "50 uds",
+    portionDescription: "1 unidad",
+    supplier: "",
+  },
+
+  // ── Impresiones / Incrusta ────────────────────────────────────────────────
+  {
+    id: "p120",
+    name: "Encerado diagnóstico",
+    category: "otros",
+    unitPrice: 1.06,
+    presentation: "70g",
+    portionDescription: "0.1g",
+    supplier: "",
+  },
+  {
+    id: "p121",
+    name: "Puntas de liviana (silicona)",
+    category: "otros",
+    unitPrice: 10.00,
+    presentation: "50 uds",
+    portionDescription: "1 unidad",
+    supplier: "",
+  },
+  {
+    id: "p122",
+    name: "Registro de mordida",
+    category: "otros",
+    unitPrice: 103.60,
+    presentation: "50ml",
+    portionDescription: "5ml",
+    supplier: "",
+  },
+  {
+    id: "p123",
+    name: "Yeso tipo II",
+    category: "otros",
+    unitPrice: 4.44,
+    presentation: "5000g",
+    portionDescription: "50g",
+    supplier: "",
+  },
+  {
+    id: "p124",
+    name: "Yeso para modelos",
+    category: "otros",
+    unitPrice: 11.10,
+    presentation: "1000g",
+    portionDescription: "100g",
+    supplier: "",
+  },
+  {
+    id: "p125",
+    name: "Alginato Zhermack",
+    category: "otros",
+    unitPrice: 51.80,
+    presentation: "1000g",
+    portionDescription: "100g",
+    supplier: "",
+  },
+  {
+    id: "p126",
+    name: "Detergente enzimático (1L)",
+    category: "desechable",
+    unitPrice: 18.04,
+    presentation: "1000ml",
+    portionDescription: "7.5ml",
+    supplier: "",
+  },
+  {
+    id: "p127",
+    name: "Cloruro de aluminio",
+    category: "restauracion",
+    unitPrice: 30.83,
+    presentation: "1.2ml",
+    portionDescription: "0.1ml",
+    supplier: "",
+  },
+  {
+    id: "p128",
+    name: "Hilo retractor 0",
+    category: "restauracion",
+    unitPrice: 6.82,
+    presentation: "244cm",
+    portionDescription: "2.5cm",
+    supplier: "",
+  },
+  {
+    id: "p129",
+    name: "Hilo retractor 000",
+    category: "restauracion",
+    unitPrice: 6.82,
+    presentation: "244cm",
+    portionDescription: "2.5cm",
+    supplier: "",
+  },
+  {
+    id: "p130",
+    name: "Silicona Putty",
+    category: "otros",
+    unitPrice: 222.00,
+    presentation: "300g",
+    portionDescription: "30g",
+    supplier: "",
+  },
+  {
+    id: "p131",
+    name: "Silicona liviana (wash)",
+    category: "otros",
+    unitPrice: 162.80,
+    presentation: "50ml",
+    portionDescription: "10ml",
+    supplier: "",
+  },
+  {
+    id: "p132",
+    name: "Óxido de Aluminio",
+    category: "otros",
+    unitPrice: 6.94,
+    presentation: "800g",
+    portionDescription: "10g",
+    supplier: "",
+  },
+  {
+    id: "p133",
+    name: "Cemento Panavia",
+    category: "restauracion",
+    unitPrice: 563.33,
+    presentation: "2.4ml",
+    portionDescription: "0.2ml",
+    supplier: "IMPROMEDICAL",
+  },
+  {
+    id: "p134",
+    name: "Tooth Primer",
+    category: "restauracion",
+    unitPrice: 12.55,
+    presentation: "4ml",
+    portionDescription: "0.04ml",
+    supplier: "IMPROMEDICAL",
+  },
+  {
+    id: "p135",
+    name: "Ceramic Primer",
+    category: "restauracion",
+    unitPrice: 12.55,
+    presentation: "4ml",
+    portionDescription: "0.04ml",
+    supplier: "IMPROMEDICAL",
+  },
+  {
+    id: "p136",
+    name: "Microaplicador + Punta mezcla",
+    category: "restauracion",
+    unitPrice: 7.74,
+    presentation: "50 uds",
+    portionDescription: "1 unidad",
+    supplier: "",
+  },
+  {
+    id: "p137",
+    name: "Hilo dental superfloss",
+    category: "restauracion",
+    unitPrice: 5.18,
+    presentation: "50 uds",
+    portionDescription: "1 unidad",
+    supplier: "",
+  },
 ];
 
 // Shared base materials used in every appointment
@@ -589,5 +1088,419 @@ export const SEED_TREATMENTS: Treatment[] = [
     fixedCosts: 216,
     clinicMarginPct: 0.15,
     suggestedPrice: 3300,
+  },
+
+  // ── CONSULTA ───────────────────────────────────────────────────────────────
+  {
+    id: "t003",
+    name: "Consulta",
+    description: "Consulta dental inicial — exploración y diagnóstico",
+    appointments: [
+      {
+        id: "t003-c1",
+        number: 1,
+        name: "Consulta y diagnóstico",
+        materials: [
+          { productId: "p001", quantity: 1 },   // Detergente enzimático
+          { productId: "p002", quantity: 3 },   // Agua purificada
+          { productId: "p003", quantity: 1 },   // Vaso
+          { productId: "p004", quantity: 2 },   // Enjuague
+          { productId: "p005", quantity: 2 },   // Babero
+          { productId: "p006", quantity: 3 },   // Aromatizante
+          { productId: "p007", quantity: 2 },   // Toalla
+          { productId: "p008", quantity: 6 },   // Guantes
+          { productId: "p009", quantity: 1 },   // Mascarilla Crosstex
+          { productId: "p010", quantity: 2 },   // Mascarilla Euronda
+          { productId: "p011", quantity: 11 },  // Papel adherente
+          { productId: "p012", quantity: 1 },   // Aplicador
+          { productId: "p030", quantity: 2 },   // Anestésico tópico
+          { productId: "p013", quantity: 1 },   // Succión
+          { productId: "p014", quantity: 1 },   // Punta jeringa triple
+        ],
+      },
+    ],
+    professionalFeePerHour: 192,
+    totalHours: 1,
+    fixedCosts: 216,
+    clinicMarginPct: 0.15,
+    suggestedPrice: 900,
+  },
+
+  // ── SELLANTES F.F. ─────────────────────────────────────────────────────────
+  {
+    id: "t004",
+    name: "Sellantes F.F.",
+    description: "Sellantes de fosas y fisuras — prevención de caries",
+    appointments: [
+      {
+        id: "t004-c1",
+        number: 1,
+        name: "Aplicación de sellantes",
+        materials: [
+          { productId: "p001", quantity: 1 },   // Detergente enzimático
+          { productId: "p002", quantity: 3 },   // Agua purificada
+          { productId: "p003", quantity: 1 },   // Vaso
+          { productId: "p004", quantity: 2 },   // Enjuague
+          { productId: "p005", quantity: 2 },   // Babero
+          { productId: "p006", quantity: 3 },   // Aromatizante
+          { productId: "p007", quantity: 2 },   // Toalla
+          { productId: "p008", quantity: 6 },   // Guantes
+          { productId: "p009", quantity: 1 },   // Mascarilla Crosstex
+          { productId: "p010", quantity: 2 },   // Mascarilla Euronda
+          { productId: "p011", quantity: 11 },  // Papel adherente
+          { productId: "p012", quantity: 1 },   // Aplicador
+          { productId: "p030", quantity: 2 },   // Anestésico tópico
+          { productId: "p013", quantity: 1 },   // Succión
+          { productId: "p014", quantity: 1 },   // Punta jeringa triple
+          { productId: "p031", quantity: 1 },   // Aguja
+          { productId: "p032", quantity: 1 },   // Lidocaína
+          { productId: "p080", quantity: 1 },   // Fresa redonda pequeña
+          { productId: "p082", quantity: 1 },   // Fresa fisuro
+          { productId: "p090", quantity: 3 },   // Detector de caries
+          { productId: "p091", quantity: 1 },   // Arenador
+          { productId: "p092", quantity: 1 },   // Dique de goma
+          { productId: "p093", quantity: 1 },   // Hilo dental encerado
+          { productId: "p094", quantity: 1 },   // Barrera gingival
+          { productId: "p096", quantity: 1 },   // Ácido Fosfórico Ultradent
+          { productId: "p099", quantity: 3 },   // Adhesivo 4ta generación
+          { productId: "p100", quantity: 3 },   // Microaplicador MagicBrush
+          { productId: "p103", quantity: 1 },   // Resina fluida
+          { productId: "p111", quantity: 2 },   // Papel de articular
+          { productId: "p112", quantity: 1 },   // Pasta de pulido Jiffy
+          { productId: "p113", quantity: 1 },   // Glicerina
+          { productId: "p114", quantity: 1 },   // Permaseal
+          { productId: "p115", quantity: 1 },   // Lubricante instrumental
+        ],
+      },
+    ],
+    professionalFeePerHour: 192,
+    totalHours: 1,
+    fixedCosts: 216,
+    clinicMarginPct: 0.15,
+    suggestedPrice: 1400,
+  },
+
+  // ── RESINA CLASE I ─────────────────────────────────────────────────────────
+  {
+    id: "t005",
+    name: "Resina Clase I",
+    description: "Restauración de resina compuesta — cavidad oclusal (Clase I)",
+    appointments: [
+      {
+        id: "t005-c1",
+        number: 1,
+        name: "Preparación y restauración",
+        materials: [
+          { productId: "p001", quantity: 1 },   // Detergente enzimático
+          { productId: "p002", quantity: 3 },   // Agua purificada
+          { productId: "p003", quantity: 1 },   // Vaso
+          { productId: "p004", quantity: 2 },   // Enjuague
+          { productId: "p005", quantity: 2 },   // Babero
+          { productId: "p006", quantity: 3 },   // Aromatizante
+          { productId: "p007", quantity: 2 },   // Toalla
+          { productId: "p008", quantity: 6 },   // Guantes
+          { productId: "p010", quantity: 1 },   // Mascarilla Euronda
+          { productId: "p011", quantity: 11 },  // Papel adherente
+          { productId: "p012", quantity: 1 },   // Aplicador
+          { productId: "p030", quantity: 2 },   // Anestésico tópico
+          { productId: "p013", quantity: 1 },   // Succión
+          { productId: "p031", quantity: 1 },   // Aguja
+          { productId: "p032", quantity: 1 },   // Lidocaína
+          { productId: "p080", quantity: 1 },   // Fresa redonda pequeña
+          { productId: "p081", quantity: 1 },   // Fresa redonda grande
+          { productId: "p090", quantity: 1 },   // Detector de caries
+          { productId: "p092", quantity: 1 },   // Dique de goma
+          { productId: "p093", quantity: 1 },   // Hilo dental encerado
+          { productId: "p094", quantity: 1 },   // Barrera gingival
+          { productId: "p096", quantity: 1 },   // Ácido Fosfórico Ultradent
+          { productId: "p099", quantity: 3 },   // Adhesivo 4ta generación
+          { productId: "p100", quantity: 3 },   // Microaplicador MagicBrush
+          { productId: "p102", quantity: 1 },   // Hidróxido de calcio pasta
+          { productId: "p103", quantity: 1 },   // Resina fluida
+          { productId: "p104", quantity: 2 },   // Resina pasta
+          { productId: "p105", quantity: 1 },   // Tinte de resina
+          { productId: "p106", quantity: 1 },   // Humectante
+          { productId: "p111", quantity: 1 },   // Papel de articular
+          { productId: "p112", quantity: 1 },   // Pasta de pulido Jiffy
+          { productId: "p113", quantity: 1 },   // Glicerina
+          { productId: "p114", quantity: 1 },   // Permaseal
+          { productId: "p115", quantity: 1 },   // Lubricante instrumental
+        ],
+      },
+    ],
+    professionalFeePerHour: 192,
+    totalHours: 2,
+    fixedCosts: 216,
+    clinicMarginPct: 0.15,
+    suggestedPrice: 1600,
+  },
+
+  // ── RESINA CLASE II ────────────────────────────────────────────────────────
+  {
+    id: "t006",
+    name: "Resina Clase II",
+    description: "Restauración de resina compuesta — cavidad proximal (Clase II)",
+    appointments: [
+      {
+        id: "t006-c1",
+        number: 1,
+        name: "Preparación y restauración proximal",
+        materials: [
+          { productId: "p001", quantity: 1 },   // Detergente enzimático
+          { productId: "p002", quantity: 3 },   // Agua purificada
+          { productId: "p003", quantity: 1 },   // Vaso
+          { productId: "p004", quantity: 2 },   // Enjuague
+          { productId: "p005", quantity: 2 },   // Babero
+          { productId: "p006", quantity: 3 },   // Aromatizante
+          { productId: "p007", quantity: 2 },   // Toalla
+          { productId: "p008", quantity: 6 },   // Guantes
+          { productId: "p009", quantity: 1 },   // Mascarilla Crosstex
+          { productId: "p010", quantity: 2 },   // Mascarilla Euronda
+          { productId: "p011", quantity: 11 },  // Papel adherente
+          { productId: "p012", quantity: 1 },   // Aplicador
+          { productId: "p030", quantity: 2 },   // Anestésico tópico
+          { productId: "p013", quantity: 1 },   // Succión
+          { productId: "p014", quantity: 1 },   // Punta jeringa triple
+          { productId: "p031", quantity: 1 },   // Aguja
+          { productId: "p032", quantity: 1 },   // Lidocaína
+          { productId: "p080", quantity: 1 },   // Fresa redonda pequeña
+          { productId: "p081", quantity: 1 },   // Fresa redonda grande
+          { productId: "p083", quantity: 1 },   // Fresa cilíndrica
+          { productId: "p090", quantity: 3 },   // Detector de caries
+          { productId: "p091", quantity: 1 },   // Arenador
+          { productId: "p092", quantity: 1 },   // Dique de goma
+          { productId: "p093", quantity: 1 },   // Hilo dental encerado
+          { productId: "p094", quantity: 1 },   // Barrera gingival
+          { productId: "p096", quantity: 1 },   // Ácido Fosfórico Ultradent
+          { productId: "p099", quantity: 3 },   // Adhesivo 4ta generación
+          { productId: "p100", quantity: 3 },   // Microaplicador MagicBrush
+          { productId: "p103", quantity: 1 },   // Resina fluida
+          { productId: "p104", quantity: 3 },   // Resina pasta (3 porciones)
+          { productId: "p105", quantity: 1 },   // Tinte de resina
+          { productId: "p106", quantity: 1 },   // Humectante
+          { productId: "p107", quantity: 2 },   // Teflón TDV
+          { productId: "p108", quantity: 3 },   // Teflón común
+          { productId: "p109", quantity: 2 },   // Cuñas
+          { productId: "p110", quantity: 2 },   // Bandas seccionales
+          { productId: "p111", quantity: 2 },   // Papel de articular
+          { productId: "p112", quantity: 1 },   // Pasta de pulido Jiffy
+          { productId: "p113", quantity: 1 },   // Glicerina
+          { productId: "p114", quantity: 1 },   // Permaseal
+          { productId: "p115", quantity: 1 },   // Lubricante instrumental
+        ],
+      },
+    ],
+    professionalFeePerHour: 192,
+    totalHours: 2,
+    fixedCosts: 216,
+    clinicMarginPct: 0.15,
+    suggestedPrice: 1700,
+  },
+
+  // ── EXODONCIA SIMPLE ───────────────────────────────────────────────────────
+  {
+    id: "t007",
+    name: "Exodoncia Simple",
+    description: "Extracción dental simple",
+    appointments: [
+      {
+        id: "t007-c1",
+        number: 1,
+        name: "Extracción dental",
+        materials: [
+          { productId: "p001", quantity: 1 },   // Detergente enzimático
+          { productId: "p002", quantity: 3 },   // Agua purificada
+          { productId: "p003", quantity: 1 },   // Vaso
+          { productId: "p004", quantity: 2 },   // Enjuague
+          { productId: "p006", quantity: 3 },   // Aromatizante
+          { productId: "p007", quantity: 2 },   // Toalla
+          { productId: "p008", quantity: 6 },   // Guantes
+          { productId: "p010", quantity: 2 },   // Mascarilla Euronda
+          { productId: "p011", quantity: 11 },  // Papel adherente
+          { productId: "p012", quantity: 1 },   // Aplicador
+          { productId: "p030", quantity: 2 },   // Anestésico tópico
+          { productId: "p014", quantity: 1 },   // Punta jeringa triple
+          { productId: "p031", quantity: 1 },   // Aguja
+          { productId: "p032", quantity: 2 },   // Lidocaína (2 cartuchos)
+          { productId: "p116", quantity: 10 },  // Gasa 2×2
+          { productId: "p117", quantity: 1 },   // Gasa 4×4
+        ],
+      },
+    ],
+    professionalFeePerHour: 192,
+    totalHours: 1,
+    fixedCosts: 216,
+    clinicMarginPct: 0.15,
+    suggestedPrice: 900,
+  },
+
+  // ── INCRUSTA RESINA ────────────────────────────────────────────────────────
+  {
+    id: "t008",
+    name: "Incrusta Resina",
+    description: "Restauración indirecta de resina — 5 citas (impresión, preparación, impresión def., cementación, pulido)",
+    appointments: [
+      {
+        id: "t008-c1",
+        number: 1,
+        name: "Cita 1 — Impresión primaria",
+        materials: [
+          { productId: "p001", quantity: 1 },   // Detergente enzimático
+          { productId: "p002", quantity: 3 },   // Agua purificada
+          { productId: "p003", quantity: 1 },   // Vaso
+          { productId: "p004", quantity: 2 },   // Enjuague
+          { productId: "p005", quantity: 1 },   // Babero
+          { productId: "p006", quantity: 3 },   // Aromatizante
+          { productId: "p007", quantity: 2 },   // Toalla
+          { productId: "p008", quantity: 4 },   // Guantes
+          { productId: "p010", quantity: 2 },   // Mascarilla Euronda
+          { productId: "p011", quantity: 11 },  // Papel adherente
+          { productId: "p013", quantity: 1 },   // Succión
+          { productId: "p014", quantity: 1 },   // Punta jeringa triple
+          { productId: "p120", quantity: 1 },   // Encerado diagnóstico
+          { productId: "p121", quantity: 1 },   // Puntas de liviana
+          { productId: "p122", quantity: 1 },   // Registro de mordida
+          { productId: "p123", quantity: 1 },   // Yeso tipo II
+          { productId: "p124", quantity: 2 },   // Yeso para modelos
+          { productId: "p125", quantity: 2 },   // Alginato Zhermack
+        ],
+      },
+      {
+        id: "t008-c2",
+        number: 2,
+        name: "Cita 2 — Preparación",
+        materials: [
+          { productId: "p126", quantity: 1 },   // Detergente 1L
+          { productId: "p002", quantity: 3 },   // Agua purificada
+          { productId: "p003", quantity: 1 },   // Vaso
+          { productId: "p004", quantity: 2 },   // Enjuague
+          { productId: "p005", quantity: 2 },   // Babero
+          { productId: "p006", quantity: 3 },   // Aromatizante
+          { productId: "p007", quantity: 2 },   // Toalla
+          { productId: "p008", quantity: 6 },   // Guantes
+          { productId: "p010", quantity: 2 },   // Mascarilla Euronda
+          { productId: "p011", quantity: 11 },  // Papel adherente
+          { productId: "p012", quantity: 1 },   // Aplicador
+          { productId: "p030", quantity: 2 },   // Anestésico tópico
+          { productId: "p013", quantity: 1 },   // Succión
+          { productId: "p031", quantity: 1 },   // Aguja
+          { productId: "p032", quantity: 1 },   // Lidocaína
+          { productId: "p080", quantity: 1 },   // Fresa redonda pequeña
+          { productId: "p081", quantity: 1 },   // Fresa redonda grande
+          { productId: "p084", quantity: 1 },   // Fresa Cilíndrica Punta Activa
+          { productId: "p085", quantity: 1 },   // Fresa Troncónica Fina
+          { productId: "p086", quantity: 1 },   // Fresa Llama
+          { productId: "p087", quantity: 1 },   // Fresa Troncónica Ancha
+          { productId: "p090", quantity: 3 },   // Detector de caries
+          { productId: "p091", quantity: 1 },   // Arenador
+          { productId: "p092", quantity: 1 },   // Dique de goma
+          { productId: "p093", quantity: 1 },   // Hilo dental encerado
+          { productId: "p094", quantity: 1 },   // Barrera gingival
+          { productId: "p096", quantity: 1 },   // Ácido Fosfórico Ultradent
+          { productId: "p099", quantity: 2 },   // Adhesivo 4ta generación
+          { productId: "p100", quantity: 3 },   // Microaplicador MagicBrush
+          { productId: "p102", quantity: 1 },   // Hidróxido de calcio pasta
+          { productId: "p103", quantity: 1 },   // Resina fluida
+          { productId: "p104", quantity: 1 },   // Resina pasta
+          { productId: "p105", quantity: 1 },   // Tinte de resina
+          { productId: "p106", quantity: 1 },   // Humectante
+        ],
+      },
+      {
+        id: "t008-c3",
+        number: 3,
+        name: "Cita 3 — Impresión definitiva + Lab",
+        materials: [
+          { productId: "p126", quantity: 1 },   // Detergente 1L
+          { productId: "p002", quantity: 3 },   // Agua purificada
+          { productId: "p003", quantity: 1 },   // Vaso
+          { productId: "p004", quantity: 2 },   // Enjuague
+          { productId: "p005", quantity: 2 },   // Babero
+          { productId: "p006", quantity: 3 },   // Aromatizante
+          { productId: "p007", quantity: 2 },   // Toalla
+          { productId: "p008", quantity: 4 },   // Guantes
+          { productId: "p010", quantity: 2 },   // Mascarilla Euronda
+          { productId: "p011", quantity: 11 },  // Papel adherente
+          { productId: "p012", quantity: 1 },   // Aplicador
+          { productId: "p030", quantity: 1 },   // Anestésico tópico
+          { productId: "p013", quantity: 1 },   // Succión
+          { productId: "p014", quantity: 1 },   // Punta jeringa triple
+          { productId: "p127", quantity: 1 },   // Cloruro de aluminio
+          { productId: "p128", quantity: 1 },   // Hilo retractor 0
+          { productId: "p129", quantity: 1 },   // Hilo retractor 000
+          { productId: "p130", quantity: 1 },   // Silicona Putty
+          { productId: "p121", quantity: 1 },   // Puntas de liviana
+          { productId: "p131", quantity: 1 },   // Silicona liviana
+          { productId: "p122", quantity: 1 },   // Registro de mordida
+          { productId: "p124", quantity: 2 },   // Yeso para modelos
+          { productId: "p103", quantity: 1 },   // Resina fluida
+          { productId: "p104", quantity: 4 },   // Resina pasta (4 porciones)
+          { productId: "p105", quantity: 1 },   // Tinte de resina
+          { productId: "p106", quantity: 1 },   // Humectante
+        ],
+      },
+      {
+        id: "t008-c4",
+        number: 4,
+        name: "Cita 4 — Cementación",
+        materials: [
+          { productId: "p126", quantity: 1 },   // Detergente 1L
+          { productId: "p002", quantity: 3 },   // Agua purificada
+          { productId: "p003", quantity: 1 },   // Vaso
+          { productId: "p004", quantity: 2 },   // Enjuague
+          { productId: "p005", quantity: 2 },   // Babero
+          { productId: "p006", quantity: 3 },   // Aromatizante
+          { productId: "p007", quantity: 2 },   // Toalla
+          { productId: "p008", quantity: 4 },   // Guantes
+          { productId: "p010", quantity: 2 },   // Mascarilla Euronda
+          { productId: "p011", quantity: 11 },  // Papel adherente
+          { productId: "p012", quantity: 1 },   // Aplicador
+          { productId: "p013", quantity: 1 },   // Succión
+          { productId: "p014", quantity: 1 },   // Punta jeringa triple
+          { productId: "p092", quantity: 1 },   // Dique de goma
+          { productId: "p093", quantity: 1 },   // Hilo dental encerado
+          { productId: "p132", quantity: 1 },   // Óxido de Aluminio
+          { productId: "p107", quantity: 2 },   // Teflón TDV (Isotape)
+          { productId: "p096", quantity: 1 },   // Ácido Fosfórico Ultradent
+          { productId: "p133", quantity: 1 },   // Cemento Panavia
+          { productId: "p134", quantity: 1 },   // Tooth Primer
+          { productId: "p135", quantity: 1 },   // Ceramic Primer
+          { productId: "p136", quantity: 4 },   // Microaplicador + Punta mezcla
+          { productId: "p137", quantity: 1 },   // Hilo dental superfloss
+        ],
+      },
+      {
+        id: "t008-c5",
+        number: 5,
+        name: "Cita 5 — Pulido final",
+        materials: [
+          { productId: "p126", quantity: 1 },   // Detergente 1L
+          { productId: "p002", quantity: 3 },   // Agua purificada
+          { productId: "p003", quantity: 1 },   // Vaso
+          { productId: "p004", quantity: 2 },   // Enjuague
+          { productId: "p005", quantity: 2 },   // Babero
+          { productId: "p006", quantity: 3 },   // Aromatizante
+          { productId: "p007", quantity: 2 },   // Toalla
+          { productId: "p008", quantity: 6 },   // Guantes
+          { productId: "p009", quantity: 1 },   // Mascarilla Crosstex
+          { productId: "p010", quantity: 2 },   // Mascarilla Euronda
+          { productId: "p011", quantity: 11 },  // Papel adherente
+          { productId: "p012", quantity: 1 },   // Aplicador
+          { productId: "p030", quantity: 2 },   // Anestésico tópico
+          { productId: "p013", quantity: 1 },   // Succión
+          { productId: "p014", quantity: 1 },   // Punta jeringa triple
+          { productId: "p111", quantity: 2 },   // Papel de articular
+          { productId: "p112", quantity: 1 },   // Pasta de pulido Jiffy
+          { productId: "p113", quantity: 1 },   // Glicerina
+          { productId: "p114", quantity: 1 },   // Permaseal
+          { productId: "p115", quantity: 1 },   // Lubricante instrumental
+        ],
+      },
+    ],
+    professionalFeePerHour: 192,
+    totalHours: 5,
+    fixedCosts: 216,
+    clinicMarginPct: 0.15,
+    suggestedPrice: 4700,
   },
 ];
