@@ -183,7 +183,7 @@ async def delete_treatment_plan(
 ) -> None:
     plan = await get_treatment_plan(db, clinic_id, patient_id, plan_id)
     await db.delete(plan)
-    await db.commit()
+    await db.flush()
 
 
 async def update_treatment_plan(

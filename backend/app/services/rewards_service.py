@@ -479,7 +479,8 @@ async def get_account_for_patient(
         if lv.tzinfo is None:
             lv = lv.replace(tzinfo=timezone.utc)
         if lv < cutoff:
-            account.benefits_suspended = True
+            if not account.benefits_suspended:
+                account.benefits_suspended = True
             await _expire_points_if_needed(db, account, lv)
 
     return account
