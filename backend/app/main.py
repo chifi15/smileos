@@ -16,16 +16,16 @@ settings = get_settings()
 async def _assign_missing_patient_numbers() -> None:
     async with engine.begin() as conn:
         await conn.execute(text("""
-            WITH reranked AS (
+            UPDATE patients
+            SET patient_number = sub.new_num
+            FROM (
                 SELECT id,
-                       ROW_NUMBER() OVER (PARTITION BY clinic_id ORDER BY created_at) AS new_num
+                       ROW_NUMBER() OVER (PARTITION BY clinic_id ORDER BY created_at)
+                           AS new_num
                 FROM patients
                 WHERE patient_number IS NULL
-            )
-            UPDATE patients
-            SET patient_number = reranked.new_num
-            FROM reranked
-            WHERE patients.id = reranked.id
+            ) sub
+            WHERE patients.id = sub.id
         """))
 
 

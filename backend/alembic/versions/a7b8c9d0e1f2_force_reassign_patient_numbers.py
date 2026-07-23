@@ -15,22 +15,7 @@ depends_on = None
 
 
 def upgrade():
-    op.execute(sa.text("""
-        DO $$
-        BEGIN
-            UPDATE patients p
-            SET patient_number = sub.new_num
-            FROM (
-                SELECT id,
-                       ROW_NUMBER() OVER (PARTITION BY clinic_id ORDER BY created_at) AS new_num
-                FROM patients
-            ) sub
-            WHERE p.id = sub.id;
-        EXCEPTION WHEN OTHERS THEN
-            NULL;
-        END
-        $$;
-    """))
+    pass  # reassignment handled by app startup in main.py
 
 
 def downgrade():
