@@ -32,7 +32,12 @@ export function useUploadPhoto(patientId: string, onSuccess?: () => void) {
       toast.success("Fotografía subida.");
       onSuccess?.();
     },
-    onError: () => toast.error("Error al subir la fotografía."),
+    onError: (err: unknown) => {
+      const msg =
+        (err as { response?: { data?: { error?: { message?: string } } } })
+          ?.response?.data?.error?.message ?? "Error al subir la fotografía.";
+      toast.error(msg);
+    },
   });
 }
 

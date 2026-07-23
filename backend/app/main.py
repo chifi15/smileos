@@ -84,11 +84,13 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 @app.exception_handler(Exception)
 async def unhandled_exception_handler(request: Request, exc: Exception):
+    import logging
+    logging.getLogger("smileos").error("Unhandled exception: %s", exc, exc_info=True)
     return JSONResponse(
         status_code=500,
         content={
             "success": False,
-            "error": {"code": "INTERNAL_ERROR", "message": "Error interno del servidor."},
+            "error": {"code": "INTERNAL_ERROR", "message": f"Error interno: {exc}"},
         },
     )
 

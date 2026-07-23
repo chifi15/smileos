@@ -26,3 +26,5 @@ services:
         value: smileos-media
       - key: S3_REGION
         value: auto
+      - key: LOCAL_MEDIA_PATH
+        value: /tmp/smileos-media

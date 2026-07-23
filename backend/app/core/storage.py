@@ -1,14 +1,13 @@
 """
 Capa de abstracción de almacenamiento de archivos.
-- Modo local (dev): guarda en /app/media
-- Modo S3 (producción): cualquier servicio compatible con S3
-  Requiere env vars: S3_ENDPOINT_URL, S3_ACCESS_KEY, S3_SECRET_KEY, S3_BUCKET_NAME
+- Modo S3 (producción): requiere S3_ENDPOINT_URL + S3_ACCESS_KEY en env
+- Modo local (fallback): usa LOCAL_MEDIA_PATH env var, o /app/media por defecto
 """
 import os
 import uuid
 from pathlib import Path
 
-MEDIA_ROOT = Path("/app/media")
+MEDIA_ROOT = Path(os.environ.get("LOCAL_MEDIA_PATH", "/app/media"))
 
 
 def _use_s3() -> bool:
