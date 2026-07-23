@@ -1,13 +1,13 @@
 """
 Capa de abstracción de almacenamiento de archivos.
 - Modo S3 (producción): requiere S3_ENDPOINT_URL + S3_ACCESS_KEY en env
-- Modo local (fallback): usa LOCAL_MEDIA_PATH env var, o /app/media por defecto
+- Modo local (fallback): usa LOCAL_MEDIA_PATH env var, o /tmp/smileos-media por defecto
 """
 import os
 import uuid
 from pathlib import Path
 
-MEDIA_ROOT = Path(os.environ.get("LOCAL_MEDIA_PATH", "/app/media"))
+MEDIA_ROOT = Path(os.environ.get("LOCAL_MEDIA_PATH", "/tmp/smileos-media"))
 
 
 def _use_s3() -> bool:
