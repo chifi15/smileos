@@ -120,7 +120,7 @@ async def list_patients(
     total: int = await db.scalar(count_q) or 0
 
     # Ordenar y paginar
-    base = base.order_by(Patient.patient_number)
+    base = base.order_by(Patient.patient_number.asc().nullslast())
     base = base.offset((page - 1) * per_page).limit(per_page)
 
     result = await db.execute(base)
