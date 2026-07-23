@@ -35,7 +35,10 @@ async def lifespan(app: FastAPI):
         await get_redis()
     except Exception:
         pass  # Redis is optional; app runs without it
-    await _assign_missing_patient_numbers()
+    try:
+        await _assign_missing_patient_numbers()
+    except Exception:
+        pass  # No bloquear el arranque si falla el backfill
     yield
     await close_redis()
 
