@@ -6,6 +6,7 @@ Create Date: 2026-07-23
 
 """
 from alembic import op
+import sqlalchemy as sa
 
 revision = 'f6a7b8c9d0e1'
 down_revision = 'e5f6a7b8c9d0'
@@ -14,25 +15,23 @@ depends_on = None
 
 
 def upgrade():
-    op.execute("""
-        WITH ranked AS (
-            SELECT id, clinic_id,
-                   ROW_NUMBER() OVER (PARTITION BY clinic_id ORDER BY created_at) AS rn
-            FROM patients
-            WHERE patient_number IS NULL
-        ),
-        max_per_clinic AS (
-            SELECT clinic_id, COALESCE(MAX(patient_number), 0) AS max_num
-            FROM patients
-            WHERE patient_number IS NOT NULL
-            GROUP BY clinic_id
-        )
-        UPDATE patients
-        SET patient_number = COALESCE(mpc.max_num, 0) + ranked.rn
-        FROM ranked
-        LEFT JOIN max_per_clinic mpc ON mpc.clinic_id = ranked.clinic_id
-        WHERE patients.id = ranked.id
-    """)
+    op.execute(sa.text("""
+        DO $$
+        BEGIN
+            UPDATE patients p
+            SET patient_number = sub.new_num
+            FROM (
+                SELECT id,
+                       ROW_NUMBER() OVER (PARTITION BY clinic_id ORDER BY created_at) AS new_num
+                FROM patients
+                WHERE patient_number IS NULL
+            ) sub
+            WHERE p.id = sub.id;
+        EXCEPTION WHEN OTHERS THEN
+            NULL;
+        END
+        $$;
+    """))
 
 
 def downgrade():

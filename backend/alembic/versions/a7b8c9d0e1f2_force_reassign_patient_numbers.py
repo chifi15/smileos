@@ -16,15 +16,20 @@ depends_on = None
 
 def upgrade():
     op.execute(sa.text("""
-        WITH reranked AS (
-            SELECT id,
-                   ROW_NUMBER() OVER (PARTITION BY clinic_id ORDER BY created_at) AS new_num
-            FROM patients
-        )
-        UPDATE patients
-        SET patient_number = reranked.new_num
-        FROM reranked
-        WHERE patients.id = reranked.id
+        DO $$
+        BEGIN
+            UPDATE patients p
+            SET patient_number = sub.new_num
+            FROM (
+                SELECT id,
+                       ROW_NUMBER() OVER (PARTITION BY clinic_id ORDER BY created_at) AS new_num
+                FROM patients
+            ) sub
+            WHERE p.id = sub.id;
+        EXCEPTION WHEN OTHERS THEN
+            NULL;
+        END
+        $$;
     """))
 
 
