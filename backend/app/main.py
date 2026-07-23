@@ -3,12 +3,30 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
+from sqlalchemy import text
 
 from app.core.config import get_settings
 from app.core.redis import get_redis, close_redis
 from app.core.exceptions import SmileOSException
+from app.core.database import engine
 
 settings = get_settings()
+
+
+async def _assign_missing_patient_numbers() -> None:
+    async with engine.begin() as conn:
+        await conn.execute(text("""
+            WITH reranked AS (
+                SELECT id,
+                       ROW_NUMBER() OVER (PARTITION BY clinic_id ORDER BY created_at) AS new_num
+                FROM patients
+                WHERE patient_number IS NULL
+            )
+            UPDATE patients
+            SET patient_number = reranked.new_num
+            FROM reranked
+            WHERE patients.id = reranked.id
+        """))
 
 
 @asynccontextmanager
@@ -17,6 +35,7 @@ async def lifespan(app: FastAPI):
         await get_redis()
     except Exception:
         pass  # Redis is optional; app runs without it
+    await _assign_missing_patient_numbers()
     yield
     await close_redis()
 
