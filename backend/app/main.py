@@ -61,11 +61,27 @@ app.add_middleware(
 )
 
 
+def _cors_headers(request: Request) -> dict:
+    """Incluye CORS en respuestas de error (Starlette no los agrega automáticamente)."""
+    origin = request.headers.get("origin")
+    if not origin:
+        return {}
+    allowed = settings.cors_origins
+    if origin in allowed or "*" in allowed:
+        return {
+            "Access-Control-Allow-Origin": origin,
+            "Access-Control-Allow-Credentials": "true",
+            "Vary": "Origin",
+        }
+    return {}
+
+
 @app.exception_handler(SmileOSException)
 async def smileos_exception_handler(request: Request, exc: SmileOSException):
     return JSONResponse(
         status_code=exc.status_code,
         content={"success": False, "error": exc.detail},
+        headers=_cors_headers(request),
     )
 
 
@@ -79,6 +95,7 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
             "success": False,
             "error": {"code": "VALIDATION_ERROR", "message": message},
         },
+        headers=_cors_headers(request),
     )
 
 
@@ -92,6 +109,7 @@ async def unhandled_exception_handler(request: Request, exc: Exception):
             "success": False,
             "error": {"code": "INTERNAL_ERROR", "message": f"Error interno: {exc}"},
         },
+        headers=_cors_headers(request),
     )
 
 
