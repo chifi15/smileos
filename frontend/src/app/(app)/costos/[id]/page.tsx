@@ -350,6 +350,8 @@ function EditableAppointment({
   const [open, setOpen] = useState(defaultOpen ?? false);
   const [addOpen, setAddOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
+  const [editName, setEditName] = useState(false);
+  const [editNameValue, setEditNameValue] = useState("");
   const products = useCostosStore((s) => s.products);
   const allAppointments = useCostosStore(
     (s) => s.treatments.find((t) => t.id === treatmentId)?.appointments ?? []
@@ -368,6 +370,18 @@ function EditableAppointment({
       return { ...a, materials: a.materials.filter((m) => m.productId !== productId) };
     });
     updateTreatment(treatmentId, { appointments: updatedAppointments });
+  }
+
+  function saveName() {
+    if (!treatment) return;
+    const trimmed = editNameValue.trim();
+    if (trimmed) {
+      const updatedAppointments = treatment.appointments.map((a) =>
+        a.id === appointment.id ? { ...a, name: trimmed } : a
+      );
+      updateTreatment(treatmentId, { appointments: updatedAppointments });
+    }
+    setEditName(false);
   }
 
   function saveQty(productId: string) {
@@ -399,7 +413,29 @@ function EditableAppointment({
             {appointment.number}
           </div>
           <div>
-            <p className="font-semibold text-slate-800 text-sm">{appointment.name}</p>
+            {editName ? (
+              <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                <input
+                  autoFocus
+                  className="rounded border border-blue-400 px-2 py-0.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 w-44"
+                  value={editNameValue}
+                  onChange={(e) => setEditNameValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") saveName();
+                    if (e.key === "Escape") setEditName(false);
+                  }}
+                  onBlur={saveName}
+                />
+              </div>
+            ) : (
+              <button
+                className="flex items-center gap-1.5 group/name text-left"
+                onClick={(e) => { e.stopPropagation(); setEditNameValue(appointment.name); setEditName(true); }}
+              >
+                <p className="font-semibold text-slate-800 text-sm">{appointment.name}</p>
+                <Edit2 size={10} className="text-slate-300 group-hover/name:text-slate-400 shrink-0" />
+              </button>
+            )}
             <p className="text-xs text-slate-500">{materials.length} materiales</p>
           </div>
         </div>
