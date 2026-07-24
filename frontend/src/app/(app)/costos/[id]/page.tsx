@@ -236,6 +236,93 @@ function AddMaterialModal({
   );
 }
 
+// ─── Add By Category Modal ────────────────────────────────────────────────────
+
+function AddByCategoryModal({
+  treatmentId,
+  appointmentId,
+  onClose,
+}: {
+  treatmentId: string;
+  appointmentId: string;
+  onClose: () => void;
+}) {
+  const products = useCostosStore((s) => s.products);
+  const treatment = useCostosStore((s) => s.treatments.find((t) => t.id === treatmentId));
+  const updateTreatment = useCostosStore((s) => s.updateTreatment);
+
+  if (!treatment) return null;
+
+  const apt = treatment.appointments.find((a) => a.id === appointmentId);
+  const existingIds = new Set(apt?.materials.map((m) => m.productId) ?? []);
+  const available = products.filter((p) => !existingIds.has(p.id));
+
+  const byCategory = Object.entries(PRODUCT_CATEGORY_LABELS).map(([cat, label]) => ({
+    cat: cat as keyof typeof PRODUCT_CATEGORY_LABELS,
+    label,
+    items: available.filter((p) => p.category === cat),
+  })).filter((g) => g.items.length > 0);
+
+  function handleAddCategory(cat: string) {
+    if (!treatment) return;
+    const toAdd = available.filter((p) => p.category === cat);
+    const updatedAppointments = treatment.appointments.map((a) => {
+      if (a.id !== appointmentId) return a;
+      return {
+        ...a,
+        materials: [...a.materials, ...toAdd.map((p) => ({ productId: p.id, quantity: 1 }))],
+      };
+    });
+    updateTreatment(treatmentId, { appointments: updatedAppointments });
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div>
+            <h2 className="font-semibold text-slate-800">Agregar por categoría</h2>
+            <p className="text-xs text-slate-500 mt-0.5">Selecciona una categoría para agregar todos sus productos</p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="px-6 py-4">
+          {byCategory.length === 0 ? (
+            <p className="py-6 text-center text-sm text-slate-400">Todos los productos ya están en esta cita</p>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {byCategory.map(({ cat, label, items }) => (
+                <button
+                  key={cat}
+                  onClick={() => handleAddCategory(cat)}
+                  className="flex flex-col items-start gap-1.5 rounded-xl border border-slate-200 px-4 py-3 text-left hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                >
+                  <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${PRODUCT_CATEGORY_COLORS[cat]}`}>
+                    {label}
+                  </span>
+                  <p className="text-xs text-slate-500">
+                    {items.length} producto{items.length !== 1 ? "s" : ""}
+                  </p>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-slate-100 px-6 py-4">
+          <Button variant="secondary" className="w-full" onClick={onClose}>
+            Cancelar
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Merge Appointment Modal ──────────────────────────────────────────────────
 
 function MergeAppointmentModal({
@@ -349,6 +436,7 @@ function EditableAppointment({
 }) {
   const [open, setOpen] = useState(defaultOpen ?? false);
   const [addOpen, setAddOpen] = useState(false);
+  const [addCategoryOpen, setAddCategoryOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
   const [editName, setEditName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
@@ -555,12 +643,18 @@ function EditableAppointment({
             </table>
           )}
 
-          <div className="border-t border-slate-100 px-5 py-3">
+          <div className="border-t border-slate-100 px-5 py-3 flex items-center gap-4">
             <button
               onClick={() => setAddOpen(true)}
               className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700"
             >
               <Plus size={13} /> Agregar material
+            </button>
+            <button
+              onClick={() => setAddCategoryOpen(true)}
+              className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700"
+            >
+              <Plus size={13} /> Agregar por categoría
             </button>
           </div>
         </div>
@@ -571,6 +665,13 @@ function EditableAppointment({
           treatmentId={treatmentId}
           appointmentId={appointment.id}
           onClose={() => setAddOpen(false)}
+        />
+      )}
+      {addCategoryOpen && (
+        <AddByCategoryModal
+          treatmentId={treatmentId}
+          appointmentId={appointment.id}
+          onClose={() => setAddCategoryOpen(false)}
         />
       )}
       {mergeOpen && (
