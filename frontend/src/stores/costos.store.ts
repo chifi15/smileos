@@ -14,6 +14,7 @@ interface CostosState {
   addTreatment: (treatment: Treatment) => void;
   updateTreatment: (id: string, updates: Partial<Treatment>) => void;
   deleteTreatment: (id: string) => void;
+  mergeAppointments: (treatmentId: string, targetId: string, sourceId: string) => void;
 
   resetToSeed: () => void;
 }
@@ -47,6 +48,30 @@ export const useCostosStore = create<CostosState>()(
 
       deleteTreatment: (id) =>
         set((s) => ({ treatments: s.treatments.filter((t) => t.id !== id) })),
+
+      mergeAppointments: (treatmentId, targetId, sourceId) =>
+        set((s) => ({
+          treatments: s.treatments.map((t) => {
+            if (t.id !== treatmentId) return t;
+            const target = t.appointments.find((a) => a.id === targetId);
+            const source = t.appointments.find((a) => a.id === sourceId);
+            if (!target || !source) return t;
+            const mergedMaterials = [...target.materials];
+            for (const srcMat of source.materials) {
+              const existing = mergedMaterials.find((m) => m.productId === srcMat.productId);
+              if (existing) existing.quantity += srcMat.quantity;
+              else mergedMaterials.push({ ...srcMat });
+            }
+            const updated = t.appointments
+              .filter((a) => a.id !== sourceId)
+              .map((a, i) => ({
+                ...a,
+                number: i + 1,
+                materials: a.id === targetId ? mergedMaterials : a.materials,
+              }));
+            return { ...t, appointments: updated };
+          }),
+        })),
 
       resetToSeed: () => set({ products: SEED_PRODUCTS, treatments: SEED_TREATMENTS }),
     }),

@@ -15,6 +15,7 @@ import {
   DollarSign,
   Package,
   AlertCircle,
+  Merge,
 } from "lucide-react";
 import { useCostosStore } from "@/stores/costos.store";
 import { calculateTreatmentCosts, fmtC, fmt } from "@/lib/costos-utils";
@@ -235,6 +236,106 @@ function AddMaterialModal({
   );
 }
 
+// ─── Merge Appointment Modal ──────────────────────────────────────────────────
+
+function MergeAppointmentModal({
+  treatmentId,
+  targetAppointmentId,
+  onClose,
+}: {
+  treatmentId: string;
+  targetAppointmentId: string;
+  onClose: () => void;
+}) {
+  const treatment = useCostosStore((s) => s.treatments.find((t) => t.id === treatmentId));
+  const products = useCostosStore((s) => s.products);
+  const mergeAppointments = useCostosStore((s) => s.mergeAppointments);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+
+  if (!treatment) return null;
+
+  const target = treatment.appointments.find((a) => a.id === targetAppointmentId);
+  const others = treatment.appointments.filter((a) => a.id !== targetAppointmentId);
+
+  function handleMerge() {
+    if (!selectedId) return;
+    mergeAppointments(treatmentId, targetAppointmentId, selectedId);
+    onClose();
+  }
+
+  function materialCost(aptId: string) {
+    const apt = treatment!.appointments.find((a) => a.id === aptId);
+    if (!apt) return 0;
+    return apt.materials.reduce((sum, m) => {
+      const p = products.find((p) => p.id === m.productId);
+      return sum + (p ? p.unitPrice * m.quantity : 0);
+    }, 0);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+          <div>
+            <h2 className="font-semibold text-slate-800">Fusionar cita</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Los materiales de la cita seleccionada se absorberán en <span className="font-medium text-slate-700">Cita {target?.number}</span>
+            </p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="px-6 py-4 space-y-2">
+          {others.length === 0 && (
+            <p className="py-6 text-center text-sm text-slate-400">No hay otras citas para fusionar</p>
+          )}
+          {others.map((apt) => (
+            <button
+              key={apt.id}
+              onClick={() => setSelectedId(apt.id)}
+              className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${
+                selectedId === apt.id
+                  ? "border-blue-400 bg-blue-50"
+                  : "border-slate-200 hover:bg-slate-50"
+              }`}
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 text-xs font-bold text-slate-600">
+                  {apt.number}
+                </div>
+                <div>
+                  <p className="font-medium text-slate-700 text-sm">{apt.name}</p>
+                  <p className="text-xs text-slate-400">{apt.materials.length} materiales · {fmtC(materialCost(apt.id))}</p>
+                </div>
+              </div>
+              {selectedId === apt.id && <Check size={15} className="text-blue-600 shrink-0" />}
+            </button>
+          ))}
+        </div>
+
+        {selectedId && (
+          <div className="border-t border-slate-100 bg-amber-50 px-6 py-3">
+            <p className="text-xs text-amber-700">
+              La cita seleccionada desaparecerá y sus materiales se sumarán a la Cita {target?.number}. Esta acción no se puede deshacer.
+            </p>
+          </div>
+        )}
+
+        <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
+          <Button variant="secondary" className="flex-1" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button className="flex-1" onClick={handleMerge} disabled={!selectedId}>
+            Fusionar
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Editable Appointment ─────────────────────────────────────────────────────
 
 function EditableAppointment({
@@ -248,7 +349,11 @@ function EditableAppointment({
 }) {
   const [open, setOpen] = useState(defaultOpen ?? false);
   const [addOpen, setAddOpen] = useState(false);
+  const [mergeOpen, setMergeOpen] = useState(false);
   const products = useCostosStore((s) => s.products);
+  const allAppointments = useCostosStore(
+    (s) => s.treatments.find((t) => t.id === treatmentId)?.appointments ?? []
+  );
   const treatment = useCostosStore((s) => s.treatments.find((t) => t.id === treatmentId));
   const updateTreatment = useCostosStore((s) => s.updateTreatment);
   const [editQty, setEditQty] = useState<string | null>(null);
@@ -298,11 +403,20 @@ function EditableAppointment({
             <p className="text-xs text-slate-500">{materials.length} materiales</p>
           </div>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <div className="text-right">
             <p className="text-xs text-slate-500">Costo cita</p>
             <p className="font-semibold text-slate-800">{fmtC(materialCost)}</p>
           </div>
+          {allAppointments.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setMergeOpen(true); }}
+              title="Fusionar con otra cita"
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-orange-50 hover:text-orange-500 transition-colors"
+            >
+              <Merge size={15} />
+            </button>
+          )}
           {open ? (
             <ChevronUp size={16} className="text-slate-400 shrink-0" />
           ) : (
@@ -421,6 +535,13 @@ function EditableAppointment({
           treatmentId={treatmentId}
           appointmentId={appointment.id}
           onClose={() => setAddOpen(false)}
+        />
+      )}
+      {mergeOpen && (
+        <MergeAppointmentModal
+          treatmentId={treatmentId}
+          targetAppointmentId={appointment.id}
+          onClose={() => setMergeOpen(false)}
         />
       )}
     </div>
