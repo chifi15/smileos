@@ -3,12 +3,13 @@
 import { useRouter } from "next/navigation";
 import { useMutation } from "@tanstack/react-query";
 import toast from "react-hot-toast";
-import apiClient from "@/lib/api-client";
+import apiClient, { clearAccessToken } from "@/lib/api-client";
 import { useAuthStore } from "@/stores/auth.store";
+import { scheduleProactiveRefresh, clearProactiveRefresh } from "@/providers/AuthProvider";
 import { AuthUser } from "@/types";
 
 export function useLogin() {
-  const { setUser } = useAuthStore();
+  const { setUser, logout } = useAuthStore();
   const router = useRouter();
 
   return useMutation({
@@ -20,6 +21,11 @@ export function useLogin() {
     },
     onSuccess: ({ access_token, user }) => {
       setUser(user, access_token);
+      scheduleProactiveRefresh(access_token, () => {
+        clearAccessToken();
+        logout();
+        window.location.href = "/login";
+      });
       if (user.must_change_password) {
         router.replace("/change-password");
       } else {
@@ -43,6 +49,7 @@ export function useLogout() {
   return useMutation({
     mutationFn: () => apiClient.post("/api/v1/auth/logout"),
     onSettled: () => {
+      clearProactiveRefresh();
       logout();
       router.replace("/login");
     },
