@@ -480,6 +480,7 @@ export default function PatientDetailPage() {
             value={patient.gender ? GENDER_LABELS[patient.gender] : null}
           />
           <InfoRow label="Cédula / Documento" value={patient.id_number} />
+          <InfoRow label="Profesión" value={patient.occupation} />
         </InfoCard>
 
         {/* Contact */}

@@ -50,6 +50,7 @@ def _serialize(patient, referred_by_name: str | None = None) -> dict:
         "date_of_birth": patient.date_of_birth.isoformat() if patient.date_of_birth else None,
         "gender": patient.gender,
         "id_number": patient.id_number,
+        "occupation": patient.occupation,
         "phone": patient.phone,
         "phone_secondary": patient.phone_secondary,
         "email": patient.email,

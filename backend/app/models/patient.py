@@ -20,6 +20,7 @@ class Patient(UUIDMixin, TimestampMixin, Base):
     date_of_birth: Mapped[date | None] = mapped_column(Date)
     gender: Mapped[str | None] = mapped_column(String(10))  # M | F | other
     id_number: Mapped[str | None] = mapped_column(String(50))  # Cédula
+    occupation: Mapped[str | None] = mapped_column(String(150))
 
     # Contacto
     phone: Mapped[str | None] = mapped_column(String(20))

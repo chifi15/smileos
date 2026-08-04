@@ -15,6 +15,7 @@ function patientToForm(p: PatientDetail): PatientFormValues {
     date_of_birth: p.date_of_birth ?? "",
     gender: (p.gender ?? "") as PatientFormValues["gender"],
     id_number: p.id_number ?? "",
+    occupation: p.occupation ?? "",
     phone: p.phone ?? "",
     phone_secondary: p.phone_secondary ?? "",
     email: p.email ?? "",

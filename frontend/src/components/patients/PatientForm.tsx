@@ -133,6 +133,13 @@ export default function PatientForm({
             onChange={field("id_number")}
             placeholder="001-000000-0000X"
           />
+          <Input
+            label="Profesión / Ocupación"
+            value={values.occupation}
+            onChange={field("occupation")}
+            placeholder="Docente, enfermero, contador..."
+            className="sm:col-span-2"
+          />
         </div>
       </Section>
 

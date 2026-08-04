@@ -10,6 +10,7 @@ class PatientCreate(BaseModel):
     date_of_birth: date | None = None
     gender: Literal["M", "F", "other"] | None = None
     id_number: str | None = None
+    occupation: str | None = None
 
     phone: str | None = None
     phone_secondary: str | None = None
@@ -44,6 +45,7 @@ class PatientUpdate(BaseModel):
     date_of_birth: date | None = None
     gender: Literal["M", "F", "other"] | None = None
     id_number: str | None = None
+    occupation: str | None = None
 
     phone: str | None = None
     phone_secondary: str | None = None
@@ -80,6 +82,7 @@ class PatientOut(BaseModel):
     date_of_birth: date | None
     gender: str | None
     id_number: str | None
+    occupation: str | None
     phone: str | None
     phone_secondary: str | None
     email: str | None

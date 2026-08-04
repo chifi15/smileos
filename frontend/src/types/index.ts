@@ -173,6 +173,7 @@ export interface PatientDetail {
   date_of_birth: string | null;
   gender: "M" | "F" | "other" | null;
   id_number: string | null;
+  occupation: string | null;
   phone: string | null;
   phone_secondary: string | null;
   email: string | null;
@@ -207,6 +208,7 @@ export interface PatientFormValues {
   date_of_birth: string;
   gender: "" | "M" | "F" | "other";
   id_number: string;
+  occupation: string;
   phone: string;
   phone_secondary: string;
   email: string;
@@ -229,6 +231,7 @@ export const EMPTY_PATIENT_FORM: PatientFormValues = {
   date_of_birth: "",
   gender: "",
   id_number: "",
+  occupation: "",
   phone: "",
   phone_secondary: "",
   email: "",
