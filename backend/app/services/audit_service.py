@@ -60,7 +60,15 @@ async def list_feed(
     if date_to:
         q = q.where(AuditLog.created_at <= date_to)
 
-    count_q = select(func.count()).select_from(q.subquery())
+    count_q = select(func.count(AuditLog.id)).where(AuditLog.clinic_id == clinic_id)
+    if resource_type:
+        count_q = count_q.where(AuditLog.resource_type == resource_type)
+    if patient_id:
+        count_q = count_q.where(AuditLog.patient_id == patient_id)
+    if date_from:
+        count_q = count_q.where(AuditLog.created_at >= date_from)
+    if date_to:
+        count_q = count_q.where(AuditLog.created_at <= date_to)
     total: int = await db.scalar(count_q) or 0
 
     q = q.order_by(desc(AuditLog.created_at)).offset((page - 1) * per_page).limit(per_page)

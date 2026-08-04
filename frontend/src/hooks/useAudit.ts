@@ -28,7 +28,7 @@ export function useAuditFeed(params: AuditFeedParams = {}) {
       const res = await api.get(`/api/v1/audit?${p}`);
       return { data: res.data.data, meta: res.data.meta };
     },
-    staleTime: 30_000,
+    staleTime: 0,
   });
 }
 
@@ -43,6 +43,6 @@ export function usePatientAudit(patientId: string, params: { resource_type?: str
       return { data: res.data.data, meta: res.data.meta };
     },
     enabled: !!patientId,
-    staleTime: 30_000,
+    staleTime: 0,
   });
 }
