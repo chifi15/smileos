@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
+import { useCostosStore } from "@/stores/costos.store";
 import {
   TrendingUp,
   TrendingDown,
@@ -351,6 +352,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   const update = useUpdateTransaction(year, month);
   const uploadReceipt = useUploadReceipt(year, month);
   const { data: procedures = [] } = useProcedures();
+  const deductTreatmentMaterials = useCostosStore((s) => s.deductTreatmentMaterials);
   const isIngreso = type === "ingreso";
   const categories = isIngreso ? INCOME_CATEGORY_LABELS : EXPENSE_CATEGORY_LABELS;
   const fileRef = useRef<HTMLInputElement>(null);
@@ -406,6 +408,10 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
 
     create.mutate(payload, {
       onSuccess: async (tx: FinanceTransaction) => {
+        // Descontar materiales del inventario si el procedimiento está vinculado
+        if (tx.procedure?.id) {
+          deductTreatmentMaterials(tx.procedure.id, tx.procedure_quantity ?? 1);
+        }
         if (form.receiptFile) {
           try {
             await new Promise<void>((resolve, reject) => {

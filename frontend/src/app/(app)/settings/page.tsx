@@ -11,6 +11,7 @@ import { useClinicSettings, useUpdateSettings } from "@/hooks/useSettings";
 import { useAllUsers, useCreateUser } from "@/hooks/useUsers";
 import { useProcedures, useUpdateProcedurePrice, useCreateProcedure, useDeleteProcedure, useReorderProcedures } from "@/hooks/useCatalog";
 import { ClinicUser, UserRole, Procedure } from "@/types";
+import { useCostosStore } from "@/stores/costos.store";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -452,6 +453,9 @@ function PriceRow({ proc }: { proc: Procedure }) {
   const deleteProcedure = useDeleteProcedure();
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(proc.name);
+  const treatments = useCostosStore((s) => s.treatments);
+  const linkProcedure = useCostosStore((s) => s.linkProcedure);
+  const linkedTreatment = treatments.find((t) => t.procedureCatalogId === proc.id);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: proc.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
@@ -509,8 +513,8 @@ function PriceRow({ proc }: { proc: Procedure }) {
           </>
         )}
       </div>
-      {/* Precio y costo */}
-      <div className="flex items-center gap-6 flex-shrink-0">
+      {/* Precio, costo y vínculo */}
+      <div className="flex items-center gap-4 flex-shrink-0">
         <EditableAmount
           label="Precio:"
           value={proc.default_price}
@@ -523,6 +527,25 @@ function PriceRow({ proc }: { proc: Procedure }) {
           onSave={(operational_cost) => update.mutate({ id: proc.id, operational_cost })}
           isPending={update.isPending}
         />
+        {/* Vínculo con tratamiento de costos */}
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs text-slate-400">Inventario:</span>
+          <select
+            value={linkedTreatment?.id ?? ""}
+            onChange={(e) => {
+              const val = e.target.value;
+              // Desvincula el tratamiento anterior si existía
+              if (linkedTreatment) linkProcedure(linkedTreatment.id, undefined);
+              if (val) linkProcedure(val, proc.id);
+            }}
+            className="h-7 rounded border border-slate-200 px-1.5 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
+          >
+            <option value="">Sin vincular</option>
+            {treatments.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+        </div>
         <button
           onClick={handleDelete}
           disabled={deleteProcedure.isPending}

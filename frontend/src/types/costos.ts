@@ -55,6 +55,9 @@ export interface Product {
   presentationQty?: number;   // cantidad total (ej. 1000)
   presentationUnit?: string;  // unidad (ej. "ml")
   portionQty?: number;        // cantidad usada por porción (ej. 7)
+  // Inventario
+  stockQty?: number;          // stock actual (en presentationUnit, o en "usos" si no hay unidad)
+  minStockQty?: number;       // alerta cuando baja de este valor
 }
 
 export interface MaterialUsage {
@@ -79,6 +82,7 @@ export interface Treatment {
   fixedCosts: number;
   clinicMarginPct: number;
   suggestedPrice?: number;
+  procedureCatalogId?: string; // vincula con procedure_catalog del backend
 }
 
 export interface AppointmentCostDetail {

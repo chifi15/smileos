@@ -33,6 +33,12 @@ interface CostosState {
   deleteAppointment: (treatmentId: string, aptId: string) => void;
   mergeAppointments: (treatmentId: string, targetId: string, sourceId: string) => void;
 
+  addStock: (productId: string, qty: number) => void;
+  setStock: (productId: string, qty: number) => void;
+  setMinStock: (productId: string, qty: number | undefined) => void;
+  deductTreatmentMaterials: (procedureCatalogId: string, procedureQty: number) => void;
+  linkProcedure: (treatmentId: string, procedureCatalogId: string | undefined) => void;
+
   addFixedCostItem: (name: string, amount: number) => void;
   updateFixedCostItem: (id: string, updates: Partial<Pick<FixedCostItem, "name" | "amount">>) => void;
   deleteFixedCostItem: (id: string) => void;
@@ -103,6 +109,61 @@ export const useCostosStore = create<CostosState>()(
               .map((a, i) => ({ ...a, number: i + 1, name: a.name.match(/^Cita \d+$/) ? `Cita ${i + 1}` : a.name }));
             return { ...t, appointments: remaining };
           }),
+        })),
+
+      addStock: (productId, qty) =>
+        set((s) => ({
+          products: s.products.map((p) =>
+            p.id === productId ? { ...p, stockQty: (p.stockQty ?? 0) + qty } : p
+          ),
+        })),
+
+      setStock: (productId, qty) =>
+        set((s) => ({
+          products: s.products.map((p) =>
+            p.id === productId ? { ...p, stockQty: Math.max(0, qty) } : p
+          ),
+        })),
+
+      setMinStock: (productId, qty) =>
+        set((s) => ({
+          products: s.products.map((p) =>
+            p.id === productId ? { ...p, minStockQty: qty } : p
+          ),
+        })),
+
+      deductTreatmentMaterials: (procedureCatalogId, procedureQty) =>
+        set((s) => {
+          const treatment = s.treatments.find(
+            (t) => t.procedureCatalogId === procedureCatalogId
+          );
+          if (!treatment) return s;
+
+          // Suma todos los materiales de todas las citas
+          const totals = new Map<string, number>();
+          for (const apt of treatment.appointments) {
+            for (const m of apt.materials) {
+              totals.set(m.productId, (totals.get(m.productId) ?? 0) + m.quantity);
+            }
+          }
+
+          const updatedProducts = s.products.map((p) => {
+            const usedPortions = totals.get(p.id);
+            if (!usedPortions) return p;
+            const deductQty = p.portionQty
+              ? usedPortions * p.portionQty * procedureQty
+              : usedPortions * procedureQty;
+            return { ...p, stockQty: Math.max(0, (p.stockQty ?? 0) - deductQty) };
+          });
+
+          return { products: updatedProducts };
+        }),
+
+      linkProcedure: (treatmentId, procedureCatalogId) =>
+        set((s) => ({
+          treatments: s.treatments.map((t) =>
+            t.id === treatmentId ? { ...t, procedureCatalogId } : t
+          ),
         })),
 
       addFixedCostItem: (name, amount) =>

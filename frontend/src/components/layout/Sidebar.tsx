@@ -14,6 +14,7 @@ import {
   TrendingUp,
   Calculator,
   Activity,
+  Package,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth.store";
@@ -36,6 +37,7 @@ const NAV = [
       { label: "Smile Rewards", href: "/rewards", icon: Star },
       { label: "Finanzas", href: "/finances", icon: TrendingUp },
       { label: "Costos", href: "/costos", icon: Calculator },
+      { label: "Inventario", href: "/inventario", icon: Package },
     ],
   },
   {
