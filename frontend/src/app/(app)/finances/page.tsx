@@ -32,7 +32,7 @@ import {
   useDeleteReceipt,
 } from "@/hooks/useFinances";
 import { useProcedures } from "@/hooks/useCatalog";
-import { usePatientList } from "@/hooks/usePatients";
+import { usePatientSearch } from "@/hooks/usePatients";
 import {
   FinanceTransaction,
   FinanceType,
@@ -66,7 +66,7 @@ function SummaryCard({ label, value, color, sub }: {
   );
 }
 
-// ─── Patient Select ────────────────────────────────────────────────────────────
+// ─── Patient Combobox ──────────────────────────────────────────────────────────
 
 interface PatientRef { id: string; name: string }
 
@@ -77,25 +77,79 @@ function PatientSelect({
   value: PatientRef | null;
   onChange: (v: PatientRef | null) => void;
 }) {
-  const { data } = usePatientList({ per_page: 100, active_only: true });
-  const patients = data?.data ?? [];
+  const [query, setQuery] = useState("");
+  const [open, setOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const { data: results = [], isFetching } = usePatientSearch(query);
+
+  // Close dropdown on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, []);
+
+  function select(p: { id: string; full_name: string }) {
+    onChange({ id: p.id, name: p.full_name });
+    setQuery("");
+    setOpen(false);
+  }
+
+  function clear() {
+    onChange(null);
+    setQuery("");
+    setOpen(false);
+  }
+
+  if (value) {
+    return (
+      <div className="flex items-center justify-between rounded-lg border border-slate-200 bg-slate-50 px-3 py-2">
+        <span className="text-sm text-slate-800">{value.name}</span>
+        <button type="button" onClick={clear} className="ml-2 text-slate-400 hover:text-red-500">
+          <X size={14} />
+        </button>
+      </div>
+    );
+  }
 
   return (
-    <select
-      value={value?.id ?? ""}
-      onChange={(e) => {
-        const id = e.target.value;
-        if (!id) { onChange(null); return; }
-        const p = patients.find((pt) => pt.id === id);
-        if (p) onChange({ id: p.id, name: p.full_name });
-      }}
-      className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-    >
-      <option value="">— Sin paciente —</option>
-      {patients.map((p) => (
-        <option key={p.id} value={p.id}>{p.full_name}</option>
-      ))}
-    </select>
+    <div ref={containerRef} className="relative">
+      <input
+        type="text"
+        value={query}
+        onChange={(e) => { setQuery(e.target.value); setOpen(true); }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={(e) => { if (e.key === "Escape") setOpen(false); }}
+        placeholder="Buscar paciente por nombre…"
+        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+      {open && query.trim().length >= 2 && (
+        <div className="absolute z-50 mt-1 w-full rounded-lg border border-slate-200 bg-white shadow-lg max-h-52 overflow-y-auto">
+          {isFetching ? (
+            <p className="px-3 py-2 text-xs text-slate-400">Buscando…</p>
+          ) : results.length === 0 ? (
+            <p className="px-3 py-2 text-xs text-slate-400">Sin resultados</p>
+          ) : (
+            results.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => select(p)}
+                className="flex w-full flex-col items-start px-3 py-2 text-left hover:bg-blue-50 transition-colors"
+              >
+                <span className="text-sm font-medium text-slate-800">{p.full_name}</span>
+                {p.phone && <span className="text-xs text-slate-400">{p.phone}</span>}
+              </button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
