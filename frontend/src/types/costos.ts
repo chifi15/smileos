@@ -38,15 +38,23 @@ export interface FixedCostsConfig {
   patientsPerMonth: number;
 }
 
+export const PRESENTATION_UNITS = ["ml", "L", "g", "mg", "kg", "gotas", "mm", "cm", "m", "unidades"] as const;
+export type PresentationUnit = typeof PRESENTATION_UNITS[number];
+
 export interface Product {
   id: string;
   name: string;
   category: ProductCategory;
-  unitPrice: number;
-  presentation: string;
-  portionDescription: string;
+  unitPrice: number;          // costo por porción — fuente de verdad para cálculos
+  presentation: string;       // texto libre (legado / resumen)
+  portionDescription: string; // texto libre (legado)
   supplier?: string;
   notes?: string;
+  // Calculadora de costo por porción
+  totalCost?: number;         // C$ del producto completo
+  presentationQty?: number;   // cantidad total (ej. 1000)
+  presentationUnit?: string;  // unidad (ej. "ml")
+  portionQty?: number;        // cantidad usada por porción (ej. 7)
 }
 
 export interface MaterialUsage {
