@@ -63,7 +63,7 @@ async def list_catalog(
     q = select(ProcedureCatalog).where(ProcedureCatalog.clinic_id == clinic_id)
     if not include_inactive:
         q = q.where(ProcedureCatalog.is_active == True)  # noqa: E712
-    q = q.order_by(ProcedureCatalog.category.nullslast(), ProcedureCatalog.name)
+    q = q.order_by(ProcedureCatalog.sort_order, ProcedureCatalog.name)
     result = await db.execute(q)
     return list(result.scalars().all())
 
@@ -86,10 +86,28 @@ async def get_procedure(
 async def create_procedure(
     db: AsyncSession, clinic_id: uuid.UUID, data: dict
 ) -> ProcedureCatalog:
-    proc = ProcedureCatalog(clinic_id=clinic_id, **data)
+    max_order = await db.scalar(
+        select(func.max(ProcedureCatalog.sort_order)).where(ProcedureCatalog.clinic_id == clinic_id)
+    ) or 0
+    proc = ProcedureCatalog(clinic_id=clinic_id, sort_order=max_order + 1, **data)
     db.add(proc)
     await db.flush()
     return await get_procedure(db, clinic_id, proc.id)
+
+
+async def reorder_procedures(
+    db: AsyncSession, clinic_id: uuid.UUID, ids: list[uuid.UUID]
+) -> None:
+    for i, proc_id in enumerate(ids):
+        proc = await db.scalar(
+            select(ProcedureCatalog).where(
+                ProcedureCatalog.id == proc_id,
+                ProcedureCatalog.clinic_id == clinic_id,
+            )
+        )
+        if proc:
+            proc.sort_order = i
+    await db.commit()
 
 
 async def update_procedure(

@@ -2,6 +2,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
+from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -22,6 +23,7 @@ def _serialize(p) -> dict:
         "default_duration_minutes": p.default_duration_minutes,
         "default_price": float(p.default_price) if p.default_price is not None else None,
         "operational_cost": float(p.operational_cost) if p.operational_cost is not None else None,
+        "sort_order": p.sort_order,
         "category": p.category,
         "is_active": p.is_active,
         "is_system": p.is_system,
@@ -70,6 +72,21 @@ async def update_procedure(
     data = body.model_dump(exclude_none=True)
     proc = await treatment_service.update_procedure(db, user.clinic_id, procedure_id, data)
     return {"success": True, "data": _serialize(proc)}
+
+
+class ReorderBody(BaseModel):
+    ids: list[str]
+
+
+@router.put("/reorder")
+async def reorder_procedures(
+    body: ReorderBody,
+    user: Annotated[object, require_permission("manage_catalog")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    ids = [uuid.UUID(i) for i in body.ids]
+    await treatment_service.reorder_procedures(db, user.clinic_id, ids)
+    return {"success": True}
 
 
 @router.delete("/{procedure_id}")

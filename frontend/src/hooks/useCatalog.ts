@@ -47,6 +47,19 @@ export function useDeleteProcedure() {
   });
 }
 
+export function useReorderProcedures() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      await apiClient.put("/api/v1/catalog/procedures/reorder", { ids });
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["catalog", "procedures"] });
+    },
+    onError: () => toast.error("Error al guardar el orden."),
+  });
+}
+
 export function useCreateProcedure(onSuccess?: () => void) {
   const qc = useQueryClient();
   return useMutation({

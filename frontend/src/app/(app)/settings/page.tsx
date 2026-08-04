@@ -3,10 +3,13 @@
 import { useEffect, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { Building2, Users, Copy, CheckCircle2, UserPlus, Tag, Plus, Pencil, Check, X, Trash2 } from "lucide-react";
+import { Building2, Users, Copy, CheckCircle2, UserPlus, Tag, Plus, Pencil, Check, X, Trash2, GripVertical } from "lucide-react";
+import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useClinicSettings, useUpdateSettings } from "@/hooks/useSettings";
 import { useAllUsers, useCreateUser } from "@/hooks/useUsers";
-import { useProcedures, useUpdateProcedurePrice, useCreateProcedure, useDeleteProcedure } from "@/hooks/useCatalog";
+import { useProcedures, useUpdateProcedurePrice, useCreateProcedure, useDeleteProcedure, useReorderProcedures } from "@/hooks/useCatalog";
 import { ClinicUser, UserRole, Procedure } from "@/types";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -450,6 +453,9 @@ function PriceRow({ proc }: { proc: Procedure }) {
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(proc.name);
 
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: proc.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
+
   function saveName() {
     const trimmed = nameInput.trim();
     if (trimmed && trimmed !== proc.name) {
@@ -465,7 +471,16 @@ function PriceRow({ proc }: { proc: Procedure }) {
   }
 
   return (
-    <div className="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors gap-4">
+    <div ref={setNodeRef} style={style} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors gap-4 bg-white">
+      {/* Drag handle */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing shrink-0 touch-none"
+        title="Arrastrar para ordenar"
+      >
+        <GripVertical size={16} />
+      </button>
       {/* Nombre editable */}
       <div className="flex items-center gap-1.5 flex-1 min-w-0">
         {editingName ? (
@@ -565,7 +580,26 @@ function AddProcedureModal({ open, onClose }: { open: boolean; onClose: () => vo
 
 function PriceCatalogSection() {
   const { data: procedures = [], isLoading } = useProcedures();
+  const [items, setItems] = useState<Procedure[]>([]);
+  const reorder = useReorderProcedures();
   const [showAdd, setShowAdd] = useState(false);
+
+  useEffect(() => { setItems(procedures); }, [procedures]);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = items.findIndex((p) => p.id === active.id);
+    const newIndex = items.findIndex((p) => p.id === over.id);
+    const newOrder = arrayMove(items, oldIndex, newIndex);
+    setItems(newOrder);
+    reorder.mutate(newOrder.map((p) => p.id));
+  }
 
   return (
     <section className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
@@ -579,7 +613,7 @@ function PriceCatalogSection() {
         </Button>
       </div>
       <div className="flex items-center justify-between px-5 py-2 bg-slate-50 border-b border-slate-100">
-        <span className="text-xs text-slate-400">Haz clic en el lápiz para editar. Enter para guardar.</span>
+        <span className="text-xs text-slate-400">Arrastra el ícono <GripVertical size={11} className="inline" /> para ordenar. Clic en el lápiz para editar.</span>
         <div className="flex gap-6 text-xs font-semibold text-slate-400 pr-6">
           <span className="w-24 text-right">Precio</span>
           <span className="w-24 text-right">Costo operativo</span>
@@ -588,9 +622,13 @@ function PriceCatalogSection() {
       {isLoading ? (
         <div className="flex justify-center py-8"><Spinner /></div>
       ) : (
-        <div className="divide-y divide-slate-50">
-          {procedures.map((p) => <PriceRow key={p.id} proc={p} />)}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={items.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+            <div className="divide-y divide-slate-50">
+              {items.map((p) => <PriceRow key={p.id} proc={p} />)}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
       <AddProcedureModal open={showAdd} onClose={() => setShowAdd(false)} />
     </section>

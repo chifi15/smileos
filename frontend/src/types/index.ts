@@ -300,6 +300,7 @@ export interface Procedure {
   default_duration_minutes: number | null;
   default_price: number | null;
   operational_cost: number | null;
+  sort_order: number;
   category: string | null;
   is_active: boolean;
   is_system: boolean;
