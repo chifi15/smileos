@@ -29,6 +29,8 @@ interface CostosState {
   updateTreatment: (id: string, updates: Partial<Treatment>) => void;
   deleteTreatment: (id: string) => void;
   reorderTreatments: (orderedIds: string[]) => void;
+  addAppointment: (treatmentId: string) => void;
+  deleteAppointment: (treatmentId: string, aptId: string) => void;
   mergeAppointments: (treatmentId: string, targetId: string, sourceId: string) => void;
 
   addFixedCostItem: (name: string, amount: number) => void;
@@ -75,6 +77,32 @@ export const useCostosStore = create<CostosState>()(
           treatments: orderedIds
             .map((id) => s.treatments.find((t) => t.id === id))
             .filter(Boolean) as Treatment[],
+        })),
+
+      addAppointment: (treatmentId) =>
+        set((s) => ({
+          treatments: s.treatments.map((t) => {
+            if (t.id !== treatmentId) return t;
+            const n = t.appointments.length + 1;
+            return {
+              ...t,
+              appointments: [
+                ...t.appointments,
+                { id: crypto.randomUUID(), number: n, name: `Cita ${n}`, materials: [] },
+              ],
+            };
+          }),
+        })),
+
+      deleteAppointment: (treatmentId, aptId) =>
+        set((s) => ({
+          treatments: s.treatments.map((t) => {
+            if (t.id !== treatmentId) return t;
+            const remaining = t.appointments
+              .filter((a) => a.id !== aptId)
+              .map((a, i) => ({ ...a, number: i + 1, name: a.name.match(/^Cita \d+$/) ? `Cita ${i + 1}` : a.name }));
+            return { ...t, appointments: remaining };
+          }),
         })),
 
       addFixedCostItem: (name, amount) =>

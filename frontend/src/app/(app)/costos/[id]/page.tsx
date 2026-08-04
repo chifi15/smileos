@@ -16,7 +16,10 @@ import {
   Package,
   AlertCircle,
   Merge,
+  Copy,
+  ClipboardPaste,
 } from "lucide-react";
+import { MaterialUsage } from "@/types/costos";
 import { useCostosStore } from "@/stores/costos.store";
 import { calculateTreatmentCosts, fmtC, fmt } from "@/lib/costos-utils";
 import { PRODUCT_CATEGORY_COLORS, PRODUCT_CATEGORY_LABELS } from "@/types/costos";
@@ -430,15 +433,24 @@ function EditableAppointment({
   treatmentId,
   detail,
   defaultOpen,
+  clipboard,
+  onCopy,
+  onPaste,
+  onDelete,
 }: {
   treatmentId: string;
   detail: ReturnType<typeof calculateTreatmentCosts>["appointmentCosts"][number];
   defaultOpen?: boolean;
+  clipboard: { materials: MaterialUsage[]; name: string } | null;
+  onCopy: (materials: MaterialUsage[], name: string) => void;
+  onPaste: (aptId: string, mode: "replace" | "merge") => void;
+  onDelete: (aptId: string) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen ?? false);
   const [addOpen, setAddOpen] = useState(false);
   const [addCategoryOpen, setAddCategoryOpen] = useState(false);
   const [mergeOpen, setMergeOpen] = useState(false);
+  const [pasteOpen, setPasteOpen] = useState(false);
   const [editName, setEditName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
   const products = useCostosStore((s) => s.products);
@@ -528,11 +540,55 @@ function EditableAppointment({
             <p className="text-xs text-slate-500">{materials.length} materiales</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2">
           <div className="text-right">
             <p className="text-xs text-slate-500">Costo cita</p>
             <p className="font-semibold text-slate-800">{fmtC(materialCost)}</p>
           </div>
+
+          {/* Copiar */}
+          <button
+            onClick={(e) => { e.stopPropagation(); onCopy(appointment.materials, appointment.name); }}
+            title="Copiar materiales de esta cita"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-500 transition-colors"
+          >
+            <Copy size={14} />
+          </button>
+
+          {/* Pegar (solo si hay portapapeles y no es la misma cita copiada) */}
+          {clipboard && clipboard.name !== appointment.name && (
+            <div className="relative" onClick={(e) => e.stopPropagation()}>
+              <button
+                onClick={() => setPasteOpen((v) => !v)}
+                title={`Pegar materiales de "${clipboard.name}"`}
+                className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${pasteOpen ? "bg-green-100 text-green-700" : "text-slate-400 hover:bg-green-50 hover:text-green-600"}`}
+              >
+                <ClipboardPaste size={14} />
+                Pegar
+              </button>
+              {pasteOpen && (
+                <div className="absolute right-0 top-full mt-1 z-20 flex flex-col rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden min-w-[160px]">
+                  <p className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wide border-b border-slate-100">
+                    Desde: {clipboard.name}
+                  </p>
+                  <button
+                    onClick={() => { onPaste(appointment.id, "replace"); setPasteOpen(false); }}
+                    className="px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    Reemplazar todo
+                  </button>
+                  <button
+                    onClick={() => { onPaste(appointment.id, "merge"); setPasteOpen(false); }}
+                    className="px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                  >
+                    Añadir al existente
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Merge */}
           {allAppointments.length > 1 && (
             <button
               onClick={(e) => { e.stopPropagation(); setMergeOpen(true); }}
@@ -542,6 +598,18 @@ function EditableAppointment({
               <Merge size={15} />
             </button>
           )}
+
+          {/* Eliminar cita */}
+          {allAppointments.length > 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); if (confirm(`¿Eliminar "${appointment.name}"?`)) onDelete(appointment.id); }}
+              title="Eliminar cita"
+              className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 transition-colors"
+            >
+              <Trash2 size={14} />
+            </button>
+          )}
+
           {open ? (
             <ChevronUp size={16} className="text-slate-400 shrink-0" />
           ) : (
@@ -698,6 +766,8 @@ export default function TreatmentDetailPage({
   const products = useCostosStore((s) => s.products);
   const treatment = useCostosStore((s) => s.treatments.find((t) => t.id === id));
   const updateTreatment = useCostosStore((s) => s.updateTreatment);
+  const addAppointment = useCostosStore((s) => s.addAppointment);
+  const deleteAppointment = useCostosStore((s) => s.deleteAppointment);
   const fixedCostsConfig = useCostosStore((s) => s.fixedCostsConfig);
   const totalFijo = fixedCostsConfig?.items?.reduce((s, i) => s + i.amount, 0) ?? 0;
   const globalFixedCost = (fixedCostsConfig?.patientsPerMonth ?? 1) > 0
@@ -705,6 +775,20 @@ export default function TreatmentDetailPage({
     : undefined;
   const [editName, setEditName] = useState(false);
   const [nameValue, setNameValue] = useState("");
+  const [clipboard, setClipboard] = useState<{ materials: MaterialUsage[]; name: string } | null>(null);
+
+  function handlePaste(aptId: string, mode: "replace" | "merge") {
+    if (!clipboard || !treatment) return;
+    const updated = treatment.appointments.map((a) => {
+      if (a.id !== aptId) return a;
+      if (mode === "replace") return { ...a, materials: [...clipboard.materials] };
+      // merge: añadir los del portapapeles que no existan ya
+      const existingIds = new Set(a.materials.map((m) => m.productId));
+      const toAdd = clipboard.materials.filter((m) => !existingIds.has(m.productId));
+      return { ...a, materials: [...a.materials, ...toAdd] };
+    });
+    updateTreatment(id, { appointments: updated });
+  }
 
   if (!treatment) {
     return (
@@ -788,13 +872,32 @@ export default function TreatmentDetailPage({
 
       {/* Appointments */}
       <div className="space-y-3">
-        <h2 className="text-sm font-semibold text-slate-700">Materiales por cita</h2>
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-semibold text-slate-700">Materiales por cita</h2>
+          <div className="flex items-center gap-2">
+            {clipboard && (
+              <span className="flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+                <ClipboardPaste size={11} /> Copiado: {clipboard.name}
+                <button onClick={() => setClipboard(null)} className="ml-1 text-green-500 hover:text-green-700">
+                  <X size={11} />
+                </button>
+              </span>
+            )}
+            <Button size="sm" variant="secondary" onClick={() => addAppointment(id)}>
+              <Plus size={14} /> Agregar cita
+            </Button>
+          </div>
+        </div>
         {breakdown.appointmentCosts.map((detail, i) => (
           <EditableAppointment
             key={detail.appointment.id}
             treatmentId={id}
             detail={detail}
             defaultOpen={i === 0}
+            clipboard={clipboard}
+            onCopy={(mats, name) => setClipboard({ materials: mats, name })}
+            onPaste={handlePaste}
+            onDelete={(aptId) => deleteAppointment(id, aptId)}
           />
         ))}
       </div>
