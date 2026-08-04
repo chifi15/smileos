@@ -22,6 +22,7 @@ import {
   Banknote,
   X,
   NotebookPen,
+  History,
 } from "lucide-react";
 import { usePatient, useDeactivatePatient, useDeletePatientPermanent } from "@/hooks/usePatients";
 import { useCreateTransaction, useExchangeRate } from "@/hooks/useFinances";
@@ -378,7 +379,7 @@ export default function PatientDetailPage() {
       </div>
 
       {/* Quick actions */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-6">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
         <Link
           href={`/patients/${id}/evolution`}
           className="flex items-center justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm hover:border-violet-200 hover:shadow-md transition-all"
@@ -448,6 +449,18 @@ export default function PatientDetailPage() {
               <ScanLine size={18} className="text-teal-600" />
             </div>
             <span className="text-sm font-medium text-slate-700">Odontograma</span>
+          </div>
+          <ChevronRight size={16} className="text-slate-300" />
+        </Link>
+        <Link
+          href={`/patients/${id}/history`}
+          className="flex items-center justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm hover:border-slate-300 hover:shadow-md transition-all"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-50">
+              <History size={18} className="text-slate-500" />
+            </div>
+            <span className="text-sm font-medium text-slate-700">Historia</span>
           </div>
           <ChevronRight size={16} className="text-slate-300" />
         </Link>

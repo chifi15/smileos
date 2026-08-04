@@ -15,7 +15,7 @@ from app.core.dependencies import require_permission
 from app.core import storage
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.finance import FinanceTransaction
-from app.services import finance_service
+from app.services import finance_service, audit_service
 
 router = APIRouter(prefix="/finances", tags=["Finanzas"])
 
@@ -159,6 +159,13 @@ async def create_transaction(
     tx = await finance_service.create_transaction(
         db, user.clinic_id, user.id, body.model_dump()
     )
+    tipo = "ingreso" if tx.type == "ingreso" else "egreso"
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="finance.created", resource_type="finance", resource_id=str(tx.id),
+        description=f"Registró {tipo}: {tx.description} (C${float(tx.amount_cordobas):,.2f})",
+        patient_id=tx.patient_id,
+    )
     return {"success": True, "data": _serialize(tx)}
 
 
@@ -243,6 +250,12 @@ async def update_transaction(
     tx = await finance_service.update_transaction(
         db, user.clinic_id, tx_id, body.model_dump(exclude_unset=True)
     )
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="finance.updated", resource_type="finance", resource_id=str(tx.id),
+        description=f"Editó transacción: {tx.description}",
+        patient_id=tx.patient_id,
+    )
     return {"success": True, "data": _serialize(tx)}
 
 
@@ -252,7 +265,16 @@ async def delete_transaction(
     user: Annotated[object, require_permission("manage_patients")],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    tx = await _get_tx(db, user.clinic_id, tx_id)
+    tx_desc = tx.description
+    patient_id = tx.patient_id
     await finance_service.delete_transaction(db, user.clinic_id, tx_id)
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="finance.deleted", resource_type="finance", resource_id=str(tx_id),
+        description=f"Eliminó transacción: {tx_desc}",
+        patient_id=patient_id,
+    )
     return {"success": True}
 
 

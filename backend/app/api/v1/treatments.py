@@ -13,7 +13,7 @@ from app.schemas.treatment import (
     TreatmentItemUpdate,
     CompleteItemRequest,
 )
-from app.services import treatment_service
+from app.services import treatment_service, audit_service
 
 router = APIRouter(
     prefix="/patients/{patient_id}/treatment-plans",
@@ -90,6 +90,12 @@ async def create_plan(
     plan = await treatment_service.create_treatment_plan(
         db, user.clinic_id, patient_id, user.id, body.model_dump()
     )
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="treatment_plan.created", resource_type="treatment_plan", resource_id=str(plan.id),
+        description=f'Creó plan de tratamiento "{plan.title}"',
+        patient_id=patient_id,
+    )
     return {"success": True, "data": _serialize_plan(plan)}
 
 
@@ -116,6 +122,12 @@ async def update_plan(
     plan = await treatment_service.update_treatment_plan(
         db, user.clinic_id, patient_id, plan_id, data
     )
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="treatment_plan.updated", resource_type="treatment_plan", resource_id=str(plan.id),
+        description=f'Actualizó plan "{plan.title}" (estado: {plan.status})',
+        patient_id=patient_id,
+    )
     return {"success": True, "data": _serialize_plan(plan)}
 
 
@@ -126,7 +138,15 @@ async def delete_plan(
     user: Annotated[object, require_permission("manage_treatments")],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    plan = await treatment_service.get_treatment_plan(db, user.clinic_id, patient_id, plan_id)
+    title = plan.title
     await treatment_service.delete_treatment_plan(db, user.clinic_id, patient_id, plan_id)
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="treatment_plan.deleted", resource_type="treatment_plan", resource_id=str(plan_id),
+        description=f'Eliminó plan de tratamiento "{title}"',
+        patient_id=patient_id,
+    )
     return {"success": True}
 
 
@@ -142,6 +162,14 @@ async def add_item(
 ):
     plan = await treatment_service.add_item(
         db, user.clinic_id, patient_id, plan_id, body.model_dump()
+    )
+    new_item = next((i for i in plan.items if str(i.procedure_id) == str(body.procedure_id)), plan.items[-1] if plan.items else None)
+    proc_name = new_item.procedure.name if new_item and new_item.procedure else ""
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="treatment_item.added", resource_type="treatment_item", resource_id=str(plan_id),
+        description=f'Agregó "{proc_name}" al plan "{plan.title}"',
+        patient_id=patient_id,
     )
     return {"success": True, "data": _serialize_plan(plan)}
 
@@ -173,6 +201,12 @@ async def remove_item(
     plan = await treatment_service.remove_item(
         db, user.clinic_id, patient_id, plan_id, item_id
     )
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="treatment_item.deleted", resource_type="treatment_item", resource_id=str(item_id),
+        description=f'Eliminó ítem del plan "{plan.title}"',
+        patient_id=patient_id,
+    )
     return {"success": True, "data": _serialize_plan(plan)}
 
 
@@ -186,6 +220,14 @@ async def start_item(
 ):
     plan = await treatment_service.start_item(
         db, user.clinic_id, patient_id, plan_id, item_id
+    )
+    item = next((i for i in plan.items if i.id == item_id), None)
+    proc_name = item.procedure.name if item and item.procedure else ""
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="treatment_item.started", resource_type="treatment_item", resource_id=str(item_id),
+        description=f'Inició tratamiento "{proc_name}" en plan "{plan.title}"',
+        patient_id=patient_id,
     )
     return {"success": True, "data": _serialize_plan(plan)}
 
@@ -201,6 +243,14 @@ async def cancel_item(
     plan = await treatment_service.cancel_item(
         db, user.clinic_id, patient_id, plan_id, item_id
     )
+    item = next((i for i in plan.items if i.id == item_id), None)
+    proc_name = item.procedure.name if item and item.procedure else ""
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="treatment_item.cancelled", resource_type="treatment_item", resource_id=str(item_id),
+        description=f'Canceló tratamiento "{proc_name}" en plan "{plan.title}"',
+        patient_id=patient_id,
+    )
     return {"success": True, "data": _serialize_plan(plan)}
 
 
@@ -214,6 +264,14 @@ async def reopen_item(
 ):
     plan = await treatment_service.reopen_item(
         db, user.clinic_id, patient_id, plan_id, item_id
+    )
+    item = next((i for i in plan.items if i.id == item_id), None)
+    proc_name = item.procedure.name if item and item.procedure else ""
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="treatment_item.reopened", resource_type="treatment_item", resource_id=str(item_id),
+        description=f'Reabrió tratamiento "{proc_name}" en plan "{plan.title}"',
+        patient_id=patient_id,
     )
     return {"success": True, "data": _serialize_plan(plan)}
 
@@ -229,5 +287,13 @@ async def complete_item(
 ):
     plan = await treatment_service.complete_item(
         db, user.clinic_id, patient_id, plan_id, item_id, body.appointment_id
+    )
+    item = next((i for i in plan.items if i.id == item_id), None)
+    proc_name = item.procedure.name if item and item.procedure else ""
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="treatment_item.completed", resource_type="treatment_item", resource_id=str(item_id),
+        description=f'Completó tratamiento "{proc_name}" en plan "{plan.title}"',
+        patient_id=patient_id,
     )
     return {"success": True, "data": _serialize_plan(plan)}

@@ -1,0 +1,170 @@
+"use client";
+
+import { useState } from "react";
+import Link from "next/link";
+import { format, parseISO } from "date-fns";
+import { es } from "date-fns/locale";
+import { Activity, ChevronLeft, ChevronRight, Filter } from "lucide-react";
+import { useAuditFeed } from "@/hooks/useAudit";
+import Spinner from "@/components/ui/Spinner";
+import type { AuditLog } from "@/types";
+
+const RESOURCE_TYPE_OPTIONS = [
+  { value: "", label: "Todos" },
+  { value: "patient", label: "Pacientes" },
+  { value: "appointment", label: "Citas" },
+  { value: "treatment_plan", label: "Planes de tratamiento" },
+  { value: "treatment_item", label: "Tratamientos" },
+  { value: "odontogram", label: "Odontograma" },
+  { value: "evolution", label: "Evoluciones" },
+  { value: "finance", label: "Finanzas" },
+  { value: "reward", label: "Smile Rewards" },
+  { value: "photo", label: "Fotografías" },
+  { value: "settings", label: "Configuración" },
+  { value: "user", label: "Usuarios" },
+];
+
+const RESOURCE_COLORS: Record<string, string> = {
+  patient: "bg-blue-100 text-blue-700",
+  appointment: "bg-purple-100 text-purple-700",
+  treatment_plan: "bg-indigo-100 text-indigo-700",
+  treatment_item: "bg-cyan-100 text-cyan-700",
+  odontogram: "bg-teal-100 text-teal-700",
+  evolution: "bg-emerald-100 text-emerald-700",
+  finance: "bg-green-100 text-green-700",
+  reward: "bg-amber-100 text-amber-700",
+  photo: "bg-pink-100 text-pink-700",
+  settings: "bg-slate-100 text-slate-600",
+  user: "bg-orange-100 text-orange-700",
+};
+
+function AuditEntry({ entry }: { entry: AuditLog }) {
+  const color = RESOURCE_COLORS[entry.resource_type] ?? "bg-slate-100 text-slate-600";
+  const date = parseISO(entry.created_at);
+
+  return (
+    <div className="flex items-start gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors">
+      <div className="mt-0.5 shrink-0">
+        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${color}`}>
+          {entry.resource_type_label}
+        </span>
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm text-slate-800">{entry.description ?? entry.action}</p>
+        <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
+          {entry.user && <span>{entry.user.full_name}</span>}
+          {entry.user && <span>·</span>}
+          <span title={format(date, "PPpp", { locale: es })}>
+            {format(date, "d MMM yyyy, HH:mm", { locale: es })}
+          </span>
+          {entry.patient_id && (
+            <>
+              <span>·</span>
+              <Link
+                href={`/patients/${entry.patient_id}`}
+                className="text-blue-500 hover:underline"
+              >
+                Ver paciente
+              </Link>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ActividadPage() {
+  const [resourceType, setResourceType] = useState("");
+  const [page, setPage] = useState(1);
+
+  const { data, isLoading } = useAuditFeed({
+    resource_type: resourceType || undefined,
+    page,
+    per_page: 30,
+  });
+
+  const entries = data?.data ?? [];
+  const meta = data?.meta;
+
+  return (
+    <div className="p-6 space-y-6">
+      <div>
+        <h1 className="text-xl font-semibold text-slate-800 flex items-center gap-2">
+          <Activity size={20} className="text-slate-500" />
+          Actividad reciente
+        </h1>
+        <p className="text-sm text-slate-500 mt-0.5">
+          Historial de todos los cambios en el sistema
+        </p>
+      </div>
+
+      {/* Filters */}
+      <div className="flex items-center gap-3">
+        <Filter size={15} className="text-slate-400 shrink-0" />
+        <div className="flex flex-wrap gap-2">
+          {RESOURCE_TYPE_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => { setResourceType(opt.value); setPage(1); }}
+              className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                resourceType === opt.value
+                  ? "bg-blue-600 text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Feed */}
+      <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
+        {isLoading ? (
+          <div className="flex justify-center py-12">
+            <Spinner />
+          </div>
+        ) : entries.length === 0 ? (
+          <div className="py-12 text-center text-sm text-slate-400">
+            No hay actividad registrada
+          </div>
+        ) : (
+          <div className="divide-y divide-slate-50">
+            {entries.map((entry) => (
+              <AuditEntry key={entry.id} entry={entry} />
+            ))}
+          </div>
+        )}
+
+        {/* Pagination */}
+        {meta && meta.pages > 1 && (
+          <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3">
+            <span className="text-xs text-slate-400">
+              {meta.total} registro{meta.total !== 1 ? "s" : ""}
+            </span>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="rounded p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30"
+              >
+                <ChevronLeft size={16} />
+              </button>
+              <span className="text-xs text-slate-600">
+                {page} / {meta.pages}
+              </span>
+              <button
+                onClick={() => setPage((p) => Math.min(meta.pages, p + 1))}
+                disabled={page === meta.pages}
+                className="rounded p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30"
+              >
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -13,6 +13,7 @@ import {
   LogOut,
   TrendingUp,
   Calculator,
+  Activity,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth.store";
@@ -40,6 +41,7 @@ const NAV = [
   {
     section: "Sistema",
     items: [
+      { label: "Actividad", href: "/actividad", icon: Activity },
       { label: "Configuración", href: "/settings", icon: Settings },
     ],
   },

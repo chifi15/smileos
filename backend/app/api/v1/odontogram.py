@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import require_permission
-from app.services import odontogram_service
+from app.services import odontogram_service, audit_service
 
 router = APIRouter(
     prefix="/patients/{patient_id}/odontogram",
@@ -72,6 +72,13 @@ async def update_odontogram(
     updates = {num: data.model_dump(exclude_none=True) for num, data in body.teeth.items()}
     teeth = await odontogram_service.update_odontogram(
         db, user.clinic_id, patient_id, user.id, updates, body.snapshot_notes, body.kind
+    )
+    kind_label = "inicial" if body.kind == "inicial" else "de tratamiento"
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="odontogram.updated", resource_type="odontogram", resource_id=str(patient_id),
+        description=f"Actualizó odontograma {kind_label} ({len(updates)} pieza(s))",
+        patient_id=patient_id,
     )
     await db.commit()
     return {"success": True, "data": [_serialize_tooth(t) for t in teeth]}

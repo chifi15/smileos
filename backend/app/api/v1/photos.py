@@ -10,7 +10,7 @@ from app.core.database import get_db
 from app.core.dependencies import require_permission
 from app.core.exceptions import NotFoundError
 from app.schemas.photo import PhotoType, PhotoUpdate, PhotoReorderRequest
-from app.services import photo_service
+from app.services import photo_service, audit_service
 
 router = APIRouter(
     prefix="/patients/{patient_id}/photos",
@@ -60,6 +60,12 @@ async def upload_photo(
         caption,
         appointment_id,
         taken_at_date=taken_at,
+    )
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="photo.uploaded", resource_type="photo", resource_id=str(photo.id),
+        description=f'Subió fotografía tipo "{photo_type}"',
+        patient_id=patient_id,
     )
     return {"success": True, "data": _serialize(photo)}
 
@@ -138,4 +144,12 @@ async def delete_photo(
     user: Annotated[object, require_permission("manage_photos")],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    photo = await photo_service.get_photo(db, user.clinic_id, patient_id, photo_id)
+    photo_type = photo.photo_type
     await photo_service.delete_photo(db, user.clinic_id, patient_id, photo_id)
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="photo.deleted", resource_type="photo", resource_id=str(photo_id),
+        description=f'Eliminó fotografía tipo "{photo_type}"',
+        patient_id=patient_id,
+    )

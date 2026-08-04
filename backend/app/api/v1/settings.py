@@ -13,7 +13,7 @@ from app.schemas.settings import (
     UserCreate,
     UserUpdate,
 )
-from app.services import settings_service
+from app.services import settings_service, audit_service
 
 settings_router = APIRouter(prefix="/settings", tags=["Configuración de Clínica"])
 users_router = APIRouter(prefix="/users", tags=["Gestión de Usuarios"])
@@ -106,6 +106,11 @@ async def update_settings(
 ):
     data = body.model_dump(exclude_none=True)
     settings = await settings_service.update_clinic_settings(db, user.clinic_id, data)
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="settings.updated", resource_type="settings", resource_id=str(user.clinic_id),
+        description="Actualizó configuración de la clínica",
+    )
     return {"success": True, "data": _serialize_settings(settings)}
 
 
@@ -160,6 +165,11 @@ async def create_user(
 ):
     data = body.model_dump()
     new_user, temp_password = await settings_service.create_user(db, user.clinic_id, data)
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="user.created", resource_type="user", resource_id=str(new_user.id),
+        description=f"Creó usuario {new_user.full_name} ({new_user.role})",
+    )
     return {"success": True, "data": _serialize_user(new_user, temp_password)}
 
 
@@ -182,6 +192,11 @@ async def update_user(
 ):
     data = body.model_dump(exclude_none=True)
     updated = await settings_service.update_user(db, user.clinic_id, user_id, user.role, data)
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="user.updated", resource_type="user", resource_id=str(user_id),
+        description=f"Actualizó usuario {updated.full_name}",
+    )
     return {"success": True, "data": _serialize_user(updated)}
 
 

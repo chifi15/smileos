@@ -13,7 +13,7 @@ from app.core.database import get_db
 from app.core.dependencies import CurrentUser, require_permission
 from app.core.exceptions import NotFoundError
 from app.schemas.patient import PatientCreate, PatientUpdate, PatientOut, PatientListItem, RewardsSummary
-from app.services import patient_service
+from app.services import patient_service, audit_service
 
 router = APIRouter(prefix="/patients", tags=["Pacientes"])
 
@@ -103,6 +103,12 @@ async def create_patient(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     patient = await patient_service.create_patient(db, user.clinic_id, body)
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="patient.created", resource_type="patient", resource_id=str(patient.id),
+        description=f"Registró al paciente {patient.full_name}",
+        patient_id=patient.id,
+    )
     return {"success": True, "data": _serialize(patient)}
 
 
@@ -193,6 +199,12 @@ async def update_patient(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     patient = await patient_service.update_patient(db, user.clinic_id, patient_id, body)
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="patient.updated", resource_type="patient", resource_id=str(patient.id),
+        description=f"Actualizó datos de {patient.full_name}",
+        patient_id=patient.id,
+    )
     return {"success": True, "data": _serialize(patient)}
 
 
@@ -202,7 +214,15 @@ async def deactivate_patient(
     user: Annotated[object, require_permission("delete_patients")],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    patient = await patient_service.get_patient(db, user.clinic_id, patient_id)
+    name = patient.full_name
     await patient_service.deactivate_patient(db, user.clinic_id, patient_id)
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="patient.deactivated", resource_type="patient", resource_id=str(patient_id),
+        description=f"Desactivó al paciente {name}",
+        patient_id=patient_id,
+    )
     return {"success": True, "data": {"message": "Paciente desactivado correctamente."}}
 
 
@@ -337,6 +357,12 @@ async def create_evolution(
         .options(selectinload(PatientEvolution.created_by))
     )
     evo = result.scalar_one()
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="evolution.created", resource_type="evolution", resource_id=str(evo.id),
+        description=f"Registró evolución clínica del {body.date.isoformat()}",
+        patient_id=patient_id,
+    )
     await db.commit()
     return {"success": True, "data": _serialize_evo(evo)}
 
@@ -353,6 +379,12 @@ async def update_evolution(
     data = body.model_dump(exclude_unset=True)
     for k, v in data.items():
         setattr(evo, k, v)
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="evolution.updated", resource_type="evolution", resource_id=str(evolution_id),
+        description=f"Editó evolución clínica del {evo.date.isoformat()}",
+        patient_id=patient_id,
+    )
     await db.commit()
     await db.refresh(evo)
     result = await db.execute(
@@ -372,6 +404,13 @@ async def delete_evolution(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     evo = await _get_evo(db, user.clinic_id, patient_id, evolution_id)
+    evo_date = evo.date.isoformat()
     await db.delete(evo)
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="evolution.deleted", resource_type="evolution", resource_id=str(evolution_id),
+        description=f"Eliminó evolución clínica del {evo_date}",
+        patient_id=patient_id,
+    )
     await db.commit()
     return {"success": True}

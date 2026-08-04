@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import CurrentUser, require_permission
 from app.schemas.rewards import GrantBonusRequest, ManualAdjustRequest, RewardsConfigUpdate
-from app.services import rewards_service
+from app.services import rewards_service, audit_service
 
 router = APIRouter(prefix="/patients/{patient_id}/rewards", tags=["Smile Rewards"])
 
@@ -123,6 +123,12 @@ async def expire_rewards_points(
 ):
     cfg = await rewards_service.get_effective_config(db, user.clinic_id)
     account = await rewards_service.expire_points_manual(db, user.clinic_id, patient_id)
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="reward.expired", resource_type="reward", resource_id=str(patient_id),
+        description="Expiró manualmente los puntos Smile Rewards",
+        patient_id=patient_id,
+    )
     return {
         "success": True,
         "data": {
@@ -144,6 +150,13 @@ async def manual_adjust(
     )
     cfg = await rewards_service.get_effective_config(db, user.clinic_id)
     sign = "+" if body.points > 0 else ""
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="reward.adjusted", resource_type="reward", resource_id=str(patient_id),
+        description=f"Ajustó Smile Rewards: {sign}{body.points} pts. {body.description or ''}".strip(),
+        patient_id=patient_id,
+        metadata={"points": body.points, "description": body.description},
+    )
     return {
         "success": True,
         "data": {

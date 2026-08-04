@@ -676,3 +676,31 @@ export interface PatientEvolution {
   created_at: string;
   updated_at: string;
 }
+
+// ─── Audit Log ────────────────────────────────────────────────────────────────
+
+export interface AuditLog {
+  id: string;
+  action: string;
+  resource_type: string;
+  resource_type_label: string;
+  resource_id: string | null;
+  description: string | null;
+  patient_id: string | null;
+  user: { id: string; full_name: string } | null;
+  created_at: string;
+}
+
+export const AUDIT_RESOURCE_ICONS: Record<string, string> = {
+  patient: "👤",
+  appointment: "📅",
+  treatment_plan: "📋",
+  treatment_item: "🦷",
+  odontogram: "🦷",
+  evolution: "📝",
+  finance: "💰",
+  reward: "⭐",
+  photo: "📷",
+  settings: "⚙️",
+  user: "👥",
+};

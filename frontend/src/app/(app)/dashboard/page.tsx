@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useDashboardStats, useTodaySchedule } from "@/hooks/useDashboard";
+import { useAuditFeed } from "@/hooks/useAudit";
 import { useAuthStore } from "@/stores/auth.store";
 import Spinner from "@/components/ui/Spinner";
 import Badge from "@/components/ui/Badge";
@@ -13,7 +14,7 @@ import {
   REWARDS_LEVEL_COLORS,
   RewardsLevel,
 } from "@/types";
-import { format } from "date-fns";
+import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import {
   Calendar,
@@ -24,6 +25,7 @@ import {
   ClipboardList,
   Star,
   RefreshCw,
+  Activity,
 } from "lucide-react";
 
 function greeting(name: string) {
@@ -61,10 +63,25 @@ function StatCard({
   );
 }
 
+const RESOURCE_COLORS: Record<string, string> = {
+  patient: "bg-blue-100 text-blue-700",
+  appointment: "bg-purple-100 text-purple-700",
+  treatment_plan: "bg-indigo-100 text-indigo-700",
+  treatment_item: "bg-cyan-100 text-cyan-700",
+  odontogram: "bg-teal-100 text-teal-700",
+  evolution: "bg-emerald-100 text-emerald-700",
+  finance: "bg-green-100 text-green-700",
+  reward: "bg-amber-100 text-amber-700",
+  photo: "bg-pink-100 text-pink-700",
+  settings: "bg-slate-100 text-slate-600",
+  user: "bg-orange-100 text-orange-700",
+};
+
 export default function DashboardPage() {
   const { user } = useAuthStore();
   const { data: stats, isLoading: loadingStats, refetch: refetchStats } = useDashboardStats();
   const { data: schedule, isLoading: loadingSchedule } = useTodaySchedule();
+  const { data: auditData } = useAuditFeed({ per_page: 6 });
 
   const today = format(new Date(), "EEEE d 'de' MMMM 'de' yyyy", { locale: es });
   const todayCapitalized = today.charAt(0).toUpperCase() + today.slice(1);
@@ -252,6 +269,39 @@ export default function DashboardPage() {
                   </span>
                 </div>
               </div>
+
+              {/* Recent activity */}
+              {auditData && auditData.data.length > 0 && (
+                <div className="rounded-xl bg-white shadow-sm border border-slate-100 p-5">
+                  <div className="flex items-center justify-between mb-3">
+                    <div className="flex items-center gap-2">
+                      <Activity size={16} className="text-slate-400" />
+                      <h3 className="text-sm font-semibold text-slate-700">Última actividad</h3>
+                    </div>
+                    <Link href="/actividad" className="text-xs text-blue-500 hover:underline">
+                      Ver todo
+                    </Link>
+                  </div>
+                  <div className="space-y-2.5">
+                    {auditData.data.map((entry) => {
+                      const color = RESOURCE_COLORS[entry.resource_type] ?? "bg-slate-100 text-slate-600";
+                      return (
+                        <div key={entry.id} className="flex items-start gap-2">
+                          <span className={`mt-0.5 shrink-0 inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${color}`}>
+                            {entry.resource_type_label}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="text-xs text-slate-700 leading-snug truncate">{entry.description}</p>
+                            <p className="text-[10px] text-slate-400">
+                              {format(parseISO(entry.created_at), "d MMM, HH:mm", { locale: es })}
+                            </p>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </>

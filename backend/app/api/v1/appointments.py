@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import CurrentUser, require_permission
 from app.schemas.appointment import AppointmentCreate, AppointmentUpdate, CancelRequest
-from app.services import appointment_service
+from app.services import appointment_service, audit_service
 
 router = APIRouter(prefix="/appointments", tags=["Agenda"])
 
@@ -55,6 +55,12 @@ async def create_appointment(
 ):
     appt = await appointment_service.create_appointment(
         db, user.clinic_id, user.id, body
+    )
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="appointment.created", resource_type="appointment", resource_id=str(appt.id),
+        description=f"Programó cita para {appt.patient.full_name if appt.patient else ''}",
+        patient_id=appt.patient_id,
     )
     return {"success": True, "data": _serialize(appt)}
 
@@ -116,6 +122,12 @@ async def update_appointment(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     appt = await appointment_service.update_appointment(db, user.clinic_id, appointment_id, body)
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="appointment.updated", resource_type="appointment", resource_id=str(appt.id),
+        description=f"Editó cita de {appt.patient.full_name if appt.patient else ''}",
+        patient_id=appt.patient_id,
+    )
     return {"success": True, "data": _serialize(appt)}
 
 
@@ -126,6 +138,12 @@ async def confirm(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     appt = await appointment_service.confirm_appointment(db, user.clinic_id, appointment_id)
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="appointment.confirmed", resource_type="appointment", resource_id=str(appt.id),
+        description=f"Confirmó cita de {appt.patient.full_name if appt.patient else ''}",
+        patient_id=appt.patient_id,
+    )
     return {"success": True, "data": _serialize(appt)}
 
 
@@ -136,6 +154,12 @@ async def start(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     appt = await appointment_service.start_appointment(db, user.clinic_id, appointment_id)
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="appointment.started", resource_type="appointment", resource_id=str(appt.id),
+        description=f"Inició cita de {appt.patient.full_name if appt.patient else ''}",
+        patient_id=appt.patient_id,
+    )
     return {"success": True, "data": _serialize(appt)}
 
 
@@ -146,6 +170,12 @@ async def complete(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     appt = await appointment_service.complete_appointment(db, user.clinic_id, appointment_id)
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="appointment.completed", resource_type="appointment", resource_id=str(appt.id),
+        description=f"Completó cita de {appt.patient.full_name if appt.patient else ''}",
+        patient_id=appt.patient_id,
+    )
     return {"success": True, "data": _serialize(appt)}
 
 
@@ -156,6 +186,12 @@ async def no_show(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     appt = await appointment_service.no_show_appointment(db, user.clinic_id, appointment_id)
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="appointment.no_show", resource_type="appointment", resource_id=str(appt.id),
+        description=f"Marcó no-show en cita de {appt.patient.full_name if appt.patient else ''}",
+        patient_id=appt.patient_id,
+    )
     return {"success": True, "data": _serialize(appt)}
 
 
@@ -168,5 +204,11 @@ async def cancel(
 ):
     appt = await appointment_service.cancel_appointment(
         db, user.clinic_id, appointment_id, body.cancellation_reason
+    )
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="appointment.cancelled", resource_type="appointment", resource_id=str(appt.id),
+        description=f"Canceló cita de {appt.patient.full_name if appt.patient else ''}",
+        patient_id=appt.patient_id,
     )
     return {"success": True, "data": _serialize(appt)}
