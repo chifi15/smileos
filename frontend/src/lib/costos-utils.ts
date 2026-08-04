@@ -2,7 +2,8 @@ import { Product, Treatment, TreatmentCostBreakdown } from "@/types/costos";
 
 export function calculateTreatmentCosts(
   treatment: Treatment,
-  products: Product[]
+  products: Product[],
+  globalFixedCostPerPatient?: number
 ): TreatmentCostBreakdown {
   const productMap = new Map(products.map((p) => [p.id, p]));
 
@@ -21,7 +22,7 @@ export function calculateTreatmentCosts(
 
   const totalMaterialsCost = appointmentCosts.reduce((sum, a) => sum + a.materialCost, 0);
   const professionalFees = treatment.professionalFeePerHour * treatment.totalHours;
-  const fixedCosts = treatment.fixedCosts;
+  const fixedCosts = globalFixedCostPerPatient ?? treatment.fixedCosts;
   const subtotal = totalMaterialsCost + professionalFees + fixedCosts;
   const margin = subtotal * treatment.clinicMarginPct;
   const calculatedPrice = subtotal + margin;

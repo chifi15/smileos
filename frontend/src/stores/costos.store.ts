@@ -1,11 +1,25 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
-import { Product, Treatment } from "@/types/costos";
+import { Product, Treatment, FixedCostItem, FixedCostsConfig } from "@/types/costos";
 import { SEED_PRODUCTS, SEED_TREATMENTS } from "@/lib/costos-seed";
+
+const SEED_FIXED_COSTS: FixedCostsConfig = {
+  items: [
+    { id: "fc-renta",      name: "Renta del local",        amount: 3000 },
+    { id: "fc-asistente",  name: "Pago de asistente",      amount: 3000 },
+    { id: "fc-energia",    name: "Energía eléctrica (luz)", amount: 1500 },
+    { id: "fc-agua",       name: "Agua",                   amount: 300  },
+    { id: "fc-gasolina",   name: "Gasolina",               amount: 500  },
+    { id: "fc-internet",   name: "Internet / teléfono",    amount: 340  },
+  ],
+  patientsPerMonth: 40,
+};
+// Total: 8,640 / 40 = 216 por paciente (coincide con el valor semilla actual)
 
 interface CostosState {
   products: Product[];
   treatments: Treatment[];
+  fixedCostsConfig: FixedCostsConfig;
 
   updateProduct: (id: string, updates: Partial<Omit<Product, "id">>) => void;
   addProduct: (product: Omit<Product, "id">) => void;
@@ -17,6 +31,11 @@ interface CostosState {
   reorderTreatments: (orderedIds: string[]) => void;
   mergeAppointments: (treatmentId: string, targetId: string, sourceId: string) => void;
 
+  addFixedCostItem: (name: string, amount: number) => void;
+  updateFixedCostItem: (id: string, updates: Partial<Pick<FixedCostItem, "name" | "amount">>) => void;
+  deleteFixedCostItem: (id: string) => void;
+  setPatientsPerMonth: (n: number) => void;
+
   resetToSeed: () => void;
 }
 
@@ -25,6 +44,7 @@ export const useCostosStore = create<CostosState>()(
     (set) => ({
       products: SEED_PRODUCTS,
       treatments: SEED_TREATMENTS,
+      fixedCostsConfig: SEED_FIXED_COSTS,
 
       updateProduct: (id, updates) =>
         set((s) => ({
@@ -57,6 +77,37 @@ export const useCostosStore = create<CostosState>()(
             .filter(Boolean) as Treatment[],
         })),
 
+      addFixedCostItem: (name, amount) =>
+        set((s) => ({
+          fixedCostsConfig: {
+            ...s.fixedCostsConfig,
+            items: [...s.fixedCostsConfig.items, { id: crypto.randomUUID(), name, amount }],
+          },
+        })),
+
+      updateFixedCostItem: (id, updates) =>
+        set((s) => ({
+          fixedCostsConfig: {
+            ...s.fixedCostsConfig,
+            items: s.fixedCostsConfig.items.map((item) =>
+              item.id === id ? { ...item, ...updates } : item
+            ),
+          },
+        })),
+
+      deleteFixedCostItem: (id) =>
+        set((s) => ({
+          fixedCostsConfig: {
+            ...s.fixedCostsConfig,
+            items: s.fixedCostsConfig.items.filter((item) => item.id !== id),
+          },
+        })),
+
+      setPatientsPerMonth: (n) =>
+        set((s) => ({
+          fixedCostsConfig: { ...s.fixedCostsConfig, patientsPerMonth: Math.max(1, n) },
+        })),
+
       mergeAppointments: (treatmentId, targetId, sourceId) =>
         set((s) => ({
           treatments: s.treatments.map((t) => {
@@ -81,7 +132,7 @@ export const useCostosStore = create<CostosState>()(
           }),
         })),
 
-      resetToSeed: () => set({ products: SEED_PRODUCTS, treatments: SEED_TREATMENTS }),
+      resetToSeed: () => set({ products: SEED_PRODUCTS, treatments: SEED_TREATMENTS, fixedCostsConfig: SEED_FIXED_COSTS }),
     }),
     { name: "smileos-costos-v2" }
   )

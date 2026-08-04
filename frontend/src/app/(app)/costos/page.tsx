@@ -192,11 +192,11 @@ function NewTreatmentModal({ onClose }: { onClose: () => void }) {
 
 // ─── Treatment Card ───────────────────────────────────────────────────────────
 
-function TreatmentCard({ treatment }: { treatment: Treatment }) {
+function TreatmentCard({ treatment, globalFixedCost }: { treatment: Treatment; globalFixedCost: number }) {
   const products = useCostosStore((s) => s.products);
   const deleteTreatment = useCostosStore((s) => s.deleteTreatment);
   const updateTreatment = useCostosStore((s) => s.updateTreatment);
-  const breakdown = calculateTreatmentCosts(treatment, products);
+  const breakdown = calculateTreatmentCosts(treatment, products, globalFixedCost);
   const [showDesglose, setShowDesglose] = useState(false);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: treatment.id });
@@ -325,17 +325,12 @@ function TreatmentCard({ treatment }: { treatment: Treatment }) {
             </div>
           </div>
 
-          {/* Costos fijos */}
+          {/* Costos fijos (global) */}
           <div className="flex items-center justify-between gap-2">
             <span className="text-slate-500 shrink-0">Costos fijos</span>
-            <div className="flex items-center gap-1 justify-end">
-              <span className="text-slate-400">C$</span>
-              <InlineNum
-                value={treatment.fixedCosts}
-                onChange={(v) => upd("fixedCosts", v)}
-                suffix=""
-              />
-              <span className="font-medium text-slate-700 tabular-nums">= {fmtC(breakdown.fixedCosts)}</span>
+            <div className="flex items-center gap-1.5 justify-end">
+              <span className="font-medium text-slate-700 tabular-nums">{fmtC(breakdown.fixedCosts)}</span>
+              <Link href="/costos/costos-fijos" className="text-[10px] text-blue-500 hover:underline">(configurar)</Link>
             </div>
           </div>
 
@@ -390,7 +385,13 @@ function TreatmentCard({ treatment }: { treatment: Treatment }) {
 export default function CostosPage() {
   const treatments = useCostosStore((s) => s.treatments);
   const reorderTreatments = useCostosStore((s) => s.reorderTreatments);
+  const fixedCostsConfig = useCostosStore((s) => s.fixedCostsConfig);
   const [showModal, setShowModal] = useState(false);
+
+  const totalFijo = fixedCostsConfig?.items?.reduce((s, i) => s + i.amount, 0) ?? 0;
+  const perPaciente = (fixedCostsConfig?.patientsPerMonth ?? 1) > 0
+    ? totalFijo / fixedCostsConfig.patientsPerMonth
+    : 0;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -417,10 +418,16 @@ export default function CostosPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/costos/costos-fijos">
+            <Button variant="secondary" size="sm">
+              <Package size={15} />
+              Costos fijos
+            </Button>
+          </Link>
           <Link href="/costos/productos">
             <Button variant="secondary" size="sm">
               <Package size={15} />
-              Catálogo de productos
+              Productos
             </Button>
           </Link>
           <Button size="sm" onClick={() => setShowModal(true)}>
@@ -429,6 +436,21 @@ export default function CostosPage() {
           </Button>
         </div>
       </div>
+
+      {/* Banner costo fijo global */}
+      {perPaciente > 0 && (
+        <div className="mb-5 flex items-center justify-between rounded-xl border border-blue-100 bg-blue-50 px-4 py-3 text-sm">
+          <span className="text-blue-700">
+            Costo fijo por paciente: <strong>{fmtC(perPaciente)}</strong>
+            <span className="text-blue-500 ml-1">
+              ({fmtC(totalFijo)}/mes ÷ {fixedCostsConfig.patientsPerMonth} pacientes)
+            </span>
+          </span>
+          <Link href="/costos/costos-fijos" className="text-blue-600 font-medium hover:underline text-xs">
+            Editar →
+          </Link>
+        </div>
+      )}
 
       {/* Treatments grid */}
       {treatments.length === 0 ? (
@@ -445,7 +467,7 @@ export default function CostosPage() {
           <SortableContext items={treatments.map((t) => t.id)} strategy={rectSortingStrategy}>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {treatments.map((t) => (
-                <TreatmentCard key={t.id} treatment={t} />
+                <TreatmentCard key={t.id} treatment={t} globalFixedCost={perPaciente} />
               ))}
             </div>
           </SortableContext>

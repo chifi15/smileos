@@ -27,6 +27,17 @@ export const PRODUCT_CATEGORY_COLORS: Record<ProductCategory, string> = {
   otros: "bg-gray-50 text-gray-600",
 };
 
+export interface FixedCostItem {
+  id: string;
+  name: string;
+  amount: number; // C$ por mes
+}
+
+export interface FixedCostsConfig {
+  items: FixedCostItem[];
+  patientsPerMonth: number;
+}
+
 export interface Product {
   id: string;
   name: string;

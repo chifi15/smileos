@@ -27,7 +27,7 @@ import Input from "@/components/ui/Input";
 
 // ─── Edit Treatment Settings Panel ────────────────────────────────────────────
 
-function TreatmentSettings({ treatmentId }: { treatmentId: string }) {
+function TreatmentSettings({ treatmentId, globalFixedCost }: { treatmentId: string; globalFixedCost?: number }) {
   const treatment = useCostosStore((s) => s.treatments.find((t) => t.id === treatmentId));
   const updateTreatment = useCostosStore((s) => s.updateTreatment);
   const [open, setOpen] = useState(false);
@@ -51,69 +51,70 @@ function TreatmentSettings({ treatmentId }: { treatmentId: string }) {
         )}
       </button>
       {open && (
-        <div className="border-t border-slate-100 px-5 py-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-          <div>
-            <label className="text-xs font-medium text-slate-500 block mb-1.5">
-              Tarifa/hora (C$)
-            </label>
-            <input
-              type="number"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              defaultValue={treatment.professionalFeePerHour}
-              onBlur={(e) =>
-                updateTreatment(treatmentId, {
-                  professionalFeePerHour: parseFloat(e.target.value) || 192,
-                })
-              }
-            />
+        <div className="border-t border-slate-100 px-5 py-4 space-y-4">
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+            <div>
+              <label className="text-xs font-medium text-slate-500 block mb-1.5">
+                Tarifa/hora (C$)
+              </label>
+              <input
+                type="number"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                defaultValue={treatment.professionalFeePerHour}
+                onBlur={(e) =>
+                  updateTreatment(treatmentId, {
+                    professionalFeePerHour: parseFloat(e.target.value) || 192,
+                  })
+                }
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-500 block mb-1.5">
+                Total de horas
+              </label>
+              <input
+                type="number"
+                step="0.5"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                defaultValue={treatment.totalHours}
+                onBlur={(e) =>
+                  updateTreatment(treatmentId, {
+                    totalHours: parseFloat(e.target.value) || 1,
+                  })
+                }
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-slate-500 block mb-1.5">
+                Margen clínica (%)
+              </label>
+              <input
+                type="number"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                defaultValue={treatment.clinicMarginPct * 100}
+                onBlur={(e) =>
+                  updateTreatment(treatmentId, {
+                    clinicMarginPct: (parseFloat(e.target.value) || 15) / 100,
+                  })
+                }
+              />
+            </div>
           </div>
+
+          {/* Costos fijos — solo lectura, vienen de configuración global */}
+          {globalFixedCost !== undefined && (
+            <div className="flex items-center gap-3 rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-sm">
+              <DollarSign size={14} className="text-blue-500 shrink-0" />
+              <span className="text-blue-700">
+                Costos fijos por paciente: <strong>C$ {globalFixedCost.toFixed(2)}</strong>
+              </span>
+              <a href="/costos/costos-fijos" className="ml-auto text-xs text-blue-600 hover:underline font-medium">
+                Editar →
+              </a>
+            </div>
+          )}
+
           <div>
-            <label className="text-xs font-medium text-slate-500 block mb-1.5">
-              Total de horas
-            </label>
-            <input
-              type="number"
-              step="0.5"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              defaultValue={treatment.totalHours}
-              onBlur={(e) =>
-                updateTreatment(treatmentId, {
-                  totalHours: parseFloat(e.target.value) || 1,
-                })
-              }
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-slate-500 block mb-1.5">
-              Costos fijos (C$)
-            </label>
-            <input
-              type="number"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              defaultValue={treatment.fixedCosts}
-              onBlur={(e) =>
-                updateTreatment(treatmentId, {
-                  fixedCosts: parseFloat(e.target.value) || 216,
-                })
-              }
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium text-slate-500 block mb-1.5">
-              Margen clínica (%)
-            </label>
-            <input
-              type="number"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              defaultValue={treatment.clinicMarginPct * 100}
-              onBlur={(e) =>
-                updateTreatment(treatmentId, {
-                  clinicMarginPct: (parseFloat(e.target.value) || 15) / 100,
-                })
-              }
-            />
-          </div>
-          <div className="col-span-2 sm:col-span-4">
             <label className="text-xs font-medium text-slate-500 block mb-1.5">
               Precio sugerido al paciente (C$) — dejar vacío para usar el calculado
             </label>
@@ -697,6 +698,11 @@ export default function TreatmentDetailPage({
   const products = useCostosStore((s) => s.products);
   const treatment = useCostosStore((s) => s.treatments.find((t) => t.id === id));
   const updateTreatment = useCostosStore((s) => s.updateTreatment);
+  const fixedCostsConfig = useCostosStore((s) => s.fixedCostsConfig);
+  const totalFijo = fixedCostsConfig?.items?.reduce((s, i) => s + i.amount, 0) ?? 0;
+  const globalFixedCost = (fixedCostsConfig?.patientsPerMonth ?? 1) > 0
+    ? totalFijo / fixedCostsConfig.patientsPerMonth
+    : undefined;
   const [editName, setEditName] = useState(false);
   const [nameValue, setNameValue] = useState("");
 
@@ -714,7 +720,7 @@ export default function TreatmentDetailPage({
     );
   }
 
-  const breakdown = calculateTreatmentCosts(treatment, products);
+  const breakdown = calculateTreatmentCosts(treatment, products, globalFixedCost);
 
   return (
     <div className="mx-auto max-w-4xl p-6 space-y-5">
@@ -778,7 +784,7 @@ export default function TreatmentDetailPage({
       <CostSummaryBar breakdown={breakdown} />
 
       {/* Settings */}
-      <TreatmentSettings treatmentId={id} />
+      <TreatmentSettings treatmentId={id} globalFixedCost={globalFixedCost} />
 
       {/* Appointments */}
       <div className="space-y-3">
