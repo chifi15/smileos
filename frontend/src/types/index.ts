@@ -632,6 +632,7 @@ export interface FinanceTransaction {
   exchange_rate_used: number | null;
   patient: { id: string; full_name: string } | null;
   procedure: { id: string; name: string } | null;
+  procedure_quantity: number;
   operational_cost_snapshot: number | null;
   invoice_number: string | null;
   transaction_date: string;

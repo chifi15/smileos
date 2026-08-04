@@ -123,6 +123,7 @@ async def create_transaction(
         exchange_rate_used=exchange_rate,
         patient_id=uuid.UUID(str(data["patient_id"])) if data.get("patient_id") else None,
         procedure_id=uuid.UUID(str(proc_id)) if proc_id else None,
+        procedure_quantity=quantity,
         operational_cost_snapshot=op_cost,
         invoice_number=data.get("invoice_number"),
         transaction_date=data["transaction_date"],
@@ -252,6 +253,9 @@ async def update_transaction(
         )
         if proc and proc.operational_cost:
             tx.operational_cost_snapshot = round(Decimal(str(proc.operational_cost)) * upd_quantity, 2)
+
+    if upd_quantity is not None:
+        tx.procedure_quantity = upd_quantity
 
     if "original_amount" in data or "original_currency" in data:
         currency = data.get("original_currency", tx.original_currency or "NIO")

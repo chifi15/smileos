@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, date
 from decimal import Decimal
-from sqlalchemy import String, DateTime, Text, ForeignKey, Numeric, Date
+from sqlalchemy import String, DateTime, Text, ForeignKey, Numeric, Date, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.core.database import Base
@@ -37,6 +37,7 @@ class FinanceTransaction(UUIDMixin, TimestampMixin, Base):
     exchange_rate_used: Mapped[Decimal | None] = mapped_column(Numeric(10, 4), nullable=True)
     patient_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=True)
     procedure_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("procedure_catalog.id"), nullable=True)
+    procedure_quantity: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     operational_cost_snapshot: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     invoice_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
     transaction_date: Mapped[date] = mapped_column(Date, nullable=False)

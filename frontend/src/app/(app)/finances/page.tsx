@@ -333,7 +333,7 @@ function formFromTx(tx: FinanceTransaction): FormState {
     original_currency: (tx.original_currency as "NIO" | "USD") ?? "NIO",
     patient: tx.patient ? { id: tx.patient.id, name: tx.patient.full_name } : null,
     procedure_id: tx.procedure?.id ?? "",
-    quantity: "1",
+    quantity: String(tx.procedure_quantity ?? 1),
     invoice_number: tx.invoice_number ?? "",
     transaction_date: tx.transaction_date,
     notes: tx.notes ?? "",

@@ -36,6 +36,7 @@ def _serialize(t) -> dict:
         "exchange_rate_used": float(t.exchange_rate_used) if t.exchange_rate_used else None,
         "patient": {"id": str(t.patient.id), "full_name": t.patient.full_name} if t.patient else None,
         "procedure": {"id": str(t.procedure.id), "name": t.procedure.name} if t.procedure else None,
+        "procedure_quantity": t.procedure_quantity,
         "operational_cost_snapshot": float(t.operational_cost_snapshot) if t.operational_cost_snapshot else None,
         "invoice_number": t.invoice_number,
         "transaction_date": t.transaction_date.isoformat(),
