@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { usePatient, useDeactivatePatient, useDeletePatientPermanent } from "@/hooks/usePatients";
 import { useCreateTransaction, useExchangeRate } from "@/hooks/useFinances";
-import { usePatientPlans } from "@/hooks/useTreatments";
+import { useProcedures } from "@/hooks/useCatalog";
 import { useRewardsConfig } from "@/hooks/useRewards";
 import {
   REWARDS_LEVEL_LABELS,
@@ -54,17 +54,10 @@ function QuickPaymentModal({
   const [currency, setCurrency] = useState<"NIO" | "USD">("NIO");
   const [description, setDescription] = useState("Pago de tratamiento");
   const [date, setDate] = useState(today);
-  const [selectedPlanId, setSelectedPlanId] = useState("");
-  const [selectedProcedureId, setSelectedProcedureId] = useState("");
+  const [procedureId, setProcedureId] = useState("");
   const { data: exchangeRate = 37 } = useExchangeRate();
-  const { data: plans = [] } = usePatientPlans(patientId);
+  const { data: procedures = [] } = useProcedures();
   const create = useCreateTransaction(now.getFullYear(), now.getMonth() + 1);
-
-  const activePlans = plans.filter((p) => p.status === "active" || p.status === "on_hold");
-  const selectedPlan = activePlans.find((p) => p.id === selectedPlanId) ?? null;
-  const pendingItems = selectedPlan
-    ? selectedPlan.items.filter((i) => i.status === "pending" || i.status === "in_progress")
-    : [];
 
   const amountNIO =
     currency === "USD" && amount
@@ -75,12 +68,11 @@ function QuickPaymentModal({
     return new Intl.NumberFormat("es-NI", { minimumFractionDigits: 2 }).format(n);
   }
 
-  function handlePlanChange(planId: string) {
-    setSelectedPlanId(planId);
-    setSelectedProcedureId("");
-    if (planId) {
-      const plan = activePlans.find((p) => p.id === planId);
-      if (plan) setDescription(`Pago - ${plan.title}`);
+  function handleProcedureChange(id: string) {
+    setProcedureId(id);
+    if (id) {
+      const proc = procedures.find((p) => p.id === id);
+      if (proc) setDescription(proc.name);
     } else {
       setDescription("Pago de tratamiento");
     }
@@ -98,7 +90,7 @@ function QuickPaymentModal({
         original_currency: currency,
         transaction_date: date,
         patient_id: patientId,
-        procedure_id: selectedProcedureId || undefined,
+        procedure_id: procedureId || undefined,
       },
       { onSuccess: onClose }
     );
@@ -150,47 +142,24 @@ function QuickPaymentModal({
             )}
           </div>
 
-          {/* Treatment plan */}
-          {activePlans.length > 0 && (
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">
-                Plan de tratamiento
-              </label>
-              <select
-                value={selectedPlanId}
-                onChange={(e) => handlePlanChange(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                <option value="">— Sin plan —</option>
-                {activePlans.map((p) => (
-                  <option key={p.id} value={p.id}>{p.title}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Procedure from plan */}
-          {selectedPlan && pendingItems.length > 0 && (
-            <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">
-                Procedimiento
-              </label>
-              <select
-                value={selectedProcedureId}
-                onChange={(e) => setSelectedProcedureId(e.target.value)}
-                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-              >
-                <option value="">— Sin procedimiento —</option>
-                {pendingItems.map((item) => (
-                  <option key={item.id} value={item.procedure_id}>
-                    {item.procedure_name ?? item.procedure_id}
-                    {item.tooth_fdi ? ` (diente ${item.tooth_fdi})` : ""}
-                    {item.quoted_price ? ` — C$${item.quoted_price}` : ""}
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
+          {/* Procedure catalog */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-1">
+              Procedimiento
+            </label>
+            <select
+              value={procedureId}
+              onChange={(e) => handleProcedureChange(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              <option value="">— Sin procedimiento —</option>
+              {procedures.map((p, i) => (
+                <option key={p.id} value={p.id}>
+                  {i + 1}. {p.name}{p.operational_cost ? ` (costo op. C$${p.operational_cost})` : ""}
+                </option>
+              ))}
+            </select>
+          </div>
 
           {/* Description */}
           <div>
