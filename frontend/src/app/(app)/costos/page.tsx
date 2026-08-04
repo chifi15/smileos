@@ -11,7 +11,11 @@ import {
   Calendar,
   Trash2,
   X,
+  GripVertical,
 } from "lucide-react";
+import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useCostosStore } from "@/stores/costos.store";
 import { calculateTreatmentCosts, fmtC } from "@/lib/costos-utils";
 import { Treatment } from "@/types/costos";
@@ -138,12 +142,25 @@ function TreatmentCard({ treatment }: { treatment: Treatment }) {
   const deleteTreatment = useCostosStore((s) => s.deleteTreatment);
   const breakdown = calculateTreatmentCosts(treatment, products);
 
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: treatment.id });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
+
   const marginPct = breakdown.subtotal > 0
     ? ((breakdown.finalPrice - breakdown.subtotal) / breakdown.subtotal) * 100
     : 0;
 
   return (
-    <div className="group relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+    <div ref={setNodeRef} style={style} className="group relative rounded-xl border border-slate-200 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
+      {/* Drag handle */}
+      <button
+        {...attributes}
+        {...listeners}
+        className="absolute left-3 top-3 hidden rounded-lg p-1 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing group-hover:flex touch-none"
+        title="Arrastrar para ordenar"
+      >
+        <GripVertical size={15} />
+      </button>
+
       {/* Delete button */}
       <button
         onClick={(e) => {
@@ -224,7 +241,22 @@ function TreatmentCard({ treatment }: { treatment: Treatment }) {
 
 export default function CostosPage() {
   const treatments = useCostosStore((s) => s.treatments);
+  const reorderTreatments = useCostosStore((s) => s.reorderTreatments);
   const [showModal, setShowModal] = useState(false);
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = treatments.findIndex((t) => t.id === active.id);
+    const newIndex = treatments.findIndex((t) => t.id === over.id);
+    const newOrder = arrayMove(treatments, oldIndex, newIndex);
+    reorderTreatments(newOrder.map((t) => t.id));
+  }
 
   return (
     <div className="mx-auto max-w-5xl p-6">
@@ -261,11 +293,15 @@ export default function CostosPage() {
           </Button>
         </div>
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {treatments.map((t) => (
-            <TreatmentCard key={t.id} treatment={t} />
-          ))}
-        </div>
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={treatments.map((t) => t.id)} strategy={rectSortingStrategy}>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {treatments.map((t) => (
+                <TreatmentCard key={t.id} treatment={t} />
+              ))}
+            </div>
+          </SortableContext>
+        </DndContext>
       )}
 
       {showModal && <NewTreatmentModal onClose={() => setShowModal(false)} />}

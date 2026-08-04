@@ -14,6 +14,7 @@ interface CostosState {
   addTreatment: (treatment: Treatment) => void;
   updateTreatment: (id: string, updates: Partial<Treatment>) => void;
   deleteTreatment: (id: string) => void;
+  reorderTreatments: (orderedIds: string[]) => void;
   mergeAppointments: (treatmentId: string, targetId: string, sourceId: string) => void;
 
   resetToSeed: () => void;
@@ -48,6 +49,13 @@ export const useCostosStore = create<CostosState>()(
 
       deleteTreatment: (id) =>
         set((s) => ({ treatments: s.treatments.filter((t) => t.id !== id) })),
+
+      reorderTreatments: (orderedIds) =>
+        set((s) => ({
+          treatments: orderedIds
+            .map((id) => s.treatments.find((t) => t.id === id))
+            .filter(Boolean) as Treatment[],
+        })),
 
       mergeAppointments: (treatmentId, targetId, sourceId) =>
         set((s) => ({
