@@ -6,12 +6,15 @@ import {
   Calculator,
   Package,
   ChevronRight,
+  ChevronDown,
   TrendingUp,
   Plus,
   Calendar,
   Trash2,
   X,
   GripVertical,
+  Pencil,
+  Check,
 } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from "@dnd-kit/sortable";
@@ -21,6 +24,58 @@ import { calculateTreatmentCosts, fmtC } from "@/lib/costos-utils";
 import { Treatment } from "@/types/costos";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+
+// ─── Inline editable number ───────────────────────────────────────────────────
+
+function InlineNum({
+  value,
+  onChange,
+  suffix,
+  step = "1",
+  min = "0",
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  suffix?: string;
+  step?: string;
+  min?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  if (editing) {
+    return (
+      <span className="inline-flex items-center gap-0.5">
+        <input
+          autoFocus
+          type="number"
+          step={step}
+          min={min}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") { onChange(parseFloat(draft) || value); setEditing(false); }
+            if (e.key === "Escape") setEditing(false);
+          }}
+          onBlur={() => { onChange(parseFloat(draft) || value); setEditing(false); }}
+          className="w-16 rounded border border-blue-400 px-1.5 py-0.5 text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
+        />
+        {suffix && <span className="text-xs text-slate-400">{suffix}</span>}
+      </span>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => { setDraft(String(value)); setEditing(true); }}
+      className="inline-flex items-center gap-0.5 rounded px-1 hover:bg-blue-50 group/ie"
+      title="Clic para editar"
+    >
+      <span className="text-xs font-medium text-slate-700 tabular-nums">{value}{suffix}</span>
+      <Pencil size={9} className="text-slate-300 group-hover/ie:text-blue-500" />
+    </button>
+  );
+}
 
 // ─── New Treatment Modal ──────────────────────────────────────────────────────
 
@@ -140,10 +195,15 @@ function NewTreatmentModal({ onClose }: { onClose: () => void }) {
 function TreatmentCard({ treatment }: { treatment: Treatment }) {
   const products = useCostosStore((s) => s.products);
   const deleteTreatment = useCostosStore((s) => s.deleteTreatment);
+  const updateTreatment = useCostosStore((s) => s.updateTreatment);
   const breakdown = calculateTreatmentCosts(treatment, products);
+  const [showDesglose, setShowDesglose] = useState(false);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: treatment.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
+
+  const upd = (key: keyof Treatment, val: number) =>
+    updateTreatment(treatment.id, { [key]: val });
 
   const marginPct = breakdown.subtotal > 0
     ? ((breakdown.finalPrice - breakdown.subtotal) / breakdown.subtotal) * 100
@@ -172,9 +232,9 @@ function TreatmentCard({ treatment }: { treatment: Treatment }) {
         <Trash2 size={14} />
       </button>
 
-      <Link href={`/costos/${treatment.id}`} className="block">
-        {/* Header */}
-        <div className="mb-4 flex items-start gap-3">
+      {/* Header (clickable → detail page) */}
+      <Link href={`/costos/${treatment.id}`} className="block mb-4">
+        <div className="flex items-start gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-50">
             <Calculator size={18} className="text-blue-600" />
           </div>
@@ -185,54 +245,142 @@ function TreatmentCard({ treatment }: { treatment: Treatment }) {
             )}
           </div>
         </div>
-
-        {/* Citas badge */}
-        <div className="mb-4 flex items-center gap-2">
-          {treatment.appointments.map((apt) => (
-            <div
-              key={apt.id}
-              className="flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600"
-            >
-              <Calendar size={10} />
-              Cita {apt.number}
-            </div>
-          ))}
-        </div>
-
-        {/* Costs grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-lg bg-slate-50 px-3 py-2.5">
-            <p className="text-xs text-slate-500 mb-0.5">Costo operativo</p>
-            <p className="text-sm font-semibold text-slate-800">{fmtC(breakdown.totalMaterialsCost)}</p>
-          </div>
-          <div className="rounded-lg bg-blue-50 px-3 py-2.5">
-            <p className="text-xs text-blue-600 mb-0.5">Precio paciente</p>
-            <p className="text-sm font-bold text-blue-700">{fmtC(breakdown.finalPrice)}</p>
-          </div>
-          <div className="rounded-lg bg-slate-50 px-3 py-2.5">
-            <p className="text-xs text-slate-500 mb-0.5">Total real (con honorarios)</p>
-            <p className="text-sm font-semibold text-slate-700">{fmtC(breakdown.subtotal)}</p>
-          </div>
-          <div className="rounded-lg bg-green-50 px-3 py-2.5">
-            <p className="text-xs text-green-600 mb-0.5">Utilidad estimada</p>
-            <div className="flex items-center gap-1.5">
-              <TrendingUp size={12} className="text-green-600" />
-              <p className="text-sm font-semibold text-green-700">
-                {fmtC(breakdown.finalPrice - breakdown.subtotal)}{" "}
-                <span className="text-xs font-normal">({marginPct.toFixed(0)}%)</span>
-              </p>
-            </div>
-          </div>
-        </div>
-
-        {/* Footer */}
-        <div className="mt-4 flex items-center justify-between text-xs text-slate-500">
-          <span>{treatment.appointments.length} cita{treatment.appointments.length !== 1 ? "s" : ""}</span>
-          <div className="flex items-center gap-1 text-blue-600 font-medium">
-            Ver detalle <ChevronRight size={12} />
-          </div>
-        </div>
       </Link>
+
+      {/* Citas badge */}
+      <div className="mb-4 flex items-center gap-2 flex-wrap">
+        {treatment.appointments.map((apt) => (
+          <div
+            key={apt.id}
+            className="flex items-center gap-1 rounded-md bg-slate-100 px-2 py-1 text-xs font-medium text-slate-600"
+          >
+            <Calendar size={10} />
+            Cita {apt.number}
+          </div>
+        ))}
+      </div>
+
+      {/* Summary row */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-lg bg-slate-50 px-3 py-2.5">
+          <p className="text-xs text-slate-500 mb-0.5">Costo operativo</p>
+          <p className="text-sm font-semibold text-slate-800">{fmtC(breakdown.totalMaterialsCost)}</p>
+        </div>
+        <div className="rounded-lg bg-blue-50 px-3 py-2.5">
+          <p className="text-xs text-blue-600 mb-0.5">Precio paciente</p>
+          <p className="text-sm font-bold text-blue-700">{fmtC(breakdown.finalPrice)}</p>
+        </div>
+        <div className="rounded-lg bg-slate-50 px-3 py-2.5">
+          <p className="text-xs text-slate-500 mb-0.5">Subtotal real</p>
+          <p className="text-sm font-semibold text-slate-700">{fmtC(breakdown.subtotal)}</p>
+        </div>
+        <div className="rounded-lg bg-green-50 px-3 py-2.5">
+          <p className="text-xs text-green-600 mb-0.5">Utilidad estimada</p>
+          <div className="flex items-center gap-1.5">
+            <TrendingUp size={12} className="text-green-600" />
+            <p className="text-sm font-semibold text-green-700">
+              {fmtC(breakdown.finalPrice - breakdown.subtotal)}{" "}
+              <span className="text-xs font-normal">({marginPct.toFixed(0)}%)</span>
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Desglose expandible */}
+      <button
+        onClick={() => setShowDesglose((v) => !v)}
+        className="mt-3 flex w-full items-center justify-between rounded-lg px-3 py-2 text-xs font-medium text-slate-500 hover:bg-slate-50 transition-colors"
+      >
+        <span>Desglose de precio</span>
+        <ChevronDown size={13} className={`transition-transform ${showDesglose ? "rotate-180" : ""}`} />
+      </button>
+
+      {showDesglose && (
+        <div className="mt-1 rounded-lg border border-slate-100 bg-slate-50 px-4 py-3 space-y-1.5 text-xs">
+          {/* Materiales */}
+          <div className="flex items-center justify-between">
+            <span className="text-slate-500">Materiales</span>
+            <span className="font-medium text-slate-700 tabular-nums">{fmtC(breakdown.totalMaterialsCost)}</span>
+          </div>
+
+          {/* Honorarios */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-slate-500 shrink-0">Honorarios</span>
+            <div className="flex items-center gap-1 flex-wrap justify-end">
+              <InlineNum
+                value={treatment.professionalFeePerHour}
+                onChange={(v) => upd("professionalFeePerHour", v)}
+                suffix="/h"
+              />
+              <span className="text-slate-400">×</span>
+              <InlineNum
+                value={treatment.totalHours}
+                onChange={(v) => upd("totalHours", v)}
+                step="0.5"
+                min="0.5"
+                suffix="h"
+              />
+              <span className="text-slate-400">=</span>
+              <span className="font-medium text-slate-700 tabular-nums">{fmtC(breakdown.professionalFees)}</span>
+            </div>
+          </div>
+
+          {/* Costos fijos */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-slate-500 shrink-0">Costos fijos</span>
+            <div className="flex items-center gap-1 justify-end">
+              <span className="text-slate-400">C$</span>
+              <InlineNum
+                value={treatment.fixedCosts}
+                onChange={(v) => upd("fixedCosts", v)}
+                suffix=""
+              />
+              <span className="font-medium text-slate-700 tabular-nums">= {fmtC(breakdown.fixedCosts)}</span>
+            </div>
+          </div>
+
+          {/* Subtotal */}
+          <div className="flex items-center justify-between border-t border-slate-200 pt-1.5 mt-1">
+            <span className="font-semibold text-slate-600">Subtotal</span>
+            <span className="font-semibold text-slate-800 tabular-nums">{fmtC(breakdown.subtotal)}</span>
+          </div>
+
+          {/* Margen */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-slate-500 shrink-0">+ Margen</span>
+            <div className="flex items-center gap-1 justify-end">
+              <InlineNum
+                value={Math.round(treatment.clinicMarginPct * 100)}
+                onChange={(v) => upd("clinicMarginPct", v / 100)}
+                suffix="%"
+                min="0"
+              />
+              <span className="text-slate-400">=</span>
+              <span className="font-medium text-slate-700 tabular-nums">{fmtC(breakdown.margin)}</span>
+            </div>
+          </div>
+
+          {/* Precio final */}
+          <div className="flex items-center justify-between border-t border-slate-200 pt-1.5 mt-1">
+            <span className="font-semibold text-blue-700">Precio paciente</span>
+            <span className="font-bold text-blue-700 tabular-nums">{fmtC(breakdown.finalPrice)}</span>
+          </div>
+
+          {treatment.suggestedPrice && (
+            <p className="text-[10px] text-amber-600 pt-0.5">
+              * Precio manual activo: C$ {treatment.suggestedPrice}. Edítalo en el detalle del tratamiento.
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Footer */}
+      <div className="mt-3 flex items-center justify-between text-xs text-slate-400">
+        <span>{treatment.appointments.length} cita{treatment.appointments.length !== 1 ? "s" : ""}</span>
+        <Link href={`/costos/${treatment.id}`} className="flex items-center gap-1 text-blue-600 font-medium hover:underline">
+          Ver materiales <ChevronRight size={12} />
+        </Link>
+      </div>
     </div>
   );
 }
