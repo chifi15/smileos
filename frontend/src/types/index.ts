@@ -659,6 +659,7 @@ export interface TransactionCreatePayload {
   original_currency: "NIO" | "USD";
   patient_id?: string;
   procedure_id?: string;
+  quantity?: number;
   invoice_number?: string;
   transaction_date: string;
   notes?: string;

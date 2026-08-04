@@ -66,6 +66,7 @@ class TransactionCreate(BaseModel):
     original_currency: str = "NIO"
     patient_id: str | None = None
     procedure_id: str | None = None
+    quantity: int = 1
     invoice_number: str | None = None
     transaction_date: date
     notes: str | None = None
@@ -78,6 +79,7 @@ class TransactionUpdate(BaseModel):
     original_currency: str | None = None
     patient_id: str | None = None
     procedure_id: str | None = None
+    quantity: int | None = None
     invoice_number: str | None = None
     transaction_date: date | None = None
     notes: str | None = None

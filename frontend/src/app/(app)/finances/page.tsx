@@ -300,6 +300,7 @@ interface FormState {
   original_currency: "NIO" | "USD";
   patient: PatientRef | null;
   procedure_id: string;
+  quantity: string;
   invoice_number: string;
   transaction_date: string;
   notes: string;
@@ -316,6 +317,7 @@ function emptyForm(type: FinanceType): FormState {
     original_currency: "NIO",
     patient: null,
     procedure_id: "",
+    quantity: "1",
     invoice_number: "",
     transaction_date: today,
     notes: "",
@@ -331,6 +333,7 @@ function formFromTx(tx: FinanceTransaction): FormState {
     original_currency: (tx.original_currency as "NIO" | "USD") ?? "NIO",
     patient: tx.patient ? { id: tx.patient.id, name: tx.patient.full_name } : null,
     procedure_id: tx.procedure?.id ?? "",
+    quantity: "1",
     invoice_number: tx.invoice_number ?? "",
     transaction_date: tx.transaction_date,
     notes: tx.notes ?? "",
@@ -368,6 +371,8 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
       return;
     }
 
+    const qty = Math.max(1, parseInt(form.quantity) || 1);
+
     if (isEdit) {
       const payload: Record<string, unknown> = {
         category: form.category,
@@ -377,6 +382,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         transaction_date: form.transaction_date,
         patient_id: form.patient?.id ?? null,
         procedure_id: form.procedure_id || null,
+        quantity: qty,
         invoice_number: form.invoice_number.trim() || null,
         notes: form.notes.trim() || null,
       };
@@ -394,7 +400,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     };
 
     if (form.patient?.id) payload.patient_id = form.patient.id;
-    if (form.procedure_id) payload.procedure_id = form.procedure_id;
+    if (form.procedure_id) { payload.procedure_id = form.procedure_id; payload.quantity = qty; }
     if (form.invoice_number.trim()) payload.invoice_number = form.invoice_number.trim();
     if (form.notes.trim()) payload.notes = form.notes.trim();
 
@@ -493,7 +499,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Procedimiento</label>
             <select value={form.procedure_id}
-              onChange={(e) => set("procedure_id", e.target.value)}
+              onChange={(e) => { set("procedure_id", e.target.value); set("quantity", "1"); }}
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">— Sin procedimiento —</option>
               {procedures.map((p, i) => (
@@ -501,6 +507,33 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
               ))}
             </select>
           </div>
+
+          {form.procedure_id && (() => {
+            const proc = procedures.find((p) => p.id === form.procedure_id);
+            const qty = Math.max(1, parseInt(form.quantity) || 1);
+            const unitCost = proc?.operational_cost ?? 0;
+            const totalCost = unitCost * qty;
+            return (
+              <div className="flex items-end gap-3">
+                <div className="w-28 shrink-0">
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Cantidad</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={form.quantity}
+                    onChange={(e) => set("quantity", e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+                {unitCost > 0 && (
+                  <p className="mb-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 flex-1">
+                    Costo op.: C${fmt(unitCost)} × {qty} = <strong>C${fmt(totalCost)}</strong>
+                  </p>
+                )}
+              </div>
+            );
+          })()}
 
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">N.° de factura</label>

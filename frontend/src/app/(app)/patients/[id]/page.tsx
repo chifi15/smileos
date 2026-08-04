@@ -55,6 +55,7 @@ function QuickPaymentModal({
   const [description, setDescription] = useState("Pago de tratamiento");
   const [date, setDate] = useState(today);
   const [procedureId, setProcedureId] = useState("");
+  const [quantity, setQuantity] = useState("1");
   const { data: exchangeRate = 37 } = useExchangeRate();
   const { data: procedures = [] } = useProcedures();
   const create = useCreateTransaction(now.getFullYear(), now.getMonth() + 1);
@@ -70,6 +71,7 @@ function QuickPaymentModal({
 
   function handleProcedureChange(id: string) {
     setProcedureId(id);
+    setQuantity("1");
     if (id) {
       const proc = procedures.find((p) => p.id === id);
       if (proc) setDescription(proc.name);
@@ -81,6 +83,7 @@ function QuickPaymentModal({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!amount || parseFloat(amount) <= 0) return;
+    const qty = Math.max(1, parseInt(quantity) || 1);
     create.mutate(
       {
         type: "ingreso",
@@ -91,6 +94,7 @@ function QuickPaymentModal({
         transaction_date: date,
         patient_id: patientId,
         procedure_id: procedureId || undefined,
+        quantity: procedureId ? qty : undefined,
       },
       { onSuccess: onClose }
     );
@@ -155,11 +159,39 @@ function QuickPaymentModal({
               <option value="">— Sin procedimiento —</option>
               {procedures.map((p, i) => (
                 <option key={p.id} value={p.id}>
-                  {i + 1}. {p.name}{p.operational_cost ? ` (costo op. C$${p.operational_cost})` : ""}
+                  {i + 1}. {p.name}{p.operational_cost ? ` (C$${p.operational_cost})` : ""}
                 </option>
               ))}
             </select>
           </div>
+
+          {/* Quantity (only when procedure selected) */}
+          {procedureId && (() => {
+            const proc = procedures.find((p) => p.id === procedureId);
+            const qty = Math.max(1, parseInt(quantity) || 1);
+            const unitCost = proc?.operational_cost ?? 0;
+            const totalCost = unitCost * qty;
+            return (
+              <div className="flex items-end gap-3">
+                <div className="w-28 shrink-0">
+                  <label className="block text-xs font-medium text-slate-600 mb-1">Cantidad</label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={quantity}
+                    onChange={(e) => setQuantity(e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+                {unitCost > 0 && (
+                  <p className="mb-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 flex-1">
+                    Costo op.: C${fmt(unitCost)} × {qty} = <strong>C${fmt(totalCost)}</strong>
+                  </p>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Description */}
           <div>
