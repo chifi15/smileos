@@ -1,4 +1,5 @@
 import uuid
+from datetime import date
 from typing import Optional, Any, List
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
@@ -25,6 +26,7 @@ class ProductIn(BaseModel):
     presentation_qty: Optional[float] = None
     presentation_unit: Optional[str] = None
     portion_qty: Optional[float] = None
+    purchase_date: Optional[date] = None
 
 
 class ProductOut(BaseModel):
@@ -42,6 +44,7 @@ class ProductOut(BaseModel):
     portion_qty: Optional[float]
     stock_qty: Optional[float]
     min_stock_qty: Optional[float]
+    purchase_date: Optional[date]
     sort_order: int
 
     class Config:

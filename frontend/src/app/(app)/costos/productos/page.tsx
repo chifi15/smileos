@@ -49,11 +49,13 @@ interface ProductFormState {
   presentationUnit: string;
   portionQty: string;
   manualUnitPrice: string;
+  purchaseDate: string;
 }
 
 const EMPTY_FORM: ProductFormState = {
   name: "", category: "desechable", supplier: "", notes: "",
   totalCost: "", presentationQty: "", presentationUnit: "ml", portionQty: "", manualUnitPrice: "",
+  purchaseDate: "",
 };
 
 function productToForm(p: ApiProduct): ProductFormState {
@@ -65,6 +67,7 @@ function productToForm(p: ApiProduct): ProductFormState {
     presentationUnit: p.presentation_unit ?? "ml",
     portionQty: p.portion_qty != null ? String(p.portion_qty) : "",
     manualUnitPrice: String(p.unit_price),
+    purchaseDate: p.purchase_date ?? "",
   };
 }
 
@@ -94,6 +97,7 @@ function ProductModal({ initial, onSave, onClose }: { initial?: ApiProduct; onSa
       presentation_qty: pQty || undefined,
       presentation_unit: pQty > 0 ? form.presentationUnit : undefined,
       portion_qty: portQty || undefined,
+      purchase_date: form.purchaseDate || null,
     });
     onClose();
   }
@@ -184,6 +188,14 @@ function ProductModal({ initial, onSave, onClose }: { initial?: ApiProduct; onSa
             )}
           </div>
 
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-slate-600 mb-1">Fecha de compra</label>
+              <input type="date" value={form.purchaseDate} onChange={f("purchaseDate")}
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            </div>
+          </div>
+
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Notas (opcional)</label>
             <textarea value={form.notes} onChange={f("notes")} rows={2} placeholder="Observaciones, marca, referencia..."
@@ -224,6 +236,7 @@ function SortableProductRow({ product, onEdit, isDragDisabled }: { product: ApiP
       <td className="px-3 py-3">
         <p className="font-medium text-slate-800">{product.name}</p>
         {product.supplier && <p className="text-xs text-slate-400">{product.supplier}</p>}
+        {product.purchase_date && <p className="text-xs text-slate-400">Comprado: {new Date(product.purchase_date + "T00:00:00").toLocaleDateString("es-NI", { day: "2-digit", month: "short", year: "numeric" })}</p>}
         {product.notes && <p className="text-xs text-slate-300 italic truncate max-w-[180px]">{product.notes}</p>}
       </td>
       <td className="px-4 py-3">

@@ -171,6 +171,11 @@ function InventoryRow({ product, onAdjust }: { product: ApiProduct; onAdjust: ()
       <td className="px-5 py-3">
         <p className="font-medium text-slate-800">{product.name}</p>
         {product.supplier && <p className="text-xs text-slate-400">{product.supplier}</p>}
+        {product.purchase_date && (
+          <p className="text-xs text-slate-400">
+            Comprado: {new Date(product.purchase_date + "T00:00:00").toLocaleDateString("es-NI", { day: "2-digit", month: "short", year: "numeric" })}
+          </p>
+        )}
       </td>
       <td className="px-4 py-3">
         <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${PRODUCT_CATEGORY_COLORS[product.category as ProductCategory]}`}>

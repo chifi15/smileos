@@ -1,7 +1,7 @@
 import uuid
-from datetime import datetime
+from datetime import datetime, date
 from typing import Optional, List, Any
-from sqlalchemy import String, Float, Integer, ForeignKey, DateTime, func
+from sqlalchemy import String, Float, Integer, ForeignKey, DateTime, Date, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.core.database import Base
@@ -29,6 +29,7 @@ class CostProduct(Base):
 
     stock_qty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     min_stock_qty: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    purchase_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
 
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)

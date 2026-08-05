@@ -18,6 +18,7 @@ export interface ApiProduct {
   portion_qty?: number;
   stock_qty?: number;
   min_stock_qty?: number;
+  purchase_date?: string | null;
   sort_order: number;
 }
 
