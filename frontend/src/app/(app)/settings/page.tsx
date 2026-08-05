@@ -733,16 +733,19 @@ function PriceCatalogSection() {
 }
 
 function BackupSection() {
-  const [loading, setLoading] = useState(false);
+  const [loadingXlsx, setLoadingXlsx] = useState(false);
+  const [loadingJson, setLoadingJson] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleDownload() {
+  async function handleDownload(format: "backup" | "json") {
+    const setLoading = format === "backup" ? setLoadingXlsx : setLoadingJson;
+    const ext = format === "backup" ? "xlsx" : "json";
     setLoading(true);
     setError("");
     try {
       const token = getAccessToken();
       const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-      const res = await fetch(`${apiBase}/api/v1/export/backup`, {
+      const res = await fetch(`${apiBase}/api/v1/export/${format}`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: "include",
       });
@@ -751,8 +754,7 @@ function BackupSection() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      const date = new Date().toISOString().slice(0, 10);
-      a.download = `smileos_backup_${date}.xlsx`;
+      a.download = `smileos_backup_${new Date().toISOString().slice(0, 10)}.${ext}`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
@@ -769,18 +771,36 @@ function BackupSection() {
         <h2 className="font-semibold text-slate-800">Respaldo de datos</h2>
       </div>
       <div className="px-6 py-5 space-y-4">
-        <p className="text-sm text-slate-600">
-          Descarga todos los datos de la clínica en un archivo Excel con 6 hojas: Pacientes, Finanzas, Productos, Lotes, Tratamientos y Citas.
-        </p>
         <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <strong>Recomendación:</strong> Descarga un respaldo al menos una vez al mes y guárdalo en Drive o en tu computadora.
           El plan gratuito de la base de datos puede eliminar datos si la aplicación lleva 90 días sin uso.
         </div>
+
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div className="rounded-xl border border-slate-200 p-4 space-y-2">
+            <p className="text-sm font-semibold text-slate-700">Excel (.xlsx)</p>
+            <p className="text-xs text-slate-500">Para revisar tus datos tú mismo, imprimir o compartir. 6 hojas: Pacientes, Finanzas, Productos, Lotes, Tratamientos, Citas.</p>
+            <Button onClick={() => handleDownload("backup")} loading={loadingXlsx} variant="secondary" size="sm" className="w-full">
+              <Download size={13} />
+              {loadingXlsx ? "Generando…" : "Descargar Excel"}
+            </Button>
+          </div>
+
+          <div className="rounded-xl border border-blue-200 bg-blue-50/30 p-4 space-y-2">
+            <p className="text-sm font-semibold text-slate-700">JSON <span className="text-xs font-normal text-blue-600 ml-1">recomendado para IA</span></p>
+            <p className="text-xs text-slate-500">Formato estructurado ideal para recuperación con IA. Incluye todos los datos y relaciones entre registros (paciente → evoluciones, producto → lotes).</p>
+            <Button onClick={() => handleDownload("json")} loading={loadingJson} variant="secondary" size="sm" className="w-full">
+              <Download size={13} />
+              {loadingJson ? "Generando…" : "Descargar JSON"}
+            </Button>
+          </div>
+        </div>
+
         {error && <p className="text-sm text-red-500">{error}</p>}
-        <Button onClick={handleDownload} loading={loading} variant="secondary">
-          <Download size={15} />
-          {loading ? "Generando archivo…" : "Descargar respaldo (.xlsx)"}
-        </Button>
+
+        <p className="text-xs text-slate-400">
+          El archivo JSON puede pegarse en una conversación de IA junto con la instrucción "restaura estos datos en SmileOS" para recuperación completa.
+        </p>
       </div>
     </section>
   );

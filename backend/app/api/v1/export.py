@@ -287,3 +287,246 @@ async def export_backup(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/json")
+async def export_json(
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    import json
+    from app.models.evolution import PatientEvolution
+
+    clinic_id = current_user.clinic_id
+
+    def _iso(v):
+        if v is None:
+            return None
+        if isinstance(v, datetime):
+            return v.isoformat()
+        if isinstance(v, date):
+            return v.isoformat()
+        return v
+
+    def _str(v):
+        return str(v) if v is not None else None
+
+    # Patients + evolutions
+    result = await db.execute(
+        select(Patient)
+        .where(Patient.clinic_id == clinic_id)
+        .order_by(Patient.patient_number.asc().nulls_last())
+    )
+    patients = result.scalars().all()
+
+    evo_result = await db.execute(
+        select(PatientEvolution)
+        .where(PatientEvolution.clinic_id == clinic_id)
+        .order_by(PatientEvolution.date.desc())
+    )
+    evolutions = evo_result.scalars().all()
+    evos_by_patient: dict[str, list] = {}
+    for e in evolutions:
+        pid = str(e.patient_id)
+        evos_by_patient.setdefault(pid, []).append({
+            "id": _str(e.id), "date": _iso(e.date), "note": e.note,
+            "attendance": e.attendance, "created_at": _iso(e.created_at),
+        })
+
+    patients_data = []
+    for p in patients:
+        patients_data.append({
+            "id": _str(p.id),
+            "patient_number": p.patient_number,
+            "first_name": p.first_name,
+            "last_name": p.last_name,
+            "date_of_birth": _iso(p.date_of_birth),
+            "gender": p.gender,
+            "id_number": p.id_number,
+            "occupation": p.occupation,
+            "phone": p.phone,
+            "phone_secondary": p.phone_secondary,
+            "email": p.email,
+            "address": p.address,
+            "city": p.city,
+            "country": p.country,
+            "emergency_contact_name": p.emergency_contact_name,
+            "emergency_contact_phone": p.emergency_contact_phone,
+            "blood_type": p.blood_type,
+            "allergies": p.allergies,
+            "medical_conditions": p.medical_conditions,
+            "current_medications": p.current_medications,
+            "chief_complaint": p.chief_complaint,
+            "is_active": p.is_active,
+            "patient_number": p.patient_number,
+            "first_visit_date": _iso(p.first_visit_date),
+            "created_at": _iso(p.created_at),
+            "evolutions": evos_by_patient.get(str(p.id), []),
+        })
+
+    # Transactions
+    result = await db.execute(
+        select(FinanceTransaction)
+        .where(FinanceTransaction.clinic_id == clinic_id)
+        .options(selectinload(FinanceTransaction.patient), selectinload(FinanceTransaction.procedure))
+        .order_by(FinanceTransaction.transaction_date.desc())
+    )
+    txs = result.scalars().all()
+    transactions_data = []
+    for tx in txs:
+        transactions_data.append({
+            "id": _str(tx.id),
+            "type": tx.type,
+            "category": tx.category,
+            "description": tx.description,
+            "amount_cordobas": float(tx.amount_cordobas),
+            "original_amount": float(tx.original_amount) if tx.original_amount else None,
+            "original_currency": tx.original_currency,
+            "exchange_rate_used": float(tx.exchange_rate_used) if tx.exchange_rate_used else None,
+            "patient_id": _str(tx.patient_id),
+            "patient_name": f"{tx.patient.first_name} {tx.patient.last_name}" if tx.patient else None,
+            "procedure_id": _str(tx.procedure_id),
+            "procedure_name": tx.procedure.name if tx.procedure else None,
+            "procedure_quantity": tx.procedure_quantity,
+            "operational_cost_snapshot": float(tx.operational_cost_snapshot) if tx.operational_cost_snapshot else None,
+            "invoice_number": tx.invoice_number,
+            "transaction_date": _iso(tx.transaction_date),
+            "notes": tx.notes,
+            "created_at": _iso(tx.created_at),
+        })
+
+    # Products + lots
+    result = await db.execute(
+        select(CostProduct)
+        .where(CostProduct.clinic_id == clinic_id)
+        .order_by(CostProduct.sort_order)
+    )
+    products = result.scalars().all()
+
+    lot_result = await db.execute(
+        select(CostProductLot)
+        .where(CostProductLot.clinic_id == clinic_id)
+        .order_by(CostProductLot.opened_at.desc())
+    )
+    all_lots = lot_result.scalars().all()
+    lots_by_product: dict[str, list] = {}
+    for lot in all_lots:
+        pid = str(lot.product_id)
+        lots_by_product.setdefault(pid, []).append({
+            "id": _str(lot.id),
+            "opened_at": _iso(lot.opened_at),
+            "finished_at": _iso(lot.finished_at),
+            "expected_portions": lot.expected_portions,
+            "used_portions": lot.used_portions,
+            "notes": lot.notes,
+            "created_at": _iso(lot.created_at),
+        })
+
+    products_data = []
+    for p in products:
+        products_data.append({
+            "id": _str(p.id),
+            "name": p.name,
+            "category": p.category,
+            "supplier": p.supplier,
+            "notes": p.notes,
+            "unit_price": p.unit_price,
+            "presentation": p.presentation,
+            "portion_description": p.portion_description,
+            "total_cost": p.total_cost,
+            "presentation_qty": p.presentation_qty,
+            "presentation_unit": p.presentation_unit,
+            "portion_qty": p.portion_qty,
+            "stock_qty": p.stock_qty,
+            "min_stock_qty": p.min_stock_qty,
+            "purchase_date": _iso(p.purchase_date),
+            "sort_order": p.sort_order,
+            "created_at": _iso(p.created_at),
+            "lots": lots_by_product.get(str(p.id), []),
+        })
+
+    # Cost treatments
+    result = await db.execute(
+        select(CostTreatment)
+        .where(CostTreatment.clinic_id == clinic_id)
+        .options(selectinload(CostTreatment.appointments))
+        .order_by(CostTreatment.sort_order)
+    )
+    treatments = result.scalars().all()
+    treatments_data = []
+    for t in treatments:
+        treatments_data.append({
+            "id": _str(t.id),
+            "name": t.name,
+            "description": t.description,
+            "professional_fee_per_hour": t.professional_fee_per_hour,
+            "total_hours": t.total_hours,
+            "fixed_costs": t.fixed_costs,
+            "clinic_margin_pct": t.clinic_margin_pct,
+            "suggested_price": t.suggested_price,
+            "procedure_catalog_id": _str(t.procedure_catalog_id),
+            "sort_order": t.sort_order,
+            "created_at": _iso(t.created_at),
+            "appointments": [
+                {
+                    "id": _str(a.id),
+                    "number": a.number,
+                    "name": a.name,
+                    "materials": a.materials,
+                    "sort_order": a.sort_order,
+                }
+                for a in t.appointments
+            ],
+        })
+
+    # Appointments
+    result = await db.execute(
+        select(Appointment)
+        .where(Appointment.clinic_id == clinic_id)
+        .options(selectinload(Appointment.patient))
+        .order_by(Appointment.scheduled_at.desc())
+    )
+    appointments = result.scalars().all()
+    appointments_data = []
+    for apt in appointments:
+        appointments_data.append({
+            "id": _str(apt.id),
+            "patient_id": _str(apt.patient_id),
+            "patient_name": f"{apt.patient.first_name} {apt.patient.last_name}" if apt.patient else None,
+            "scheduled_at": _iso(apt.scheduled_at),
+            "duration_minutes": apt.duration_minutes,
+            "appointment_type": apt.appointment_type,
+            "status": apt.status,
+            "reason": apt.reason,
+            "notes": apt.notes,
+            "created_at": _iso(apt.created_at),
+        })
+
+    payload = {
+        "export_version": "1.0",
+        "generated_at": datetime.now().isoformat(),
+        "clinic_id": str(clinic_id),
+        "summary": {
+            "pacientes": len(patients_data),
+            "transacciones": len(transactions_data),
+            "productos": len(products_data),
+            "tratamientos": len(treatments_data),
+            "citas": len(appointments_data),
+        },
+        "data": {
+            "pacientes": patients_data,
+            "transacciones": transactions_data,
+            "productos": products_data,
+            "tratamientos": treatments_data,
+            "citas": appointments_data,
+        },
+    }
+
+    json_bytes = json.dumps(payload, ensure_ascii=False, indent=2).encode("utf-8")
+    buf = io.BytesIO(json_bytes)
+    filename = f"smileos_backup_{datetime.now().strftime('%Y%m%d_%H%M')}.json"
+    return StreamingResponse(
+        buf,
+        media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
