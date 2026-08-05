@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
-import { ArrowLeft, Plus, Trash2, Search, X, Edit2, Package, Calculator, ChevronRight, GripVertical } from "lucide-react";
+import { useState, useRef } from "react";
+import { ArrowLeft, Plus, Trash2, Search, X, Edit2, Package, Calculator, ChevronRight, GripVertical, ImagePlus } from "lucide-react";
 import Link from "next/link";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -51,12 +51,13 @@ interface ProductFormState {
   portionQty: string;
   manualUnitPrice: string;
   purchaseDate: string;
+  imageUrl: string;
 }
 
 const EMPTY_FORM: ProductFormState = {
   name: "", category: "desechable", supplier: "", notes: "",
   totalCost: "", presentationQty: "", presentationUnit: "ml", portionQty: "", manualUnitPrice: "",
-  purchaseDate: "",
+  purchaseDate: "", imageUrl: "",
 };
 
 function productToForm(p: ApiProduct): ProductFormState {
@@ -69,7 +70,30 @@ function productToForm(p: ApiProduct): ProductFormState {
     portionQty: p.portion_qty != null ? String(p.portion_qty) : "",
     manualUnitPrice: String(p.unit_price),
     purchaseDate: p.purchase_date ?? "",
+    imageUrl: p.image_url ?? "",
   };
+}
+
+function compressImage(file: File, maxSize = 400): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ratio = Math.min(maxSize / img.width, maxSize / img.height, 1);
+        canvas.width = Math.round(img.width * ratio);
+        canvas.height = Math.round(img.height * ratio);
+        const ctx = canvas.getContext("2d")!;
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.75));
+      };
+      img.onerror = reject;
+      img.src = e.target!.result as string;
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
 }
 
 const CUSTOM_SENTINEL = "__custom__";
@@ -81,6 +105,13 @@ function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?:
 
   const isCustomCategory = !ALL_CATEGORIES.includes(form.category as ProductCategory) && form.category !== "";
   const [showCustomInput, setShowCustomInput] = useState(isCustomCategory);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  async function handleImageFile(file: File) {
+    if (!file.type.startsWith("image/")) return;
+    const dataUrl = await compressImage(file);
+    setForm((s) => ({ ...s, imageUrl: dataUrl }));
+  }
 
   const allSelectableCategories = [
     ...ALL_CATEGORIES,
@@ -109,6 +140,7 @@ function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?:
       presentation_unit: pQty > 0 ? form.presentationUnit : undefined,
       portion_qty: portQty || undefined,
       purchase_date: form.purchaseDate || null,
+      image_url: form.imageUrl || null,
     });
     onClose();
   }
@@ -243,6 +275,53 @@ function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?:
             <textarea value={form.notes} onChange={f("notes")} rows={2} placeholder="Observaciones, marca, referencia..."
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
           </div>
+
+          <div>
+            <label className="block text-xs font-medium text-slate-600 mb-2">Foto del producto (opcional)</label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleImageFile(f); }}
+            />
+            {form.imageUrl ? (
+              <div className="flex items-start gap-3">
+                <img
+                  src={form.imageUrl}
+                  alt="preview"
+                  className="h-24 w-24 rounded-xl object-cover border border-slate-200"
+                />
+                <div className="flex flex-col gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
+                  >
+                    Cambiar foto
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setForm((s) => ({ ...s, imageUrl: "" }))}
+                    className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-500 hover:bg-red-50"
+                  >
+                    Eliminar foto
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleImageFile(f); }}
+                className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-6 text-center hover:border-blue-300 hover:bg-blue-50/30 transition-colors cursor-pointer"
+              >
+                <ImagePlus size={22} className="text-slate-300" />
+                <p className="text-xs text-slate-400">Haz clic o arrastra una imagen aquí</p>
+              </button>
+            )}
+          </div>
         </div>
         <div className="flex gap-3 border-t border-slate-100 px-6 py-4 sticky bottom-0 bg-white">
           <Button variant="secondary" className="flex-1" onClick={onClose}>Cancelar</Button>
@@ -276,10 +355,21 @@ function SortableProductRow({ product, onEdit, isDragDisabled }: { product: ApiP
         )}
       </td>
       <td className="px-3 py-3">
-        <p className="font-medium text-slate-800">{product.name}</p>
-        {product.supplier && <p className="text-xs text-slate-400">{product.supplier}</p>}
-        {product.purchase_date && <p className="text-xs text-slate-400">Comprado: {new Date(product.purchase_date + "T00:00:00").toLocaleDateString("es-NI", { day: "2-digit", month: "short", year: "numeric" })}</p>}
-        {product.notes && <p className="text-xs text-slate-300 italic truncate max-w-[180px]">{product.notes}</p>}
+        <div className="flex items-center gap-2.5">
+          {product.image_url ? (
+            <img src={product.image_url} alt={product.name} className="h-9 w-9 rounded-lg object-cover border border-slate-100 shrink-0" />
+          ) : (
+            <div className="h-9 w-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
+              <Package size={14} className="text-slate-300" />
+            </div>
+          )}
+          <div className="min-w-0">
+            <p className="font-medium text-slate-800">{product.name}</p>
+            {product.supplier && <p className="text-xs text-slate-400">{product.supplier}</p>}
+            {product.purchase_date && <p className="text-xs text-slate-400">Comprado: {new Date(product.purchase_date + "T00:00:00").toLocaleDateString("es-NI", { day: "2-digit", month: "short", year: "numeric" })}</p>}
+            {product.notes && <p className="text-xs text-slate-300 italic truncate max-w-[160px]">{product.notes}</p>}
+          </div>
+        </div>
       </td>
       <td className="px-4 py-3">
         <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${categoryColor(product.category)}`}>

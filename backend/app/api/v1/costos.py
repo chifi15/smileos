@@ -28,6 +28,7 @@ class ProductIn(BaseModel):
     presentation_unit: Optional[str] = None
     portion_qty: Optional[float] = None
     purchase_date: Optional[date] = None
+    image_url: Optional[str] = None
 
 
 class ProductOut(BaseModel):
@@ -46,6 +47,7 @@ class ProductOut(BaseModel):
     stock_qty: Optional[float]
     min_stock_qty: Optional[float]
     purchase_date: Optional[date]
+    image_url: Optional[str]
     sort_order: int
 
     class Config:
