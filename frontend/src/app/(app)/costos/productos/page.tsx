@@ -418,6 +418,7 @@ export default function ProductosPage() {
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
 
   const hasFilter = search.trim() !== "" || category !== "all";
+  const isDragDisabled = search.trim() !== "";
 
   const allCategoriesInUse: string[] = [
     ...ALL_CATEGORIES,
@@ -438,10 +439,18 @@ export default function ProductosPage() {
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = products.findIndex((p) => p.id === active.id);
-    const newIndex = products.findIndex((p) => p.id === over.id);
+    const oldIndex = filtered.findIndex((p) => p.id === active.id);
+    const newIndex = filtered.findIndex((p) => p.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    reorderProducts.mutate(arrayMove(products, oldIndex, newIndex).map((p) => p.id));
+    const newFiltered = arrayMove(filtered, oldIndex, newIndex);
+    // Rebuild full list: filtered items take their new positions, rest stay put
+    const newProducts = [...products];
+    const filteredPositions = products.reduce<number[]>((acc, p, i) => {
+      if (filtered.some((f) => f.id === p.id)) acc.push(i);
+      return acc;
+    }, []);
+    filteredPositions.forEach((pos, i) => { newProducts[pos] = newFiltered[i]; });
+    reorderProducts.mutate(newProducts.map((p) => p.id));
   }
 
   if (isLoading) {
@@ -498,10 +507,10 @@ export default function ProductosPage() {
               </tr>
             </thead>
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <SortableContext items={products.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+              <SortableContext items={filtered.map((p) => p.id)} strategy={verticalListSortingStrategy}>
                 <tbody>
                   {filtered.map((p) => (
-                    <SortableProductRow key={p.id} product={p} onEdit={() => setEditingProduct(p)} isDragDisabled={hasFilter} />
+                    <SortableProductRow key={p.id} product={p} onEdit={() => setEditingProduct(p)} isDragDisabled={isDragDisabled} />
                   ))}
                 </tbody>
               </SortableContext>
@@ -512,7 +521,7 @@ export default function ProductosPage() {
 
       <p className="mt-3 text-xs text-slate-400 text-center">
         {filtered.length} producto{filtered.length !== 1 ? "s" : ""}
-        {hasFilter ? " · Limpia los filtros para reordenar" : " · Arrastra para reordenar · Pasa el mouse para editar"}
+        {isDragDisabled ? " · Limpia la búsqueda para reordenar" : " · Arrastra para reordenar · Pasa el mouse para editar"}
       </p>
 
       {showNew && (
