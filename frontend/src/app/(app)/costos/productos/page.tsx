@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ArrowLeft, Plus, Trash2, Search, X, Edit2, Package, Calculator, ChevronRight } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Search, X, Edit2, Package, Calculator, ChevronRight, GripVertical } from "lucide-react";
 import Link from "next/link";
+import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
+import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { useCostosStore } from "@/stores/costos.store";
 import {
   Product,
@@ -37,12 +40,11 @@ interface ProductFormState {
   category: ProductCategory;
   supplier: string;
   notes: string;
-  // Calculadora
   totalCost: string;
   presentationQty: string;
   presentationUnit: string;
   portionQty: string;
-  manualUnitPrice: string; // override cuando no hay calculadora completa
+  manualUnitPrice: string;
 }
 
 const EMPTY_FORM: ProductFormState = {
@@ -176,7 +178,6 @@ function ProductModal({
               <span className="text-sm font-semibold text-blue-800">Calculadora de costo por uso</span>
             </div>
 
-            {/* Fila presentación */}
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1.5">
                 Presentación total del producto
@@ -204,7 +205,6 @@ function ProductModal({
               <p className="text-[11px] text-slate-400 mt-1">Ejemplo: 1000 ml, 500 g, 100 unidades</p>
             </div>
 
-            {/* Fila uso por porción */}
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1.5">
                 Cantidad usada por porción / cita
@@ -226,7 +226,6 @@ function ProductModal({
               <p className="text-[11px] text-slate-400 mt-1">Cuánto se usa en una sola aplicación</p>
             </div>
 
-            {/* Resultado porciones */}
             {portions != null && (
               <div className="flex items-center gap-2 rounded-lg bg-white border border-blue-100 px-4 py-3 text-sm">
                 <span className="text-slate-500">
@@ -239,7 +238,6 @@ function ProductModal({
               </div>
             )}
 
-            {/* Costo total */}
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1.5">
                 Costo del producto completo (C$)
@@ -258,7 +256,6 @@ function ProductModal({
               </div>
             </div>
 
-            {/* Resultado costo por uso */}
             {hasCalc && autoPrice != null ? (
               <div className="rounded-xl bg-green-50 border border-green-200 px-4 py-3">
                 <div className="flex items-center gap-3">
@@ -324,17 +321,53 @@ function ProductModal({
   );
 }
 
-// ─── Fila de producto ─────────────────────────────────────────────────────────
+// ─── Fila de producto (sortable) ──────────────────────────────────────────────
 
-function ProductRow({ product, onEdit }: { product: Product; onEdit: () => void }) {
+function SortableProductRow({
+  product,
+  onEdit,
+  isDragDisabled,
+}: {
+  product: Product;
+  onEdit: () => void;
+  isDragDisabled: boolean;
+}) {
   const deleteProduct = useCostosStore((s) => s.deleteProduct);
   const portions = calcPortions(product.presentationQty, product.portionQty);
   const hasCalc = portions != null && product.totalCost != null;
 
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: product.id, disabled: isDragDisabled });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+    zIndex: isDragging ? 10 : undefined,
+  };
+
   return (
-    <tr className="group hover:bg-slate-50/50 border-b border-slate-50">
+    <tr
+      ref={setNodeRef}
+      style={style}
+      className="group hover:bg-slate-50/50 border-b border-slate-50"
+    >
+      {/* Grip */}
+      <td className="pl-2 pr-1 py-3 w-7">
+        {!isDragDisabled && (
+          <button
+            {...attributes}
+            {...listeners}
+            className="cursor-grab active:cursor-grabbing rounded p-0.5 text-slate-300 hover:text-slate-500 hover:bg-slate-100 touch-none"
+            title="Arrastrar para reordenar"
+          >
+            <GripVertical size={14} />
+          </button>
+        )}
+      </td>
+
       {/* Nombre */}
-      <td className="px-5 py-3">
+      <td className="px-3 py-3">
         <p className="font-medium text-slate-800">{product.name}</p>
         {product.supplier && <p className="text-xs text-slate-400">{product.supplier}</p>}
         {product.notes && <p className="text-xs text-slate-300 italic truncate max-w-[180px]">{product.notes}</p>}
@@ -412,10 +445,13 @@ export default function ProductosPage() {
   const products = useCostosStore((s) => s.products);
   const addProduct = useCostosStore((s) => s.addProduct);
   const updateProduct = useCostosStore((s) => s.updateProduct);
+  const reorderProducts = useCostosStore((s) => s.reorderProducts);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<ProductCategory | "all">("all");
   const [showNew, setShowNew] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+
+  const hasFilter = search.trim() !== "" || category !== "all";
 
   const filtered = products.filter((p) => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -423,6 +459,20 @@ export default function ProductosPage() {
     const matchCat = category === "all" || p.category === category;
     return matchSearch && matchCat;
   });
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = products.findIndex((p) => p.id === active.id);
+    const newIndex = products.findIndex((p) => p.id === over.id);
+    if (oldIndex === -1 || newIndex === -1) return;
+    reorderProducts(arrayMove(products, oldIndex, newIndex).map((p) => p.id));
+  }
 
   function handleSaveNew(data: Omit<Product, "id">) {
     addProduct(data);
@@ -496,7 +546,8 @@ export default function ProductosPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 bg-slate-50 text-xs text-slate-500">
-                <th className="px-5 py-3 text-left font-medium">Producto</th>
+                <th className="w-7 pl-2" />
+                <th className="px-3 py-3 text-left font-medium">Producto</th>
                 <th className="px-4 py-3 text-left font-medium">Categoría</th>
                 <th className="px-4 py-3 text-left font-medium">Presentación / uso</th>
                 <th className="px-4 py-3 text-right font-medium">Costo total</th>
@@ -504,17 +555,29 @@ export default function ProductosPage() {
                 <th className="w-16 py-3" />
               </tr>
             </thead>
-            <tbody>
-              {filtered.map((p) => (
-                <ProductRow key={p.id} product={p} onEdit={() => setEditingProduct(p)} />
-              ))}
-            </tbody>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={products.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                <tbody>
+                  {filtered.map((p) => (
+                    <SortableProductRow
+                      key={p.id}
+                      product={p}
+                      onEdit={() => setEditingProduct(p)}
+                      isDragDisabled={hasFilter}
+                    />
+                  ))}
+                </tbody>
+              </SortableContext>
+            </DndContext>
           </table>
         )}
       </div>
 
       <p className="mt-3 text-xs text-slate-400 text-center">
-        {filtered.length} producto{filtered.length !== 1 ? "s" : ""} · Pasa el mouse sobre una fila para editar
+        {filtered.length} producto{filtered.length !== 1 ? "s" : ""}
+        {hasFilter
+          ? " · Limpia los filtros para reordenar"
+          : " · Arrastra para reordenar · Pasa el mouse para editar"}
       </p>
 
       {showNew && (

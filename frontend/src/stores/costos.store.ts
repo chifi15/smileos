@@ -24,6 +24,7 @@ interface CostosState {
   updateProduct: (id: string, updates: Partial<Omit<Product, "id">>) => void;
   addProduct: (product: Omit<Product, "id">) => void;
   deleteProduct: (id: string) => void;
+  reorderProducts: (orderedIds: string[]) => void;
 
   addTreatment: (treatment: Treatment) => void;
   updateTreatment: (id: string, updates: Partial<Treatment>) => void;
@@ -66,6 +67,13 @@ export const useCostosStore = create<CostosState>()(
 
       deleteProduct: (id) =>
         set((s) => ({ products: s.products.filter((p) => p.id !== id) })),
+
+      reorderProducts: (orderedIds) =>
+        set((s) => ({
+          products: orderedIds
+            .map((id) => s.products.find((p) => p.id === id))
+            .filter(Boolean) as Product[],
+        })),
 
       addTreatment: (treatment) =>
         set((s) => ({ treatments: [...s.treatments, treatment] })),
