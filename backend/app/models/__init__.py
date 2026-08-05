@@ -8,7 +8,7 @@ from app.models.rewards import RewardsAccount, RewardsTransaction, RewardsConfig
 from app.models.photo import PatientPhoto
 from app.models.audit import AuditLog
 from app.models.evolution import PatientEvolution
-from app.models.costos import CostProduct, CostTreatment, CostAppointment, FixedCostsConfig
+from app.models.costos import CostProduct, CostTreatment, CostAppointment, FixedCostsConfig, CostProductLot
 
 __all__ = [
     "Clinic",
@@ -33,4 +33,5 @@ __all__ = [
     "CostTreatment",
     "CostAppointment",
     "FixedCostsConfig",
+    "CostProductLot",
 ]

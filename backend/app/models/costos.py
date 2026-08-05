@@ -77,6 +77,21 @@ class CostAppointment(Base):
     treatment: Mapped["CostTreatment"] = relationship("CostTreatment", back_populates="appointments")
 
 
+class CostProductLot(Base):
+    __tablename__ = "cost_product_lots"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    clinic_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("clinics.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("cost_products.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    opened_at: Mapped[date] = mapped_column(Date, nullable=False)
+    expected_portions: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    used_portions: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
+    finished_at: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(String(500), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 class FixedCostsConfig(Base):
     __tablename__ = "fixed_costs_config"
 

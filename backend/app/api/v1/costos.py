@@ -150,6 +150,36 @@ class FixedCostsOut(BaseModel):
         from_attributes = True
 
 
+class LotIn(BaseModel):
+    opened_at: date
+    expected_portions: Optional[float] = None
+    notes: Optional[str] = None
+
+
+class LotFinishIn(BaseModel):
+    finished_at: date
+
+
+class LotUpdateIn(BaseModel):
+    opened_at: Optional[date] = None
+    expected_portions: Optional[float] = None
+    notes: Optional[str] = None
+
+
+class LotOut(BaseModel):
+    id: uuid.UUID
+    product_id: uuid.UUID
+    opened_at: date
+    expected_portions: Optional[float]
+    used_portions: float
+    finished_at: Optional[date]
+    notes: Optional[str]
+    created_at: Any
+
+    class Config:
+        from_attributes = True
+
+
 # ─── Products ─────────────────────────────────────────────────────────────────
 
 @router.get("/products", response_model=List[ProductOut])
@@ -408,3 +438,76 @@ async def update_fixed_costs(
         description=f"Actualizó costos fijos ({len(body.items)} conceptos, {body.patients_per_month} pacientes/mes)",
     )
     return {"patients_per_month": config.patients_per_month, "items": config.items}
+
+
+# ─── Product Lots ──────────────────────────────────────────────────────────────
+
+@router.get("/products/{product_id}/lots", response_model=List[LotOut])
+async def list_lots(
+    product_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.get_lots(db, current_user.clinic_id, product_id)
+
+
+@router.post("/products/{product_id}/lots", response_model=LotOut, status_code=201)
+async def open_lot(
+    product_id: uuid.UUID,
+    body: LotIn,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    lot = await svc.open_lot(db, current_user.clinic_id, product_id, body.opened_at, body.expected_portions, body.notes)
+    await audit_service.log(
+        db, clinic_id=current_user.clinic_id, user_id=current_user.id,
+        action="lot.opened", resource_type="cost_product_lot", resource_id=str(lot.id),
+        description=f"Abrió nuevo lote de producto (abierto: {body.opened_at})",
+    )
+    return lot
+
+
+@router.patch("/products/{product_id}/lots/{lot_id}", response_model=LotOut)
+async def update_lot(
+    product_id: uuid.UUID,
+    lot_id: uuid.UUID,
+    body: LotUpdateIn,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    data = {k: v for k, v in body.model_dump().items() if v is not None}
+    lot = await svc.update_lot(db, current_user.clinic_id, lot_id, data)
+    if not lot:
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Lote no encontrado"})
+    return lot
+
+
+@router.patch("/products/{product_id}/lots/{lot_id}/finish", response_model=LotOut)
+async def finish_lot(
+    product_id: uuid.UUID,
+    lot_id: uuid.UUID,
+    body: LotFinishIn,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    lot = await svc.finish_lot(db, current_user.clinic_id, lot_id, body.finished_at)
+    if not lot:
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Lote no encontrado"})
+    await audit_service.log(
+        db, clinic_id=current_user.clinic_id, user_id=current_user.id,
+        action="lot.finished", resource_type="cost_product_lot", resource_id=str(lot.id),
+        description=f"Marcó lote como agotado (cerrado: {body.finished_at}, usado: {lot.used_portions:.2g} porciones)",
+    )
+    return lot
+
+
+@router.delete("/products/{product_id}/lots/{lot_id}", status_code=204)
+async def delete_lot(
+    product_id: uuid.UUID,
+    lot_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    ok = await svc.delete_lot(db, current_user.clinic_id, lot_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Lote no encontrado"})

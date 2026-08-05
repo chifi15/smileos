@@ -1,14 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import { Package, Plus, Minus, Edit2, AlertTriangle, CheckCircle, XCircle, Search, Link2 } from "lucide-react";
+import { Package, Plus, Minus, Edit2, AlertTriangle, CheckCircle, XCircle, Search, Link2, History, X } from "lucide-react";
 import Link from "next/link";
 import {
   useCostProducts,
   useCostTreatments,
   useUpdateCostProductStock,
   useUpdateCostProductMinStock,
+  useProductLots,
+  useOpenProductLot,
+  useFinishProductLot,
+  useDeleteProductLot,
   ApiProduct,
+  ApiProductLot,
 } from "@/hooks/useCostos";
 import { PRODUCT_CATEGORY_LABELS, PRODUCT_CATEGORY_COLORS, ProductCategory } from "@/types/costos";
 import { fmt } from "@/lib/costos-utils";
@@ -158,9 +163,241 @@ function AdjustModal({ product, onClose }: { product: ApiProduct; onClose: () =>
   );
 }
 
+// ─── Modal historial de lotes ──────────────────────────────────────────────────
+
+function formatDate(iso: string) {
+  return new Date(iso + (iso.includes("T") ? "" : "T00:00:00")).toLocaleDateString("es-NI", {
+    day: "2-digit", month: "short", year: "numeric",
+  });
+}
+
+function LotHistoryModal({ product, onClose }: { product: ApiProduct; onClose: () => void }) {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data: lots = [], isLoading } = useProductLots(product.id);
+  const openLot = useOpenProductLot();
+  const finishLot = useFinishProductLot();
+  const deleteLot = useDeleteProductLot();
+
+  const [showOpenForm, setShowOpenForm] = useState(false);
+  const [openedAt, setOpenedAt] = useState(today);
+  const [expectedPortions, setExpectedPortions] = useState("");
+  const [notes, setNotes] = useState("");
+  const [finishingId, setFinishingId] = useState<string | null>(null);
+  const [finishedAt, setFinishedAt] = useState(today);
+
+  const activeLot = lots.find((l) => !l.finished_at);
+  const pastLots = lots.filter((l) => l.finished_at);
+
+  function handleOpenLot() {
+    openLot.mutate({
+      productId: product.id,
+      opened_at: openedAt,
+      expected_portions: expectedPortions ? parseFloat(expectedPortions) : null,
+      notes: notes || null,
+    });
+    setShowOpenForm(false);
+    setExpectedPortions("");
+    setNotes("");
+    setOpenedAt(today);
+  }
+
+  function handleFinish(lot: ApiProductLot) {
+    finishLot.mutate({ productId: product.id, lotId: lot.id, finished_at: finishedAt });
+    setFinishingId(null);
+  }
+
+  function efficiency(lot: ApiProductLot): string | null {
+    if (!lot.expected_portions || !lot.finished_at) return null;
+    const pct = ((lot.used_portions - lot.expected_portions) / lot.expected_portions) * 100;
+    return (pct >= 0 ? "+" : "") + pct.toFixed(0) + "% vs esperado";
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] flex flex-col">
+        <div className="border-b border-slate-100 px-6 py-4 flex items-center justify-between">
+          <div>
+            <h2 className="font-semibold text-slate-800">Historial de lotes</h2>
+            <p className="text-xs text-slate-400 mt-0.5">{product.name}</p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-2 text-slate-400 hover:bg-slate-100">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+          {/* Active lot */}
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Lote activo</p>
+              {!activeLot && !showOpenForm && (
+                <button
+                  onClick={() => setShowOpenForm(true)}
+                  className="flex items-center gap-1 text-xs font-medium text-blue-600 hover:text-blue-700"
+                >
+                  <Plus size={12} /> Abrir nuevo lote
+                </button>
+              )}
+            </div>
+
+            {isLoading ? (
+              <p className="text-xs text-slate-400">Cargando...</p>
+            ) : activeLot ? (
+              <div className="rounded-xl border border-green-200 bg-green-50/50 p-4 space-y-3">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">
+                      Abierto el {formatDate(activeLot.opened_at)}
+                    </p>
+                    {activeLot.notes && <p className="text-xs text-slate-500 mt-0.5">{activeLot.notes}</p>}
+                  </div>
+                  <span className="rounded-full bg-green-100 px-2 py-0.5 text-xs font-medium text-green-700">En uso</span>
+                </div>
+
+                <div className="space-y-1">
+                  <div className="flex justify-between text-xs text-slate-600">
+                    <span>Porciones usadas: <strong>{activeLot.used_portions.toFixed(1)}</strong></span>
+                    {activeLot.expected_portions && (
+                      <span>Esperadas: <strong>{activeLot.expected_portions}</strong></span>
+                    )}
+                  </div>
+                  {activeLot.expected_portions && (
+                    <div className="h-2 w-full rounded-full bg-slate-200 overflow-hidden">
+                      <div
+                        className="h-full rounded-full bg-green-500"
+                        style={{ width: `${Math.min(100, (activeLot.used_portions / activeLot.expected_portions) * 100).toFixed(0)}%` }}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {finishingId === activeLot.id ? (
+                  <div className="flex items-center gap-2 pt-1">
+                    <input
+                      type="date" value={finishedAt} onChange={(e) => setFinishedAt(e.target.value)}
+                      className="flex-1 rounded-lg border border-slate-300 px-3 py-1.5 text-sm"
+                    />
+                    <button
+                      onClick={() => handleFinish(activeLot)}
+                      className="rounded-lg bg-slate-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800"
+                    >
+                      Confirmar
+                    </button>
+                    <button onClick={() => setFinishingId(null)} className="text-xs text-slate-400 hover:text-slate-600">Cancelar</button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setFinishingId(activeLot.id)}
+                    className="w-full rounded-lg border border-slate-300 py-1.5 text-xs font-medium text-slate-700 hover:bg-slate-50"
+                  >
+                    Marcar como agotado
+                  </button>
+                )}
+              </div>
+            ) : !showOpenForm ? (
+              <p className="text-xs text-slate-400 italic">No hay lote activo. Abre uno para comenzar a rastrear el rendimiento.</p>
+            ) : null}
+
+            {/* Open lot form */}
+            {showOpenForm && (
+              <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4 space-y-3">
+                <p className="text-sm font-semibold text-blue-800">Abrir nuevo lote</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Fecha de apertura</label>
+                    <input
+                      type="date" value={openedAt} onChange={(e) => setOpenedAt(e.target.value)}
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-slate-500 mb-1 block">Porciones esperadas</label>
+                    <input
+                      type="number" min="0" step="any"
+                      value={expectedPortions} onChange={(e) => setExpectedPortions(e.target.value)}
+                      placeholder="Ej. 100"
+                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-slate-500 mb-1 block">Notas (opcional)</label>
+                  <input
+                    type="text" value={notes} onChange={(e) => setNotes(e.target.value)}
+                    placeholder="Ej. Marca X, lote 2024-01"
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleOpenLot}
+                    disabled={openLot.isPending}
+                    className="flex-1 rounded-lg bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40"
+                  >
+                    Abrir lote
+                  </button>
+                  <button onClick={() => setShowOpenForm(false)} className="rounded-lg border border-slate-200 px-4 py-2 text-sm text-slate-600 hover:bg-slate-50">
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Past lots */}
+          {pastLots.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">Historial</p>
+              <div className="space-y-2">
+                {pastLots.map((lot) => {
+                  const eff = efficiency(lot);
+                  return (
+                    <div key={lot.id} className="rounded-xl border border-slate-100 bg-slate-50 p-3">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-slate-700">
+                            {formatDate(lot.opened_at)} → {lot.finished_at ? formatDate(lot.finished_at) : "—"}
+                          </p>
+                          <p className="text-xs text-slate-500 mt-0.5">
+                            {lot.used_portions.toFixed(1)} porciones usadas
+                            {lot.expected_portions && <> · esperadas: {lot.expected_portions}</>}
+                          </p>
+                          {eff && (
+                            <p className={`text-xs font-medium mt-0.5 ${eff.startsWith("+") ? "text-green-600" : "text-red-500"}`}>
+                              {eff}
+                            </p>
+                          )}
+                          {lot.notes && <p className="text-xs text-slate-400 mt-0.5 truncate">{lot.notes}</p>}
+                        </div>
+                        <button
+                          onClick={() => deleteLot.mutate({ productId: product.id, lotId: lot.id })}
+                          className="shrink-0 rounded p-1 text-slate-300 hover:text-red-400 hover:bg-red-50"
+                          title="Eliminar"
+                        >
+                          <X size={12} />
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {!isLoading && lots.length === 0 && !showOpenForm && (
+            <p className="text-center text-xs text-slate-400 py-4">
+              Sin historial. Abre el primer lote para comenzar a rastrear el rendimiento del producto.
+            </p>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Fila de inventario ───────────────────────────────────────────────────────
 
-function InventoryRow({ product, onAdjust }: { product: ApiProduct; onAdjust: () => void }) {
+function InventoryRow({ product, onAdjust, onLots }: { product: ApiProduct; onAdjust: () => void; onLots: () => void }) {
   const updateStock = useUpdateCostProductStock();
   const status = getStatus(product);
   const { label, icon: Icon, color, bg } = STATUS_CONFIG[status];
@@ -226,6 +463,9 @@ function InventoryRow({ product, onAdjust }: { product: ApiProduct; onAdjust: ()
           <button onClick={onAdjust} title="Ajustar stock" className="rounded p-1.5 text-slate-300 hover:bg-blue-50 hover:text-blue-500">
             <Edit2 size={13} />
           </button>
+          <button onClick={onLots} title="Historial de lotes" className="rounded p-1.5 text-slate-300 hover:bg-purple-50 hover:text-purple-500">
+            <History size={13} />
+          </button>
         </div>
       </td>
     </tr>
@@ -242,6 +482,7 @@ export default function InventarioPage() {
   const [category, setCategory] = useState<ProductCategory | "all">("all");
   const [statusFilter, setStatusFilter] = useState<StockStatus | "all">("all");
   const [adjusting, setAdjusting] = useState<ApiProduct | null>(null);
+  const [lotsProduct, setLotsProduct] = useState<ApiProduct | null>(null);
 
   const filtered = products.filter((p) => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || (p.supplier ?? "").toLowerCase().includes(search.toLowerCase());
@@ -339,7 +580,7 @@ export default function InventarioPage() {
             </thead>
             <tbody>
               {filtered.map((p) => (
-                <InventoryRow key={p.id} product={p} onAdjust={() => setAdjusting(p)} />
+                <InventoryRow key={p.id} product={p} onAdjust={() => setAdjusting(p)} onLots={() => setLotsProduct(p)} />
               ))}
             </tbody>
           </table>
@@ -352,6 +593,7 @@ export default function InventarioPage() {
       </p>
 
       {adjusting && <AdjustModal product={adjusting} onClose={() => setAdjusting(null)} />}
+      {lotsProduct && <LotHistoryModal product={lotsProduct} onClose={() => setLotsProduct(null)} />}
     </div>
   );
 }

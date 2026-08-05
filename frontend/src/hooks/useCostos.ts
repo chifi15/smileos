@@ -60,6 +60,17 @@ export interface ApiFixedCosts {
   items: ApiFixedCostItem[];
 }
 
+export interface ApiProductLot {
+  id: string;
+  product_id: string;
+  opened_at: string;
+  expected_portions?: number | null;
+  used_portions: number;
+  finished_at?: string | null;
+  notes?: string | null;
+  created_at: string;
+}
+
 // ─── Keys ─────────────────────────────────────────────────────────────────
 
 const PRODUCTS_KEY = ["costos", "products"] as const;
@@ -268,5 +279,61 @@ export function useUpdateFixedCosts() {
     },
     onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(FIXED_COSTS_KEY, ctx.prev); },
     onSettled: () => qc.invalidateQueries({ queryKey: FIXED_COSTS_KEY }),
+  });
+}
+
+// ─── Product Lots ──────────────────────────────────────────────────────────
+
+export function useProductLots(productId: string | null) {
+  return useQuery<ApiProductLot[]>({
+    queryKey: ["costos", "lots", productId],
+    queryFn: () => api.get(`/api/v1/costos/products/${productId}/lots`).then((r) => r.data),
+    enabled: !!productId,
+    staleTime: 1000 * 60 * 2,
+  });
+}
+
+export function useOpenProductLot() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, opened_at, expected_portions, notes }: {
+      productId: string;
+      opened_at: string;
+      expected_portions?: number | null;
+      notes?: string | null;
+    }) => api.post(`/api/v1/costos/products/${productId}/lots`, { opened_at, expected_portions, notes }).then((r) => r.data),
+    onSuccess: (_data, vars) => qc.invalidateQueries({ queryKey: ["costos", "lots", vars.productId] }),
+  });
+}
+
+export function useUpdateProductLot() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, lotId, ...data }: {
+      productId: string;
+      lotId: string;
+      opened_at?: string;
+      expected_portions?: number | null;
+      notes?: string | null;
+    }) => api.patch(`/api/v1/costos/products/${productId}/lots/${lotId}`, data).then((r) => r.data),
+    onSuccess: (_data, vars) => qc.invalidateQueries({ queryKey: ["costos", "lots", vars.productId] }),
+  });
+}
+
+export function useFinishProductLot() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, lotId, finished_at }: { productId: string; lotId: string; finished_at: string }) =>
+      api.patch(`/api/v1/costos/products/${productId}/lots/${lotId}/finish`, { finished_at }).then((r) => r.data),
+    onSuccess: (_data, vars) => qc.invalidateQueries({ queryKey: ["costos", "lots", vars.productId] }),
+  });
+}
+
+export function useDeleteProductLot() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, lotId }: { productId: string; lotId: string }) =>
+      api.delete(`/api/v1/costos/products/${productId}/lots/${lotId}`),
+    onSuccess: (_data, vars) => qc.invalidateQueries({ queryKey: ["costos", "lots", vars.productId] }),
   });
 }

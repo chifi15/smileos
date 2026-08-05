@@ -1,10 +1,11 @@
 import uuid
+from datetime import date
 from typing import Optional, Any
 from sqlalchemy import select, update, delete
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.costos import CostProduct, CostTreatment, CostAppointment, FixedCostsConfig
+from app.models.costos import CostProduct, CostTreatment, CostAppointment, FixedCostsConfig, CostProductLot
 
 
 # ─── Seed data ────────────────────────────────────────────────────────────────
@@ -373,6 +374,21 @@ async def update_product_stock(db: AsyncSession, clinic_id: uuid.UUID, product_i
     else:
         obj.stock_qty = max(0, qty)
     await db.flush()
+
+    # Auto-track usage on the active lot when stock is deducted
+    if operation == "add" and qty < 0:
+        lot_result = await db.execute(
+            select(CostProductLot)
+            .where(CostProductLot.product_id == product_id, CostProductLot.finished_at.is_(None))
+            .order_by(CostProductLot.opened_at.desc())
+            .limit(1)
+        )
+        active_lot = lot_result.scalar_one_or_none()
+        if active_lot:
+            portions = abs(qty) / obj.portion_qty if obj.portion_qty else abs(qty)
+            active_lot.used_portions = (active_lot.used_portions or 0) + portions
+            await db.flush()
+
     return obj
 
 
@@ -641,3 +657,68 @@ async def update_fixed_costs(db: AsyncSession, clinic_id: uuid.UUID, patients_pe
     config.items = items
     await db.flush()
     return config
+
+
+# ─── Product Lots ─────────────────────────────────────────────────────────────
+
+async def get_lots(db: AsyncSession, clinic_id: uuid.UUID, product_id: uuid.UUID) -> list[CostProductLot]:
+    result = await db.execute(
+        select(CostProductLot)
+        .where(CostProductLot.product_id == product_id, CostProductLot.clinic_id == clinic_id)
+        .order_by(CostProductLot.opened_at.desc())
+    )
+    return list(result.scalars().all())
+
+
+async def open_lot(db: AsyncSession, clinic_id: uuid.UUID, product_id: uuid.UUID, opened_at: date, expected_portions: Optional[float], notes: Optional[str]) -> CostProductLot:
+    lot = CostProductLot(
+        clinic_id=clinic_id,
+        product_id=product_id,
+        opened_at=opened_at,
+        expected_portions=expected_portions,
+        used_portions=0.0,
+        notes=notes,
+    )
+    db.add(lot)
+    await db.flush()
+    return lot
+
+
+async def finish_lot(db: AsyncSession, clinic_id: uuid.UUID, lot_id: uuid.UUID, finished_at: date) -> Optional[CostProductLot]:
+    result = await db.execute(
+        select(CostProductLot)
+        .where(CostProductLot.id == lot_id, CostProductLot.clinic_id == clinic_id)
+    )
+    lot = result.scalar_one_or_none()
+    if not lot:
+        return None
+    lot.finished_at = finished_at
+    await db.flush()
+    return lot
+
+
+async def update_lot(db: AsyncSession, clinic_id: uuid.UUID, lot_id: uuid.UUID, data: dict) -> Optional[CostProductLot]:
+    result = await db.execute(
+        select(CostProductLot)
+        .where(CostProductLot.id == lot_id, CostProductLot.clinic_id == clinic_id)
+    )
+    lot = result.scalar_one_or_none()
+    if not lot:
+        return None
+    for k, v in data.items():
+        setattr(lot, k, v)
+    await db.flush()
+    return lot
+
+
+async def delete_lot(db: AsyncSession, clinic_id: uuid.UUID, lot_id: uuid.UUID) -> bool:
+    result = await db.execute(
+        select(CostProductLot)
+        .where(CostProductLot.id == lot_id, CostProductLot.clinic_id == clinic_id)
+    )
+    lot = result.scalar_one_or_none()
+    if not lot:
+        return False
+    await db.delete(lot)
+    await db.flush()
+    return True
