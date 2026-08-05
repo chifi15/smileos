@@ -488,46 +488,49 @@ function PriceRow({ proc }: { proc: Procedure }) {
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors gap-4 bg-white">
+    <div ref={setNodeRef} style={style} className="flex items-start gap-3 px-5 py-3 hover:bg-slate-50 transition-colors bg-white">
       {/* Drag handle */}
       <button
         {...attributes}
         {...listeners}
-        className="text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing shrink-0 touch-none"
+        className="mt-0.5 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing shrink-0 touch-none"
         title="Arrastrar para ordenar"
       >
         <GripVertical size={16} />
       </button>
-      {/* Nombre editable */}
-      <div className="flex items-center gap-1.5 flex-1 min-w-0">
-        {editingName ? (
-          <>
-            <input
-              autoFocus
-              type="text"
-              value={nameInput}
-              onChange={(e) => setNameInput(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") { setNameInput(proc.name); setEditingName(false); } }}
-              className="flex-1 rounded border border-blue-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <button onClick={saveName} disabled={update.isPending} className="text-green-600 hover:text-green-700 disabled:opacity-50 shrink-0">
-              <Check size={14} />
-            </button>
-            <button onClick={() => { setNameInput(proc.name); setEditingName(false); }} className="text-slate-400 hover:text-slate-600 shrink-0">
-              <X size={14} />
-            </button>
-          </>
-        ) : (
-          <>
-            <span className="text-sm text-slate-700 truncate">{proc.name}</span>
-            <button onClick={() => { setNameInput(proc.name); setEditingName(true); }} className="text-slate-300 hover:text-blue-500 transition-colors shrink-0">
-              <Pencil size={12} />
-            </button>
-          </>
-        )}
-      </div>
-      {/* Precio, costo y vínculo */}
-      <div className="flex items-center gap-4 flex-shrink-0">
+
+      <div className="flex-1 min-w-0 space-y-1.5">
+        {/* Nombre editable — fila completa */}
+        <div className="flex items-center gap-1.5">
+          {editingName ? (
+            <>
+              <input
+                autoFocus
+                type="text"
+                value={nameInput}
+                onChange={(e) => setNameInput(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") { setNameInput(proc.name); setEditingName(false); } }}
+                className="flex-1 rounded border border-blue-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <button onClick={saveName} disabled={update.isPending} className="text-green-600 hover:text-green-700 disabled:opacity-50 shrink-0">
+                <Check size={14} />
+              </button>
+              <button onClick={() => { setNameInput(proc.name); setEditingName(false); }} className="text-slate-400 hover:text-slate-600 shrink-0">
+                <X size={14} />
+              </button>
+            </>
+          ) : (
+            <>
+              <span className="text-sm text-slate-700">{proc.name}</span>
+              <button onClick={() => { setNameInput(proc.name); setEditingName(true); }} className="text-slate-300 hover:text-blue-500 transition-colors shrink-0">
+                <Pencil size={12} />
+              </button>
+            </>
+          )}
+        </div>
+
+        {/* Controles — segunda línea */}
+        <div className="flex items-center gap-4 flex-wrap">
         <EditableAmount
           label="Precio:"
           value={proc.default_price}
@@ -571,7 +574,7 @@ function PriceRow({ proc }: { proc: Procedure }) {
             </button>
           )}
           {linkingOpen && (
-            <div className="absolute right-0 top-full mt-1 z-30 w-56 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+            <div className="absolute left-0 top-full mt-1 z-30 w-56 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
               <p className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wide border-b border-slate-100">
                 Seleccionar tratamiento
               </p>
@@ -596,16 +599,18 @@ function PriceRow({ proc }: { proc: Procedure }) {
               </div>
             </div>
           )}
-        </div>
-        <button
-          onClick={handleDelete}
-          disabled={deleteProcedure.isPending}
-          className="text-slate-300 hover:text-red-500 transition-colors disabled:opacity-50"
-          title="Eliminar procedimiento"
-        >
-          <Trash2 size={14} />
-        </button>
-      </div>
+        </div>{/* close linkingRef div */}
+
+          <button
+            onClick={handleDelete}
+            disabled={deleteProcedure.isPending}
+            className="text-slate-300 hover:text-red-500 transition-colors disabled:opacity-50 ml-auto"
+            title="Eliminar procedimiento"
+          >
+            <Trash2 size={14} />
+          </button>
+        </div>{/* close controls row */}
+      </div>{/* close flex-1 */}
     </div>
   );
 }
