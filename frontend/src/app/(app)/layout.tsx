@@ -3,8 +3,27 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { useAuthStore } from "@/stores/auth.store";
+import { setAccessToken } from "@/lib/api-client";
 import Sidebar from "@/components/layout/Sidebar";
 import Spinner from "@/components/ui/Spinner";
+
+const REFRESH_INTERVAL_MS = 7 * 60 * 60 * 1000; // 7 horas (token dura 8)
+
+async function silentRefresh() {
+  try {
+    const res = await fetch(
+      `${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/api/v1/auth/refresh`,
+      { method: "POST", credentials: "include" }
+    );
+    if (res.ok) {
+      const data = await res.json();
+      const token = data?.data?.access_token;
+      if (token) setAccessToken(token);
+    }
+  } catch {
+    // silencioso — el interceptor de axios manejará el siguiente 401
+  }
+}
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isInitializing, user } = useAuthStore();
@@ -20,6 +39,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       router.replace("/change-password");
     }
   }, [isInitializing, isAuthenticated, user, router]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    const id = setInterval(silentRefresh, REFRESH_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, [isAuthenticated]);
 
   if (isInitializing) {
     return (
