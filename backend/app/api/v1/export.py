@@ -440,6 +440,7 @@ async def export_json(
             "stock_qty": p.stock_qty,
             "min_stock_qty": p.min_stock_qty,
             "purchase_date": _iso(p.purchase_date),
+            "image_url": p.image_url,
             "sort_order": p.sort_order,
             "created_at": _iso(p.created_at),
             "lots": lots_by_product.get(str(p.id), []),
