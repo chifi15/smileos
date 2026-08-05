@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useCostosStore } from "@/stores/costos.store";
+import { useCostTreatments, useCostProducts, useUpdateCostProductStock } from "@/hooks/useCostos";
 import {
   TrendingUp,
   TrendingDown,
@@ -352,7 +352,9 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   const update = useUpdateTransaction(year, month);
   const uploadReceipt = useUploadReceipt(year, month);
   const { data: procedures = [] } = useProcedures();
-  const deductTreatmentMaterials = useCostosStore((s) => s.deductTreatmentMaterials);
+  const { data: apiTreatments = [] } = useCostTreatments();
+  const { data: apiProducts = [] } = useCostProducts();
+  const updateStock = useUpdateCostProductStock();
   const isIngreso = type === "ingreso";
   const categories = isIngreso ? INCOME_CATEGORY_LABELS : EXPENSE_CATEGORY_LABELS;
   const fileRef = useRef<HTMLInputElement>(null);
@@ -410,7 +412,24 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
       onSuccess: async (tx: FinanceTransaction) => {
         // Descontar materiales del inventario si el procedimiento está vinculado
         if (tx.procedure?.id) {
-          deductTreatmentMaterials(tx.procedure.id, tx.procedure_quantity ?? 1);
+          const treatment = apiTreatments.find((t) => t.procedure_catalog_id === tx.procedure!.id);
+          if (treatment) {
+            const qty = tx.procedure_quantity ?? 1;
+            const totals = new Map<string, number>();
+            for (const apt of treatment.appointments) {
+              for (const m of apt.materials) {
+                totals.set(m.productId, (totals.get(m.productId) ?? 0) + m.quantity);
+              }
+            }
+            for (const [productId, usedPortions] of totals) {
+              const product = apiProducts.find((p) => p.id === productId);
+              if (!product) continue;
+              const deductQty = product.portion_qty
+                ? usedPortions * product.portion_qty * qty
+                : usedPortions * qty;
+              updateStock.mutate({ id: productId, qty: -deductQty, operation: "add" });
+            }
+          }
         }
         if (form.receiptFile) {
           try {

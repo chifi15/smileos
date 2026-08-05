@@ -11,7 +11,7 @@ import { useClinicSettings, useUpdateSettings } from "@/hooks/useSettings";
 import { useAllUsers, useCreateUser } from "@/hooks/useUsers";
 import { useProcedures, useUpdateProcedurePrice, useCreateProcedure, useDeleteProcedure, useReorderProcedures } from "@/hooks/useCatalog";
 import { ClinicUser, UserRole, Procedure } from "@/types";
-import { useCostosStore } from "@/stores/costos.store";
+import { useCostTreatments, useLinkCostProcedure } from "@/hooks/useCostos";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -453,9 +453,9 @@ function PriceRow({ proc }: { proc: Procedure }) {
   const deleteProcedure = useDeleteProcedure();
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(proc.name);
-  const treatments = useCostosStore((s) => s.treatments);
-  const linkProcedure = useCostosStore((s) => s.linkProcedure);
-  const linkedTreatment = treatments.find((t) => t.procedureCatalogId === proc.id);
+  const { data: treatments = [] } = useCostTreatments();
+  const linkProcedure = useLinkCostProcedure();
+  const linkedTreatment = treatments.find((t) => t.procedure_catalog_id === proc.id);
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: proc.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
@@ -534,9 +534,8 @@ function PriceRow({ proc }: { proc: Procedure }) {
             value={linkedTreatment?.id ?? ""}
             onChange={(e) => {
               const val = e.target.value;
-              // Desvincula el tratamiento anterior si existía
-              if (linkedTreatment) linkProcedure(linkedTreatment.id, undefined);
-              if (val) linkProcedure(val, proc.id);
+              if (linkedTreatment) linkProcedure.mutate({ treatmentId: linkedTreatment.id, procedureCatalogId: null });
+              if (val) linkProcedure.mutate({ treatmentId: val, procedureCatalogId: proc.id });
             }}
             className="h-7 rounded border border-slate-200 px-1.5 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
           >

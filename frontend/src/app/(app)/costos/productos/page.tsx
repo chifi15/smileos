@@ -6,9 +6,15 @@ import Link from "next/link";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { useCostosStore } from "@/stores/costos.store";
 import {
-  Product,
+  useCostProducts,
+  useCreateCostProduct,
+  useUpdateCostProduct,
+  useDeleteCostProduct,
+  useReorderCostProducts,
+  ApiProduct,
+} from "@/hooks/useCostos";
+import {
   ProductCategory,
   PRODUCT_CATEGORY_LABELS,
   PRODUCT_CATEGORY_COLORS,
@@ -21,8 +27,6 @@ const ALL_CATEGORIES: ProductCategory[] = [
   "desechable", "anestesia", "endodoncia", "restauracion", "profilaxis", "instrumental", "otros",
 ];
 
-// ─── Utilidades ───────────────────────────────────────────────────────────────
-
 function calcPortions(presentationQty?: number, portionQty?: number): number | null {
   if (!presentationQty || !portionQty || portionQty <= 0) return null;
   return presentationQty / portionQty;
@@ -33,7 +37,7 @@ function calcUnitPrice(totalCost?: number, portions?: number | null): number | n
   return totalCost / portions;
 }
 
-// ─── Modal de edición / creación ──────────────────────────────────────────────
+// ─── Modal ────────────────────────────────────────────────────────────────────
 
 interface ProductFormState {
   name: string;
@@ -48,42 +52,24 @@ interface ProductFormState {
 }
 
 const EMPTY_FORM: ProductFormState = {
-  name: "",
-  category: "desechable",
-  supplier: "",
-  notes: "",
-  totalCost: "",
-  presentationQty: "",
-  presentationUnit: "ml",
-  portionQty: "",
-  manualUnitPrice: "",
+  name: "", category: "desechable", supplier: "", notes: "",
+  totalCost: "", presentationQty: "", presentationUnit: "ml", portionQty: "", manualUnitPrice: "",
 };
 
-function productToForm(p: Product): ProductFormState {
+function productToForm(p: ApiProduct): ProductFormState {
   return {
-    name: p.name,
-    category: p.category,
-    supplier: p.supplier ?? "",
-    notes: p.notes ?? "",
-    totalCost: p.totalCost != null ? String(p.totalCost) : "",
-    presentationQty: p.presentationQty != null ? String(p.presentationQty) : "",
-    presentationUnit: p.presentationUnit ?? "ml",
-    portionQty: p.portionQty != null ? String(p.portionQty) : "",
-    manualUnitPrice: String(p.unitPrice),
+    name: p.name, category: p.category as ProductCategory,
+    supplier: p.supplier ?? "", notes: p.notes ?? "",
+    totalCost: p.total_cost != null ? String(p.total_cost) : "",
+    presentationQty: p.presentation_qty != null ? String(p.presentation_qty) : "",
+    presentationUnit: p.presentation_unit ?? "ml",
+    portionQty: p.portion_qty != null ? String(p.portion_qty) : "",
+    manualUnitPrice: String(p.unit_price),
   };
 }
 
-function ProductModal({
-  initial,
-  onSave,
-  onClose,
-}: {
-  initial?: Product;
-  onSave: (data: Omit<Product, "id">) => void;
-  onClose: () => void;
-}) {
+function ProductModal({ initial, onSave, onClose }: { initial?: ApiProduct; onSave: (data: Omit<ApiProduct, "id" | "sort_order" | "stock_qty" | "min_stock_qty">) => void; onClose: () => void }) {
   const [form, setForm] = useState<ProductFormState>(initial ? productToForm(initial) : EMPTY_FORM);
-
   const f = (key: keyof ProductFormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((s) => ({ ...s, [key]: e.target.value }));
 
@@ -93,32 +79,21 @@ function ProductModal({
   const portions = calcPortions(pQty || undefined, portQty || undefined);
   const autoPrice = calcUnitPrice(tCost || undefined, portions);
   const hasCalc = pQty > 0 && portQty > 0 && tCost > 0;
-  const effectiveUnitPrice = hasCalc && autoPrice != null
-    ? autoPrice
-    : (parseFloat(form.manualUnitPrice) || 0);
+  const effectiveUnitPrice = hasCalc && autoPrice != null ? autoPrice : (parseFloat(form.manualUnitPrice) || 0);
 
   function handleSave() {
     if (!form.name.trim()) return;
-
-    const presentation = pQty > 0
-      ? `${fmt(pQty)}${form.presentationUnit}`
-      : (form.manualUnitPrice ? `C$${form.manualUnitPrice}/unidad` : "");
-    const portionDescription = portQty > 0
-      ? `${fmt(portQty)}${form.presentationUnit}/uso`
-      : "";
-
+    const presentation = pQty > 0 ? `${fmt(pQty)}${form.presentationUnit}` : (form.manualUnitPrice ? `C$${form.manualUnitPrice}/unidad` : "");
+    const portionDescription = portQty > 0 ? `${fmt(portQty)}${form.presentationUnit}/uso` : "";
     onSave({
-      name: form.name.trim(),
-      category: form.category,
+      name: form.name.trim(), category: form.category,
       supplier: form.supplier.trim() || undefined,
       notes: form.notes.trim() || undefined,
-      unitPrice: effectiveUnitPrice,
-      presentation,
-      portionDescription,
-      totalCost: tCost || undefined,
-      presentationQty: pQty || undefined,
-      presentationUnit: pQty > 0 ? form.presentationUnit : undefined,
-      portionQty: portQty || undefined,
+      unit_price: effectiveUnitPrice, presentation, portion_description: portionDescription,
+      total_cost: tCost || undefined,
+      presentation_qty: pQty || undefined,
+      presentation_unit: pQty > 0 ? form.presentationUnit : undefined,
+      portion_qty: portQty || undefined,
     });
     onClose();
   }
@@ -128,191 +103,96 @@ function ProductModal({
       <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 sticky top-0 bg-white z-10">
           <h2 className="font-semibold text-slate-800">{initial ? "Editar producto" : "Nuevo producto"}</h2>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
-            <X size={16} />
-          </button>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
         </div>
-
         <div className="px-6 py-5 space-y-5">
-          {/* Datos básicos */}
           <div className="space-y-3">
             <div>
               <label className="block text-xs font-medium text-slate-600 mb-1">Nombre del producto *</label>
-              <input
-                autoFocus
-                value={form.name}
-                onChange={f("name")}
-                placeholder="ej. Composite Bulk Fill A2"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
+              <input autoFocus value={form.name} onChange={f("name")} placeholder="ej. Composite Bulk Fill A2"
+                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Categoría</label>
-                <select
-                  value={form.category}
-                  onChange={f("category")}
-                  className="w-full h-9 rounded-lg border border-slate-300 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {ALL_CATEGORIES.map((c) => (
-                    <option key={c} value={c}>{PRODUCT_CATEGORY_LABELS[c]}</option>
-                  ))}
+                <select value={form.category} onChange={f("category")} className="w-full h-9 rounded-lg border border-slate-300 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {ALL_CATEGORIES.map((c) => <option key={c} value={c}>{PRODUCT_CATEGORY_LABELS[c]}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Proveedor</label>
-                <input
-                  value={form.supplier}
-                  onChange={f("supplier")}
-                  placeholder="ej. INDENT"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <input value={form.supplier} onChange={f("supplier")} placeholder="ej. INDENT"
+                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
             </div>
           </div>
 
-          {/* Calculadora */}
           <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4 space-y-4">
             <div className="flex items-center gap-2">
               <Calculator size={15} className="text-blue-600" />
               <span className="text-sm font-semibold text-blue-800">Calculadora de costo por uso</span>
             </div>
-
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                Presentación total del producto
-              </label>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">Presentación total del producto</label>
               <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={form.presentationQty}
-                  onChange={f("presentationQty")}
-                  placeholder="ej. 1000"
-                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <select
-                  value={form.presentationUnit}
-                  onChange={f("presentationUnit")}
-                  className="w-28 h-9 rounded-lg border border-slate-300 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                >
-                  {PRESENTATION_UNITS.map((u) => (
-                    <option key={u} value={u}>{u}</option>
-                  ))}
+                <input type="number" min="0" step="any" value={form.presentationQty} onChange={f("presentationQty")} placeholder="ej. 1000"
+                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <select value={form.presentationUnit} onChange={f("presentationUnit")} className="w-28 h-9 rounded-lg border border-slate-300 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  {PRESENTATION_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
                 </select>
               </div>
-              <p className="text-[11px] text-slate-400 mt-1">Ejemplo: 1000 ml, 500 g, 100 unidades</p>
             </div>
-
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                Cantidad usada por porción / cita
-              </label>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">Cantidad usada por porción / cita</label>
               <div className="flex items-center gap-2">
-                <input
-                  type="number"
-                  min="0"
-                  step="any"
-                  value={form.portionQty}
-                  onChange={f("portionQty")}
-                  placeholder="ej. 7"
-                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <div className="flex h-9 w-28 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-sm text-slate-500">
-                  {form.presentationUnit}
-                </div>
+                <input type="number" min="0" step="any" value={form.portionQty} onChange={f("portionQty")} placeholder="ej. 7"
+                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <div className="flex h-9 w-28 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-sm text-slate-500">{form.presentationUnit}</div>
               </div>
-              <p className="text-[11px] text-slate-400 mt-1">Cuánto se usa en una sola aplicación</p>
             </div>
-
             {portions != null && (
               <div className="flex items-center gap-2 rounded-lg bg-white border border-blue-100 px-4 py-3 text-sm">
-                <span className="text-slate-500">
-                  {fmt(pQty)}{form.presentationUnit} ÷ {fmt(portQty)}{form.presentationUnit} =
-                </span>
-                <span className="font-bold text-blue-700 text-base">
-                  ≈ {fmt(portions)} usos
-                </span>
-                <span className="text-slate-400 text-xs ml-1">por frasco/unidad</span>
+                <span className="text-slate-500">{fmt(pQty)}{form.presentationUnit} ÷ {fmt(portQty)}{form.presentationUnit} =</span>
+                <span className="font-bold text-blue-700 text-base">≈ {fmt(portions)} usos</span>
               </div>
             )}
-
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                Costo del producto completo (C$)
-              </label>
+              <label className="block text-xs font-medium text-slate-600 mb-1.5">Costo del producto completo (C$)</label>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-slate-400">C$</span>
-                <input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={form.totalCost}
-                  onChange={f("totalCost")}
-                  placeholder="ej. 350.00"
-                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
+                <input type="number" min="0" step="0.01" value={form.totalCost} onChange={f("totalCost")} placeholder="ej. 350.00"
+                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
             </div>
-
             {hasCalc && autoPrice != null ? (
               <div className="rounded-xl bg-green-50 border border-green-200 px-4 py-3">
                 <div className="flex items-center gap-3">
-                  <div className="text-sm text-green-700">
-                    {fmtC(tCost)} ÷ {fmt(portions!)} usos
-                  </div>
+                  <div className="text-sm text-green-700">{fmtC(tCost)} ÷ {fmt(portions!)} usos</div>
                   <ChevronRight size={14} className="text-green-400" />
-                  <div className="text-lg font-bold text-green-800">
-                    {fmtC(autoPrice)} / uso
-                  </div>
+                  <div className="text-lg font-bold text-green-800">{fmtC(autoPrice)} / uso</div>
                 </div>
-                <p className="text-[11px] text-green-600 mt-1">Este valor se usará en los cálculos de tratamiento</p>
               </div>
             ) : (
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1.5">
-                  Costo por porción / uso (C$) — manual
-                </label>
+                <label className="block text-xs font-medium text-slate-600 mb-1.5">Costo por porción / uso (C$) — manual</label>
                 <div className="flex items-center gap-2">
                   <span className="text-sm text-slate-400">C$</span>
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={form.manualUnitPrice}
-                    onChange={f("manualUnitPrice")}
-                    placeholder="0.00"
-                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
+                  <input type="number" min="0" step="0.01" value={form.manualUnitPrice} onChange={f("manualUnitPrice")} placeholder="0.00"
+                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
-                <p className="text-[11px] text-slate-400 mt-1">
-                  Completa los campos de presentación y costo para calcular automáticamente
-                </p>
               </div>
             )}
           </div>
 
-          {/* Notas */}
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Notas (opcional)</label>
-            <textarea
-              value={form.notes}
-              onChange={f("notes")}
-              rows={2}
-              placeholder="Observaciones, marca, referencia..."
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
-            />
+            <textarea value={form.notes} onChange={f("notes")} rows={2} placeholder="Observaciones, marca, referencia..."
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
           </div>
         </div>
-
         <div className="flex gap-3 border-t border-slate-100 px-6 py-4 sticky bottom-0 bg-white">
           <Button variant="secondary" className="flex-1" onClick={onClose}>Cancelar</Button>
-          <Button
-            className="flex-1"
-            onClick={handleSave}
-            disabled={!form.name.trim() || (!hasCalc && !form.manualUnitPrice)}
-          >
+          <Button className="flex-1" onClick={handleSave} disabled={!form.name.trim() || (!hasCalc && !form.manualUnitPrice)}>
             {initial ? "Guardar cambios" : "Agregar producto"}
           </Button>
         </div>
@@ -321,118 +201,58 @@ function ProductModal({
   );
 }
 
-// ─── Fila de producto (sortable) ──────────────────────────────────────────────
+// ─── Fila sortable ────────────────────────────────────────────────────────────
 
-function SortableProductRow({
-  product,
-  onEdit,
-  isDragDisabled,
-}: {
-  product: Product;
-  onEdit: () => void;
-  isDragDisabled: boolean;
-}) {
-  const deleteProduct = useCostosStore((s) => s.deleteProduct);
-  const portions = calcPortions(product.presentationQty, product.portionQty);
-  const hasCalc = portions != null && product.totalCost != null;
+function SortableProductRow({ product, onEdit, isDragDisabled }: { product: ApiProduct; onEdit: () => void; isDragDisabled: boolean }) {
+  const deleteProduct = useDeleteCostProduct();
+  const portions = calcPortions(product.presentation_qty, product.portion_qty);
+  const hasCalc = portions != null && product.total_cost != null;
 
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
-    useSortable({ id: product.id, disabled: isDragDisabled });
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.5 : 1,
-    zIndex: isDragging ? 10 : undefined,
-  };
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product.id, disabled: isDragDisabled });
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 10 : undefined };
 
   return (
-    <tr
-      ref={setNodeRef}
-      style={style}
-      className="group hover:bg-slate-50/50 border-b border-slate-50"
-    >
-      {/* Grip */}
+    <tr ref={setNodeRef} style={style} className="group hover:bg-slate-50/50 border-b border-slate-50">
       <td className="pl-2 pr-1 py-3 w-7">
         {!isDragDisabled && (
-          <button
-            {...attributes}
-            {...listeners}
-            className="cursor-grab active:cursor-grabbing rounded p-0.5 text-slate-300 hover:text-slate-500 hover:bg-slate-100 touch-none"
-            title="Arrastrar para reordenar"
-          >
+          <button {...attributes} {...listeners}
+            className="cursor-grab active:cursor-grabbing rounded p-0.5 text-slate-300 hover:text-slate-500 hover:bg-slate-100 touch-none" title="Arrastrar">
             <GripVertical size={14} />
           </button>
         )}
       </td>
-
-      {/* Nombre */}
       <td className="px-3 py-3">
         <p className="font-medium text-slate-800">{product.name}</p>
         {product.supplier && <p className="text-xs text-slate-400">{product.supplier}</p>}
         {product.notes && <p className="text-xs text-slate-300 italic truncate max-w-[180px]">{product.notes}</p>}
       </td>
-
-      {/* Categoría */}
       <td className="px-4 py-3">
-        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${PRODUCT_CATEGORY_COLORS[product.category]}`}>
-          {PRODUCT_CATEGORY_LABELS[product.category]}
+        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${PRODUCT_CATEGORY_COLORS[product.category as ProductCategory]}`}>
+          {PRODUCT_CATEGORY_LABELS[product.category as ProductCategory]}
         </span>
       </td>
-
-      {/* Presentación → desglose */}
       <td className="px-4 py-3">
         {hasCalc ? (
           <div className="text-xs space-y-0.5">
-            <p className="text-slate-600">
-              <span className="font-medium">{fmt(product.presentationQty!)}{product.presentationUnit}</span>
-              {" "}total · {fmt(product.portionQty!)}{product.presentationUnit}/uso
-            </p>
+            <p className="text-slate-600"><span className="font-medium">{fmt(product.presentation_qty!)}{product.presentation_unit}</span> total · {fmt(product.portion_qty!)}{product.presentation_unit}/uso</p>
             <p className="text-slate-400">≈ {fmt(portions!)} usos por frasco</p>
           </div>
         ) : product.presentation ? (
           <span className="text-sm text-slate-500">{product.presentation}</span>
-        ) : (
-          <span className="text-slate-300">—</span>
-        )}
+        ) : <span className="text-slate-300">—</span>}
       </td>
-
-      {/* Costo total */}
       <td className="px-4 py-3 text-right">
-        {product.totalCost != null ? (
-          <span className="text-sm text-slate-600 tabular-nums">{fmtC(product.totalCost)}</span>
-        ) : (
-          <span className="text-slate-300 text-sm">—</span>
-        )}
+        {product.total_cost != null ? <span className="text-sm text-slate-600 tabular-nums">{fmtC(product.total_cost)}</span> : <span className="text-slate-300 text-sm">—</span>}
       </td>
-
-      {/* Costo/uso */}
       <td className="px-5 py-3 text-right">
-        <div>
-          <p className="font-semibold text-slate-800 tabular-nums">{fmtC(product.unitPrice)}</p>
-          {hasCalc && (
-            <p className="text-[10px] text-green-600">calculado</p>
-          )}
-        </div>
+        <p className="font-semibold text-slate-800 tabular-nums">{fmtC(product.unit_price)}</p>
+        {hasCalc && <p className="text-[10px] text-green-600">calculado</p>}
       </td>
-
-      {/* Acciones */}
       <td className="pr-3 py-3">
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button
-            onClick={onEdit}
-            className="rounded p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-500"
-            title="Editar"
-          >
-            <Edit2 size={13} />
-          </button>
-          <button
-            onClick={() => { if (confirm(`¿Eliminar "${product.name}"?`)) deleteProduct(product.id); }}
-            className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"
-            title="Eliminar"
-          >
-            <Trash2 size={13} />
-          </button>
+          <button onClick={onEdit} className="rounded p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-500" title="Editar"><Edit2 size={13} /></button>
+          <button onClick={() => { if (confirm(`¿Eliminar "${product.name}"?`)) deleteProduct.mutate(product.id); }}
+            className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500" title="Eliminar"><Trash2 size={13} /></button>
         </div>
       </td>
     </tr>
@@ -442,20 +262,20 @@ function SortableProductRow({
 // ─── Página ───────────────────────────────────────────────────────────────────
 
 export default function ProductosPage() {
-  const products = useCostosStore((s) => s.products);
-  const addProduct = useCostosStore((s) => s.addProduct);
-  const updateProduct = useCostosStore((s) => s.updateProduct);
-  const reorderProducts = useCostosStore((s) => s.reorderProducts);
+  const { data: products = [], isLoading } = useCostProducts();
+  const createProduct = useCreateCostProduct();
+  const updateProduct = useUpdateCostProduct();
+  const reorderProducts = useReorderCostProducts();
+
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<ProductCategory | "all">("all");
   const [showNew, setShowNew] = useState(false);
-  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
 
   const hasFilter = search.trim() !== "" || category !== "all";
 
   const filtered = products.filter((p) => {
-    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) ||
-      (p.supplier ?? "").toLowerCase().includes(search.toLowerCase());
+    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || (p.supplier ?? "").toLowerCase().includes(search.toLowerCase());
     const matchCat = category === "all" || p.category === category;
     return matchSearch && matchCat;
   });
@@ -471,70 +291,42 @@ export default function ProductosPage() {
     const oldIndex = products.findIndex((p) => p.id === active.id);
     const newIndex = products.findIndex((p) => p.id === over.id);
     if (oldIndex === -1 || newIndex === -1) return;
-    reorderProducts(arrayMove(products, oldIndex, newIndex).map((p) => p.id));
+    reorderProducts.mutate(arrayMove(products, oldIndex, newIndex).map((p) => p.id));
   }
 
-  function handleSaveNew(data: Omit<Product, "id">) {
-    addProduct(data);
-  }
-
-  function handleSaveEdit(data: Omit<Product, "id">) {
-    if (!editingProduct) return;
-    updateProduct(editingProduct.id, data);
+  if (isLoading) {
+    return <div className="flex items-center justify-center h-64"><div className="text-slate-400">Cargando...</div></div>;
   }
 
   return (
     <div className="mx-auto max-w-5xl p-6">
-      {/* Header */}
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/costos" className="text-slate-500 hover:text-slate-700">
-            <ArrowLeft size={18} />
-          </Link>
+          <Link href="/costos" className="text-slate-500 hover:text-slate-700"><ArrowLeft size={18} /></Link>
           <div>
             <h1 className="text-xl font-bold text-slate-800">Catálogo de Productos</h1>
-            <p className="text-sm text-slate-500 mt-0.5">
-              Actualiza precios aquí y se reflejan en todos los tratamientos automáticamente
-            </p>
+            <p className="text-sm text-slate-500 mt-0.5">Actualiza precios aquí y se reflejan en todos los tratamientos automáticamente</p>
           </div>
         </div>
-        <Button size="sm" onClick={() => setShowNew(true)}>
-          <Plus size={15} /> Nuevo producto
-        </Button>
+        <Button size="sm" onClick={() => setShowNew(true)}><Plus size={15} /> Nuevo producto</Button>
       </div>
 
-      {/* Filtros */}
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-          <input
-            type="text"
-            placeholder="Buscar producto o proveedor..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-10 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+          <input type="text" placeholder="Buscar producto o proveedor..." value={search} onChange={(e) => setSearch(e.target.value)}
+            className="h-10 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          <button
-            onClick={() => setCategory("all")}
-            className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === "all" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
-          >
-            Todos
-          </button>
+          <button onClick={() => setCategory("all")} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === "all" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>Todos</button>
           {ALL_CATEGORIES.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setCategory(cat)}
-              className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === cat ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}
-            >
+            <button key={cat} onClick={() => setCategory(cat)} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === cat ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
               {PRODUCT_CATEGORY_LABELS[cat]}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Tabla */}
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
@@ -559,12 +351,7 @@ export default function ProductosPage() {
               <SortableContext items={products.map((p) => p.id)} strategy={verticalListSortingStrategy}>
                 <tbody>
                   {filtered.map((p) => (
-                    <SortableProductRow
-                      key={p.id}
-                      product={p}
-                      onEdit={() => setEditingProduct(p)}
-                      isDragDisabled={hasFilter}
-                    />
+                    <SortableProductRow key={p.id} product={p} onEdit={() => setEditingProduct(p)} isDragDisabled={hasFilter} />
                   ))}
                 </tbody>
               </SortableContext>
@@ -575,18 +362,19 @@ export default function ProductosPage() {
 
       <p className="mt-3 text-xs text-slate-400 text-center">
         {filtered.length} producto{filtered.length !== 1 ? "s" : ""}
-        {hasFilter
-          ? " · Limpia los filtros para reordenar"
-          : " · Arrastra para reordenar · Pasa el mouse para editar"}
+        {hasFilter ? " · Limpia los filtros para reordenar" : " · Arrastra para reordenar · Pasa el mouse para editar"}
       </p>
 
       {showNew && (
-        <ProductModal onSave={handleSaveNew} onClose={() => setShowNew(false)} />
+        <ProductModal
+          onSave={(data) => createProduct.mutate(data)}
+          onClose={() => setShowNew(false)}
+        />
       )}
       {editingProduct && (
         <ProductModal
           initial={editingProduct}
-          onSave={handleSaveEdit}
+          onSave={(data) => updateProduct.mutate({ id: editingProduct.id, ...data })}
           onClose={() => setEditingProduct(null)}
         />
       )}

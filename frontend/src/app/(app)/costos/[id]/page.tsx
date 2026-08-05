@@ -20,22 +20,43 @@ import {
   ClipboardPaste,
 } from "lucide-react";
 import { MaterialUsage } from "@/types/costos";
-import { useCostosStore } from "@/stores/costos.store";
-import { calculateTreatmentCosts, fmtC, fmt } from "@/lib/costos-utils";
+import {
+  useCostTreatments,
+  useCostProducts,
+  useFixedCosts,
+  useUpdateCostTreatment,
+  useAddCostAppointment,
+  useDeleteCostAppointment,
+  useMergeCostAppointments,
+  useUpdateCostAppointment,
+  ApiProduct,
+  ApiTreatment,
+  ApiAppointment,
+  ApiMaterial,
+} from "@/hooks/useCostos";
+import {
+  calculateTreatmentCosts,
+  fmtC,
+  apiProductToProduct,
+  apiTreatmentToTreatment,
+} from "@/lib/costos-utils";
 import { PRODUCT_CATEGORY_COLORS, PRODUCT_CATEGORY_LABELS } from "@/types/costos";
-import AppointmentAccordion from "@/components/costos/AppointmentAccordion";
 import CostSummaryBar from "@/components/costos/CostSummaryBar";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 
 // ─── Edit Treatment Settings Panel ────────────────────────────────────────────
 
-function TreatmentSettings({ treatmentId, globalFixedCost }: { treatmentId: string; globalFixedCost?: number }) {
-  const treatment = useCostosStore((s) => s.treatments.find((t) => t.id === treatmentId));
-  const updateTreatment = useCostosStore((s) => s.updateTreatment);
+function TreatmentSettings({
+  treatment,
+  globalFixedCost,
+  onUpdate,
+}: {
+  treatment: ApiTreatment;
+  globalFixedCost?: number;
+  onUpdate: (data: Partial<Omit<ApiTreatment, "id" | "appointments">>) => void;
+}) {
   const [open, setOpen] = useState(false);
-
-  if (!treatment) return null;
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -63,11 +84,9 @@ function TreatmentSettings({ treatmentId, globalFixedCost }: { treatmentId: stri
               <input
                 type="number"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                defaultValue={treatment.professionalFeePerHour}
+                defaultValue={treatment.professional_fee_per_hour}
                 onBlur={(e) =>
-                  updateTreatment(treatmentId, {
-                    professionalFeePerHour: parseFloat(e.target.value) || 192,
-                  })
+                  onUpdate({ professional_fee_per_hour: parseFloat(e.target.value) || 192 })
                 }
               />
             </div>
@@ -79,11 +98,9 @@ function TreatmentSettings({ treatmentId, globalFixedCost }: { treatmentId: stri
                 type="number"
                 step="0.5"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                defaultValue={treatment.totalHours}
+                defaultValue={treatment.total_hours}
                 onBlur={(e) =>
-                  updateTreatment(treatmentId, {
-                    totalHours: parseFloat(e.target.value) || 1,
-                  })
+                  onUpdate({ total_hours: parseFloat(e.target.value) || 1 })
                 }
               />
             </div>
@@ -94,17 +111,14 @@ function TreatmentSettings({ treatmentId, globalFixedCost }: { treatmentId: stri
               <input
                 type="number"
                 className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                defaultValue={treatment.clinicMarginPct * 100}
+                defaultValue={treatment.clinic_margin_pct * 100}
                 onBlur={(e) =>
-                  updateTreatment(treatmentId, {
-                    clinicMarginPct: (parseFloat(e.target.value) || 15) / 100,
-                  })
+                  onUpdate({ clinic_margin_pct: (parseFloat(e.target.value) || 15) / 100 })
                 }
               />
             </div>
           </div>
 
-          {/* Costos fijos — solo lectura, vienen de configuración global */}
           {globalFixedCost !== undefined && (
             <div className="flex items-center gap-3 rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-sm">
               <DollarSign size={14} className="text-blue-500 shrink-0" />
@@ -124,12 +138,10 @@ function TreatmentSettings({ treatmentId, globalFixedCost }: { treatmentId: stri
             <input
               type="number"
               className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              defaultValue={treatment.suggestedPrice ?? ""}
+              defaultValue={treatment.suggested_price ?? ""}
               placeholder="(usar precio calculado automáticamente)"
               onBlur={(e) =>
-                updateTreatment(treatmentId, {
-                  suggestedPrice: e.target.value ? parseFloat(e.target.value) : undefined,
-                })
+                onUpdate({ suggested_price: e.target.value ? parseFloat(e.target.value) : undefined })
               }
             />
           </div>
@@ -139,41 +151,31 @@ function TreatmentSettings({ treatmentId, globalFixedCost }: { treatmentId: stri
   );
 }
 
-// ─── Add Material Panel ───────────────────────────────────────────────────────
+// ─── Add Material Modal ───────────────────────────────────────────────────────
 
 function AddMaterialModal({
-  treatmentId,
-  appointmentId,
+  products,
+  apt,
+  onUpdateApt,
   onClose,
 }: {
-  treatmentId: string;
-  appointmentId: string;
+  products: ApiProduct[];
+  apt: ApiAppointment;
+  onUpdateApt: (data: { materials: ApiMaterial[] }) => void;
   onClose: () => void;
 }) {
-  const products = useCostosStore((s) => s.products);
-  const treatment = useCostosStore((s) => s.treatments.find((t) => t.id === treatmentId));
-  const updateTreatment = useCostosStore((s) => s.updateTreatment);
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [qty, setQty] = useState("1");
 
-  const apt = treatment?.appointments.find((a) => a.id === appointmentId);
-  const existingIds = new Set(apt?.materials.map((m) => m.productId) ?? []);
-
+  const existingIds = new Set(apt.materials.map((m) => m.productId));
   const filtered = products
     .filter((p) => !existingIds.has(p.id))
     .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
 
   function handleAdd() {
-    if (!selected || !treatment) return;
-    const updatedAppointments = treatment.appointments.map((a) => {
-      if (a.id !== appointmentId) return a;
-      return {
-        ...a,
-        materials: [...a.materials, { productId: selected, quantity: parseFloat(qty) || 1 }],
-      };
-    });
-    updateTreatment(treatmentId, { appointments: updatedAppointments });
+    if (!selected) return;
+    onUpdateApt({ materials: [...apt.materials, { productId: selected, quantity: parseFloat(qty) || 1 }] });
     onClose();
   }
 
@@ -205,7 +207,7 @@ function AddMaterialModal({
               >
                 <div>
                   <p className="font-medium">{p.name}</p>
-                  <p className="text-xs text-slate-400">{fmtC(p.unitPrice)} / {p.portionDescription}</p>
+                  <p className="text-xs text-slate-400">{fmtC(p.unit_price)} / {p.portion_description}</p>
                 </div>
                 {selected === p.id && <Check size={14} className="text-blue-600 shrink-0" />}
               </button>
@@ -243,41 +245,30 @@ function AddMaterialModal({
 // ─── Add By Category Modal ────────────────────────────────────────────────────
 
 function AddByCategoryModal({
-  treatmentId,
-  appointmentId,
+  products,
+  apt,
+  onUpdateApt,
   onClose,
 }: {
-  treatmentId: string;
-  appointmentId: string;
+  products: ApiProduct[];
+  apt: ApiAppointment;
+  onUpdateApt: (data: { materials: ApiMaterial[] }) => void;
   onClose: () => void;
 }) {
-  const products = useCostosStore((s) => s.products);
-  const treatment = useCostosStore((s) => s.treatments.find((t) => t.id === treatmentId));
-  const updateTreatment = useCostosStore((s) => s.updateTreatment);
-
-  if (!treatment) return null;
-
-  const apt = treatment.appointments.find((a) => a.id === appointmentId);
-  const existingIds = new Set(apt?.materials.map((m) => m.productId) ?? []);
+  const existingIds = new Set(apt.materials.map((m) => m.productId));
   const available = products.filter((p) => !existingIds.has(p.id));
 
-  const byCategory = Object.entries(PRODUCT_CATEGORY_LABELS).map(([cat, label]) => ({
-    cat: cat as keyof typeof PRODUCT_CATEGORY_LABELS,
-    label,
-    items: available.filter((p) => p.category === cat),
-  })).filter((g) => g.items.length > 0);
+  const byCategory = Object.entries(PRODUCT_CATEGORY_LABELS)
+    .map(([cat, label]) => ({
+      cat: cat as keyof typeof PRODUCT_CATEGORY_LABELS,
+      label,
+      items: available.filter((p) => p.category === cat),
+    }))
+    .filter((g) => g.items.length > 0);
 
   function handleAddCategory(cat: string) {
-    if (!treatment) return;
     const toAdd = available.filter((p) => p.category === cat);
-    const updatedAppointments = treatment.appointments.map((a) => {
-      if (a.id !== appointmentId) return a;
-      return {
-        ...a,
-        materials: [...a.materials, ...toAdd.map((p) => ({ productId: p.id, quantity: 1 }))],
-      };
-    });
-    updateTreatment(treatmentId, { appointments: updatedAppointments });
+    onUpdateApt({ materials: [...apt.materials, ...toAdd.map((p) => ({ productId: p.id, quantity: 1 }))] });
     onClose();
   }
 
@@ -330,36 +321,33 @@ function AddByCategoryModal({
 // ─── Merge Appointment Modal ──────────────────────────────────────────────────
 
 function MergeAppointmentModal({
-  treatmentId,
   targetAppointmentId,
+  appointments,
+  products,
+  onMerge,
   onClose,
 }: {
-  treatmentId: string;
   targetAppointmentId: string;
+  appointments: ApiAppointment[];
+  products: ApiProduct[];
+  onMerge: (sourceId: string) => void;
   onClose: () => void;
 }) {
-  const treatment = useCostosStore((s) => s.treatments.find((t) => t.id === treatmentId));
-  const products = useCostosStore((s) => s.products);
-  const mergeAppointments = useCostosStore((s) => s.mergeAppointments);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
-  if (!treatment) return null;
-
-  const target = treatment.appointments.find((a) => a.id === targetAppointmentId);
-  const others = treatment.appointments.filter((a) => a.id !== targetAppointmentId);
+  const target = appointments.find((a) => a.id === targetAppointmentId);
+  const others = appointments.filter((a) => a.id !== targetAppointmentId);
 
   function handleMerge() {
     if (!selectedId) return;
-    mergeAppointments(treatmentId, targetAppointmentId, selectedId);
+    onMerge(selectedId);
     onClose();
   }
 
-  function materialCost(aptId: string) {
-    const apt = treatment!.appointments.find((a) => a.id === aptId);
-    if (!apt) return 0;
+  function materialCost(apt: ApiAppointment) {
     return apt.materials.reduce((sum, m) => {
       const p = products.find((p) => p.id === m.productId);
-      return sum + (p ? p.unitPrice * m.quantity : 0);
+      return sum + (p ? p.unit_price * m.quantity : 0);
     }, 0);
   }
 
@@ -370,7 +358,8 @@ function MergeAppointmentModal({
           <div>
             <h2 className="font-semibold text-slate-800">Fusionar cita</h2>
             <p className="text-xs text-slate-500 mt-0.5">
-              Los materiales de la cita seleccionada se absorberán en <span className="font-medium text-slate-700">Cita {target?.number}</span>
+              Los materiales de la cita seleccionada se absorberán en{" "}
+              <span className="font-medium text-slate-700">Cita {target?.number}</span>
             </p>
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
@@ -387,9 +376,7 @@ function MergeAppointmentModal({
               key={apt.id}
               onClick={() => setSelectedId(apt.id)}
               className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${
-                selectedId === apt.id
-                  ? "border-blue-400 bg-blue-50"
-                  : "border-slate-200 hover:bg-slate-50"
+                selectedId === apt.id ? "border-blue-400 bg-blue-50" : "border-slate-200 hover:bg-slate-50"
               }`}
             >
               <div className="flex items-center gap-3">
@@ -398,7 +385,9 @@ function MergeAppointmentModal({
                 </div>
                 <div>
                   <p className="font-medium text-slate-700 text-sm">{apt.name}</p>
-                  <p className="text-xs text-slate-400">{apt.materials.length} materiales · {fmtC(materialCost(apt.id))}</p>
+                  <p className="text-xs text-slate-400">
+                    {apt.materials.length} materiales · {fmtC(materialCost(apt))}
+                  </p>
                 </div>
               </div>
               {selectedId === apt.id && <Check size={15} className="text-blue-600 shrink-0" />}
@@ -432,19 +421,29 @@ function MergeAppointmentModal({
 function EditableAppointment({
   treatmentId,
   detail,
+  apt,
+  allApts,
+  products,
   defaultOpen,
   clipboard,
   onCopy,
   onPaste,
   onDelete,
+  onUpdateApt,
+  onMerge,
 }: {
   treatmentId: string;
   detail: ReturnType<typeof calculateTreatmentCosts>["appointmentCosts"][number];
+  apt: ApiAppointment;
+  allApts: ApiAppointment[];
+  products: ApiProduct[];
   defaultOpen?: boolean;
   clipboard: { materials: MaterialUsage[]; name: string } | null;
   onCopy: (materials: MaterialUsage[], name: string) => void;
   onPaste: (aptId: string, mode: "replace" | "merge") => void;
   onDelete: (aptId: string) => void;
+  onUpdateApt: (data: { name?: string; materials?: ApiMaterial[] }) => void;
+  onMerge: (sourceId: string) => void;
 }) {
   const [open, setOpen] = useState(defaultOpen ?? false);
   const [addOpen, setAddOpen] = useState(false);
@@ -453,52 +452,29 @@ function EditableAppointment({
   const [pasteOpen, setPasteOpen] = useState(false);
   const [editName, setEditName] = useState(false);
   const [editNameValue, setEditNameValue] = useState("");
-  const products = useCostosStore((s) => s.products);
-  const allAppointments = useCostosStore(
-    (s) => s.treatments.find((t) => t.id === treatmentId)?.appointments ?? []
-  );
-  const treatment = useCostosStore((s) => s.treatments.find((t) => t.id === treatmentId));
-  const updateTreatment = useCostosStore((s) => s.updateTreatment);
   const [editQty, setEditQty] = useState<string | null>(null);
   const [editQtyValue, setEditQtyValue] = useState("");
 
   const { appointment, materialCost, materials } = detail;
 
   function removeMaterial(productId: string) {
-    if (!treatment) return;
-    const updatedAppointments = treatment.appointments.map((a) => {
-      if (a.id !== appointment.id) return a;
-      return { ...a, materials: a.materials.filter((m) => m.productId !== productId) };
-    });
-    updateTreatment(treatmentId, { appointments: updatedAppointments });
+    onUpdateApt({ materials: apt.materials.filter((m) => m.productId !== productId) });
   }
 
   function saveName() {
-    if (!treatment) return;
     const trimmed = editNameValue.trim();
-    if (trimmed) {
-      const updatedAppointments = treatment.appointments.map((a) =>
-        a.id === appointment.id ? { ...a, name: trimmed } : a
-      );
-      updateTreatment(treatmentId, { appointments: updatedAppointments });
-    }
+    if (trimmed) onUpdateApt({ name: trimmed });
     setEditName(false);
   }
 
   function saveQty(productId: string) {
-    if (!treatment) return;
     const newQty = parseFloat(editQtyValue);
     if (isNaN(newQty) || newQty <= 0) { setEditQty(null); return; }
-    const updatedAppointments = treatment.appointments.map((a) => {
-      if (a.id !== appointment.id) return a;
-      return {
-        ...a,
-        materials: a.materials.map((m) =>
-          m.productId === productId ? { ...m, quantity: newQty } : m
-        ),
-      };
+    onUpdateApt({
+      materials: apt.materials.map((m) =>
+        m.productId === productId ? { ...m, quantity: newQty } : m
+      ),
     });
-    updateTreatment(treatmentId, { appointments: updatedAppointments });
     setEditQty(null);
   }
 
@@ -555,7 +531,7 @@ function EditableAppointment({
             <Copy size={14} />
           </button>
 
-          {/* Pegar (solo si hay portapapeles y no es la misma cita copiada) */}
+          {/* Pegar */}
           {clipboard && clipboard.name !== appointment.name && (
             <div className="relative" onClick={(e) => e.stopPropagation()}>
               <button
@@ -589,7 +565,7 @@ function EditableAppointment({
           )}
 
           {/* Merge */}
-          {allAppointments.length > 1 && (
+          {allApts.length > 1 && (
             <button
               onClick={(e) => { e.stopPropagation(); setMergeOpen(true); }}
               title="Fusionar con otra cita"
@@ -600,7 +576,7 @@ function EditableAppointment({
           )}
 
           {/* Eliminar cita */}
-          {allAppointments.length > 1 && (
+          {allApts.length > 1 && (
             <button
               onClick={(e) => { e.stopPropagation(); if (confirm(`¿Eliminar "${appointment.name}"?`)) onDelete(appointment.id); }}
               title="Eliminar cita"
@@ -641,9 +617,7 @@ function EditableAppointment({
                   <tr key={product.id} className="group hover:bg-slate-50/50">
                     <td className="px-5 py-2.5">
                       <p className="font-medium text-slate-700 text-sm">{product.name}</p>
-                      <span
-                        className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${PRODUCT_CATEGORY_COLORS[product.category]}`}
-                      >
+                      <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${PRODUCT_CATEGORY_COLORS[product.category]}`}>
                         {PRODUCT_CATEGORY_LABELS[product.category]}
                       </span>
                     </td>
@@ -673,10 +647,7 @@ function EditableAppointment({
                         </div>
                       ) : (
                         <button
-                          onClick={() => {
-                            setEditQty(product.id);
-                            setEditQtyValue(String(quantity));
-                          }}
+                          onClick={() => { setEditQty(product.id); setEditQtyValue(String(quantity)); }}
                           className="flex items-center justify-end gap-1 tabular-nums text-slate-700 hover:text-blue-600"
                         >
                           {quantity}
@@ -731,22 +702,26 @@ function EditableAppointment({
 
       {addOpen && (
         <AddMaterialModal
-          treatmentId={treatmentId}
-          appointmentId={appointment.id}
+          products={products}
+          apt={apt}
+          onUpdateApt={onUpdateApt}
           onClose={() => setAddOpen(false)}
         />
       )}
       {addCategoryOpen && (
         <AddByCategoryModal
-          treatmentId={treatmentId}
-          appointmentId={appointment.id}
+          products={products}
+          apt={apt}
+          onUpdateApt={onUpdateApt}
           onClose={() => setAddCategoryOpen(false)}
         />
       )}
       {mergeOpen && (
         <MergeAppointmentModal
-          treatmentId={treatmentId}
           targetAppointmentId={appointment.id}
+          appointments={allApts}
+          products={products}
+          onMerge={onMerge}
           onClose={() => setMergeOpen(false)}
         />
       )}
@@ -763,31 +738,50 @@ export default function TreatmentDetailPage({
 }) {
   const { id } = use(params);
   const router = useRouter();
-  const products = useCostosStore((s) => s.products);
-  const treatment = useCostosStore((s) => s.treatments.find((t) => t.id === id));
-  const updateTreatment = useCostosStore((s) => s.updateTreatment);
-  const addAppointment = useCostosStore((s) => s.addAppointment);
-  const deleteAppointment = useCostosStore((s) => s.deleteAppointment);
-  const fixedCostsConfig = useCostosStore((s) => s.fixedCostsConfig);
+
+  const { data: treatments = [], isLoading: loadingTreatments } = useCostTreatments();
+  const { data: apiProducts = [], isLoading: loadingProducts } = useCostProducts();
+  const { data: fixedCostsConfig } = useFixedCosts();
+
+  const updateTreatment = useUpdateCostTreatment();
+  const addAppointment = useAddCostAppointment();
+  const deleteAppointment = useDeleteCostAppointment();
+  const mergeMutation = useMergeCostAppointments();
+  const updateApt = useUpdateCostAppointment();
+
+  const treatment = treatments.find((t) => t.id === id);
+  const products = apiProducts.map(apiProductToProduct);
+
   const totalFijo = fixedCostsConfig?.items?.reduce((s, i) => s + i.amount, 0) ?? 0;
-  const globalFixedCost = (fixedCostsConfig?.patientsPerMonth ?? 1) > 0
-    ? totalFijo / fixedCostsConfig.patientsPerMonth
-    : undefined;
+  const globalFixedCost =
+    (fixedCostsConfig?.patients_per_month ?? 0) > 0
+      ? totalFijo / fixedCostsConfig!.patients_per_month
+      : undefined;
+
   const [editName, setEditName] = useState(false);
   const [nameValue, setNameValue] = useState("");
   const [clipboard, setClipboard] = useState<{ materials: MaterialUsage[]; name: string } | null>(null);
 
   function handlePaste(aptId: string, mode: "replace" | "merge") {
     if (!clipboard || !treatment) return;
-    const updated = treatment.appointments.map((a) => {
-      if (a.id !== aptId) return a;
-      if (mode === "replace") return { ...a, materials: [...clipboard.materials] };
-      // merge: añadir los del portapapeles que no existan ya
-      const existingIds = new Set(a.materials.map((m) => m.productId));
-      const toAdd = clipboard.materials.filter((m) => !existingIds.has(m.productId));
-      return { ...a, materials: [...a.materials, ...toAdd] };
-    });
-    updateTreatment(id, { appointments: updated });
+    const apt = treatment.appointments.find((a) => a.id === aptId);
+    if (!apt) return;
+    let newMaterials: ApiMaterial[];
+    if (mode === "replace") {
+      newMaterials = [...clipboard.materials];
+    } else {
+      const existingIds = new Set(apt.materials.map((m) => m.productId));
+      newMaterials = [...apt.materials, ...clipboard.materials.filter((m) => !existingIds.has(m.productId))];
+    }
+    updateApt.mutate({ treatmentId: id, aptId, materials: newMaterials });
+  }
+
+  if (loadingTreatments || loadingProducts) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="text-slate-400">Cargando...</div>
+      </div>
+    );
   }
 
   if (!treatment) {
@@ -804,7 +798,8 @@ export default function TreatmentDetailPage({
     );
   }
 
-  const breakdown = calculateTreatmentCosts(treatment, products, globalFixedCost);
+  const treatmentForCalc = apiTreatmentToTreatment(treatment);
+  const breakdown = calculateTreatmentCosts(treatmentForCalc, products, globalFixedCost);
 
   return (
     <div className="mx-auto max-w-4xl p-6 space-y-5">
@@ -826,14 +821,14 @@ export default function TreatmentDetailPage({
                 autoFocus
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
-                    updateTreatment(id, { name: nameValue });
+                    updateTreatment.mutate({ id, name: nameValue });
                     setEditName(false);
                   }
                   if (e.key === "Escape") setEditName(false);
                 }}
               />
               <button
-                onClick={() => { updateTreatment(id, { name: nameValue }); setEditName(false); }}
+                onClick={() => { updateTreatment.mutate({ id, name: nameValue }); setEditName(false); }}
                 className="text-green-600 hover:text-green-700"
               >
                 <Check size={16} />
@@ -856,10 +851,12 @@ export default function TreatmentDetailPage({
           )}
           <div className="mt-2 flex items-center gap-3 text-xs text-slate-400">
             <span className="flex items-center gap-1">
-              <Clock size={11} /> {treatment.totalHours}h profesional
+              <Clock size={11} /> {treatment.total_hours}h profesional
             </span>
             <span>·</span>
-            <span>{treatment.appointments.length} cita{treatment.appointments.length !== 1 ? "s" : ""}</span>
+            <span>
+              {treatment.appointments.length} cita{treatment.appointments.length !== 1 ? "s" : ""}
+            </span>
           </div>
         </div>
       </div>
@@ -868,7 +865,11 @@ export default function TreatmentDetailPage({
       <CostSummaryBar breakdown={breakdown} />
 
       {/* Settings */}
-      <TreatmentSettings treatmentId={id} globalFixedCost={globalFixedCost} />
+      <TreatmentSettings
+        treatment={treatment}
+        globalFixedCost={globalFixedCost}
+        onUpdate={(data) => updateTreatment.mutate({ id, ...data })}
+      />
 
       {/* Appointments */}
       <div className="space-y-3">
@@ -883,23 +884,31 @@ export default function TreatmentDetailPage({
                 </button>
               </span>
             )}
-            <Button size="sm" variant="secondary" onClick={() => addAppointment(id)}>
+            <Button size="sm" variant="secondary" onClick={() => addAppointment.mutate(id)}>
               <Plus size={14} /> Agregar cita
             </Button>
           </div>
         </div>
-        {breakdown.appointmentCosts.map((detail, i) => (
-          <EditableAppointment
-            key={detail.appointment.id}
-            treatmentId={id}
-            detail={detail}
-            defaultOpen={i === 0}
-            clipboard={clipboard}
-            onCopy={(mats, name) => setClipboard({ materials: mats, name })}
-            onPaste={handlePaste}
-            onDelete={(aptId) => deleteAppointment(id, aptId)}
-          />
-        ))}
+        {breakdown.appointmentCosts.map((detail, i) => {
+          const apt = treatment.appointments.find((a) => a.id === detail.appointment.id)!;
+          return (
+            <EditableAppointment
+              key={detail.appointment.id}
+              treatmentId={id}
+              detail={detail}
+              apt={apt}
+              allApts={treatment.appointments}
+              products={apiProducts}
+              defaultOpen={i === 0}
+              clipboard={clipboard}
+              onCopy={(mats, name) => setClipboard({ materials: mats, name })}
+              onPaste={handlePaste}
+              onDelete={(aptId) => deleteAppointment.mutate({ treatmentId: id, aptId })}
+              onUpdateApt={(data) => updateApt.mutate({ treatmentId: id, aptId: apt.id, ...data })}
+              onMerge={(sourceId) => mergeMutation.mutate({ treatmentId: id, targetId: apt.id, sourceId })}
+            />
+          );
+        })}
       </div>
     </div>
   );
