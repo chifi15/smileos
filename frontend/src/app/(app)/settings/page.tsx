@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { Building2, Users, Copy, CheckCircle2, UserPlus, Tag, Plus, Pencil, Check, X, Trash2, GripVertical, Link2, Unlink } from "lucide-react";
+import { Building2, Users, Copy, CheckCircle2, UserPlus, Tag, Plus, Pencil, Check, X, Trash2, GripVertical, Link2, Unlink, Download, Shield } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useClinicSettings, useUpdateSettings } from "@/hooks/useSettings";
+import { getAccessToken } from "@/lib/api-client";
 import { useAllUsers, useCreateUser } from "@/hooks/useUsers";
 import { useProcedures, useUpdateProcedurePrice, useCreateProcedure, useDeleteProcedure, useReorderProcedures } from "@/hooks/useCatalog";
 import { ClinicUser, UserRole, Procedure } from "@/types";
@@ -383,6 +384,8 @@ export default function SettingsPage() {
       />
 
       <PriceCatalogSection />
+
+      <BackupSection />
     </div>
   );
 }
@@ -725,6 +728,60 @@ function PriceCatalogSection() {
         </DndContext>
       )}
       <AddProcedureModal open={showAdd} onClose={() => setShowAdd(false)} />
+    </section>
+  );
+}
+
+function BackupSection() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  async function handleDownload() {
+    setLoading(true);
+    setError("");
+    try {
+      const token = getAccessToken();
+      const apiBase = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+      const res = await fetch(`${apiBase}/api/v1/export/backup`, {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        credentials: "include",
+      });
+      if (!res.ok) throw new Error(`Error ${res.status}`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      const date = new Date().toISOString().slice(0, 10);
+      a.download = `smileos_backup_${date}.xlsx`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e) {
+      setError("No se pudo descargar el respaldo. Intenta de nuevo.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <section className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
+      <div className="flex items-center gap-2 border-b border-slate-100 px-6 py-4">
+        <Shield size={16} className="text-slate-400" />
+        <h2 className="font-semibold text-slate-800">Respaldo de datos</h2>
+      </div>
+      <div className="px-6 py-5 space-y-4">
+        <p className="text-sm text-slate-600">
+          Descarga todos los datos de la clínica en un archivo Excel con 6 hojas: Pacientes, Finanzas, Productos, Lotes, Tratamientos y Citas.
+        </p>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+          <strong>Recomendación:</strong> Descarga un respaldo al menos una vez al mes y guárdalo en Drive o en tu computadora.
+          El plan gratuito de la base de datos puede eliminar datos si la aplicación lleva 90 días sin uso.
+        </div>
+        {error && <p className="text-sm text-red-500">{error}</p>}
+        <Button onClick={handleDownload} loading={loading} variant="secondary">
+          <Download size={15} />
+          {loading ? "Generando archivo…" : "Descargar respaldo (.xlsx)"}
+        </Button>
+      </div>
     </section>
   );
 }
