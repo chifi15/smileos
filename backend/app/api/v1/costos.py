@@ -5,8 +5,7 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.security import get_current_user
-from app.models.user import User
+from app.core.dependencies import CurrentUser
 from app.services import costos_service as svc
 
 router = APIRouter(prefix="/costos", tags=["Costos"])
@@ -151,7 +150,7 @@ class FixedCostsOut(BaseModel):
 
 @router.get("/products", response_model=List[ProductOut])
 async def list_products(
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     products = await svc.get_products(db, current_user.clinic_id)
@@ -161,7 +160,7 @@ async def list_products(
 @router.post("/products", response_model=ProductOut, status_code=201)
 async def create_product(
     body: ProductIn,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.create_product(db, current_user.clinic_id, body.model_dump())
@@ -171,7 +170,7 @@ async def create_product(
 async def update_product(
     product_id: uuid.UUID,
     body: ProductIn,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     obj = await svc.update_product(db, current_user.clinic_id, product_id, body.model_dump())
@@ -183,7 +182,7 @@ async def update_product(
 @router.delete("/products/{product_id}", status_code=204)
 async def delete_product(
     product_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     ok = await svc.delete_product(db, current_user.clinic_id, product_id)
@@ -194,7 +193,7 @@ async def delete_product(
 @router.post("/products/reorder", status_code=204)
 async def reorder_products(
     body: ReorderIn,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     await svc.reorder_products(db, current_user.clinic_id, body.ids)
@@ -204,7 +203,7 @@ async def reorder_products(
 async def update_stock(
     product_id: uuid.UUID,
     body: StockIn,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     obj = await svc.update_product_stock(db, current_user.clinic_id, product_id, body.qty, body.operation)
@@ -217,7 +216,7 @@ async def update_stock(
 async def update_min_stock(
     product_id: uuid.UUID,
     body: MinStockIn,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     obj = await svc.update_min_stock(db, current_user.clinic_id, product_id, body.min_qty)
@@ -230,7 +229,7 @@ async def update_min_stock(
 
 @router.get("/treatments", response_model=List[TreatmentOut])
 async def list_treatments(
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     return await svc.get_treatments(db, current_user.clinic_id)
@@ -239,7 +238,7 @@ async def list_treatments(
 @router.post("/treatments", response_model=TreatmentOut, status_code=201)
 async def create_treatment(
     body: TreatmentIn,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     data = body.model_dump(exclude={"appointments"})
@@ -251,7 +250,7 @@ async def create_treatment(
 async def update_treatment(
     treatment_id: uuid.UUID,
     body: TreatmentUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
@@ -264,7 +263,7 @@ async def update_treatment(
 @router.delete("/treatments/{treatment_id}", status_code=204)
 async def delete_treatment(
     treatment_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     ok = await svc.delete_treatment(db, current_user.clinic_id, treatment_id)
@@ -275,7 +274,7 @@ async def delete_treatment(
 @router.post("/treatments/reorder", status_code=204)
 async def reorder_treatments(
     body: ReorderIn,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     await svc.reorder_treatments(db, current_user.clinic_id, body.ids)
@@ -284,7 +283,7 @@ async def reorder_treatments(
 @router.post("/treatments/{treatment_id}/appointments", response_model=TreatmentOut)
 async def add_appointment(
     treatment_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     obj = await svc.add_appointment(db, current_user.clinic_id, treatment_id)
@@ -298,7 +297,7 @@ async def update_appointment(
     treatment_id: uuid.UUID,
     apt_id: uuid.UUID,
     body: AppointmentUpdate,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     updates = {k: v for k, v in body.model_dump().items() if v is not None}
@@ -312,7 +311,7 @@ async def update_appointment(
 async def delete_appointment(
     treatment_id: uuid.UUID,
     apt_id: uuid.UUID,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     obj = await svc.delete_appointment(db, current_user.clinic_id, treatment_id, apt_id)
@@ -325,7 +324,7 @@ async def delete_appointment(
 async def merge_appointments(
     treatment_id: uuid.UUID,
     body: MergeIn,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     obj = await svc.merge_appointments(db, current_user.clinic_id, treatment_id, body.target_id, body.source_id)
@@ -338,7 +337,7 @@ async def merge_appointments(
 
 @router.get("/fixed-costs", response_model=FixedCostsOut)
 async def get_fixed_costs(
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     config = await svc.get_fixed_costs(db, current_user.clinic_id)
@@ -348,7 +347,7 @@ async def get_fixed_costs(
 @router.put("/fixed-costs", response_model=FixedCostsOut)
 async def update_fixed_costs(
     body: FixedCostsIn,
-    current_user: User = Depends(get_current_user),
+    current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
     config = await svc.update_fixed_costs(
