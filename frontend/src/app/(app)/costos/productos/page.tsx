@@ -17,7 +17,8 @@ import {
 import {
   ProductCategory,
   PRODUCT_CATEGORY_LABELS,
-  PRODUCT_CATEGORY_COLORS,
+  categoryLabel,
+  categoryColor,
   PRESENTATION_UNITS,
 } from "@/types/costos";
 import { fmtC, fmt } from "@/lib/costos-utils";
@@ -41,7 +42,7 @@ function calcUnitPrice(totalCost?: number, portions?: number | null): number | n
 
 interface ProductFormState {
   name: string;
-  category: ProductCategory;
+  category: string;
   supplier: string;
   notes: string;
   totalCost: string;
@@ -71,10 +72,15 @@ function productToForm(p: ApiProduct): ProductFormState {
   };
 }
 
+const CUSTOM_SENTINEL = "__custom__";
+
 function ProductModal({ initial, onSave, onClose }: { initial?: ApiProduct; onSave: (data: Omit<ApiProduct, "id" | "sort_order" | "stock_qty" | "min_stock_qty">) => void; onClose: () => void }) {
   const [form, setForm] = useState<ProductFormState>(initial ? productToForm(initial) : EMPTY_FORM);
   const f = (key: keyof ProductFormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((s) => ({ ...s, [key]: e.target.value }));
+
+  const isCustomCategory = !ALL_CATEGORIES.includes(form.category as ProductCategory) && form.category !== "";
+  const [showCustomInput, setShowCustomInput] = useState(isCustomCategory);
 
   const pQty = parseFloat(form.presentationQty) || 0;
   const portQty = parseFloat(form.portionQty) || 0;
@@ -119,9 +125,37 @@ function ProductModal({ initial, onSave, onClose }: { initial?: ApiProduct; onSa
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Categoría</label>
-                <select value={form.category} onChange={f("category")} className="w-full h-9 rounded-lg border border-slate-300 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                  {ALL_CATEGORIES.map((c) => <option key={c} value={c}>{PRODUCT_CATEGORY_LABELS[c]}</option>)}
-                </select>
+                {showCustomInput ? (
+                  <div className="flex gap-1">
+                    <input
+                      autoFocus
+                      value={form.category}
+                      onChange={(e) => setForm((s) => ({ ...s, category: e.target.value }))}
+                      placeholder="Nombre de categoría"
+                      className="flex-1 min-w-0 rounded-lg border border-blue-400 ring-2 ring-blue-200 px-3 py-2 text-sm focus:outline-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => { setShowCustomInput(false); setForm((s) => ({ ...s, category: "otros" })); }}
+                      className="shrink-0 rounded-lg border border-slate-200 px-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 text-xs"
+                      title="Volver a lista"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                ) : (
+                  <select
+                    value={form.category}
+                    onChange={(e) => {
+                      if (e.target.value === CUSTOM_SENTINEL) { setShowCustomInput(true); setForm((s) => ({ ...s, category: "" })); }
+                      else { setForm((s) => ({ ...s, category: e.target.value })); }
+                    }}
+                    className="w-full h-9 rounded-lg border border-slate-300 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    {ALL_CATEGORIES.map((c) => <option key={c} value={c}>{PRODUCT_CATEGORY_LABELS[c]}</option>)}
+                    <option value={CUSTOM_SENTINEL}>+ Nueva categoría…</option>
+                  </select>
+                )}
               </div>
               <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Proveedor</label>
@@ -240,8 +274,8 @@ function SortableProductRow({ product, onEdit, isDragDisabled }: { product: ApiP
         {product.notes && <p className="text-xs text-slate-300 italic truncate max-w-[180px]">{product.notes}</p>}
       </td>
       <td className="px-4 py-3">
-        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${PRODUCT_CATEGORY_COLORS[product.category as ProductCategory]}`}>
-          {PRODUCT_CATEGORY_LABELS[product.category as ProductCategory]}
+        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${categoryColor(product.category)}`}>
+          {categoryLabel(product.category)}
         </span>
       </td>
       <td className="px-4 py-3">
@@ -281,11 +315,16 @@ export default function ProductosPage() {
   const reorderProducts = useReorderCostProducts();
 
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<ProductCategory | "all">("all");
+  const [category, setCategory] = useState<string>("all");
   const [showNew, setShowNew] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
 
   const hasFilter = search.trim() !== "" || category !== "all";
+
+  const allCategoriesInUse: string[] = [
+    ...ALL_CATEGORIES,
+    ...products.map((p) => p.category).filter((c) => !ALL_CATEGORIES.includes(c as ProductCategory)),
+  ].filter((v, i, a) => a.indexOf(v) === i);
 
   const filtered = products.filter((p) => {
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || (p.supplier ?? "").toLowerCase().includes(search.toLowerCase());
@@ -332,9 +371,9 @@ export default function ProductosPage() {
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
           <button onClick={() => setCategory("all")} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === "all" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>Todos</button>
-          {ALL_CATEGORIES.map((cat) => (
+          {allCategoriesInUse.map((cat) => (
             <button key={cat} onClick={() => setCategory(cat)} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === cat ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
-              {PRODUCT_CATEGORY_LABELS[cat]}
+              {categoryLabel(cat)}
             </button>
           ))}
         </div>

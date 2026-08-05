@@ -15,7 +15,7 @@ import {
   ApiProduct,
   ApiProductLot,
 } from "@/hooks/useCostos";
-import { PRODUCT_CATEGORY_LABELS, PRODUCT_CATEGORY_COLORS, ProductCategory } from "@/types/costos";
+import { categoryLabel, categoryColor, ProductCategory } from "@/types/costos";
 import { fmt } from "@/lib/costos-utils";
 
 const ALL_CATEGORIES: ProductCategory[] = [
@@ -415,8 +415,8 @@ function InventoryRow({ product, onAdjust, onLots }: { product: ApiProduct; onAd
         )}
       </td>
       <td className="px-4 py-3">
-        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${PRODUCT_CATEGORY_COLORS[product.category as ProductCategory]}`}>
-          {PRODUCT_CATEGORY_LABELS[product.category as ProductCategory]}
+        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${categoryColor(product.category)}`}>
+          {categoryLabel(product.category)}
         </span>
       </td>
       <td className="px-4 py-3">
@@ -479,7 +479,7 @@ export default function InventarioPage() {
   const { data: treatments = [] } = useCostTreatments();
 
   const [search, setSearch] = useState("");
-  const [category, setCategory] = useState<ProductCategory | "all">("all");
+  const [category, setCategory] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<StockStatus | "all">("all");
   const [adjusting, setAdjusting] = useState<ApiProduct | null>(null);
   const [lotsProduct, setLotsProduct] = useState<ApiProduct | null>(null);
@@ -493,6 +493,11 @@ export default function InventarioPage() {
 
   const counts = { ok: 0, low: 0, empty: 0, unconfigured: 0 };
   for (const p of products) counts[getStatus(p)]++;
+
+  const allCategoriesInUse: string[] = [
+    ...ALL_CATEGORIES,
+    ...products.map((p) => p.category).filter((c) => !ALL_CATEGORIES.includes(c as ProductCategory)),
+  ].filter((v, i, a) => a.indexOf(v) === i);
 
   const linkedCount = treatments.filter((t) => t.procedure_catalog_id).length;
 
@@ -552,9 +557,9 @@ export default function InventarioPage() {
         </div>
         <div className="flex flex-wrap gap-1.5">
           <button onClick={() => setCategory("all")} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === "all" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>Todos</button>
-          {ALL_CATEGORIES.map((cat) => (
+          {allCategoriesInUse.map((cat) => (
             <button key={cat} onClick={() => setCategory(cat)} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === cat ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
-              {PRODUCT_CATEGORY_LABELS[cat]}
+              {categoryLabel(cat)}
             </button>
           ))}
         </div>

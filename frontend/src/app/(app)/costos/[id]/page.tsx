@@ -40,7 +40,7 @@ import {
   apiProductToProduct,
   apiTreatmentToTreatment,
 } from "@/lib/costos-utils";
-import { PRODUCT_CATEGORY_COLORS, PRODUCT_CATEGORY_LABELS } from "@/types/costos";
+import { PRODUCT_CATEGORY_LABELS, categoryLabel, categoryColor } from "@/types/costos";
 import CostSummaryBar from "@/components/costos/CostSummaryBar";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -296,7 +296,7 @@ function AddByCategoryModal({
                   onClick={() => handleAddCategory(cat)}
                   className="flex flex-col items-start gap-1.5 rounded-xl border border-slate-200 px-4 py-3 text-left hover:border-blue-300 hover:bg-blue-50 transition-colors"
                 >
-                  <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${PRODUCT_CATEGORY_COLORS[cat]}`}>
+                  <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${categoryColor(cat)}`}>
                     {label}
                   </span>
                   <p className="text-xs text-slate-500">
@@ -617,8 +617,8 @@ function EditableAppointment({
                   <tr key={product.id} className="group hover:bg-slate-50/50">
                     <td className="px-5 py-2.5">
                       <p className="font-medium text-slate-700 text-sm">{product.name}</p>
-                      <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${PRODUCT_CATEGORY_COLORS[product.category]}`}>
-                        {PRODUCT_CATEGORY_LABELS[product.category]}
+                      <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${categoryColor(product.category)}`}>
+                        {categoryLabel(product.category)}
                       </span>
                     </td>
                     <td className="px-4 py-2.5 text-right text-slate-600">

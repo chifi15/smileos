@@ -4,7 +4,7 @@ import { useState } from "react";
 import { ChevronDown, ChevronRight, Package } from "lucide-react";
 import { AppointmentCostDetail } from "@/types/costos";
 import { fmtC } from "@/lib/costos-utils";
-import { PRODUCT_CATEGORY_LABELS, PRODUCT_CATEGORY_COLORS } from "@/types/costos";
+import { categoryLabel, categoryColor } from "@/types/costos";
 
 interface Props {
   detail: AppointmentCostDetail;
@@ -73,9 +73,9 @@ export default function AppointmentAccordion({ detail, defaultOpen }: Props) {
                   </td>
                   <td className="px-5 py-3">
                     <span
-                      className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${PRODUCT_CATEGORY_COLORS[product.category]}`}
+                      className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${categoryColor(product.category)}`}
                     >
-                      {PRODUCT_CATEGORY_LABELS[product.category]}
+                      {categoryLabel(product.category)}
                     </span>
                   </td>
                   <td className="px-4 py-3 text-right text-slate-600">{fmtC(product.unitPrice)}</td>
