@@ -454,19 +454,32 @@ function PriceRow({ proc }: { proc: Procedure }) {
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(proc.name);
   const [linkingOpen, setLinkingOpen] = useState(false);
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
   const linkingRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
   const { data: treatments = [] } = useCostTreatments();
 
   useEffect(() => {
     if (!linkingOpen) return;
     function handleClick(e: MouseEvent) {
-      if (linkingRef.current && !linkingRef.current.contains(e.target as Node)) {
+      if (linkingRef.current && !linkingRef.current.contains(e.target as Node) &&
+          triggerRef.current && !triggerRef.current.contains(e.target as Node)) {
         setLinkingOpen(false);
       }
     }
     document.addEventListener("mousedown", handleClick);
     return () => document.removeEventListener("mousedown", handleClick);
   }, [linkingOpen]);
+
+  function openDropdown() {
+    if (!triggerRef.current) return;
+    const rect = triggerRef.current.getBoundingClientRect();
+    const dropdownH = Math.min(treatments.length * 44 + 40, 240);
+    const spaceBelow = window.innerHeight - rect.bottom;
+    const top = spaceBelow >= dropdownH ? rect.bottom + 4 : rect.top - dropdownH - 4;
+    setDropdownPos({ top, left: rect.left });
+    setLinkingOpen(true);
+  }
   const linkProcedure = useLinkCostProcedure();
   const linkedTreatment = treatments.find((t) => t.procedure_catalog_id === proc.id);
 
@@ -544,12 +557,13 @@ function PriceRow({ proc }: { proc: Procedure }) {
           isPending={update.isPending}
         />
         {/* Vínculo con tratamiento de costos */}
-        <div ref={linkingRef} className="relative flex items-center gap-1.5">
+        <div className="relative flex items-center gap-1.5">
           <span className="text-xs text-slate-400 shrink-0">Inventario:</span>
           {linkedTreatment ? (
             <div className="flex items-center gap-1">
               <button
-                onClick={() => setLinkingOpen((v) => !v)}
+                ref={triggerRef}
+                onClick={() => linkingOpen ? setLinkingOpen(false) : openDropdown()}
                 className="flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors max-w-[160px]"
                 title={linkedTreatment.name}
               >
@@ -566,7 +580,8 @@ function PriceRow({ proc }: { proc: Procedure }) {
             </div>
           ) : (
             <button
-              onClick={() => setLinkingOpen((v) => !v)}
+              ref={triggerRef}
+              onClick={() => linkingOpen ? setLinkingOpen(false) : openDropdown()}
               className="flex items-center gap-1 rounded-md border border-dashed border-slate-300 px-2 py-1 text-xs text-slate-400 hover:border-blue-400 hover:text-blue-500 transition-colors"
             >
               <Link2 size={11} />
@@ -574,7 +589,7 @@ function PriceRow({ proc }: { proc: Procedure }) {
             </button>
           )}
           {linkingOpen && (
-            <div className="absolute left-0 top-full mt-1 z-30 w-56 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+            <div ref={linkingRef} style={{ top: dropdownPos.top, left: dropdownPos.left }} className="fixed z-50 w-56 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
               <p className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wide border-b border-slate-100">
                 Seleccionar tratamiento
               </p>
