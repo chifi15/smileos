@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { Building2, Users, Copy, CheckCircle2, UserPlus, Tag, Plus, Pencil, Check, X, Trash2, GripVertical } from "lucide-react";
+import { Building2, Users, Copy, CheckCircle2, UserPlus, Tag, Plus, Pencil, Check, X, Trash2, GripVertical, Link2, Unlink } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -453,7 +453,20 @@ function PriceRow({ proc }: { proc: Procedure }) {
   const deleteProcedure = useDeleteProcedure();
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(proc.name);
+  const [linkingOpen, setLinkingOpen] = useState(false);
+  const linkingRef = useRef<HTMLDivElement>(null);
   const { data: treatments = [] } = useCostTreatments();
+
+  useEffect(() => {
+    if (!linkingOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (linkingRef.current && !linkingRef.current.contains(e.target as Node)) {
+        setLinkingOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [linkingOpen]);
   const linkProcedure = useLinkCostProcedure();
   const linkedTreatment = treatments.find((t) => t.procedure_catalog_id === proc.id);
 
@@ -528,22 +541,61 @@ function PriceRow({ proc }: { proc: Procedure }) {
           isPending={update.isPending}
         />
         {/* Vínculo con tratamiento de costos */}
-        <div className="flex items-center gap-1.5">
-          <span className="text-xs text-slate-400">Inventario:</span>
-          <select
-            value={linkedTreatment?.id ?? ""}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (linkedTreatment) linkProcedure.mutate({ treatmentId: linkedTreatment.id, procedureCatalogId: null });
-              if (val) linkProcedure.mutate({ treatmentId: val, procedureCatalogId: proc.id });
-            }}
-            className="h-7 rounded border border-slate-200 px-1.5 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-blue-400"
-          >
-            <option value="">Sin vincular</option>
-            {treatments.map((t) => (
-              <option key={t.id} value={t.id}>{t.name}</option>
-            ))}
-          </select>
+        <div ref={linkingRef} className="relative flex items-center gap-1.5">
+          <span className="text-xs text-slate-400 shrink-0">Inventario:</span>
+          {linkedTreatment ? (
+            <div className="flex items-center gap-1">
+              <button
+                onClick={() => setLinkingOpen((v) => !v)}
+                className="flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors max-w-[160px]"
+                title={linkedTreatment.name}
+              >
+                <Link2 size={11} className="shrink-0" />
+                <span className="truncate">{linkedTreatment.name}</span>
+              </button>
+              <button
+                onClick={() => linkProcedure.mutate({ treatmentId: linkedTreatment.id, procedureCatalogId: null })}
+                className="text-slate-300 hover:text-red-400 transition-colors"
+                title="Desvincular"
+              >
+                <Unlink size={12} />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setLinkingOpen((v) => !v)}
+              className="flex items-center gap-1 rounded-md border border-dashed border-slate-300 px-2 py-1 text-xs text-slate-400 hover:border-blue-400 hover:text-blue-500 transition-colors"
+            >
+              <Link2 size={11} />
+              Vincular
+            </button>
+          )}
+          {linkingOpen && (
+            <div className="absolute right-0 top-full mt-1 z-30 w-56 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+              <p className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wide border-b border-slate-100">
+                Seleccionar tratamiento
+              </p>
+              <div className="max-h-48 overflow-y-auto">
+                {treatments.length === 0 && (
+                  <p className="px-3 py-3 text-xs text-slate-400">Sin tratamientos creados</p>
+                )}
+                {treatments.map((t) => (
+                  <button
+                    key={t.id}
+                    onClick={() => {
+                      if (linkedTreatment) linkProcedure.mutate({ treatmentId: linkedTreatment.id, procedureCatalogId: null });
+                      linkProcedure.mutate({ treatmentId: t.id, procedureCatalogId: proc.id });
+                      setLinkingOpen(false);
+                    }}
+                    className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-blue-50 transition-colors ${linkedTreatment?.id === t.id ? "text-blue-700 font-medium" : "text-slate-700"}`}
+                  >
+                    {linkedTreatment?.id === t.id && <Check size={12} className="text-blue-600 shrink-0" />}
+                    <span className={linkedTreatment?.id === t.id ? "" : "pl-4"}>{t.name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         <button
           onClick={handleDelete}
