@@ -15,6 +15,7 @@ from app.models.patient import Patient
 from app.models.appointment import Appointment
 from app.models.finance import FinanceTransaction
 from app.models.costos import CostProduct, CostTreatment, CostProductLot
+from app.models.photo import PatientPhoto
 
 router = APIRouter(prefix="/export", tags=["Export"])
 
@@ -529,5 +530,48 @@ async def export_json(
     return StreamingResponse(
         buf,
         media_type="application/json",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get("/photos")
+async def export_photos(
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    import zipfile
+    from app.core import storage
+    from sqlalchemy.orm import selectinload as _sil
+
+    clinic_id = current_user.clinic_id
+
+    result = await db.execute(
+        select(PatientPhoto)
+        .join(Patient, PatientPhoto.patient_id == Patient.id)
+        .where(PatientPhoto.clinic_id == clinic_id, PatientPhoto.is_active == True)
+        .options(_sil(PatientPhoto.patient))
+        .order_by(Patient.last_name, Patient.first_name, PatientPhoto.sort_order)
+    )
+    photos = result.scalars().all()
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for photo in photos:
+            try:
+                data = storage.read_file(photo.storage_path)
+            except Exception:
+                continue
+            patient = photo.patient
+            folder = f"{patient.last_name}_{patient.first_name}_{str(patient.id)[:8]}"
+            # sanitize
+            folder = "".join(c if c.isalnum() or c in "_-" else "_" for c in folder)
+            zip_path = f"{folder}/{photo.photo_type}_{photo.filename}"
+            zf.writestr(zip_path, data)
+
+    buf.seek(0)
+    filename = f"smileos_fotos_{datetime.now().strftime('%Y%m%d')}.zip"
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )

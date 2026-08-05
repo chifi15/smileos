@@ -735,11 +735,12 @@ function PriceCatalogSection() {
 function BackupSection() {
   const [loadingXlsx, setLoadingXlsx] = useState(false);
   const [loadingJson, setLoadingJson] = useState(false);
+  const [loadingPhotos, setLoadingPhotos] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleDownload(format: "backup" | "json") {
-    const setLoading = format === "backup" ? setLoadingXlsx : setLoadingJson;
-    const ext = format === "backup" ? "xlsx" : "json";
+  async function handleDownload(format: "backup" | "json" | "photos") {
+    const setLoading = format === "backup" ? setLoadingXlsx : format === "json" ? setLoadingJson : setLoadingPhotos;
+    const ext = format === "backup" ? "xlsx" : format === "json" ? "json" : "zip";
     setLoading(true);
     setError("");
     try {
@@ -776,7 +777,7 @@ function BackupSection() {
           El plan gratuito de la base de datos puede eliminar datos si la aplicación lleva 90 días sin uso.
         </div>
 
-        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <div className="rounded-xl border border-slate-200 p-4 space-y-2">
             <p className="text-sm font-semibold text-slate-700">Excel (.xlsx)</p>
             <p className="text-xs text-slate-500">Para revisar tus datos tú mismo, imprimir o compartir. 6 hojas: Pacientes, Finanzas, Productos, Lotes, Tratamientos, Citas.</p>
@@ -792,6 +793,15 @@ function BackupSection() {
             <Button onClick={() => handleDownload("json")} loading={loadingJson} variant="secondary" size="sm" className="w-full">
               <Download size={13} />
               {loadingJson ? "Generando…" : "Descargar JSON"}
+            </Button>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 p-4 space-y-2">
+            <p className="text-sm font-semibold text-slate-700">Fotos de pacientes (.zip)</p>
+            <p className="text-xs text-slate-500">Descarga todas las fotos clínicas organizadas por paciente. Guardadas en S3, se incluyen aquí para respaldo completo.</p>
+            <Button onClick={() => handleDownload("photos")} loading={loadingPhotos} variant="secondary" size="sm" className="w-full">
+              <Download size={13} />
+              {loadingPhotos ? "Generando…" : "Descargar fotos"}
             </Button>
           </div>
         </div>
