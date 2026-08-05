@@ -15,6 +15,10 @@ import {
   FileImage,
   User,
   Pencil,
+  Package,
+  Check,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import apiClient from "@/lib/api-client";
@@ -359,6 +363,26 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   const categories = isIngreso ? INCOME_CATEGORY_LABELS : EXPENSE_CATEGORY_LABELS;
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Materials actually used — initialized from the linked treatment template, editable by the user
+  type UsedMaterial = { productId: string; qty: number };
+  const [usedMaterials, setUsedMaterials] = useState<UsedMaterial[] | null>(null);
+  const [materialsOpen, setMaterialsOpen] = useState(false);
+  const [addMatSearch, setAddMatSearch] = useState("");
+  const [addMatOpen, setAddMatOpen] = useState(false);
+
+  function initMaterialsFromTreatment(procedureId: string) {
+    const treatment = apiTreatments.find((t) => t.procedure_catalog_id === procedureId);
+    if (!treatment) { setUsedMaterials(null); return; }
+    const totals = new Map<string, number>();
+    for (const apt of treatment.appointments) {
+      for (const m of apt.materials) {
+        totals.set(m.productId, (totals.get(m.productId) ?? 0) + m.quantity);
+      }
+    }
+    setUsedMaterials(Array.from(totals.entries()).map(([productId, qty]) => ({ productId, qty })));
+    setMaterialsOpen(true);
+  }
+
   function set<K extends keyof FormState>(key: K, val: FormState[K]) {
     setForm((f) => ({ ...f, [key]: val }));
   }
@@ -410,26 +434,27 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
 
     create.mutate(payload, {
       onSuccess: async (tx: FinanceTransaction) => {
-        // Descontar materiales del inventario si el procedimiento está vinculado
-        if (tx.procedure?.id) {
+        // Descontar materiales del inventario usando la lista ajustada por el usuario
+        const materialsToDeduct = usedMaterials ?? (() => {
+          if (!tx.procedure?.id) return [];
           const treatment = apiTreatments.find((t) => t.procedure_catalog_id === tx.procedure!.id);
-          if (treatment) {
-            const qty = tx.procedure_quantity ?? 1;
-            const totals = new Map<string, number>();
-            for (const apt of treatment.appointments) {
-              for (const m of apt.materials) {
-                totals.set(m.productId, (totals.get(m.productId) ?? 0) + m.quantity);
-              }
-            }
-            for (const [productId, usedPortions] of totals) {
-              const product = apiProducts.find((p) => p.id === productId);
-              if (!product) continue;
-              const deductQty = product.portion_qty
-                ? usedPortions * product.portion_qty * qty
-                : usedPortions * qty;
-              updateStock.mutate({ id: productId, qty: -deductQty, operation: "add" });
+          if (!treatment) return [];
+          const totals = new Map<string, number>();
+          for (const apt of treatment.appointments) {
+            for (const m of apt.materials) {
+              totals.set(m.productId, (totals.get(m.productId) ?? 0) + m.quantity);
             }
           }
+          return Array.from(totals.entries()).map(([productId, qty]) => ({ productId, qty }));
+        })();
+        const procedureQty = tx.procedure_quantity ?? 1;
+        for (const { productId, qty: usedPortions } of materialsToDeduct) {
+          const product = apiProducts.find((p) => p.id === productId);
+          if (!product) continue;
+          const deductQty = product.portion_qty
+            ? usedPortions * product.portion_qty * procedureQty
+            : usedPortions * procedureQty;
+          updateStock.mutate({ id: productId, qty: -deductQty, operation: "add" });
         }
         if (form.receiptFile) {
           try {
@@ -524,7 +549,11 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">Procedimiento</label>
             <select value={form.procedure_id}
-              onChange={(e) => { set("procedure_id", e.target.value); set("quantity", "1"); }}
+              onChange={(e) => {
+                set("procedure_id", e.target.value);
+                set("quantity", "1");
+                if (!isEdit) initMaterialsFromTreatment(e.target.value);
+              }}
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">— Sin procedimiento —</option>
               {procedures.map((p, i) => (
@@ -559,6 +588,119 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
               </div>
             );
           })()}
+
+          {/* ── Panel de materiales (solo en transacciones nuevas con tratamiento vinculado) ── */}
+          {!isEdit && usedMaterials !== null && (
+            <div className="rounded-xl border border-slate-200 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setMaterialsOpen((v) => !v)}
+                className="flex w-full items-center justify-between px-4 py-3 text-left hover:bg-slate-50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Package size={14} className="text-slate-400" />
+                  <span className="text-xs font-semibold text-slate-700">
+                    Materiales a descontar del inventario
+                  </span>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-medium text-slate-500">
+                    {usedMaterials.length}
+                  </span>
+                </div>
+                {materialsOpen ? <ChevronUp size={14} className="text-slate-400" /> : <ChevronDown size={14} className="text-slate-400" />}
+              </button>
+
+              {materialsOpen && (
+                <div className="border-t border-slate-100 divide-y divide-slate-50">
+                  {usedMaterials.length === 0 ? (
+                    <p className="px-4 py-3 text-xs text-slate-400 italic">Sin materiales — no se descontará nada del inventario.</p>
+                  ) : (
+                    usedMaterials.map((m) => {
+                      const product = apiProducts.find((p) => p.id === m.productId);
+                      return (
+                        <div key={m.productId} className="flex items-center gap-3 px-4 py-2">
+                          <span className="flex-1 text-xs text-slate-700 truncate">
+                            {product?.name ?? m.productId}
+                            {product?.portion_description && (
+                              <span className="text-slate-400 ml-1">/ {product.portion_description}</span>
+                            )}
+                          </span>
+                          <input
+                            type="number"
+                            min="0.01"
+                            step="0.5"
+                            value={m.qty}
+                            onChange={(e) => {
+                              const v = parseFloat(e.target.value);
+                              if (!isNaN(v) && v > 0) {
+                                setUsedMaterials((prev) => prev!.map((x) => x.productId === m.productId ? { ...x, qty: v } : x));
+                              }
+                            }}
+                            className="w-16 rounded border border-slate-200 px-2 py-1 text-xs text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
+                          />
+                          <span className="text-[10px] text-slate-400 w-8">
+                            {product?.presentation_unit ?? "u"}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => setUsedMaterials((prev) => prev!.filter((x) => x.productId !== m.productId))}
+                            className="text-slate-300 hover:text-red-400 transition-colors"
+                            title="Quitar este material"
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+                      );
+                    })
+                  )}
+
+                  {/* Agregar material alternativo */}
+                  {addMatOpen ? (
+                    <div className="px-4 py-3 space-y-2 bg-slate-50">
+                      <input
+                        autoFocus
+                        placeholder="Buscar producto..."
+                        value={addMatSearch}
+                        onChange={(e) => setAddMatSearch(e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      <div className="max-h-36 overflow-y-auto rounded-lg border border-slate-200 bg-white divide-y divide-slate-50">
+                        {apiProducts
+                          .filter((p) => !usedMaterials.some((m) => m.productId === p.id))
+                          .filter((p) => p.name.toLowerCase().includes(addMatSearch.toLowerCase()))
+                          .slice(0, 12)
+                          .map((p) => (
+                            <button
+                              key={p.id}
+                              type="button"
+                              onClick={() => {
+                                setUsedMaterials((prev) => [...prev!, { productId: p.id, qty: 1 }]);
+                                setAddMatOpen(false);
+                                setAddMatSearch("");
+                              }}
+                              className="flex w-full items-center gap-2 px-3 py-2 text-left hover:bg-blue-50 transition-colors"
+                            >
+                              <Check size={12} className="text-transparent" />
+                              <span className="text-xs text-slate-700">{p.name}</span>
+                              <span className="ml-auto text-[10px] text-slate-400">{p.portion_description}</span>
+                            </button>
+                          ))}
+                      </div>
+                      <button type="button" onClick={() => { setAddMatOpen(false); setAddMatSearch(""); }}
+                        className="text-xs text-slate-400 hover:text-slate-600">Cancelar</button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setAddMatOpen(true)}
+                      className="flex w-full items-center gap-1.5 px-4 py-2.5 text-xs font-medium text-blue-600 hover:bg-blue-50 transition-colors"
+                    >
+                      <Plus size={12} /> Agregar material alternativo
+                    </button>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">N.° de factura</label>
