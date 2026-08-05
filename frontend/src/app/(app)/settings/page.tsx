@@ -736,10 +736,15 @@ function BackupSection() {
   const [loadingXlsx, setLoadingXlsx] = useState(false);
   const [loadingJson, setLoadingJson] = useState(false);
   const [loadingPhotos, setLoadingPhotos] = useState(false);
+  const [loadingReceipts, setLoadingReceipts] = useState(false);
   const [error, setError] = useState("");
 
-  async function handleDownload(format: "backup" | "json" | "photos") {
-    const setLoading = format === "backup" ? setLoadingXlsx : format === "json" ? setLoadingJson : setLoadingPhotos;
+  async function handleDownload(format: "backup" | "json" | "photos" | "receipts") {
+    const setLoading =
+      format === "backup" ? setLoadingXlsx :
+      format === "json" ? setLoadingJson :
+      format === "photos" ? setLoadingPhotos :
+      setLoadingReceipts;
     const ext = format === "backup" ? "xlsx" : format === "json" ? "json" : "zip";
     setLoading(true);
     setError("");
@@ -798,10 +803,19 @@ function BackupSection() {
 
           <div className="rounded-xl border border-slate-200 p-4 space-y-2">
             <p className="text-sm font-semibold text-slate-700">Fotos de pacientes (.zip)</p>
-            <p className="text-xs text-slate-500">Descarga todas las fotos clínicas organizadas por paciente. Guardadas en S3, se incluyen aquí para respaldo completo.</p>
+            <p className="text-xs text-slate-500">Todas las fotos clínicas organizadas por carpeta de paciente.</p>
             <Button onClick={() => handleDownload("photos")} loading={loadingPhotos} variant="secondary" size="sm" className="w-full">
               <Download size={13} />
               {loadingPhotos ? "Generando…" : "Descargar fotos"}
+            </Button>
+          </div>
+
+          <div className="rounded-xl border border-slate-200 p-4 space-y-2">
+            <p className="text-sm font-semibold text-slate-700">Facturas / recibos (.zip)</p>
+            <p className="text-xs text-slate-500">Todas las facturas subidas, nombradas por fecha, paciente y descripción.</p>
+            <Button onClick={() => handleDownload("receipts")} loading={loadingReceipts} variant="secondary" size="sm" className="w-full">
+              <Download size={13} />
+              {loadingReceipts ? "Generando…" : "Descargar facturas"}
             </Button>
           </div>
         </div>

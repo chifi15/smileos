@@ -575,3 +575,52 @@ async def export_photos(
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@router.get("/receipts")
+async def export_receipts(
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    import zipfile
+    from app.core import storage
+
+    clinic_id = current_user.clinic_id
+
+    result = await db.execute(
+        select(FinanceTransaction)
+        .where(
+            FinanceTransaction.clinic_id == clinic_id,
+            FinanceTransaction.receipt_path.isnot(None),
+        )
+        .options(selectinload(FinanceTransaction.patient))
+        .order_by(FinanceTransaction.transaction_date.desc())
+    )
+    txs = result.scalars().all()
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for tx in txs:
+            if not tx.receipt_path:
+                continue
+            try:
+                data = storage.read_file(tx.receipt_path)
+            except Exception:
+                continue
+            ext = tx.receipt_path.rsplit(".", 1)[-1].lower()
+            date_str = tx.transaction_date.strftime("%Y-%m-%d") if tx.transaction_date else "sin-fecha"
+            patient_str = ""
+            if tx.patient:
+                patient_str = f"_{tx.patient.last_name}_{tx.patient.first_name}"
+                patient_str = "".join(c if c.isalnum() or c in "_-" else "_" for c in patient_str)
+            desc = "".join(c if c.isalnum() or c in "_- " else "" for c in (tx.description or ""))[:40].strip().replace(" ", "_")
+            filename = f"{date_str}{patient_str}_{desc}_{str(tx.id)[:8]}.{ext}"
+            zf.writestr(filename, data)
+
+    buf.seek(0)
+    zip_filename = f"smileos_facturas_{datetime.now().strftime('%Y%m%d')}.zip"
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{zip_filename}"'},
+    )
