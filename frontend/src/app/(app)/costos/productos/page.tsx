@@ -74,13 +74,18 @@ function productToForm(p: ApiProduct): ProductFormState {
 
 const CUSTOM_SENTINEL = "__custom__";
 
-function ProductModal({ initial, onSave, onClose }: { initial?: ApiProduct; onSave: (data: Omit<ApiProduct, "id" | "sort_order" | "stock_qty" | "min_stock_qty">) => void; onClose: () => void }) {
+function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?: ApiProduct; extraCategories: string[]; onSave: (data: Omit<ApiProduct, "id" | "sort_order" | "stock_qty" | "min_stock_qty">) => void; onClose: () => void }) {
   const [form, setForm] = useState<ProductFormState>(initial ? productToForm(initial) : EMPTY_FORM);
   const f = (key: keyof ProductFormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((s) => ({ ...s, [key]: e.target.value }));
 
   const isCustomCategory = !ALL_CATEGORIES.includes(form.category as ProductCategory) && form.category !== "";
   const [showCustomInput, setShowCustomInput] = useState(isCustomCategory);
+
+  const allSelectableCategories = [
+    ...ALL_CATEGORIES,
+    ...extraCategories.filter((c) => !ALL_CATEGORIES.includes(c as ProductCategory)),
+  ];
 
   const pQty = parseFloat(form.presentationQty) || 0;
   const portQty = parseFloat(form.portionQty) || 0;
@@ -153,6 +158,9 @@ function ProductModal({ initial, onSave, onClose }: { initial?: ApiProduct; onSa
                     className="w-full h-9 rounded-lg border border-slate-300 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     {ALL_CATEGORIES.map((c) => <option key={c} value={c}>{PRODUCT_CATEGORY_LABELS[c]}</option>)}
+                    {extraCategories.filter((c) => !ALL_CATEGORIES.includes(c as ProductCategory)).map((c) => (
+                      <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+                    ))}
                     <option value={CUSTOM_SENTINEL}>+ Nueva categoría…</option>
                   </select>
                 )}
@@ -419,6 +427,7 @@ export default function ProductosPage() {
 
       {showNew && (
         <ProductModal
+          extraCategories={allCategoriesInUse}
           onSave={(data) => createProduct.mutate(data)}
           onClose={() => setShowNew(false)}
         />
@@ -426,6 +435,7 @@ export default function ProductosPage() {
       {editingProduct && (
         <ProductModal
           initial={editingProduct}
+          extraCategories={allCategoriesInUse}
           onSave={(data) => updateProduct.mutate({ id: editingProduct.id, ...data })}
           onClose={() => setEditingProduct(null)}
         />
