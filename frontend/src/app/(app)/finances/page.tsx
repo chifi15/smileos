@@ -626,8 +626,8 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                           </span>
                           <input
                             type="number"
-                            min="0.01"
-                            step="0.5"
+                            min="0"
+                            step="any"
                             value={m.qty}
                             onChange={(e) => {
                               const v = parseFloat(e.target.value);
