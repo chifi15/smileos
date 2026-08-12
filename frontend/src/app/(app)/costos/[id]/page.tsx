@@ -18,7 +18,23 @@ import {
   Merge,
   Copy,
   ClipboardPaste,
+  GripVertical,
 } from "lucide-react";
+import {
+  DndContext,
+  closestCenter,
+  PointerSensor,
+  useSensor,
+  useSensors,
+  DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext,
+  verticalListSortingStrategy,
+  useSortable,
+  arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { MaterialUsage } from "@/types/costos";
 import {
   useCostTreatments,
@@ -416,6 +432,109 @@ function MergeAppointmentModal({
   );
 }
 
+// ─── Sortable Material Row ────────────────────────────────────────────────────
+
+function SortableMaterialRow({
+  productId,
+  product,
+  quantity,
+  total,
+  editQty,
+  editQtyValue,
+  onEditQtyStart,
+  onEditQtyChange,
+  onEditQtySave,
+  onEditQtyCancel,
+  onRemove,
+}: {
+  productId: string;
+  product: { id: string; name: string; unitPrice: number; category: string };
+  quantity: number;
+  total: number;
+  editQty: string | null;
+  editQtyValue: string;
+  onEditQtyStart: () => void;
+  onEditQtyChange: (v: string) => void;
+  onEditQtySave: () => void;
+  onEditQtyCancel: () => void;
+  onRemove: () => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: productId });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.5 : 1,
+  };
+
+  return (
+    <tr ref={setNodeRef} style={style} className="group hover:bg-slate-50/50">
+      <td className="pl-3 pr-1 py-2.5 w-5">
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 touch-none"
+          tabIndex={-1}
+        >
+          <GripVertical size={14} />
+        </button>
+      </td>
+      <td className="px-5 py-2.5">
+        <p className="font-medium text-slate-700 text-sm">{product.name}</p>
+        <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${categoryColor(product.category)}`}>
+          {categoryLabel(product.category)}
+        </span>
+      </td>
+      <td className="px-4 py-2.5 text-right text-slate-600">
+        {fmtC(product.unitPrice)}
+      </td>
+      <td className="px-4 py-2.5 text-right">
+        {editQty === productId ? (
+          <div className="flex items-center justify-end gap-1">
+            <input
+              type="number"
+              className="w-16 rounded border border-blue-400 px-2 py-0.5 text-sm text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
+              value={editQtyValue}
+              onChange={(e) => onEditQtyChange(e.target.value)}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter") onEditQtySave();
+                if (e.key === "Escape") onEditQtyCancel();
+              }}
+            />
+            <button
+              onClick={onEditQtySave}
+              className="rounded p-0.5 text-green-600 hover:bg-green-50"
+            >
+              <Check size={13} />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={onEditQtyStart}
+            className="flex items-center justify-end gap-1 tabular-nums text-slate-700 hover:text-blue-600"
+          >
+            {quantity}
+            <Edit2 size={10} className="text-slate-300 group-hover:text-slate-400" />
+          </button>
+        )}
+      </td>
+      <td className="px-5 py-2.5 text-right font-medium text-slate-800">
+        {fmtC(total)}
+      </td>
+      <td className="pr-3 text-center">
+        <button
+          onClick={onRemove}
+          className="hidden rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500 group-hover:block"
+        >
+          <Trash2 size={12} />
+        </button>
+      </td>
+    </tr>
+  );
+}
+
 // ─── Editable Appointment ─────────────────────────────────────────────────────
 
 function EditableAppointment({
@@ -455,6 +574,8 @@ function EditableAppointment({
   const [editQty, setEditQty] = useState<string | null>(null);
   const [editQtyValue, setEditQtyValue] = useState("");
 
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+
   const { appointment, materialCost, materials } = detail;
 
   function removeMaterial(productId: string) {
@@ -476,6 +597,15 @@ function EditableAppointment({
       ),
     });
     setEditQty(null);
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = apt.materials.findIndex((m) => m.productId === String(active.id));
+    const newIndex = apt.materials.findIndex((m) => m.productId === String(over.id));
+    if (oldIndex === -1 || newIndex === -1) return;
+    onUpdateApt({ materials: arrayMove(apt.materials, oldIndex, newIndex) });
   }
 
   return (
@@ -602,85 +732,55 @@ function EditableAppointment({
               <p className="text-sm text-slate-500">Sin materiales en esta cita</p>
             </div>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="bg-slate-50 text-xs text-slate-500">
-                  <th className="px-5 py-2.5 text-left font-medium">Material</th>
-                  <th className="px-4 py-2.5 text-right font-medium">P. unitario</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Cantidad</th>
-                  <th className="px-5 py-2.5 text-right font-medium">Total</th>
-                  <th className="w-10 py-2.5" />
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50">
-                {materials.map(({ product, quantity, total }) => (
-                  <tr key={product.id} className="group hover:bg-slate-50/50">
-                    <td className="px-5 py-2.5">
-                      <p className="font-medium text-slate-700 text-sm">{product.name}</p>
-                      <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${categoryColor(product.category)}`}>
-                        {categoryLabel(product.category)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5 text-right text-slate-600">
-                      {fmtC(product.unitPrice)}
-                    </td>
-                    <td className="px-4 py-2.5 text-right">
-                      {editQty === product.id ? (
-                        <div className="flex items-center justify-end gap-1">
-                          <input
-                            type="number"
-                            className="w-16 rounded border border-blue-400 px-2 py-0.5 text-sm text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
-                            value={editQtyValue}
-                            onChange={(e) => setEditQtyValue(e.target.value)}
-                            autoFocus
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") saveQty(product.id);
-                              if (e.key === "Escape") setEditQty(null);
-                            }}
-                          />
-                          <button
-                            onClick={() => saveQty(product.id)}
-                            className="rounded p-0.5 text-green-600 hover:bg-green-50"
-                          >
-                            <Check size={13} />
-                          </button>
-                        </div>
-                      ) : (
-                        <button
-                          onClick={() => { setEditQty(product.id); setEditQtyValue(String(quantity)); }}
-                          className="flex items-center justify-end gap-1 tabular-nums text-slate-700 hover:text-blue-600"
-                        >
-                          {quantity}
-                          <Edit2 size={10} className="text-slate-300 group-hover:text-slate-400" />
-                        </button>
-                      )}
-                    </td>
-                    <td className="px-5 py-2.5 text-right font-medium text-slate-800">
-                      {fmtC(total)}
-                    </td>
-                    <td className="pr-3 text-center">
-                      <button
-                        onClick={() => removeMaterial(product.id)}
-                        className="hidden rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500 group-hover:block"
-                      >
-                        <Trash2 size={12} />
-                      </button>
-                    </td>
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="bg-slate-50 text-xs text-slate-500">
+                    <th className="w-5 py-2.5" />
+                    <th className="px-5 py-2.5 text-left font-medium">Material</th>
+                    <th className="px-4 py-2.5 text-right font-medium">P. unitario</th>
+                    <th className="px-4 py-2.5 text-right font-medium">Cantidad</th>
+                    <th className="px-5 py-2.5 text-right font-medium">Total</th>
+                    <th className="w-10 py-2.5" />
                   </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="border-t border-slate-200 bg-slate-50">
-                  <td colSpan={3} className="px-5 py-3 text-sm font-medium text-slate-600">
-                    Subtotal cita {appointment.number}
-                  </td>
-                  <td className="px-5 py-3 text-right font-bold text-slate-800">
-                    {fmtC(materialCost)}
-                  </td>
-                  <td />
-                </tr>
-              </tfoot>
-            </table>
+                </thead>
+                <SortableContext
+                  items={apt.materials.map((m) => m.productId)}
+                  strategy={verticalListSortingStrategy}
+                >
+                  <tbody className="divide-y divide-slate-50">
+                    {materials.map(({ product, quantity, total }) => (
+                      <SortableMaterialRow
+                        key={product.id}
+                        productId={product.id}
+                        product={product}
+                        quantity={quantity}
+                        total={total}
+                        editQty={editQty}
+                        editQtyValue={editQtyValue}
+                        onEditQtyStart={() => { setEditQty(product.id); setEditQtyValue(String(quantity)); }}
+                        onEditQtyChange={setEditQtyValue}
+                        onEditQtySave={() => saveQty(product.id)}
+                        onEditQtyCancel={() => setEditQty(null)}
+                        onRemove={() => removeMaterial(product.id)}
+                      />
+                    ))}
+                  </tbody>
+                </SortableContext>
+                <tfoot>
+                  <tr className="border-t border-slate-200 bg-slate-50">
+                    <td />
+                    <td colSpan={3} className="px-5 py-3 text-sm font-medium text-slate-600">
+                      Subtotal cita {appointment.number}
+                    </td>
+                    <td className="px-5 py-3 text-right font-bold text-slate-800">
+                      {fmtC(materialCost)}
+                    </td>
+                    <td />
+                  </tr>
+                </tfoot>
+              </table>
+            </DndContext>
           )}
 
           <div className="border-t border-slate-100 px-5 py-3 flex items-center gap-4">
