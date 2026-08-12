@@ -221,6 +221,15 @@ export function useReorderCostTreatments() {
   });
 }
 
+export function useDuplicateCostAppointment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ treatmentId, aptId }: { treatmentId: string; aptId: string }) =>
+      api.post(`/api/v1/costos/treatments/${treatmentId}/appointments/${aptId}/duplicate`).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: TREATMENTS_KEY }),
+  });
+}
+
 export function useAddCostAppointment() {
   const qc = useQueryClient();
   return useMutation({

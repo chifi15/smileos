@@ -572,6 +572,35 @@ async def add_appointment(db: AsyncSession, clinic_id: uuid.UUID, treatment_id: 
     return result2.scalar_one()
 
 
+async def duplicate_appointment(db: AsyncSession, clinic_id: uuid.UUID, treatment_id: uuid.UUID, apt_id: uuid.UUID) -> Optional[CostTreatment]:
+    result = await db.execute(
+        select(CostTreatment)
+        .where(CostTreatment.id == treatment_id, CostTreatment.clinic_id == clinic_id)
+        .options(selectinload(CostTreatment.appointments))
+    )
+    treatment = result.scalar_one_or_none()
+    if not treatment:
+        return None
+    original = next((a for a in treatment.appointments if a.id == apt_id), None)
+    if not original:
+        return None
+    n = len(treatment.appointments) + 1
+    db.add(CostAppointment(
+        treatment_id=treatment_id,
+        number=n,
+        name=f"Copia de {original.name}",
+        materials=list(original.materials),
+        sort_order=n - 1,
+    ))
+    await db.flush()
+    result2 = await db.execute(
+        select(CostTreatment)
+        .where(CostTreatment.id == treatment_id)
+        .options(selectinload(CostTreatment.appointments))
+    )
+    return result2.scalar_one()
+
+
 async def update_appointment(db: AsyncSession, clinic_id: uuid.UUID, treatment_id: uuid.UUID, apt_id: uuid.UUID, data: dict) -> Optional[CostTreatment]:
     result = await db.execute(
         select(CostAppointment)

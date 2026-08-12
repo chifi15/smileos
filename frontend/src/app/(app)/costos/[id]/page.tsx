@@ -43,6 +43,7 @@ import {
   useUpdateCostTreatment,
   useAddCostAppointment,
   useDeleteCostAppointment,
+  useDuplicateCostAppointment,
   useMergeCostAppointments,
   useUpdateCostAppointment,
   ApiProduct,
@@ -548,6 +549,7 @@ function EditableAppointment({
   onCopy,
   onPaste,
   onDelete,
+  onDuplicate,
   onUpdateApt,
   onMerge,
 }: {
@@ -557,10 +559,11 @@ function EditableAppointment({
   allApts: ApiAppointment[];
   products: ApiProduct[];
   defaultOpen?: boolean;
-  clipboard: { materials: MaterialUsage[]; name: string } | null;
-  onCopy: (materials: MaterialUsage[], name: string) => void;
+  clipboard: { materials: MaterialUsage[]; name: string; sourceAptId: string } | null;
+  onCopy: (materials: MaterialUsage[], name: string, sourceAptId: string) => void;
   onPaste: (aptId: string, mode: "replace" | "merge") => void;
   onDelete: (aptId: string) => void;
+  onDuplicate: (aptId: string) => void;
   onUpdateApt: (data: { name?: string; materials?: ApiMaterial[] }) => void;
   onMerge: (sourceId: string) => void;
 }) {
@@ -652,17 +655,26 @@ function EditableAppointment({
             <p className="font-semibold text-slate-800">{fmtC(materialCost)}</p>
           </div>
 
-          {/* Copiar */}
+          {/* Duplicar cita */}
           <button
-            onClick={(e) => { e.stopPropagation(); onCopy(appointment.materials, appointment.name); }}
-            title="Copiar materiales de esta cita"
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-500 transition-colors"
+            onClick={(e) => { e.stopPropagation(); onDuplicate(appointment.id); }}
+            title="Duplicar esta cita"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-500 transition-colors"
           >
             <Copy size={14} />
           </button>
 
+          {/* Copiar materiales al portapapeles */}
+          <button
+            onClick={(e) => { e.stopPropagation(); onCopy(appointment.materials, appointment.name, appointment.id); }}
+            title="Copiar materiales para pegar en otra cita"
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-500 transition-colors"
+          >
+            <ClipboardPaste size={14} />
+          </button>
+
           {/* Pegar */}
-          {clipboard && clipboard.name !== appointment.name && (
+          {clipboard && clipboard.sourceAptId !== appointment.id && (
             <div className="relative" onClick={(e) => e.stopPropagation()}>
               <button
                 onClick={() => setPasteOpen((v) => !v)}
@@ -846,6 +858,7 @@ export default function TreatmentDetailPage({
   const updateTreatment = useUpdateCostTreatment();
   const addAppointment = useAddCostAppointment();
   const deleteAppointment = useDeleteCostAppointment();
+  const duplicateAppointment = useDuplicateCostAppointment();
   const mergeMutation = useMergeCostAppointments();
   const updateApt = useUpdateCostAppointment();
 
@@ -860,7 +873,7 @@ export default function TreatmentDetailPage({
 
   const [editName, setEditName] = useState(false);
   const [nameValue, setNameValue] = useState("");
-  const [clipboard, setClipboard] = useState<{ materials: MaterialUsage[]; name: string } | null>(null);
+  const [clipboard, setClipboard] = useState<{ materials: MaterialUsage[]; name: string; sourceAptId: string } | null>(null);
 
   function handlePaste(aptId: string, mode: "replace" | "merge") {
     if (!clipboard || !treatment) return;
@@ -1001,9 +1014,10 @@ export default function TreatmentDetailPage({
               products={apiProducts}
               defaultOpen={i === 0}
               clipboard={clipboard}
-              onCopy={(mats, name) => setClipboard({ materials: mats, name })}
+              onCopy={(mats, name, sourceAptId) => setClipboard({ materials: mats, name, sourceAptId })}
               onPaste={handlePaste}
               onDelete={(aptId) => deleteAppointment.mutate({ treatmentId: id, aptId })}
+              onDuplicate={(aptId) => duplicateAppointment.mutate({ treatmentId: id, aptId })}
               onUpdateApt={(data) => updateApt.mutate({ treatmentId: id, aptId: apt.id, ...data })}
               onMerge={(sourceId) => mergeMutation.mutate({ treatmentId: id, targetId: apt.id, sourceId })}
             />

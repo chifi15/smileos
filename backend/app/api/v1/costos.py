@@ -387,6 +387,19 @@ async def add_appointment(
     return obj
 
 
+@router.post("/treatments/{treatment_id}/appointments/{apt_id}/duplicate", response_model=TreatmentOut, status_code=201)
+async def duplicate_appointment(
+    treatment_id: uuid.UUID,
+    apt_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    obj = await svc.duplicate_appointment(db, current_user.clinic_id, treatment_id, apt_id)
+    if not obj:
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Cita no encontrada"})
+    return obj
+
+
 @router.put("/treatments/{treatment_id}/appointments/{apt_id}", response_model=TreatmentOut)
 async def update_appointment(
     treatment_id: uuid.UUID,
