@@ -194,6 +194,15 @@ export function useDeleteCostTreatment() {
   });
 }
 
+export function useDuplicateCostTreatment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      api.post(`/api/v1/costos/treatments/${id}/duplicate`).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: TREATMENTS_KEY }),
+  });
+}
+
 export function useReorderCostTreatments() {
   const qc = useQueryClient();
   return useMutation({

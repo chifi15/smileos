@@ -483,6 +483,32 @@ async def create_treatment(db: AsyncSession, clinic_id: uuid.UUID, data: dict, a
     return result2.scalar_one()
 
 
+async def duplicate_treatment(db: AsyncSession, clinic_id: uuid.UUID, treatment_id: uuid.UUID) -> Optional[CostTreatment]:
+    result = await db.execute(
+        select(CostTreatment)
+        .where(CostTreatment.id == treatment_id, CostTreatment.clinic_id == clinic_id)
+        .options(selectinload(CostTreatment.appointments))
+    )
+    original = result.scalar_one_or_none()
+    if not original:
+        return None
+    data = {
+        "name": f"Copia de {original.name}",
+        "description": original.description,
+        "professional_fee_per_hour": original.professional_fee_per_hour,
+        "total_hours": original.total_hours,
+        "fixed_costs": original.fixed_costs,
+        "clinic_margin_pct": original.clinic_margin_pct,
+        "suggested_price": original.suggested_price,
+        "procedure_catalog_id": original.procedure_catalog_id,
+    }
+    apts = [
+        {"number": a.number, "name": a.name, "materials": a.materials}
+        for a in sorted(original.appointments, key=lambda a: a.sort_order)
+    ]
+    return await create_treatment(db, clinic_id, data, apts)
+
+
 async def update_treatment(db: AsyncSession, clinic_id: uuid.UUID, treatment_id: uuid.UUID, data: dict) -> Optional[CostTreatment]:
     result = await db.execute(
         select(CostTreatment)

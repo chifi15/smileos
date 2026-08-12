@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Calculator, Package, ChevronRight, ChevronDown,
-  TrendingUp, Plus, Calendar, Trash2, X, GripVertical, Pencil, Check,
+  TrendingUp, Plus, Calendar, Trash2, X, GripVertical, Pencil, Check, Copy,
 } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from "@dnd-kit/sortable";
@@ -15,6 +15,7 @@ import {
   useFixedCosts,
   useCreateCostTreatment,
   useDeleteCostTreatment,
+  useDuplicateCostTreatment,
   useReorderCostTreatments,
   useUpdateCostTreatment,
   ApiTreatment,
@@ -126,6 +127,7 @@ function NewTreatmentModal({ onClose }: { onClose: () => void }) {
 function TreatmentCard({ treatment, globalFixedCost }: { treatment: ApiTreatment; globalFixedCost: number }) {
   const { data: apiProducts = [] } = useCostProducts();
   const deleteTreatment = useDeleteCostTreatment();
+  const duplicateTreatment = useDuplicateCostTreatment();
   const updateTreatment = useUpdateCostTreatment();
 
   const products = apiProducts.map(apiProductToProduct);
@@ -148,12 +150,22 @@ function TreatmentCard({ treatment, globalFixedCost }: { treatment: ApiTreatment
         className="absolute left-3 top-3 hidden rounded-lg p-1 text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing group-hover:flex touch-none" title="Arrastrar para ordenar">
         <GripVertical size={15} />
       </button>
-      <button
-        onClick={(e) => { e.preventDefault(); if (confirm(`¿Eliminar "${treatment.name}"?`)) deleteTreatment.mutate(treatment.id); }}
-        className="absolute right-3 top-3 hidden rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500 group-hover:flex"
-      >
-        <Trash2 size={14} />
-      </button>
+      <div className="absolute right-3 top-3 hidden group-hover:flex items-center gap-1">
+        <button
+          onClick={(e) => { e.preventDefault(); duplicateTreatment.mutate(treatment.id); }}
+          title="Duplicar tratamiento"
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-500"
+        >
+          <Copy size={14} />
+        </button>
+        <button
+          onClick={(e) => { e.preventDefault(); if (confirm(`¿Eliminar "${treatment.name}"?`)) deleteTreatment.mutate(treatment.id); }}
+          title="Eliminar tratamiento"
+          className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
 
       <Link href={`/costos/${treatment.id}`} className="block mb-4">
         <div className="flex items-start gap-3">

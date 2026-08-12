@@ -349,6 +349,23 @@ async def delete_treatment(
     )
 
 
+@router.post("/treatments/{treatment_id}/duplicate", response_model=TreatmentOut, status_code=201)
+async def duplicate_treatment(
+    treatment_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    obj = await svc.duplicate_treatment(db, current_user.clinic_id, treatment_id)
+    if not obj:
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Tratamiento no encontrado"})
+    await audit_service.log(
+        db, clinic_id=current_user.clinic_id, user_id=current_user.id,
+        action="treatment.duplicated", resource_type="cost_treatment", resource_id=str(obj.id),
+        description=f"Duplicó plantilla de tratamiento: {obj.name}",
+    )
+    return obj
+
+
 @router.post("/treatments/reorder", status_code=204)
 async def reorder_treatments(
     body: ReorderIn,
