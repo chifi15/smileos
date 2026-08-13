@@ -437,6 +437,7 @@ function MergeAppointmentModal({
 
 function SortableMaterialRow({
   productId,
+  rowIndex,
   product,
   quantity,
   total,
@@ -449,6 +450,7 @@ function SortableMaterialRow({
   onRemove,
 }: {
   productId: string;
+  rowIndex: number;
   product: { id: string; name: string; unitPrice: number; category: string };
   quantity: number;
   total: number;
@@ -480,6 +482,9 @@ function SortableMaterialRow({
         >
           <GripVertical size={14} />
         </button>
+      </td>
+      <td className="pl-2 pr-1 py-2.5 w-6 text-center text-xs font-medium text-slate-400 tabular-nums select-none">
+        {rowIndex}
       </td>
       <td className="px-5 py-2.5">
         <p className="font-medium text-slate-700 text-sm">{product.name}</p>
@@ -749,6 +754,7 @@ function EditableAppointment({
                 <thead>
                   <tr className="bg-slate-50 text-xs text-slate-500">
                     <th className="w-5 py-2.5" />
+                    <th className="w-6 py-2.5 text-center font-medium">#</th>
                     <th className="px-5 py-2.5 text-left font-medium">Material</th>
                     <th className="px-4 py-2.5 text-right font-medium">P. unitario</th>
                     <th className="px-4 py-2.5 text-right font-medium">Cantidad</th>
@@ -761,10 +767,11 @@ function EditableAppointment({
                   strategy={verticalListSortingStrategy}
                 >
                   <tbody className="divide-y divide-slate-50">
-                    {materials.map(({ product, quantity, total }) => (
+                    {materials.map(({ product, quantity, total }, idx) => (
                       <SortableMaterialRow
                         key={product.id}
                         productId={product.id}
+                        rowIndex={idx + 1}
                         product={product}
                         quantity={quantity}
                         total={total}
@@ -781,6 +788,7 @@ function EditableAppointment({
                 </SortableContext>
                 <tfoot>
                   <tr className="border-t border-slate-200 bg-slate-50">
+                    <td />
                     <td />
                     <td colSpan={3} className="px-5 py-3 text-sm font-medium text-slate-600">
                       Subtotal cita {appointment.number}
