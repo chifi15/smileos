@@ -21,7 +21,8 @@ import {
   categoryColor,
   PRESENTATION_UNITS,
 } from "@/types/costos";
-import { fmtC, fmt } from "@/lib/costos-utils";
+import { fmtC, fmtUSD, fmt } from "@/lib/costos-utils";
+import { useClinicSettings } from "@/hooks/useSettings";
 import Button from "@/components/ui/Button";
 
 const ALL_CATEGORIES: ProductCategory[] = [
@@ -336,7 +337,7 @@ function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?:
 
 // ─── Fila sortable ────────────────────────────────────────────────────────────
 
-function SortableProductRow({ product, onEdit, isDragDisabled }: { product: ApiProduct; onEdit: () => void; isDragDisabled: boolean }) {
+function SortableProductRow({ product, onEdit, isDragDisabled, exchangeRate }: { product: ApiProduct; onEdit: () => void; isDragDisabled: boolean; exchangeRate: number }) {
   const deleteProduct = useDeleteCostProduct();
   const portions = calcPortions(product.presentation_qty, product.portion_qty);
   const hasCalc = portions != null && product.total_cost != null;
@@ -391,6 +392,7 @@ function SortableProductRow({ product, onEdit, isDragDisabled }: { product: ApiP
       </td>
       <td className="px-5 py-3 text-right">
         <p className="font-semibold text-slate-800 tabular-nums">{fmtC(product.unit_price)}</p>
+        <p className="text-xs text-slate-400 tabular-nums">{fmtUSD(product.unit_price, exchangeRate)}</p>
         {hasCalc && <p className="text-[10px] text-green-600">calculado</p>}
       </td>
       <td className="pr-3 py-3">
@@ -408,6 +410,8 @@ function SortableProductRow({ product, onEdit, isDragDisabled }: { product: ApiP
 
 export default function ProductosPage() {
   const { data: products = [], isLoading } = useCostProducts();
+  const { data: clinicSettings } = useClinicSettings();
+  const exchangeRate = clinicSettings?.usd_exchange_rate ?? 37;
   const createProduct = useCreateCostProduct();
   const updateProduct = useUpdateCostProduct();
   const reorderProducts = useReorderCostProducts();
@@ -510,7 +514,7 @@ export default function ProductosPage() {
               <SortableContext items={filtered.map((p) => p.id)} strategy={verticalListSortingStrategy}>
                 <tbody>
                   {filtered.map((p) => (
-                    <SortableProductRow key={p.id} product={p} onEdit={() => setEditingProduct(p)} isDragDisabled={isDragDisabled} />
+                    <SortableProductRow key={p.id} product={p} onEdit={() => setEditingProduct(p)} isDragDisabled={isDragDisabled} exchangeRate={exchangeRate} />
                   ))}
                 </tbody>
               </SortableContext>

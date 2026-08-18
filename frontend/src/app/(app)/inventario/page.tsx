@@ -16,7 +16,8 @@ import {
   ApiProductLot,
 } from "@/hooks/useCostos";
 import { categoryLabel, categoryColor, ProductCategory } from "@/types/costos";
-import { fmt } from "@/lib/costos-utils";
+import { fmt, fmtC, fmtUSD } from "@/lib/costos-utils";
+import { useClinicSettings } from "@/hooks/useSettings";
 
 const ALL_CATEGORIES: ProductCategory[] = [
   "desechable", "anestesia", "endodoncia", "restauracion", "profilaxis", "instrumental", "otros",
@@ -397,7 +398,7 @@ function LotHistoryModal({ product, onClose }: { product: ApiProduct; onClose: (
 
 // ─── Fila de inventario ───────────────────────────────────────────────────────
 
-function InventoryRow({ product, onAdjust, onLots }: { product: ApiProduct; onAdjust: () => void; onLots: () => void }) {
+function InventoryRow({ product, onAdjust, onLots, exchangeRate }: { product: ApiProduct; onAdjust: () => void; onLots: () => void; exchangeRate: number }) {
   const updateStock = useUpdateCostProductStock();
   const status = getStatus(product);
   const { label, icon: Icon, color, bg } = STATUS_CONFIG[status];
@@ -451,6 +452,10 @@ function InventoryRow({ product, onAdjust, onLots }: { product: ApiProduct; onAd
           {label}
         </span>
       </td>
+      <td className="px-4 py-3 text-right">
+        <p className="font-medium text-slate-700 tabular-nums text-sm">{fmtC(product.unit_price)}</p>
+        <p className="text-xs text-slate-400 tabular-nums">{fmtUSD(product.unit_price, exchangeRate)}</p>
+      </td>
       <td className="pr-4 py-3">
         <div className="flex items-center gap-1">
           {product.presentation_qty && (
@@ -488,6 +493,8 @@ function InventoryRow({ product, onAdjust, onLots }: { product: ApiProduct; onAd
 export default function InventarioPage() {
   const { data: products = [], isLoading } = useCostProducts();
   const { data: treatments = [] } = useCostTreatments();
+  const { data: clinicSettings } = useClinicSettings();
+  const exchangeRate = clinicSettings?.usd_exchange_rate ?? 37;
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string>("all");
@@ -591,12 +598,13 @@ export default function InventarioPage() {
                 <th className="px-4 py-3 text-left font-medium">Stock actual</th>
                 <th className="px-4 py-3 text-left font-medium">Mínimo</th>
                 <th className="px-4 py-3 text-left font-medium">Estado</th>
+                <th className="px-4 py-3 text-right font-medium">C$/uso</th>
                 <th className="w-24 py-3" />
               </tr>
             </thead>
             <tbody>
               {filtered.map((p) => (
-                <InventoryRow key={p.id} product={p} onAdjust={() => setAdjusting(p)} onLots={() => setLotsProduct(p)} />
+                <InventoryRow key={p.id} product={p} onAdjust={() => setAdjusting(p)} onLots={() => setLotsProduct(p)} exchangeRate={exchangeRate} />
               ))}
             </tbody>
           </table>

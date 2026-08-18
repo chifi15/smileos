@@ -480,6 +480,7 @@ export interface ClinicSettings {
   currency: string;
   default_appointment_duration: number;
   timezone: string;
+  usd_exchange_rate: number;
   created_at: string;
   updated_at: string;
 }

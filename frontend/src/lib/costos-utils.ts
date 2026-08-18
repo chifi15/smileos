@@ -90,3 +90,7 @@ export function fmt(n: number): string {
 export function fmtC(n: number): string {
   return `C$ ${fmt(n)}`;
 }
+
+export function fmtUSD(cordobas: number, rate: number): string {
+  return `$${fmt(cordobas / rate)}`;
+}

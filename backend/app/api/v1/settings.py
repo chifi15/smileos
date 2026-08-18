@@ -38,6 +38,7 @@ def _serialize_settings(s) -> dict:
         "appointment_slot_size_minutes": s.appointment_slot_size_minutes,
         "currency_code": s.currency_code,
         "currency_symbol": s.currency_symbol,
+        "usd_exchange_rate": float(s.usd_exchange_rate) if s.usd_exchange_rate is not None else 37.0,
         "updated_at": s.updated_at.isoformat() if s.updated_at else None,
     }
 

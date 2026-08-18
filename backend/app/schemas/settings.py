@@ -18,6 +18,7 @@ class ClinicSettingsUpdate(BaseModel):
     appointment_slot_size_minutes: int | None = None
     currency_code: str | None = None
     currency_symbol: str | None = None
+    usd_exchange_rate: float | None = None
 
 
 class WorkingHoursEntry(BaseModel):
