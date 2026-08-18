@@ -243,6 +243,7 @@ export default function SettingsPage() {
   const [address, setAddress] = useState("");
   const [currency, setCurrency] = useState("NIO");
   const [duration, setDuration] = useState("30");
+  const [exchangeRate, setExchangeRate] = useState("37");
 
   useEffect(() => {
     if (!settings) return;
@@ -253,6 +254,7 @@ export default function SettingsPage() {
     setAddress(settings.address ?? "");
     setCurrency(settings.currency ?? "NIO");
     setDuration(String(settings.default_appointment_duration ?? 30));
+    setExchangeRate(String(settings.usd_exchange_rate ?? 37));
   }, [settings]);
 
   function handleSaveSettings(e: React.FormEvent) {
@@ -265,6 +267,7 @@ export default function SettingsPage() {
       address: address.trim() || null,
       currency,
       default_appointment_duration: Number(duration),
+      usd_exchange_rate: Number(exchangeRate) || 37,
     });
   }
 
@@ -321,7 +324,7 @@ export default function SettingsPage() {
               onChange={(e) => setAddress(e.target.value)}
               placeholder="Dirección de la clínica"
             />
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <Select
                 label="Moneda"
                 value={currency}
@@ -333,6 +336,15 @@ export default function SettingsPage() {
                 value={duration}
                 onChange={(e) => setDuration(e.target.value)}
                 options={durationOptions}
+              />
+              <Input
+                label="Tasa de cambio (C$ por USD)"
+                type="number"
+                min="1"
+                step="0.01"
+                value={exchangeRate}
+                onChange={(e) => setExchangeRate(e.target.value)}
+                placeholder="37.00"
               />
             </div>
             <div className="flex justify-end pt-2">
