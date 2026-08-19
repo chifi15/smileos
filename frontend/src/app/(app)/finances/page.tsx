@@ -486,6 +486,13 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {isIngreso && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Paciente</label>
+              <PatientSelect value={form.patient} onChange={(v) => set("patient", v)} />
+            </div>
+          )}
+
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Categoría *</label>
@@ -538,13 +545,12 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
             </p>
           )}
 
-          <div>
-            <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Paciente</label>
-            <PatientSelect
-              value={form.patient}
-              onChange={(v) => set("patient", v)}
-            />
-          </div>
+          {!isIngreso && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Paciente</label>
+              <PatientSelect value={form.patient} onChange={(v) => set("patient", v)} />
+            </div>
+          )}
 
           <div>
             <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Procedimiento</label>
