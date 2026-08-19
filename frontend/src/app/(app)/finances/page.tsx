@@ -68,11 +68,11 @@ function fmt(n: number) {
 }
 
 const ALT_FINANCE_COLORS: Record<string, { row: string; badge: string }> = {
-  A: { row: "border-l-2 border-l-orange-400 bg-orange-50/50 dark:bg-orange-900/10", badge: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-700" },
-  B: { row: "border-l-2 border-l-violet-400 bg-violet-50/50 dark:bg-violet-900/10", badge: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-700" },
-  C: { row: "border-l-2 border-l-teal-400 bg-teal-50/50 dark:bg-teal-900/10", badge: "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-700" },
-  D: { row: "border-l-2 border-l-pink-400 bg-pink-50/50 dark:bg-pink-900/10", badge: "bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-400 dark:border-pink-700" },
-  E: { row: "border-l-2 border-l-yellow-400 bg-yellow-50/50 dark:bg-yellow-900/10", badge: "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-700" },
+  A: { row: "border-l-4 border-l-orange-400 bg-orange-100 dark:bg-orange-900/25", badge: "bg-orange-200 text-orange-800 border-orange-300 dark:bg-orange-900/50 dark:text-orange-300 dark:border-orange-700" },
+  B: { row: "border-l-4 border-l-violet-400 bg-violet-100 dark:bg-violet-900/25", badge: "bg-violet-200 text-violet-800 border-violet-300 dark:bg-violet-900/50 dark:text-violet-300 dark:border-violet-700" },
+  C: { row: "border-l-4 border-l-teal-400 bg-teal-100 dark:bg-teal-900/25", badge: "bg-teal-200 text-teal-800 border-teal-300 dark:bg-teal-900/50 dark:text-teal-300 dark:border-teal-700" },
+  D: { row: "border-l-4 border-l-pink-400 bg-pink-100 dark:bg-pink-900/25", badge: "bg-pink-200 text-pink-800 border-pink-300 dark:bg-pink-900/50 dark:text-pink-300 dark:border-pink-700" },
+  E: { row: "border-l-4 border-l-yellow-400 bg-yellow-100 dark:bg-yellow-900/25", badge: "bg-yellow-200 text-yellow-800 border-yellow-300 dark:bg-yellow-900/50 dark:text-yellow-300 dark:border-yellow-700" },
 };
 function altFinanceColor(g: string) {
   return ALT_FINANCE_COLORS[g] ?? { row: "border-l-2 border-l-slate-300", badge: "bg-slate-100 text-slate-600 border-slate-200" };
