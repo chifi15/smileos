@@ -30,6 +30,7 @@ async def log(
         resource_id=resource_id,
         description=description,
         changes=metadata,
+        created_at=datetime.now(timezone.utc),
     )
     db.add(entry)
     await db.flush()
