@@ -48,12 +48,12 @@ function StatCard({
   color: string;
 }) {
   return (
-    <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
+    <div className="rounded-xl bg-white dark:bg-gray-800 p-5 shadow-sm border border-slate-100 dark:border-gray-700">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-sm text-slate-500">{label}</p>
-          <p className="mt-1 text-3xl font-bold text-slate-800">{value}</p>
-          {sub && <p className="mt-1 text-xs text-slate-400">{sub}</p>}
+          <p className="text-sm text-slate-500 dark:text-gray-400">{label}</p>
+          <p className="mt-1 text-3xl font-bold text-slate-800 dark:text-white">{value}</p>
+          {sub && <p className="mt-1 text-xs text-slate-400 dark:text-gray-500">{sub}</p>}
         </div>
         <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
           <Icon size={20} />
@@ -95,14 +95,14 @@ export default function DashboardPage() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-800">
+          <h1 className="text-xl font-semibold text-slate-800 dark:text-white">
             {user ? greeting(user.full_name) : "Dashboard"}
           </h1>
-          <p className="text-sm text-slate-500 capitalize">{todayCapitalized}</p>
+          <p className="text-sm text-slate-500 dark:text-gray-400 capitalize">{todayCapitalized}</p>
         </div>
         <button
           onClick={() => refetchStats()}
-          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-slate-500 hover:bg-slate-100 transition-colors"
+          className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs text-slate-500 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors"
         >
           <RefreshCw size={13} />
           Actualizar
@@ -148,42 +148,42 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
             {/* Today's schedule */}
             <div className="lg:col-span-2">
-              <div className="rounded-xl bg-white shadow-sm border border-slate-100">
-                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-                  <h2 className="font-semibold text-slate-800">Agenda de hoy</h2>
-                  <span className="text-xs text-slate-400">
+              <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700">
+                <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-gray-700">
+                  <h2 className="font-semibold text-slate-800 dark:text-white">Agenda de hoy</h2>
+                  <span className="text-xs text-slate-400 dark:text-gray-500">
                     {schedule?.length ?? 0} citas
                   </span>
                 </div>
 
-                <div className="divide-y divide-slate-50">
+                <div className="divide-y divide-slate-50 dark:divide-gray-700">
                   {loadingSchedule ? (
                     <div className="flex justify-center py-8">
                       <Spinner />
                     </div>
                   ) : !schedule || schedule.length === 0 ? (
-                    <div className="py-10 text-center text-sm text-slate-400">
+                    <div className="py-10 text-center text-sm text-slate-400 dark:text-gray-500">
                       No hay citas para hoy
                     </div>
                   ) : (
                     schedule.map((item) => (
-                      <div key={item.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors">
+                      <div key={item.id} className="flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors">
                         <div className="w-12 shrink-0 text-center">
-                          <span className="text-sm font-semibold text-slate-700">
+                          <span className="text-sm font-semibold text-slate-700 dark:text-gray-300">
                             {item.scheduled_at_local}
                           </span>
-                          <p className="text-[10px] text-slate-400">
+                          <p className="text-[10px] text-slate-400 dark:text-gray-500">
                             {item.duration_minutes} min
                           </p>
                         </div>
                         <div className="min-w-0 flex-1">
                           <Link
                             href={`/patients/${item.patient.id}`}
-                            className="truncate text-sm font-medium text-slate-800 hover:text-blue-600 transition-colors"
+                            className="truncate text-sm font-medium text-slate-800 dark:text-white hover:text-blue-600 transition-colors"
                           >
                             {item.patient.full_name}
                           </Link>
-                          <p className="text-xs text-slate-500">
+                          <p className="text-xs text-slate-500 dark:text-gray-400">
                             {APPOINTMENT_TYPE_LABELS[item.appointment_type]}
                             {item.reason && ` — ${item.reason}`}
                           </p>
@@ -202,32 +202,32 @@ export default function DashboardPage() {
             {/* Right column */}
             <div className="space-y-4">
               {/* Patient stats */}
-              <div className="rounded-xl bg-white shadow-sm border border-slate-100 p-5">
+              <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <Users size={16} className="text-slate-400" />
-                  <h3 className="text-sm font-semibold text-slate-700">Pacientes</h3>
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-300">Pacientes</h3>
                 </div>
                 <div className="space-y-3">
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Activos</span>
-                    <span className="font-semibold text-slate-800">{stats.patients.total_active}</span>
+                    <span className="text-slate-500 dark:text-gray-400">Activos</span>
+                    <span className="font-semibold text-slate-800 dark:text-white">{stats.patients.total_active}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Nuevos este mes</span>
+                    <span className="text-slate-500 dark:text-gray-400">Nuevos este mes</span>
                     <span className="font-semibold text-green-600">+{stats.patients.new_this_month}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-slate-500">Nuevos (7 días)</span>
-                    <span className="font-semibold text-slate-800">{stats.last_7_days.new_patients}</span>
+                    <span className="text-slate-500 dark:text-gray-400">Nuevos (7 días)</span>
+                    <span className="font-semibold text-slate-800 dark:text-white">{stats.last_7_days.new_patients}</span>
                   </div>
                 </div>
               </div>
 
               {/* Treatment plans */}
-              <div className="rounded-xl bg-white shadow-sm border border-slate-100 p-5">
+              <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <ClipboardList size={16} className="text-slate-400" />
-                  <h3 className="text-sm font-semibold text-slate-700">Planes de Tratamiento</h3>
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-300">Planes de Tratamiento</h3>
                 </div>
                 <div className="space-y-3">
                   {[
@@ -236,7 +236,7 @@ export default function DashboardPage() {
                     { label: "Completados", value: stats.treatment_plans.completed, color: "text-green-600" },
                   ].map(({ label, value, color }) => (
                     <div key={label} className="flex justify-between text-sm">
-                      <span className="text-slate-500">{label}</span>
+                      <span className="text-slate-500 dark:text-gray-400">{label}</span>
                       <span className={`font-semibold ${color}`}>{value}</span>
                     </div>
                   ))}
@@ -244,10 +244,10 @@ export default function DashboardPage() {
               </div>
 
               {/* Smile Rewards distribution */}
-              <div className="rounded-xl bg-white shadow-sm border border-slate-100 p-5">
+              <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 p-5">
                 <div className="flex items-center gap-2 mb-4">
                   <Star size={16} className="text-slate-400" />
-                  <h3 className="text-sm font-semibold text-slate-700">Smile Rewards</h3>
+                  <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-300">Smile Rewards</h3>
                 </div>
                 <div className="space-y-2">
                   {(Object.keys(REWARDS_LEVEL_LABELS) as RewardsLevel[]).map((level) => (
@@ -256,15 +256,15 @@ export default function DashboardPage() {
                         label={REWARDS_LEVEL_LABELS[level]}
                         className={REWARDS_LEVEL_COLORS[level]}
                       />
-                      <span className="text-sm font-medium text-slate-700">
+                      <span className="text-sm font-medium text-slate-700 dark:text-gray-300">
                         {stats.smile_rewards.by_level[level]}
                       </span>
                     </div>
                   ))}
                 </div>
-                <div className="mt-3 pt-3 border-t border-slate-100 flex justify-between text-xs text-slate-500">
+                <div className="mt-3 pt-3 border-t border-slate-100 dark:border-gray-700 flex justify-between text-xs text-slate-500 dark:text-gray-400">
                   <span>Puntos en circulación</span>
-                  <span className="font-semibold text-slate-700">
+                  <span className="font-semibold text-slate-700 dark:text-gray-300">
                     {stats.smile_rewards.total_points_in_circulation.toLocaleString("es-NI")}
                   </span>
                 </div>
@@ -272,11 +272,11 @@ export default function DashboardPage() {
 
               {/* Recent activity */}
               {auditData && auditData.data.length > 0 && (
-                <div className="rounded-xl bg-white shadow-sm border border-slate-100 p-5">
+                <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 p-5">
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center gap-2">
                       <Activity size={16} className="text-slate-400" />
-                      <h3 className="text-sm font-semibold text-slate-700">Última actividad</h3>
+                      <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-300">Última actividad</h3>
                     </div>
                     <Link href="/actividad" className="text-xs text-blue-500 hover:underline">
                       Ver todo
@@ -291,8 +291,8 @@ export default function DashboardPage() {
                             {entry.resource_type_label}
                           </span>
                           <div className="min-w-0">
-                            <p className="text-xs text-slate-700 leading-snug truncate">{entry.description}</p>
-                            <p className="text-[10px] text-slate-400">
+                            <p className="text-xs text-slate-700 dark:text-gray-300 leading-snug truncate">{entry.description}</p>
+                            <p className="text-[10px] text-slate-400 dark:text-gray-500">
                               {format(parseISO(entry.created_at), "d MMM, HH:mm", { locale: es })}
                             </p>
                           </div>
@@ -306,7 +306,7 @@ export default function DashboardPage() {
           </div>
         </>
       ) : (
-        <div className="py-10 text-center text-sm text-slate-400">
+        <div className="py-10 text-center text-sm text-slate-400 dark:text-gray-500">
           No se pudo cargar el dashboard. Intenta actualizar.
         </div>
       )}

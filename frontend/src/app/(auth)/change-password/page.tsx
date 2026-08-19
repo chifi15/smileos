@@ -48,22 +48,22 @@ export default function ChangePasswordPage() {
   return (
     <div className="w-full max-w-md">
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-[#1e3a5f]">
+        <h1 className="text-3xl font-bold tracking-tight text-[#1e3a5f] dark:text-white">
           Smile<span className="text-blue-500">OS</span>
         </h1>
       </div>
 
-      <div className="rounded-2xl bg-white px-8 py-8 shadow-lg">
+      <div className="rounded-2xl bg-white dark:bg-gray-800 px-8 py-8 shadow-lg">
         <div className="flex items-center gap-3 mb-6">
-          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50">
+          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-50 dark:bg-blue-900/30">
             <ShieldCheck size={20} className="text-blue-600" />
           </div>
           <div>
-            <h2 className="text-base font-semibold text-slate-800">
+            <h2 className="text-base font-semibold text-slate-800 dark:text-white">
               {user?.must_change_password ? "Cambia tu contraseña" : "Nueva contraseña"}
             </h2>
             {user?.must_change_password && (
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-slate-500 dark:text-gray-400">
                 Debes configurar una contraseña segura para continuar.
               </p>
             )}
@@ -101,8 +101,8 @@ export default function ChangePasswordPage() {
             autoComplete="new-password"
           />
 
-          <div className="rounded-lg bg-slate-50 px-4 py-3 text-xs text-slate-500 space-y-1">
-            <p className="font-medium text-slate-600">Requisitos:</p>
+          <div className="rounded-lg bg-slate-50 dark:bg-gray-700 px-4 py-3 text-xs text-slate-500 dark:text-gray-400 space-y-1">
+            <p className="font-medium text-slate-600 dark:text-gray-300">Requisitos:</p>
             <p>• Mínimo 8 caracteres</p>
             <p>• Al menos una mayúscula y una minúscula</p>
             <p>• Al menos un número</p>

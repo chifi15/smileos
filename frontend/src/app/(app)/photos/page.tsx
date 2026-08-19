@@ -18,12 +18,12 @@ export default function PhotosPage() {
     <div className="flex h-full flex-col items-center justify-center p-6">
       <div className="w-full max-w-md text-center">
         <div className="mb-4 flex justify-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-slate-100 dark:bg-gray-700">
             <Camera size={32} className="text-slate-600" />
           </div>
         </div>
-        <h1 className="mb-1 text-xl font-semibold text-slate-800">Fotografías</h1>
-        <p className="mb-6 text-sm text-slate-500">
+        <h1 className="mb-1 text-xl font-semibold text-slate-800 dark:text-white">Fotografías</h1>
+        <p className="mb-6 text-sm text-slate-500 dark:text-gray-400">
           Busca un paciente para ver o subir fotografías clínicas.
         </p>
         <PatientSearch

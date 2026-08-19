@@ -32,15 +32,15 @@ export default function NewTreatmentPlanPage() {
       <div className="mb-6">
         <Link
           href={`/patients/${id}/treatments`}
-          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300 transition-colors"
         >
           <ChevronLeft size={16} />
           {patient?.full_name ?? "Paciente"}
         </Link>
-        <h1 className="mt-2 text-xl font-semibold text-slate-800">Nuevo plan de tratamiento</h1>
+        <h1 className="mt-2 text-xl font-semibold text-slate-800 dark:text-white">Nuevo plan de tratamiento</h1>
       </div>
 
-      <div className="max-w-xl rounded-xl bg-white p-8 shadow-sm border border-slate-100">
+      <div className="max-w-xl rounded-xl bg-white dark:bg-gray-800 p-8 shadow-sm border border-slate-100 dark:border-gray-700">
         <form onSubmit={handleSubmit} className="space-y-5">
           <Input
             label="Título del plan *"

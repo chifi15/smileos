@@ -124,28 +124,28 @@ export default function ImportFromOdontogramModal({ open, onClose, patientId, pl
       ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500">
-              <strong className="text-slate-800">{quote.length}</strong> procedimiento{quote.length !== 1 ? "s" : ""} en la cotización
+            <p className="text-sm text-slate-500 dark:text-gray-400">
+              <strong className="text-slate-800 dark:text-white">{quote.length}</strong> procedimiento{quote.length !== 1 ? "s" : ""} en la cotización
             </p>
             <div className="flex gap-2">
               <button onClick={selectAll} className="text-xs text-blue-600 hover:underline">Seleccionar todos</button>
-              <span className="text-slate-300">·</span>
-              <button onClick={deselectAll} className="text-xs text-slate-400 hover:underline">Deseleccionar</button>
+              <span className="text-slate-300 dark:text-gray-600">·</span>
+              <button onClick={deselectAll} className="text-xs text-slate-400 dark:text-gray-500 hover:underline">Deseleccionar</button>
             </div>
           </div>
 
-          <div className="rounded-xl border border-slate-200 overflow-hidden max-h-[55vh] overflow-y-auto">
+          <div className="rounded-xl border border-slate-200 dark:border-gray-700 overflow-hidden max-h-[55vh] overflow-y-auto">
             {groupedKeys.map((key) => {
               const toothRows = byTooth.get(key)!;
               const toothNum = key !== "__none__" ? parseInt(key) : null;
               return (
-                <div key={key} className="border-b border-slate-100 last:border-b-0">
+                <div key={key} className="border-b border-slate-100 dark:border-gray-700 last:border-b-0">
                   {/* Tooth header */}
-                  <div className="px-4 py-2 bg-slate-50 flex items-center gap-2">
-                    <span className="text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                  <div className="px-4 py-2 bg-slate-50 dark:bg-gray-700/50 flex items-center gap-2">
+                    <span className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">
                       {toothLabel(toothNum)}
                     </span>
-                    <span className="text-xs text-slate-400">
+                    <span className="text-xs text-slate-400 dark:text-gray-500">
                       {toothRows.length} procedimiento{toothRows.length !== 1 ? "s" : ""}
                     </span>
                   </div>
@@ -155,8 +155,8 @@ export default function ImportFromOdontogramModal({ open, onClose, patientId, pl
                     <div
                       key={row.id}
                       className={[
-                        "px-4 py-3 transition-colors border-t border-slate-50",
-                        row.selected ? "bg-white" : "bg-slate-50 opacity-60",
+                        "px-4 py-3 transition-colors border-t border-slate-50 dark:border-gray-700",
+                        row.selected ? "bg-white dark:bg-gray-800" : "bg-slate-50 dark:bg-gray-700/30 opacity-60",
                       ].join(" ")}
                     >
                       <div className="flex items-center gap-3">
@@ -175,7 +175,7 @@ export default function ImportFromOdontogramModal({ open, onClose, patientId, pl
                               setField(row.id, "procedureId", e.target.value);
                               if (proc) setField(row.id, "procedureName", proc.name);
                             }}
-                            className="w-full rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            className="w-full rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                           >
                             {procOptions.map((o) => (
                               <option key={o.value} value={o.value}>{o.label}</option>
@@ -185,14 +185,14 @@ export default function ImportFromOdontogramModal({ open, onClose, patientId, pl
                           <select
                             value={row.priority}
                             onChange={(e) => setField(row.id, "priority", e.target.value as "normal" | "urgent")}
-                            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                            className="rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white px-2.5 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
                           >
                             <option value="normal">Normal</option>
                             <option value="urgent">Urgente</option>
                           </select>
                           {/* Price */}
                           <div className="relative">
-                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400">C$</span>
+                            <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-slate-400 dark:text-gray-500">C$</span>
                             <input
                               type="number"
                               min="0"
@@ -202,7 +202,7 @@ export default function ImportFromOdontogramModal({ open, onClose, patientId, pl
                               onChange={(e) =>
                                 setField(row.id, "price", e.target.value === "" ? null : parseFloat(e.target.value) || 0)
                               }
-                              className="w-full rounded-lg border border-slate-200 bg-white pl-7 pr-2 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-400"
+                              className="w-full rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white pl-7 pr-2 py-1.5 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-400"
                             />
                           </div>
                         </div>
@@ -216,11 +216,11 @@ export default function ImportFromOdontogramModal({ open, onClose, patientId, pl
 
           <div className="flex items-center justify-between pt-1">
             <div>
-              <p className="text-sm text-slate-500">
+              <p className="text-sm text-slate-500 dark:text-gray-400">
                 {selected.length} procedimiento{selected.length !== 1 ? "s" : ""} seleccionado{selected.length !== 1 ? "s" : ""}
               </p>
               {selected.length > 0 && (
-                <p className="text-xs text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">
                   Total: C$ {selected.reduce((s, r) => s + (r.price ?? 0), 0).toLocaleString("es-NI")}
                 </p>
               )}

@@ -112,7 +112,7 @@ export default function NewAppointmentModal({ dateStr, onClose, prefilledPatient
       <form onSubmit={handleSubmit} className="space-y-4">
         {/* Patient */}
         <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-700">
+          <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-gray-300">
             Paciente *
           </label>
           <PatientSearch value={patient} onChange={setPatient} />
@@ -129,7 +129,7 @@ export default function NewAppointmentModal({ dateStr, onClose, prefilledPatient
               required
             />
             {dateLabel && (
-              <p className="mt-1 text-xs capitalize text-slate-400">{dateLabel}</p>
+              <p className="mt-1 text-xs capitalize text-slate-400 dark:text-gray-500">{dateLabel}</p>
             )}
           </div>
           <Input

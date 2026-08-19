@@ -55,7 +55,7 @@ export default function AppointmentCalendar({
   });
 
   return (
-    <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden [&_.fc-toolbar-title]:text-base [&_.fc-toolbar-title]:font-semibold [&_.fc-button]:text-sm [&_.fc-button]:capitalize [&_.fc-button-primary]:bg-blue-600 [&_.fc-button-primary]:border-blue-600 [&_.fc-button-primary:not(.fc-button-active)]:bg-white [&_.fc-button-primary:not(.fc-button-active)]:text-slate-700 [&_.fc-button-primary:not(.fc-button-active)]:border-slate-300 [&_.fc-today-button]:bg-white [&_.fc-today-button]:text-slate-700 [&_.fc-today-button]:border-slate-300 [&_.fc-event]:cursor-pointer [&_.fc-event]:rounded-md">
+    <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden [&_.fc-toolbar-title]:text-base [&_.fc-toolbar-title]:font-semibold [&_.fc-button]:text-sm [&_.fc-button]:capitalize [&_.fc-button-primary]:bg-blue-600 [&_.fc-button-primary]:border-blue-600 [&_.fc-button-primary:not(.fc-button-active)]:bg-white [&_.fc-button-primary:not(.fc-button-active)]:text-slate-700 [&_.fc-button-primary:not(.fc-button-active)]:border-slate-300 [&_.fc-today-button]:bg-white [&_.fc-today-button]:text-slate-700 [&_.fc-today-button]:border-slate-300 [&_.fc-event]:cursor-pointer [&_.fc-event]:rounded-md">
       <FullCalendar
         plugins={[timeGridPlugin, interactionPlugin]}
         initialView="timeGridWeek"

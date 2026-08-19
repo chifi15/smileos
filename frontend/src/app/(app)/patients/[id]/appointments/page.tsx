@@ -45,18 +45,18 @@ export default function PatientAppointmentsPage() {
 
     return (
       <button
-        className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 transition-colors text-left"
+        className="w-full flex items-center gap-4 px-5 py-3.5 hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors text-left"
         onClick={() => setSelected(appt)}
       >
         <div className="w-24 shrink-0">
-          <p className="text-sm font-medium text-slate-700">{dateStr}</p>
-          <p className="text-xs text-slate-400">{timeStr} · {appt.duration_minutes} min</p>
+          <p className="text-sm font-medium text-slate-700 dark:text-gray-300">{dateStr}</p>
+          <p className="text-xs text-slate-400 dark:text-gray-500">{timeStr} · {appt.duration_minutes} min</p>
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium text-slate-800">
+          <p className="text-sm font-medium text-slate-800 dark:text-white">
             {APPOINTMENT_TYPE_LABELS[appt.appointment_type as AppointmentType]}
           </p>
-          <p className="text-xs text-slate-400 truncate">
+          <p className="text-xs text-slate-400 dark:text-gray-500 truncate">
             {appt.dentist_name}
             {appt.reason && ` — ${appt.reason}`}
           </p>
@@ -76,12 +76,12 @@ export default function PatientAppointmentsPage() {
         <div>
           <Link
             href={`/patients/${id}`}
-            className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300 transition-colors"
           >
             <ChevronLeft size={16} />
             {patient?.full_name ?? "Paciente"}
           </Link>
-          <h1 className="mt-2 text-xl font-semibold text-slate-800">Historial de citas</h1>
+          <h1 className="mt-2 text-xl font-semibold text-slate-800 dark:text-white">Historial de citas</h1>
         </div>
         <Button
           size="sm"
@@ -99,9 +99,9 @@ export default function PatientAppointmentsPage() {
           <Spinner />
         </div>
       ) : appointments.length === 0 ? (
-        <div className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-slate-200 py-20 text-center">
-          <CalendarDays size={40} className="text-slate-300" />
-          <p className="text-sm text-slate-400">No hay citas registradas para este paciente.</p>
+        <div className="flex flex-col items-center gap-3 rounded-xl border-2 border-dashed border-slate-200 dark:border-gray-600 py-20 text-center">
+          <CalendarDays size={40} className="text-slate-300 dark:text-gray-600" />
+          <p className="text-sm text-slate-400 dark:text-gray-500">No hay citas registradas para este paciente.</p>
           <Link
             href="/appointments"
             className="text-sm font-medium text-blue-600 hover:underline"
@@ -112,13 +112,13 @@ export default function PatientAppointmentsPage() {
       ) : (
         <div className="space-y-4">
           {upcoming.length > 0 && (
-            <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-100">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 dark:border-gray-700">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">
                   Próximas · {upcoming.length}
                 </h2>
               </div>
-              <div className="divide-y divide-slate-50">
+              <div className="divide-y divide-slate-50 dark:divide-gray-700">
                 {upcoming
                   .sort((a, b) => a.scheduled_at.localeCompare(b.scheduled_at))
                   .map((a) => (
@@ -129,13 +129,13 @@ export default function PatientAppointmentsPage() {
           )}
 
           {past.length > 0 && (
-            <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
-              <div className="px-5 py-4 border-b border-slate-100">
-                <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500">
+            <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+              <div className="px-5 py-4 border-b border-slate-100 dark:border-gray-700">
+                <h2 className="text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">
                   Historial · {past.length}
                 </h2>
               </div>
-              <div className="divide-y divide-slate-50">
+              <div className="divide-y divide-slate-50 dark:divide-gray-700">
                 {past
                   .sort((a, b) => b.scheduled_at.localeCompare(a.scheduled_at))
                   .map((a) => (

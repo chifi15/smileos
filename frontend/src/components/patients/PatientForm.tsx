@@ -29,7 +29,7 @@ interface PatientFormProps {
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div>
-      <h3 className="mb-4 border-b border-slate-100 pb-2 text-sm font-semibold text-slate-600 uppercase tracking-wide">
+      <h3 className="mb-4 border-b border-slate-100 dark:border-gray-700 pb-2 text-sm font-semibold text-slate-600 dark:text-gray-400 uppercase tracking-wide">
         {title}
       </h3>
       {children}
@@ -102,10 +102,10 @@ export default function PatientForm({
             onChange={field("date_of_birth")}
           />
           <div className="flex flex-col gap-1">
-            <label className="text-sm font-medium text-slate-700">Edad</label>
-            <div className="flex h-10 items-center rounded-lg border border-slate-200 bg-slate-50 px-3 text-sm text-slate-700">
+            <label className="text-sm font-medium text-slate-700 dark:text-gray-300">Edad</label>
+            <div className="flex h-10 items-center rounded-lg border border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700 px-3 text-sm text-slate-700 dark:text-gray-300">
               {calcAge(values.date_of_birth) ?? (
-                <span className="text-slate-400">—</span>
+                <span className="text-slate-400 dark:text-gray-500">—</span>
               )}
             </div>
           </div>
@@ -248,7 +248,7 @@ export default function PatientForm({
       </Section>
 
       {/* Actions */}
-      <div className="flex justify-end gap-3 border-t border-slate-100 pt-6">
+      <div className="flex justify-end gap-3 border-t border-slate-100 dark:border-gray-700 pt-6">
         {onCancel && (
           <Button type="button" variant="secondary" onClick={onCancel}>
             Cancelar

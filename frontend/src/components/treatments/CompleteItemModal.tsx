@@ -26,11 +26,11 @@ export default function CompleteItemModal({
   return (
     <Modal open={open} onClose={onClose} title="Completar procedimiento" size="sm">
       <div className="space-y-5">
-        <div className="rounded-lg bg-green-50 px-4 py-3 text-sm text-green-700">
+        <div className="rounded-lg bg-green-50 dark:bg-green-900/30 px-4 py-3 text-sm text-green-700 dark:text-green-400">
           ¿Marcar como completado?{" "}
           <strong>{procedureName}</strong>
         </div>
-        <p className="text-xs text-slate-500">
+        <p className="text-xs text-slate-500 dark:text-gray-400">
           Se registrará la fecha y hora actual como fecha de finalización y se acumularán los puntos de recompensa correspondientes.
         </p>
         <div className="flex justify-end gap-3 pt-1">

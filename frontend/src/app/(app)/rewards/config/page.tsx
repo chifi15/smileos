@@ -57,9 +57,9 @@ function PointRow({
 }) {
   const changed = entry.points !== entry.originalPoints;
   return (
-    <div className="flex items-center gap-3 px-4 py-3 bg-white">
+    <div className="flex items-center gap-3 px-4 py-3 bg-white dark:bg-gray-800">
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-slate-800">{entry.label}</p>
+        <p className="text-sm font-medium text-slate-800 dark:text-white">{entry.label}</p>
         <p className={`text-xs ${entry.trigger === "auto" ? "text-amber-600" : entry.is_system ? "text-violet-500" : "text-violet-600"}`}>
           {entry.trigger === "auto" ? "Automático" : entry.is_system ? "Manual" : "Manual · Personalizado"}
         </p>
@@ -107,15 +107,15 @@ function AddCustomTypeForm({ onAdd }: { onAdd: (key: string, label: string, poin
   }
 
   return (
-    <div className="px-4 py-3 bg-slate-50 border-t border-slate-100">
-      <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Agregar tipo personalizado</p>
+    <div className="px-4 py-3 bg-slate-50 dark:bg-gray-700/50 border-t border-slate-100 dark:border-gray-700">
+      <p className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide mb-2">Agregar tipo personalizado</p>
       <div className="flex items-end gap-2">
         <input
           type="text"
           value={label}
           onChange={(e) => setLabel(e.target.value)}
           placeholder="Nombre (ej: Examen preventivo)"
-          className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+          className="flex-1 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
         />
         <div className="relative w-24">
           <input
@@ -125,7 +125,7 @@ function AddCustomTypeForm({ onAdd }: { onAdd: (key: string, label: string, poin
             value={points}
             onChange={(e) => setPoints(e.target.value)}
             placeholder="Pts"
-            className="w-full rounded-lg border border-slate-200 bg-white px-2 py-2 text-right text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+            className="w-full rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white px-2 py-2 text-right text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
           />
           <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">pts</span>
         </div>
@@ -178,11 +178,11 @@ function LevelBenefitsEditor({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="text-lg">{LEVEL_ICONS_MAP[lvl.level]}</span>
-          <span className="font-semibold text-slate-800">{lvl.label}</span>
-          <span className="text-xs text-slate-400">desde {lvl.threshold.toLocaleString("es-NI")} pts</span>
+          <span className="font-semibold text-slate-800 dark:text-white">{lvl.label}</span>
+          <span className="text-xs text-slate-400 dark:text-gray-500">desde {lvl.threshold.toLocaleString("es-NI")} pts</span>
         </div>
         <div className="flex items-center gap-1.5">
-          <span className="text-sm text-slate-500">Descuento:</span>
+          <span className="text-sm text-slate-500 dark:text-gray-400">Descuento:</span>
           <div className="relative">
             <input
               type="number"
@@ -203,9 +203,9 @@ function LevelBenefitsEditor({
       {/* Lista de perks */}
       <div className="space-y-1.5">
         {lvl.perks.map((perk, i) => (
-          <div key={i} className="flex items-center gap-2 bg-white/70 rounded-lg px-3 py-1.5">
+          <div key={i} className="flex items-center gap-2 bg-white/70 dark:bg-gray-800/70 rounded-lg px-3 py-1.5">
             <span className="text-green-500 text-xs shrink-0">✓</span>
-            <span className="flex-1 text-sm text-slate-700">{perk}</span>
+            <span className="flex-1 text-sm text-slate-700 dark:text-gray-300">{perk}</span>
             <button
               onClick={() => onDeletePerk(lvl.level, i)}
               className="text-slate-300 hover:text-red-400 transition-colors shrink-0"
@@ -215,7 +215,7 @@ function LevelBenefitsEditor({
           </div>
         ))}
         {lvl.perks.length === 0 && (
-          <p className="text-xs text-slate-400 italic px-1">Sin beneficios adicionales.</p>
+          <p className="text-xs text-slate-400 dark:text-gray-500 italic px-1">Sin beneficios adicionales.</p>
         )}
       </div>
 
@@ -227,12 +227,12 @@ function LevelBenefitsEditor({
           onChange={(e) => setNewPerk(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleAddPerk()}
           placeholder="Ej: Limpieza de cortesía anual"
-          className="flex-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
+          className="flex-1 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-yellow-400"
         />
         <button
           onClick={handleAddPerk}
           disabled={!newPerk.trim()}
-          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-40 transition-colors"
+          className="inline-flex items-center gap-1 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-1.5 text-sm text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-600 disabled:opacity-40 transition-colors"
         >
           <Plus size={13} />
           Agregar
@@ -350,12 +350,12 @@ export default function RewardsConfigPage() {
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
-          <Link href="/rewards" className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors">
+          <Link href="/rewards" className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300 transition-colors">
             <ChevronLeft size={16} />
             Smile Rewards
           </Link>
-          <h1 className="mt-2 text-xl font-semibold text-slate-800">Configurar programa de puntos</h1>
-          <p className="mt-0.5 text-sm text-slate-500">
+          <h1 className="mt-2 text-xl font-semibold text-slate-800 dark:text-white">Configurar programa de puntos</h1>
+          <p className="mt-0.5 text-sm text-slate-500 dark:text-gray-400">
             Personaliza los puntos, umbrales de nivel y beneficios por nivel.
           </p>
         </div>
@@ -378,20 +378,20 @@ export default function RewardsConfigPage() {
       ) : (
         <>
           {/* Sección 1: Puntos por acción */}
-          <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100">
-              <h2 className="font-semibold text-slate-800">Puntos por acción</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Los valores en amarillo tienen cambios sin guardar.</p>
+          <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-gray-700">
+              <h2 className="font-semibold text-slate-800 dark:text-white">Puntos por acción</h2>
+              <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">Los valores en amarillo tienen cambios sin guardar.</p>
             </div>
 
             <div>
-              <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 border-b border-amber-100">
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-amber-50 dark:bg-amber-900/20 border-b border-amber-100 dark:border-amber-800/30">
                 <Zap size={13} className="text-amber-600" />
-                <p className="text-xs font-semibold text-amber-700 uppercase tracking-wide">
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 uppercase tracking-wide">
                   Automáticos — se otorgan solos al completar acciones
                 </p>
               </div>
-              <div className="divide-y divide-slate-50">
+              <div className="divide-y divide-slate-50 dark:divide-gray-700">
                 {autoTypes.map((entry) => (
                   <PointRow key={entry.key} entry={entry} onChange={handlePointChange} />
                 ))}
@@ -399,13 +399,13 @@ export default function RewardsConfigPage() {
             </div>
 
             <div className="border-t border-slate-100">
-              <div className="flex items-center gap-2 px-4 py-2.5 bg-violet-50 border-b border-violet-100">
+              <div className="flex items-center gap-2 px-4 py-2.5 bg-violet-50 dark:bg-violet-900/20 border-b border-violet-100 dark:border-violet-800/30">
                 <Hand size={13} className="text-violet-600" />
-                <p className="text-xs font-semibold text-violet-700 uppercase tracking-wide">
+                <p className="text-xs font-semibold text-violet-700 dark:text-violet-400 uppercase tracking-wide">
                   Manuales — el dentista los otorga según su criterio
                 </p>
               </div>
-              <div className="divide-y divide-slate-50">
+              <div className="divide-y divide-slate-50 dark:divide-gray-700">
                 {manualTypes.map((entry) => (
                   <PointRow key={entry.key} entry={entry} onChange={handlePointChange} onDelete={handleDeleteCustom} />
                 ))}
@@ -415,21 +415,21 @@ export default function RewardsConfigPage() {
           </div>
 
           {/* Sección 2: Umbrales de nivel */}
-          <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100">
-              <h2 className="font-semibold text-slate-800">Umbrales de nivel</h2>
-              <p className="text-xs text-slate-500 mt-0.5">Puntos mínimos para alcanzar cada nivel.</p>
+          <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-gray-700">
+              <h2 className="font-semibold text-slate-800 dark:text-white">Umbrales de nivel</h2>
+              <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">Puntos mínimos para alcanzar cada nivel.</p>
             </div>
             <div className="divide-y divide-slate-50">
               {levels.map((lvl) => {
                 const changed = lvl.threshold !== lvl.originalThreshold;
                 return (
-                  <div key={lvl.level} className="flex items-center gap-4 px-4 py-3 bg-white">
+                  <div key={lvl.level} className="flex items-center gap-4 px-4 py-3 bg-white dark:bg-gray-800">
                     <div className="flex-1">
-                      <p className="text-sm font-medium text-slate-800">
+                      <p className="text-sm font-medium text-slate-800 dark:text-white">
                         {LEVEL_ICONS_MAP[lvl.level]} {lvl.label}
                       </p>
-                      {!lvl.is_editable && <p className="text-xs text-slate-400">Siempre en 0 — punto de partida</p>}
+                      {!lvl.is_editable && <p className="text-xs text-slate-400 dark:text-gray-500">Siempre en 0 — punto de partida</p>}
                     </div>
                     <div className="relative w-28">
                       <input
@@ -459,7 +459,7 @@ export default function RewardsConfigPage() {
                 <Gift size={16} className="text-yellow-500" />
                 <h2 className="font-semibold text-slate-800">Beneficios por nivel</h2>
               </div>
-              <p className="text-xs text-slate-500 mt-0.5">
+              <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
                 Define el descuento y los beneficios que obtiene el paciente en cada nivel.
                 Esto se muestra en su perfil y en su página de Smile Rewards.
               </p>
@@ -477,7 +477,7 @@ export default function RewardsConfigPage() {
             </div>
           </div>
 
-          <p className="text-xs text-slate-400 text-center pb-2">
+          <p className="text-xs text-slate-400 dark:text-gray-500 text-center pb-2">
             Los cambios aplican de forma inmediata al guardar. Los puntos ya acumulados no se modifican.
           </p>
         </>

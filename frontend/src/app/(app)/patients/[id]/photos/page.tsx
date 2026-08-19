@@ -138,18 +138,18 @@ function UploadModal({ open, onClose, patientId }: UploadModalProps) {
             className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 cursor-pointer transition-colors ${
               isDragActive
                 ? "border-blue-400 bg-blue-50"
-                : "border-slate-200 bg-slate-50 hover:border-blue-300 hover:bg-blue-50"
+                : "border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/50 hover:border-blue-300 hover:bg-blue-50"
             }`}
           >
             <input {...getInputProps()} />
             <Camera size={32} className="text-slate-300" />
             <div className="text-center">
-              <p className="text-sm font-medium text-slate-600">
+              <p className="text-sm font-medium text-slate-600 dark:text-gray-400">
                 {isDragActive
                   ? "Suelta la imagen aquí"
                   : "Arrastra una imagen o haz clic para seleccionar"}
               </p>
-              <p className="mt-1 text-xs text-slate-400">JPG, PNG o WebP</p>
+              <p className="mt-1 text-xs text-slate-400 dark:text-gray-500">JPG, PNG o WebP</p>
             </div>
           </div>
         ) : (
@@ -339,10 +339,10 @@ function SortablePhotoCard({
     <div
       ref={setNodeRef}
       style={style}
-      className={`group relative overflow-hidden rounded-xl border bg-white shadow-sm transition-shadow ${
+      className={`group relative overflow-hidden rounded-xl border bg-white dark:bg-gray-800 shadow-sm transition-shadow ${
         reorderMode
           ? "border-blue-200 cursor-default"
-          : "border-slate-100 cursor-pointer hover:shadow-md"
+          : "border-slate-100 dark:border-gray-700 cursor-pointer hover:shadow-md"
       }`}
       onClick={reorderMode ? undefined : () => onOpen(globalIndex)}
     >
@@ -375,7 +375,7 @@ function SortablePhotoCard({
 
       <div className="p-2">
         {photo.caption && (
-          <p className="truncate text-xs text-slate-600">{photo.caption}</p>
+          <p className="truncate text-xs text-slate-600 dark:text-gray-400">{photo.caption}</p>
         )}
         <p className="text-xs text-slate-400">
           {format(
@@ -474,12 +474,12 @@ export default function PatientPhotosPage() {
         <div>
           <Link
             href={`/patients/${id}`}
-            className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300 transition-colors"
           >
             <ChevronLeft size={16} />
             {patient?.full_name ?? "Paciente"}
           </Link>
-          <h1 className="mt-2 text-xl font-semibold text-slate-800">Fotografías</h1>
+          <h1 className="mt-2 text-xl font-semibold text-slate-800 dark:text-white">Fotografías</h1>
         </div>
 
         <div className="flex items-center gap-2">
@@ -514,7 +514,7 @@ export default function PatientPhotosPage() {
       </div>
 
       {reorderMode && (
-        <p className="text-xs text-blue-600 bg-blue-50 border border-blue-100 rounded-lg px-4 py-2">
+        <p className="text-xs text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 rounded-lg px-4 py-2">
           Arrastra las fotos para cambiar el orden dentro de cada grupo. Haz clic en "Guardar orden" cuando termines.
         </p>
       )}
@@ -524,9 +524,9 @@ export default function PatientPhotosPage() {
           <Spinner />
         </div>
       ) : photos.length === 0 ? (
-        <div className="flex flex-col items-center gap-4 rounded-xl border-2 border-dashed border-slate-200 py-20 text-center">
-          <Camera size={40} className="text-slate-300" />
-          <p className="text-sm text-slate-400">No hay fotografías registradas.</p>
+        <div className="flex flex-col items-center gap-4 rounded-xl border-2 border-dashed border-slate-200 dark:border-gray-600 py-20 text-center">
+          <Camera size={40} className="text-slate-300 dark:text-gray-600" />
+          <p className="text-sm text-slate-400 dark:text-gray-500">No hay fotografías registradas.</p>
           <Button size="sm" onClick={() => setShowUpload(true)}>
             Subir primera foto
           </Button>
@@ -536,9 +536,9 @@ export default function PatientPhotosPage() {
           {(Object.entries(groupedPhotos) as [PhotoType, PatientPhoto[]][]).map(
             ([type, group]) => (
               <div key={type}>
-                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500">
+                <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">
                   {PHOTO_TYPE_LABELS[type]}
-                  <span className="ml-2 font-normal normal-case text-slate-400">
+                  <span className="ml-2 font-normal normal-case text-slate-400 dark:text-gray-500">
                     ({group.length})
                   </span>
                 </h2>

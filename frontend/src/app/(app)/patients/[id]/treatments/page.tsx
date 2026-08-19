@@ -69,16 +69,16 @@ function PlanCard({
   const totalPrice = plan.items.reduce((s, i) => s + (i.quoted_price ?? 0), 0);
 
   return (
-    <div className="relative group rounded-xl bg-white shadow-sm border border-slate-100 hover:border-blue-200 hover:shadow-md transition-all">
+    <div className="relative group rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 hover:border-blue-200 hover:shadow-md transition-all">
       <Link
         href={`/patients/${patientId}/treatments/${plan.id}`}
         className="block p-5"
       >
         <div className="flex items-start justify-between gap-3 mb-3">
           <div className="min-w-0">
-            <h3 className="font-semibold text-slate-800 truncate">{plan.title}</h3>
+            <h3 className="font-semibold text-slate-800 dark:text-white truncate">{plan.title}</h3>
             {plan.diagnosis && (
-              <p className="text-sm text-slate-500 truncate mt-0.5">{plan.diagnosis}</p>
+              <p className="text-sm text-slate-500 dark:text-gray-400 truncate mt-0.5">{plan.diagnosis}</p>
             )}
           </div>
           <Badge
@@ -89,11 +89,11 @@ function PlanCard({
 
         {total > 0 && (
           <div className="mb-3">
-            <div className="flex justify-between text-xs text-slate-500 mb-1">
+            <div className="flex justify-between text-xs text-slate-500 dark:text-gray-400 mb-1">
               <span>{done}/{total} procedimientos</span>
               <span>{pct}%</span>
             </div>
-            <div className="h-1.5 w-full rounded-full bg-slate-100">
+            <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-gray-700">
               <div
                 className="h-1.5 rounded-full bg-blue-500 transition-all"
                 style={{ width: `${pct}%` }}
@@ -102,10 +102,10 @@ function PlanCard({
           </div>
         )}
 
-        <div className="flex items-center justify-between text-xs text-slate-400">
+        <div className="flex items-center justify-between text-xs text-slate-400 dark:text-gray-500">
           <span>{format(parseISO(plan.created_at), "d MMM yyyy", { locale: es })}</span>
           {totalPrice > 0 && (
-            <span className="font-medium text-slate-600">
+            <span className="font-medium text-slate-600 dark:text-gray-400">
               C$ {totalPrice.toLocaleString("es-NI", { minimumFractionDigits: 2 })}
             </span>
           )}
@@ -115,7 +115,7 @@ function PlanCard({
       {/* Botón eliminar — visible al hacer hover */}
       <button
         onClick={(e) => { e.preventDefault(); onDelete(plan); }}
-        className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 transition-all"
+        className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
         title="Eliminar plan"
       >
         <Trash2 size={15} />
@@ -139,12 +139,12 @@ export default function PatientTreatmentsPage() {
         <div>
           <Link
             href={`/patients/${id}`}
-            className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300 transition-colors"
           >
             <ChevronLeft size={16} />
             {patient?.full_name ?? "Paciente"}
           </Link>
-          <h1 className="mt-1 text-xl font-semibold text-slate-800">
+          <h1 className="mt-1 text-xl font-semibold text-slate-800 dark:text-white">
             Planes de Tratamiento
           </h1>
         </div>
@@ -170,7 +170,7 @@ export default function PatientTreatmentsPage() {
         <>
           {active.length > 0 && (
             <div>
-              <h2 className="mb-3 text-sm font-semibold text-slate-500 uppercase tracking-wide">
+              <h2 className="mb-3 text-sm font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">
                 Activos
               </h2>
               <div className="grid gap-3 sm:grid-cols-2">
@@ -182,7 +182,7 @@ export default function PatientTreatmentsPage() {
           )}
           {rest.length > 0 && (
             <div>
-              <h2 className="mb-3 text-sm font-semibold text-slate-500 uppercase tracking-wide">
+              <h2 className="mb-3 text-sm font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">
                 Historial
               </h2>
               <div className="grid gap-3 sm:grid-cols-2">

@@ -48,7 +48,7 @@ export default function EditPatientPage() {
 
   if (!patient) {
     return (
-      <div className="p-6 text-center text-sm text-slate-500">
+      <div className="p-6 text-center text-sm text-slate-500 dark:text-gray-400">
         Paciente no encontrado.
       </div>
     );
@@ -60,17 +60,17 @@ export default function EditPatientPage() {
       <div className="mb-6">
         <Link
           href={`/patients/${id}`}
-          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300 transition-colors"
         >
           <ChevronLeft size={16} />
           {patient.full_name}
         </Link>
-        <h1 className="mt-2 text-xl font-semibold text-slate-800">
+        <h1 className="mt-2 text-xl font-semibold text-slate-800 dark:text-white">
           Editar paciente
         </h1>
       </div>
 
-      <div className="max-w-2xl rounded-xl bg-white p-8 shadow-sm border border-slate-100">
+      <div className="max-w-2xl rounded-xl bg-white dark:bg-gray-800 p-8 shadow-sm border border-slate-100 dark:border-gray-700">
         <PatientForm
           defaultValues={patientToForm(patient)}
           onSubmit={(values) => update.mutate(values)}

@@ -139,7 +139,7 @@ function ToothCell({ tooth, number, isUpper, editable, onClick, isSelected }: To
       title={`${number} — ${TOOTH_CONDITION_LABELS[condition]}`}
     >
       {isUpper && (
-        <span className="text-[9px] font-mono text-slate-500">
+        <span className="text-[9px] font-mono text-slate-500 dark:text-gray-500">
           {number}
         </span>
       )}
@@ -151,7 +151,7 @@ function ToothCell({ tooth, number, isUpper, editable, onClick, isSelected }: To
         <ToothSVG isUpper={isUpper} condition={condition} isSelected={isSelected} />
       </div>
       {!isUpper && (
-        <span className="text-[9px] font-mono text-slate-500">
+        <span className="text-[9px] font-mono text-slate-500 dark:text-gray-500">
           {number}
         </span>
       )}
@@ -171,13 +171,13 @@ function ToothEditor({ tooth, number, onSave, onClose }: ToothEditorProps) {
   const [notes, setNotes] = useState(tooth?.notes ?? "");
 
   return (
-    <div className="rounded-xl bg-white shadow-2xl border border-slate-200 p-4 w-72">
+    <div className="rounded-xl bg-white dark:bg-gray-800 shadow-2xl border border-slate-200 dark:border-gray-700 p-4 w-72">
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-2">
           <ToothSVG isUpper={true} condition={condition} isSelected={false} />
-          <h3 className="font-semibold text-slate-800">Pieza {number}</h3>
+          <h3 className="font-semibold text-slate-800 dark:text-white">Pieza {number}</h3>
         </div>
-        <button onClick={onClose} className="text-slate-400 hover:text-slate-600 text-xl leading-none">×</button>
+        <button onClick={onClose} className="text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300 text-xl leading-none">×</button>
       </div>
 
       <div className="grid grid-cols-1 gap-1 mb-3 max-h-64 overflow-y-auto">
@@ -190,7 +190,7 @@ function ToothEditor({ tooth, number, onSave, onClose }: ToothEditorProps) {
               onClick={() => setCondition(c)}
               className={cn(
                 "flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-left transition-all border-2",
-                isActive ? "shadow-sm scale-[1.02]" : "border-transparent hover:border-slate-200 bg-slate-50 hover:bg-white"
+                isActive ? "shadow-sm scale-[1.02]" : "border-transparent hover:border-slate-200 dark:hover:border-gray-600 bg-slate-50 dark:bg-gray-700 hover:bg-white dark:hover:bg-gray-600"
               )}
               style={isActive ? {
                 backgroundColor: s.bg,
@@ -213,7 +213,7 @@ function ToothEditor({ tooth, number, onSave, onClose }: ToothEditorProps) {
       </div>
 
       <textarea
-        className="w-full rounded-lg border border-slate-200 px-3 py-2 text-xs text-slate-700 placeholder-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+        className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 px-3 py-2 text-xs text-slate-700 placeholder-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
         rows={2}
         placeholder="Notas (opcional)..."
         value={notes}
@@ -223,7 +223,7 @@ function ToothEditor({ tooth, number, onSave, onClose }: ToothEditorProps) {
       <div className="flex justify-end gap-2 mt-3">
         <button
           onClick={onClose}
-          className="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-800"
+          className="px-3 py-1.5 text-xs text-slate-600 dark:text-gray-400 hover:text-slate-800 dark:hover:text-gray-200"
         >
           Cancelar
         </button>
@@ -260,11 +260,11 @@ export default function OdontogramChart({ teeth, editable = false, onChange }: P
   return (
     <div className="relative select-none">
       {/* Leyenda */}
-      <div className="flex flex-wrap gap-x-4 gap-y-1.5 mb-5 pb-4 border-b border-slate-100">
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5 mb-5 pb-4 border-b border-slate-100 dark:border-gray-700">
         {ALL_CONDITIONS.map((c) => {
           const s = CONDITION_STYLE[c];
           return (
-            <span key={c} className="flex items-center gap-1.5 text-[11px] text-slate-600">
+            <span key={c} className="flex items-center gap-1.5 text-[11px] text-slate-600 dark:text-gray-400">
               <span
                 className="inline-flex w-4 h-4 items-center justify-center rounded border-2 text-[9px] font-bold shrink-0"
                 style={{ backgroundColor: s.bg, borderColor: s.border, color: s.label }}
@@ -278,7 +278,7 @@ export default function OdontogramChart({ teeth, editable = false, onChange }: P
       </div>
 
       {/* Arcada */}
-      <div className="rounded-xl bg-gradient-to-b from-slate-50 to-white p-5 border border-slate-200">
+      <div className="rounded-xl bg-gradient-to-b from-slate-50 to-white dark:from-gray-700/50 dark:to-gray-800 p-5 border border-slate-200 dark:border-gray-700">
         {/* Superior */}
         <div className="flex justify-center gap-0.5">
           {UPPER_ROW.map((num) => (
@@ -296,9 +296,9 @@ export default function OdontogramChart({ teeth, editable = false, onChange }: P
 
         {/* Línea de oclusión */}
         <div className="my-3 flex items-center gap-2">
-          <div className="flex-1 border-t-2 border-dashed border-slate-300" />
-          <span className="text-[10px] text-slate-400 whitespace-nowrap px-1">línea de oclusión</span>
-          <div className="flex-1 border-t-2 border-dashed border-slate-300" />
+          <div className="flex-1 border-t-2 border-dashed border-slate-300 dark:border-gray-600" />
+          <span className="text-[10px] text-slate-400 dark:text-gray-500 whitespace-nowrap px-1">línea de oclusión</span>
+          <div className="flex-1 border-t-2 border-dashed border-slate-300 dark:border-gray-600" />
         </div>
 
         {/* Inferior */}
@@ -318,7 +318,7 @@ export default function OdontogramChart({ teeth, editable = false, onChange }: P
       </div>
 
       {editable && (
-        <p className="mt-2 text-center text-[11px] text-slate-400">
+        <p className="mt-2 text-center text-[11px] text-slate-400 dark:text-gray-500">
           Haz clic en cualquier pieza para registrar su diagnóstico
         </p>
       )}

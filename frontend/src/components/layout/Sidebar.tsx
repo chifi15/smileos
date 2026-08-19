@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useTheme } from "next-themes";
 import {
   LayoutDashboard,
   Users,
@@ -15,6 +16,8 @@ import {
   Calculator,
   Activity,
   Package,
+  Sun,
+  Moon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth.store";
@@ -53,6 +56,7 @@ export default function Sidebar() {
   const pathname = usePathname();
   const { user } = useAuthStore();
   const logout = useLogout();
+  const { theme, setTheme } = useTheme();
 
   const initials = user?.full_name
     .split(" ")
@@ -110,6 +114,16 @@ export default function Sidebar() {
             <p className="truncate text-xs text-white/50">{user?.email}</p>
           </div>
         </div>
+
+        {/* Theme toggle */}
+        <button
+          onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+          className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-white/65 transition-colors hover:bg-white/10 hover:text-white"
+        >
+          {theme === "dark" ? <Sun size={15} strokeWidth={1.8} /> : <Moon size={15} strokeWidth={1.8} />}
+          {theme === "dark" ? "Modo claro" : "Modo oscuro"}
+        </button>
+
         <button
           onClick={() => logout.mutate()}
           disabled={logout.isPending}

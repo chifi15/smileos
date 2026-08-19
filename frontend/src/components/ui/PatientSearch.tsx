@@ -55,12 +55,12 @@ export default function PatientSearch({ value, onChange, placeholder }: PatientS
 
   if (value) {
     return (
-      <div className="flex items-center justify-between rounded-lg border border-blue-300 bg-blue-50 h-10 px-3">
-        <span className="text-sm font-medium text-blue-800 truncate">{value.name}</span>
+      <div className="flex items-center justify-between rounded-lg border border-blue-300 bg-blue-50 dark:border-blue-700 dark:bg-blue-900/30 h-10 px-3">
+        <span className="text-sm font-medium text-blue-800 dark:text-blue-300 truncate">{value.name}</span>
         <button
           type="button"
           onClick={() => onChange(null)}
-          className="ml-2 shrink-0 text-blue-400 hover:text-blue-600"
+          className="ml-2 shrink-0 text-blue-400 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-200"
         >
           <X size={15} />
         </button>
@@ -73,7 +73,7 @@ export default function PatientSearch({ value, onChange, placeholder }: PatientS
       <div className="relative">
         <Search
           size={15}
-          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400"
+          className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500"
         />
         <input
           type="text"
@@ -83,28 +83,29 @@ export default function PatientSearch({ value, onChange, placeholder }: PatientS
           placeholder={placeholder ?? "Buscar paciente por nombre o teléfono..."}
           className={cn(
             "h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm",
-            "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+            "dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-500"
           )}
         />
       </div>
 
       {open && (
-        <div className="absolute z-20 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
+        <div className="absolute z-20 mt-1 w-full rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden dark:border-gray-700 dark:bg-gray-800">
           {!data || data.length === 0 ? (
-            <p className="px-4 py-3 text-sm text-slate-400">Sin resultados.</p>
+            <p className="px-4 py-3 text-sm text-slate-400 dark:text-gray-500">Sin resultados.</p>
           ) : (
             data.map((p) => (
               <button
                 key={p.id}
                 type="button"
-                className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 transition-colors"
+                className="flex w-full items-center gap-3 px-4 py-2.5 text-left hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors"
                 onClick={() => {
                   onChange({ id: p.id, name: p.full_name });
                   setQuery("");
                   setOpen(false);
                 }}
               >
-                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 text-xs font-semibold text-slate-600">
+                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-100 dark:bg-gray-700 text-xs font-semibold text-slate-600 dark:text-gray-300">
                   {p.full_name
                     .split(" ")
                     .slice(0, 2)
@@ -113,8 +114,8 @@ export default function PatientSearch({ value, onChange, placeholder }: PatientS
                     .toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-sm font-medium text-slate-800 truncate">{p.full_name}</p>
-                  {p.phone && <p className="text-xs text-slate-500">{p.phone}</p>}
+                  <p className="text-sm font-medium text-slate-800 dark:text-white truncate">{p.full_name}</p>
+                  {p.phone && <p className="text-xs text-slate-500 dark:text-gray-400">{p.phone}</p>}
                 </div>
               </button>
             ))

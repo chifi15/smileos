@@ -79,7 +79,7 @@ export default function TreatmentPlanDetailPage() {
       <div>
         <Link
           href={`/patients/${patientId}/treatments`}
-          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300 transition-colors"
         >
           <ChevronLeft size={16} />
           {patient?.full_name ?? "Paciente"}
@@ -87,23 +87,23 @@ export default function TreatmentPlanDetailPage() {
       </div>
 
       {/* Plan header */}
-      <div className="rounded-xl bg-white p-6 shadow-sm border border-slate-100">
+      <div className="rounded-xl bg-white dark:bg-gray-800 p-6 shadow-sm border border-slate-100 dark:border-gray-700">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
-              <h1 className="text-xl font-bold text-slate-800">{plan.title}</h1>
+              <h1 className="text-xl font-bold text-slate-800 dark:text-white">{plan.title}</h1>
               <Badge
                 label={PLAN_STATUS_LABELS[plan.status as TreatmentPlanStatus]}
                 className={PLAN_STATUS_COLORS[plan.status as TreatmentPlanStatus]}
               />
             </div>
             {plan.diagnosis && (
-              <p className="mt-1 text-sm text-slate-600">{plan.diagnosis}</p>
+              <p className="mt-1 text-sm text-slate-600 dark:text-gray-400">{plan.diagnosis}</p>
             )}
             {plan.notes && (
-              <p className="mt-1 text-xs text-slate-400 italic">{plan.notes}</p>
+              <p className="mt-1 text-xs text-slate-400 dark:text-gray-500 italic">{plan.notes}</p>
             )}
-            <p className="mt-2 text-xs text-slate-400">
+            <p className="mt-2 text-xs text-slate-400 dark:text-gray-500">
               Creado {format(parseISO(plan.created_at), "d 'de' MMMM yyyy", { locale: es })}
               {plan.created_by && ` por ${plan.created_by.full_name}`}
             </p>
@@ -123,19 +123,19 @@ export default function TreatmentPlanDetailPage() {
 
         {/* Progress */}
         {plan.items.length > 0 && (
-          <div className="mt-4 pt-4 border-t border-slate-100">
+          <div className="mt-4 pt-4 border-t border-slate-100 dark:border-gray-700">
             <div className="flex justify-between text-sm mb-1.5">
-              <span className="text-slate-500">{doneCount}/{plan.items.length} completados</span>
-              <span className="font-medium text-slate-700">{pct}%</span>
+              <span className="text-slate-500 dark:text-gray-400">{doneCount}/{plan.items.length} completados</span>
+              <span className="font-medium text-slate-700 dark:text-gray-300">{pct}%</span>
             </div>
-            <div className="h-2 w-full rounded-full bg-slate-100">
+            <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-gray-700">
               <div
                 className="h-2 rounded-full bg-blue-500 transition-all"
                 style={{ width: `${pct}%` }}
               />
             </div>
             {totalPrice > 0 && (
-              <p className="mt-2 text-right text-sm font-medium text-slate-600">
+              <p className="mt-2 text-right text-sm font-medium text-slate-600 dark:text-gray-400">
                 Total cotizado: C$ {totalPrice.toLocaleString("es-NI", { minimumFractionDigits: 2 })}
               </p>
             )}
@@ -144,9 +144,9 @@ export default function TreatmentPlanDetailPage() {
       </div>
 
       {/* Items */}
-      <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
-          <h2 className="font-semibold text-slate-800">Procedimientos</h2>
+      <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-gray-700">
+          <h2 className="font-semibold text-slate-800 dark:text-white">Procedimientos</h2>
           {plan.status === "active" && (
             <div className="flex gap-2">
               <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}>
@@ -162,7 +162,7 @@ export default function TreatmentPlanDetailPage() {
         </div>
 
         {plan.items.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-10 text-slate-400">
+          <div className="flex flex-col items-center gap-3 py-10 text-slate-400 dark:text-gray-500">
             <p className="text-sm">No hay procedimientos en este plan.</p>
             {plan.status === "active" && (
               <div className="flex gap-2">
@@ -177,7 +177,7 @@ export default function TreatmentPlanDetailPage() {
             )}
           </div>
         ) : (
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-slate-50 dark:divide-gray-700">
             {plan.items
               .sort((a, b) => a.sort_order - b.sort_order)
               .map((item) => {
@@ -208,8 +208,8 @@ export default function TreatmentPlanDetailPage() {
                           className={cn(
                             "text-sm font-medium",
                             status === "cancelled"
-                              ? "text-slate-400 line-through"
-                              : "text-slate-800"
+                              ? "text-slate-400 dark:text-gray-600 line-through"
+                              : "text-slate-800 dark:text-white"
                           )}
                         >
                           {item.procedure_name}
@@ -221,7 +221,7 @@ export default function TreatmentPlanDetailPage() {
                           <Badge label="Urgente" className="bg-red-100 text-red-600" />
                         )}
                       </div>
-                      <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-500">
+                      <div className="mt-1 flex flex-wrap gap-3 text-xs text-slate-500 dark:text-gray-400">
                         {item.tooth_fdi && <span>Diente {item.tooth_fdi}</span>}
                         {item.quoted_price != null && (
                           <span>

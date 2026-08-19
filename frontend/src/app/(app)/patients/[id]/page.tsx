@@ -102,7 +102,7 @@ function QuickPaymentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white shadow-2xl">
+      <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-800 shadow-2xl">
         <div className="flex items-center justify-between rounded-t-2xl bg-green-600 px-5 py-4">
           <div>
             <h2 className="text-base font-semibold text-white">Registrar pago</h2>
@@ -116,7 +116,7 @@ function QuickPaymentModal({
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           {/* Amount + currency */}
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">
+            <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">
               Monto recibido *
             </label>
             <div className="flex gap-2">
@@ -128,12 +128,12 @@ function QuickPaymentModal({
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="0.00"
-                className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="flex-1 rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               />
               <select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value as "NIO" | "USD")}
-                className="rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                className="rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               >
                 <option value="NIO">C$</option>
                 <option value="USD">USD</option>
@@ -148,13 +148,13 @@ function QuickPaymentModal({
 
           {/* Procedure catalog */}
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">
+            <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">
               Procedimiento
             </label>
             <select
               value={procedureId}
               onChange={(e) => handleProcedureChange(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             >
               <option value="">— Sin procedimiento —</option>
               {procedures.map((p, i) => (
@@ -181,7 +181,7 @@ function QuickPaymentModal({
                     step="1"
                     value={quantity}
                     onChange={(e) => setQuantity(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                    className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
                 {unitCost > 0 && (
@@ -202,7 +202,7 @@ function QuickPaymentModal({
               type="text"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
 
@@ -215,7 +215,7 @@ function QuickPaymentModal({
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
           </div>
 
@@ -227,7 +227,7 @@ function QuickPaymentModal({
             <button
               type="button"
               onClick={onClose}
-              className="flex-1 rounded-lg border border-slate-200 py-2 text-sm text-slate-600 hover:bg-slate-50"
+              className="flex-1 rounded-lg border border-slate-200 dark:border-gray-600 py-2 text-sm text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700"
             >
               Cancelar
             </button>
@@ -248,8 +248,8 @@ function QuickPaymentModal({
 function InfoRow({ label, value }: { label: string; value: string | null | undefined }) {
   return (
     <div className="flex flex-col gap-0.5">
-      <span className="text-xs text-slate-400">{label}</span>
-      <span className="text-sm text-slate-800">{value ?? "—"}</span>
+      <span className="text-xs text-slate-400 dark:text-gray-500">{label}</span>
+      <span className="text-sm text-slate-800 dark:text-gray-200">{value ?? "—"}</span>
     </div>
   );
 }
@@ -264,10 +264,10 @@ function InfoCard({
   children: React.ReactNode;
 }) {
   return (
-    <div className="rounded-xl bg-white p-5 shadow-sm border border-slate-100">
+    <div className="rounded-xl bg-white dark:bg-gray-800 p-5 shadow-sm border border-slate-100 dark:border-gray-700">
       <div className="flex items-center gap-2 mb-4">
-        <Icon size={15} className="text-slate-400" />
-        <h3 className="text-sm font-semibold text-slate-700">{title}</h3>
+        <Icon size={15} className="text-slate-400 dark:text-gray-500" />
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-300">{title}</h3>
       </div>
       <div className="space-y-3">{children}</div>
     </div>
@@ -347,14 +347,14 @@ export default function PatientDetailPage() {
       {/* Breadcrumb */}
       <Link
         href="/patients"
-        className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+        className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200 transition-colors"
       >
         <ChevronLeft size={16} />
         Pacientes
       </Link>
 
       {/* Patient header */}
-      <div className="rounded-xl bg-white p-6 shadow-sm border border-slate-100">
+      <div className="rounded-xl bg-white dark:bg-gray-800 p-6 shadow-sm border border-slate-100 dark:border-gray-700">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-4">
             <div
@@ -364,9 +364,9 @@ export default function PatientDetailPage() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-slate-800">{patient.full_name}</h1>
+                <h1 className="text-2xl font-bold text-slate-800 dark:text-white">{patient.full_name}</h1>
                 {patient.patient_number && (
-                  <span className="text-sm font-mono font-semibold text-slate-400 bg-slate-100 px-2 py-0.5 rounded">
+                  <span className="text-sm font-mono font-semibold text-slate-400 dark:text-gray-500 bg-slate-100 dark:bg-gray-700 px-2 py-0.5 rounded">
                     #{String(patient.patient_number).padStart(3, "0")}
                   </span>
                 )}
@@ -447,85 +447,85 @@ export default function PatientDetailPage() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-cols-7">
         <Link
           href={`/patients/${id}/evolution`}
-          className="flex items-center justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm hover:border-violet-200 hover:shadow-md transition-all"
+          className="flex items-center justify-between rounded-xl border border-slate-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm hover:border-violet-200 dark:hover:border-violet-700 hover:shadow-md transition-all"
         >
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-50">
               <NotebookPen size={18} className="text-violet-600" />
             </div>
-            <span className="text-sm font-medium text-slate-700">Evolución</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-gray-300">Evolución</span>
           </div>
           <ChevronRight size={16} className="text-slate-300" />
         </Link>
         <Link
           href={`/patients/${id}/appointments`}
-          className="flex items-center justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm hover:border-blue-200 hover:shadow-md transition-all"
+          className="flex items-center justify-between rounded-xl border border-slate-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm hover:border-blue-200 dark:hover:border-blue-700 hover:shadow-md transition-all"
         >
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50">
               <CalendarDays size={18} className="text-blue-600" />
             </div>
-            <span className="text-sm font-medium text-slate-700">Citas</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-gray-300">Citas</span>
           </div>
           <ChevronRight size={16} className="text-slate-300" />
         </Link>
         <Link
           href={`/patients/${id}/treatments`}
-          className="flex items-center justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm hover:border-blue-200 hover:shadow-md transition-all"
+          className="flex items-center justify-between rounded-xl border border-slate-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm hover:border-blue-200 dark:hover:border-blue-700 hover:shadow-md transition-all"
         >
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-50">
               <ClipboardList size={18} className="text-indigo-600" />
             </div>
-            <span className="text-sm font-medium text-slate-700">Tratamientos</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-gray-300">Tratamientos</span>
           </div>
           <ChevronRight size={16} className="text-slate-300" />
         </Link>
         <Link
           href={`/patients/${id}/photos`}
-          className="flex items-center justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm hover:border-blue-200 hover:shadow-md transition-all"
+          className="flex items-center justify-between rounded-xl border border-slate-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm hover:border-blue-200 dark:hover:border-blue-700 hover:shadow-md transition-all"
         >
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-50">
               <Camera size={18} className="text-slate-600" />
             </div>
-            <span className="text-sm font-medium text-slate-700">Fotografías</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-gray-300">Fotografías</span>
           </div>
           <ChevronRight size={16} className="text-slate-300" />
         </Link>
         <Link
           href={`/patients/${id}/rewards`}
-          className="flex items-center justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm hover:border-yellow-200 hover:shadow-md transition-all"
+          className="flex items-center justify-between rounded-xl border border-slate-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm hover:border-yellow-200 dark:hover:border-yellow-700 hover:shadow-md transition-all"
         >
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-yellow-50">
               <Star size={18} className="text-yellow-500" />
             </div>
-            <span className="text-sm font-medium text-slate-700">Smile Rewards</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-gray-300">Smile Rewards</span>
           </div>
           <ChevronRight size={16} className="text-slate-300" />
         </Link>
         <Link
           href={`/patients/${id}/odontogram`}
-          className="flex items-center justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm hover:border-teal-200 hover:shadow-md transition-all"
+          className="flex items-center justify-between rounded-xl border border-slate-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm hover:border-teal-200 dark:hover:border-teal-700 hover:shadow-md transition-all"
         >
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-teal-50">
               <ScanLine size={18} className="text-teal-600" />
             </div>
-            <span className="text-sm font-medium text-slate-700">Odontograma</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-gray-300">Odontograma</span>
           </div>
           <ChevronRight size={16} className="text-slate-300" />
         </Link>
         <Link
           href={`/patients/${id}/history`}
-          className="flex items-center justify-between rounded-xl border border-slate-100 bg-white p-4 shadow-sm hover:border-slate-300 hover:shadow-md transition-all"
+          className="flex items-center justify-between rounded-xl border border-slate-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm hover:border-slate-300 dark:hover:border-gray-500 hover:shadow-md transition-all"
         >
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-slate-50">
               <History size={18} className="text-slate-500" />
             </div>
-            <span className="text-sm font-medium text-slate-700">Historia</span>
+            <span className="text-sm font-medium text-slate-700 dark:text-gray-300">Historia</span>
           </div>
           <ChevronRight size={16} className="text-slate-300" />
         </Link>
@@ -556,8 +556,8 @@ export default function PatientDetailPage() {
           <InfoRow label="Dirección" value={patient.address} />
           <InfoRow label="Ciudad" value={patient.city} />
           <InfoRow label="País" value={patient.country} />
-          <div className="border-t border-slate-100 pt-3">
-            <p className="mb-2 text-xs font-medium text-slate-500">Emergencia</p>
+          <div className="border-t border-slate-100 dark:border-gray-700 pt-3">
+            <p className="mb-2 text-xs font-medium text-slate-500 dark:text-gray-400">Emergencia</p>
             <InfoRow label="Nombre" value={patient.emergency_contact_name} />
             <InfoRow label="Teléfono" value={patient.emergency_contact_phone} />
           </div>
@@ -611,7 +611,7 @@ export default function PatientDetailPage() {
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-slate-400">Puntos acumulados</p>
-                  <p className="text-2xl font-bold text-slate-800">
+                  <p className="text-2xl font-bold text-slate-800 dark:text-white">
                     {patient.rewards.total_points.toLocaleString("es-NI")}
                   </p>
                 </div>
@@ -619,8 +619,8 @@ export default function PatientDetailPage() {
 
               {/* Beneficios del nivel actual */}
               {levelData && (levelData.discount_pct > 0 || levelData.perks.length > 0) && (
-                <div className="rounded-lg bg-slate-50 px-3 py-2.5 space-y-1.5">
-                  <p className="text-xs font-semibold text-slate-500">Beneficios del nivel</p>
+                <div className="rounded-lg bg-slate-50 dark:bg-gray-700/50 px-3 py-2.5 space-y-1.5">
+                  <p className="text-xs font-semibold text-slate-500 dark:text-gray-400">Beneficios del nivel</p>
                   {levelData.discount_pct > 0 && (
                     <p className="text-xs font-bold text-green-700">
                       {levelData.discount_pct}% de descuento en tratamientos
@@ -629,7 +629,7 @@ export default function PatientDetailPage() {
                   {levelData.perks.map((perk, i) => (
                     <div key={i} className="flex items-start gap-1.5">
                       <span className="text-green-500 shrink-0 text-xs mt-0.5">✓</span>
-                      <span className="text-xs text-slate-600">{perk}</span>
+                      <span className="text-xs text-slate-600 dark:text-gray-300">{perk}</span>
                     </div>
                   ))}
                 </div>

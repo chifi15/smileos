@@ -31,13 +31,13 @@ export default function Modal({ open, onClose, title, size = "md", children }: M
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         onClick={onClose}
       />
-      <div className={cn("relative w-full rounded-2xl bg-white shadow-xl", sizes[size])}>
+      <div className={cn("relative w-full rounded-2xl bg-white shadow-xl dark:bg-gray-800", sizes[size])}>
         {title && (
-          <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-            <h2 className="text-base font-semibold text-slate-800">{title}</h2>
+          <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-700 px-6 py-4">
+            <h2 className="text-base font-semibold text-slate-800 dark:text-white">{title}</h2>
             <button
               onClick={onClose}
-              className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors"
             >
               <X size={18} />
             </button>

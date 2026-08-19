@@ -50,8 +50,8 @@ function AuditEntry({ entry }: { entry: AuditLog }) {
         </span>
       </div>
       <div className="min-w-0 flex-1">
-        <p className="text-sm text-slate-800">{entry.description ?? entry.action}</p>
-        <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400">
+        <p className="text-sm text-slate-800 dark:text-white">{entry.description ?? entry.action}</p>
+        <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400 dark:text-gray-500">
           {entry.user && <span>{entry.user.full_name}</span>}
           {entry.user && <span>·</span>}
           <span>{format(date, "d MMM yyyy, HH:mm", { locale: es })}</span>
@@ -81,16 +81,16 @@ export default function PatientHistoryPage() {
       <div>
         <Link
           href={`/patients/${id}`}
-          className="mb-3 inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+          className="mb-3 inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300 transition-colors"
         >
           <ChevronLeft size={16} />
           {loadingPatient ? "Paciente" : patient?.full_name}
         </Link>
-        <h1 className="text-xl font-semibold text-slate-800 flex items-center gap-2">
-          <History size={20} className="text-slate-400" />
+        <h1 className="text-xl font-semibold text-slate-800 dark:text-white flex items-center gap-2">
+          <History size={20} className="text-slate-400 dark:text-gray-500" />
           Historial de cambios
         </h1>
-        <p className="text-sm text-slate-500 mt-0.5">
+        <p className="text-sm text-slate-500 dark:text-gray-400 mt-0.5">
           Todos los cambios registrados para este paciente
         </p>
       </div>
@@ -104,7 +104,7 @@ export default function PatientHistoryPage() {
             className={`rounded-full px-3 py-1 text-xs font-medium transition-colors ${
               resourceType === opt.value
                 ? "bg-blue-600 text-white"
-                : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                : "bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-gray-600"
             }`}
           >
             {opt.label}
@@ -113,17 +113,17 @@ export default function PatientHistoryPage() {
       </div>
 
       {/* Feed */}
-      <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
+      <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
         {isLoading ? (
           <div className="flex justify-center py-10">
             <Spinner />
           </div>
         ) : entries.length === 0 ? (
-          <div className="py-10 text-center text-sm text-slate-400">
+          <div className="py-10 text-center text-sm text-slate-400 dark:text-gray-500">
             No hay cambios registrados para este paciente
           </div>
         ) : (
-          <div className="divide-y divide-slate-50 px-5">
+          <div className="divide-y divide-slate-50 dark:divide-gray-700 px-5">
             {entries.map((entry) => (
               <AuditEntry key={entry.id} entry={entry} />
             ))}
@@ -131,25 +131,25 @@ export default function PatientHistoryPage() {
         )}
 
         {meta && meta.pages > 1 && (
-          <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3">
-            <span className="text-xs text-slate-400">
+          <div className="flex items-center justify-between border-t border-slate-100 dark:border-gray-700 px-5 py-3">
+            <span className="text-xs text-slate-400 dark:text-gray-500">
               {meta.total} registro{meta.total !== 1 ? "s" : ""}
             </span>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
-                className="rounded p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30"
+                className="rounded p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-gray-700 disabled:opacity-30"
               >
                 <ChevronLeft size={16} />
               </button>
-              <span className="text-xs text-slate-600">
+              <span className="text-xs text-slate-600 dark:text-gray-400">
                 {page} / {meta.pages}
               </span>
               <button
                 onClick={() => setPage((p) => Math.min(meta.pages, p + 1))}
                 disabled={page === meta.pages}
-                className="rounded p-1 text-slate-400 hover:bg-slate-100 disabled:opacity-30"
+                className="rounded p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-gray-700 disabled:opacity-30"
               >
                 <ChevronRight size={16} />
               </button>

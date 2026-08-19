@@ -30,15 +30,15 @@ export default function LoginPage() {
     <div className="w-full max-w-md">
       {/* Logo */}
       <div className="text-center mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-[#1e3a5f]">
+        <h1 className="text-3xl font-bold tracking-tight text-[#1e3a5f] dark:text-white">
           Smile<span className="text-blue-500">OS</span>
         </h1>
-        <p className="mt-1.5 text-sm text-slate-500">Sistema de gestión dental</p>
+        <p className="mt-1.5 text-sm text-slate-500 dark:text-gray-400">Sistema de gestión dental</p>
       </div>
 
       {/* Card */}
-      <div className="rounded-2xl bg-white px-8 py-8 shadow-lg">
-        <h2 className="mb-6 text-lg font-semibold text-slate-800">Iniciar sesión</h2>
+      <div className="rounded-2xl bg-white dark:bg-gray-800 px-8 py-8 shadow-lg">
+        <h2 className="mb-6 text-lg font-semibold text-slate-800 dark:text-white">Iniciar sesión</h2>
 
         <form onSubmit={handleSubmit} className="space-y-5">
           <Input
@@ -72,7 +72,7 @@ export default function LoginPage() {
         </form>
       </div>
 
-      <p className="mt-6 text-center text-xs text-slate-400">
+      <p className="mt-6 text-center text-xs text-slate-400 dark:text-gray-600">
         SmileOS v0.1 — Sistema exclusivo para uso interno
       </p>
     </div>

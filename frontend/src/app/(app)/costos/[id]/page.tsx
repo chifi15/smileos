@@ -76,31 +76,31 @@ function TreatmentSettings({
   const [open, setOpen] = useState(false);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+    <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-slate-50 transition-colors"
+        className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors"
       >
-        <div className="flex items-center gap-2 text-sm font-medium text-slate-700">
-          <DollarSign size={15} className="text-slate-400" />
+        <div className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-gray-300">
+          <DollarSign size={15} className="text-slate-400 dark:text-gray-500" />
           Honorarios y configuración de precio
         </div>
         {open ? (
-          <ChevronUp size={15} className="text-slate-400" />
+          <ChevronUp size={15} className="text-slate-400 dark:text-gray-500" />
         ) : (
-          <ChevronDown size={15} className="text-slate-400" />
+          <ChevronDown size={15} className="text-slate-400 dark:text-gray-500" />
         )}
       </button>
       {open && (
-        <div className="border-t border-slate-100 px-5 py-4 space-y-4">
+        <div className="border-t border-slate-100 dark:border-gray-700 px-5 py-4 space-y-4">
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
             <div>
-              <label className="text-xs font-medium text-slate-500 block mb-1.5">
+              <label className="text-xs font-medium text-slate-500 dark:text-gray-400 block mb-1.5">
                 Tarifa/hora (C$)
               </label>
               <input
                 type="number"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 defaultValue={treatment.professional_fee_per_hour}
                 onBlur={(e) =>
                   onUpdate({ professional_fee_per_hour: parseFloat(e.target.value) || 192 })
@@ -108,13 +108,13 @@ function TreatmentSettings({
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-slate-500 block mb-1.5">
+              <label className="text-xs font-medium text-slate-500 dark:text-gray-400 block mb-1.5">
                 Total de horas
               </label>
               <input
                 type="number"
                 step="0.5"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 defaultValue={treatment.total_hours}
                 onBlur={(e) =>
                   onUpdate({ total_hours: parseFloat(e.target.value) || 1 })
@@ -122,12 +122,12 @@ function TreatmentSettings({
               />
             </div>
             <div>
-              <label className="text-xs font-medium text-slate-500 block mb-1.5">
+              <label className="text-xs font-medium text-slate-500 dark:text-gray-400 block mb-1.5">
                 Margen clínica (%)
               </label>
               <input
                 type="number"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 defaultValue={treatment.clinic_margin_pct * 100}
                 onBlur={(e) =>
                   onUpdate({ clinic_margin_pct: (parseFloat(e.target.value) || 15) / 100 })
@@ -137,9 +137,9 @@ function TreatmentSettings({
           </div>
 
           {globalFixedCost !== undefined && (
-            <div className="flex items-center gap-3 rounded-lg bg-blue-50 border border-blue-100 px-4 py-3 text-sm">
-              <DollarSign size={14} className="text-blue-500 shrink-0" />
-              <span className="text-blue-700">
+            <div className="flex items-center gap-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 px-4 py-3 text-sm">
+              <DollarSign size={14} className="text-blue-500 dark:text-blue-400 shrink-0" />
+              <span className="text-blue-700 dark:text-blue-400">
                 Costos fijos por paciente: <strong>C$ {globalFixedCost.toFixed(2)}</strong>
               </span>
               <a href="/costos/costos-fijos" className="ml-auto text-xs text-blue-600 hover:underline font-medium">
@@ -149,12 +149,12 @@ function TreatmentSettings({
           )}
 
           <div>
-            <label className="text-xs font-medium text-slate-500 block mb-1.5">
+            <label className="text-xs font-medium text-slate-500 dark:text-gray-400 block mb-1.5">
               Precio sugerido al paciente (C$) — dejar vacío para usar el calculado
             </label>
             <input
               type="number"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               defaultValue={treatment.suggested_price ?? ""}
               placeholder="(usar precio calculado automáticamente)"
               onBlur={(e) =>
@@ -198,10 +198,10 @@ function AddMaterialModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
-          <h2 className="font-semibold text-slate-800">Agregar material</h2>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+      <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-800 shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-700 px-6 py-4">
+          <h2 className="font-semibold text-slate-800 dark:text-white">Agregar material</h2>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 dark:text-gray-500 hover:bg-slate-100 dark:hover:bg-gray-700">
             <X size={16} />
           </button>
         </div>
@@ -212,19 +212,19 @@ function AddMaterialModal({
             onChange={(e) => setSearch(e.target.value)}
             autoFocus
           />
-          <div className="max-h-52 overflow-y-auto rounded-lg border border-slate-200 divide-y divide-slate-100">
+          <div className="max-h-52 overflow-y-auto rounded-lg border border-slate-200 dark:border-gray-600 divide-y divide-slate-100 dark:divide-gray-700">
             {filtered.length === 0 && (
-              <p className="px-4 py-8 text-center text-sm text-slate-400">Sin resultados</p>
+              <p className="px-4 py-8 text-center text-sm text-slate-400 dark:text-gray-500">Sin resultados</p>
             )}
             {filtered.map((p) => (
               <button
                 key={p.id}
                 onClick={() => setSelected(p.id)}
-                className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm hover:bg-blue-50 transition-colors ${selected === p.id ? "bg-blue-50 text-blue-700" : "text-slate-700"}`}
+                className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors ${selected === p.id ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400" : "text-slate-700 dark:text-gray-300"}`}
               >
                 <div>
                   <p className="font-medium">{p.name}</p>
-                  <p className="text-xs text-slate-400">{fmtC(p.unit_price)} / {p.portion_description}</p>
+                  <p className="text-xs text-slate-400 dark:text-gray-500">{fmtC(p.unit_price)} / {p.portion_description}</p>
                 </div>
                 {selected === p.id && <Check size={14} className="text-blue-600 shrink-0" />}
               </button>
@@ -232,21 +232,21 @@ function AddMaterialModal({
           </div>
           {selected && (
             <div className="flex items-center gap-3">
-              <label className="text-sm font-medium text-slate-700 whitespace-nowrap">
+              <label className="text-sm font-medium text-slate-700 dark:text-gray-300 whitespace-nowrap">
                 Cantidad (porciones):
               </label>
               <input
                 type="number"
                 min={0.1}
                 step={0.5}
-                className="w-24 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-24 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 value={qty}
                 onChange={(e) => setQty(e.target.value)}
               />
             </div>
           )}
         </div>
-        <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
+        <div className="flex gap-3 border-t border-slate-100 dark:border-gray-700 px-6 py-4">
           <Button variant="secondary" className="flex-1" onClick={onClose}>
             Cancelar
           </Button>
@@ -291,32 +291,32 @@ function AddByCategoryModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-gray-800 shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-700 px-6 py-4">
           <div>
-            <h2 className="font-semibold text-slate-800">Agregar por categoría</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Selecciona una categoría para agregar todos sus productos</p>
+            <h2 className="font-semibold text-slate-800 dark:text-white">Agregar por categoría</h2>
+            <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">Selecciona una categoría para agregar todos sus productos</p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 dark:text-gray-500 hover:bg-slate-100 dark:hover:bg-gray-700">
             <X size={16} />
           </button>
         </div>
 
         <div className="px-6 py-4">
           {byCategory.length === 0 ? (
-            <p className="py-6 text-center text-sm text-slate-400">Todos los productos ya están en esta cita</p>
+            <p className="py-6 text-center text-sm text-slate-400 dark:text-gray-500">Todos los productos ya están en esta cita</p>
           ) : (
             <div className="grid grid-cols-2 gap-2">
               {byCategory.map(({ cat, label, items }) => (
                 <button
                   key={cat}
                   onClick={() => handleAddCategory(cat)}
-                  className="flex flex-col items-start gap-1.5 rounded-xl border border-slate-200 px-4 py-3 text-left hover:border-blue-300 hover:bg-blue-50 transition-colors"
+                  className="flex flex-col items-start gap-1.5 rounded-xl border border-slate-200 dark:border-gray-600 px-4 py-3 text-left hover:border-blue-300 dark:hover:border-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
                 >
                   <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${categoryColor(cat)}`}>
                     {label}
                   </span>
-                  <p className="text-xs text-slate-500">
+                  <p className="text-xs text-slate-500 dark:text-gray-400">
                     {items.length} producto{items.length !== 1 ? "s" : ""}
                   </p>
                 </button>
@@ -325,7 +325,7 @@ function AddByCategoryModal({
           )}
         </div>
 
-        <div className="border-t border-slate-100 px-6 py-4">
+        <div className="border-t border-slate-100 dark:border-gray-700 px-6 py-4">
           <Button variant="secondary" className="w-full" onClick={onClose}>
             Cancelar
           </Button>
@@ -370,39 +370,39 @@ function MergeAppointmentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-gray-800 shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-700 px-6 py-4">
           <div>
-            <h2 className="font-semibold text-slate-800">Fusionar cita</h2>
-            <p className="text-xs text-slate-500 mt-0.5">
+            <h2 className="font-semibold text-slate-800 dark:text-white">Fusionar cita</h2>
+            <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
               Los materiales de la cita seleccionada se absorberán en{" "}
-              <span className="font-medium text-slate-700">Cita {target?.number}</span>
+              <span className="font-medium text-slate-700 dark:text-gray-300">Cita {target?.number}</span>
             </p>
           </div>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100">
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 dark:text-gray-500 hover:bg-slate-100 dark:hover:bg-gray-700">
             <X size={16} />
           </button>
         </div>
 
         <div className="px-6 py-4 space-y-2">
           {others.length === 0 && (
-            <p className="py-6 text-center text-sm text-slate-400">No hay otras citas para fusionar</p>
+            <p className="py-6 text-center text-sm text-slate-400 dark:text-gray-500">No hay otras citas para fusionar</p>
           )}
           {others.map((apt) => (
             <button
               key={apt.id}
               onClick={() => setSelectedId(apt.id)}
               className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition-colors ${
-                selectedId === apt.id ? "border-blue-400 bg-blue-50" : "border-slate-200 hover:bg-slate-50"
+                selectedId === apt.id ? "border-blue-400 bg-blue-50 dark:bg-blue-900/20 dark:border-blue-600" : "border-slate-200 dark:border-gray-600 hover:bg-slate-50 dark:hover:bg-gray-700"
               }`}
             >
               <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 text-xs font-bold text-slate-600">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-slate-200 dark:bg-gray-700 text-xs font-bold text-slate-600 dark:text-gray-300">
                   {apt.number}
                 </div>
                 <div>
-                  <p className="font-medium text-slate-700 text-sm">{apt.name}</p>
-                  <p className="text-xs text-slate-400">
+                  <p className="font-medium text-slate-700 dark:text-gray-300 text-sm">{apt.name}</p>
+                  <p className="text-xs text-slate-400 dark:text-gray-500">
                     {apt.materials.length} materiales · {fmtC(materialCost(apt))}
                   </p>
                 </div>
@@ -413,14 +413,14 @@ function MergeAppointmentModal({
         </div>
 
         {selectedId && (
-          <div className="border-t border-slate-100 bg-amber-50 px-6 py-3">
-            <p className="text-xs text-amber-700">
+          <div className="border-t border-slate-100 dark:border-gray-700 bg-amber-50 dark:bg-amber-900/20 px-6 py-3">
+            <p className="text-xs text-amber-700 dark:text-amber-400">
               La cita seleccionada desaparecerá y sus materiales se sumarán a la Cita {target?.number}. Esta acción no se puede deshacer.
             </p>
           </div>
         )}
 
-        <div className="flex gap-3 border-t border-slate-100 px-6 py-4">
+        <div className="flex gap-3 border-t border-slate-100 dark:border-gray-700 px-6 py-4">
           <Button variant="secondary" className="flex-1" onClick={onClose}>
             Cancelar
           </Button>
@@ -472,27 +472,27 @@ function SortableMaterialRow({
   };
 
   return (
-    <tr ref={setNodeRef} style={style} className="group hover:bg-slate-50/50">
+    <tr ref={setNodeRef} style={style} className="group hover:bg-slate-50/50 dark:hover:bg-gray-700/30">
       <td className="pl-3 pr-1 py-2.5 w-5">
         <button
           {...attributes}
           {...listeners}
-          className="cursor-grab active:cursor-grabbing text-slate-300 hover:text-slate-500 touch-none"
+          className="cursor-grab active:cursor-grabbing text-slate-300 dark:text-gray-600 hover:text-slate-500 dark:hover:text-gray-400 touch-none"
           tabIndex={-1}
         >
           <GripVertical size={14} />
         </button>
       </td>
-      <td className="pl-2 pr-1 py-2.5 w-6 text-center text-xs font-medium text-slate-400 tabular-nums select-none">
+      <td className="pl-2 pr-1 py-2.5 w-6 text-center text-xs font-medium text-slate-400 dark:text-gray-500 tabular-nums select-none">
         {rowIndex}
       </td>
       <td className="px-5 py-2.5">
-        <p className="font-medium text-slate-700 text-sm">{product.name}</p>
+        <p className="font-medium text-slate-700 dark:text-gray-300 text-sm">{product.name}</p>
         <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${categoryColor(product.category)}`}>
           {categoryLabel(product.category)}
         </span>
       </td>
-      <td className="px-4 py-2.5 text-right text-slate-600">
+      <td className="px-4 py-2.5 text-right text-slate-600 dark:text-gray-400">
         {fmtC(product.unitPrice)}
       </td>
       <td className="px-4 py-2.5 text-right">
@@ -500,7 +500,7 @@ function SortableMaterialRow({
           <div className="flex items-center justify-end gap-1">
             <input
               type="number"
-              className="w-16 rounded border border-blue-400 px-2 py-0.5 text-sm text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
+              className="w-16 rounded border border-blue-400 dark:border-blue-500 dark:bg-gray-700 dark:text-white px-2 py-0.5 text-sm text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
               value={editQtyValue}
               onChange={(e) => onEditQtyChange(e.target.value)}
               autoFocus
@@ -519,14 +519,14 @@ function SortableMaterialRow({
         ) : (
           <button
             onClick={onEditQtyStart}
-            className="flex items-center justify-end gap-1 tabular-nums text-slate-700 hover:text-blue-600"
+            className="flex items-center justify-end gap-1 tabular-nums text-slate-700 dark:text-gray-300 hover:text-blue-600"
           >
             {quantity}
-            <Edit2 size={10} className="text-slate-300 group-hover:text-slate-400" />
+            <Edit2 size={10} className="text-slate-300 dark:text-gray-600 group-hover:text-slate-400 dark:group-hover:text-gray-400" />
           </button>
         )}
       </td>
-      <td className="px-5 py-2.5 text-right font-medium text-slate-800">
+      <td className="px-5 py-2.5 text-right font-medium text-slate-800 dark:text-gray-200">
         {fmtC(total)}
       </td>
       <td className="pr-3 text-center">
@@ -617,11 +617,11 @@ function EditableAppointment({
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+    <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
       {/* Header */}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-slate-50 transition-colors"
+        className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors"
       >
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-xs font-bold text-white">
@@ -632,7 +632,7 @@ function EditableAppointment({
               <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
                 <input
                   autoFocus
-                  className="rounded border border-blue-400 px-2 py-0.5 text-sm font-semibold text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500 w-44"
+                  className="rounded border border-blue-400 dark:border-blue-500 dark:bg-gray-700 px-2 py-0.5 text-sm font-semibold text-slate-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-500 w-44"
                   value={editNameValue}
                   onChange={(e) => setEditNameValue(e.target.value)}
                   onKeyDown={(e) => {
@@ -647,17 +647,17 @@ function EditableAppointment({
                 className="flex items-center gap-1.5 group/name text-left"
                 onClick={(e) => { e.stopPropagation(); setEditNameValue(appointment.name); setEditName(true); }}
               >
-                <p className="font-semibold text-slate-800 text-sm">{appointment.name}</p>
-                <Edit2 size={10} className="text-slate-300 group-hover/name:text-slate-400 shrink-0" />
+                <p className="font-semibold text-slate-800 dark:text-white text-sm">{appointment.name}</p>
+                <Edit2 size={10} className="text-slate-300 dark:text-gray-600 group-hover/name:text-slate-400 dark:group-hover/name:text-gray-400 shrink-0" />
               </button>
             )}
-            <p className="text-xs text-slate-500">{materials.length} materiales</p>
+            <p className="text-xs text-slate-500 dark:text-gray-400">{materials.length} materiales</p>
           </div>
         </div>
         <div className="flex items-center gap-2">
           <div className="text-right">
-            <p className="text-xs text-slate-500">Costo cita</p>
-            <p className="font-semibold text-slate-800">{fmtC(materialCost)}</p>
+            <p className="text-xs text-slate-500 dark:text-gray-400">Costo cita</p>
+            <p className="font-semibold text-slate-800 dark:text-gray-200">{fmtC(materialCost)}</p>
           </div>
 
           {/* Duplicar cita */}
@@ -690,19 +690,19 @@ function EditableAppointment({
                 Pegar
               </button>
               {pasteOpen && (
-                <div className="absolute right-0 top-full mt-1 z-20 flex flex-col rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden min-w-[160px]">
-                  <p className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wide border-b border-slate-100">
+                <div className="absolute right-0 top-full mt-1 z-20 flex flex-col rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg overflow-hidden min-w-[160px]">
+                  <p className="px-3 py-2 text-[10px] font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wide border-b border-slate-100 dark:border-gray-700">
                     Desde: {clipboard.name}
                   </p>
                   <button
                     onClick={() => { onPaste(appointment.id, "replace"); setPasteOpen(false); }}
-                    className="px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                    className="px-3 py-2.5 text-left text-sm text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700"
                   >
                     Reemplazar todo
                   </button>
                   <button
                     onClick={() => { onPaste(appointment.id, "merge"); setPasteOpen(false); }}
-                    className="px-3 py-2.5 text-left text-sm text-slate-700 hover:bg-slate-50"
+                    className="px-3 py-2.5 text-left text-sm text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700"
                   >
                     Añadir al existente
                   </button>
@@ -742,17 +742,17 @@ function EditableAppointment({
       </button>
 
       {open && (
-        <div className="border-t border-slate-100">
+        <div className="border-t border-slate-100 dark:border-gray-700">
           {materials.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-8 text-center">
-              <Package size={24} className="text-slate-300" />
-              <p className="text-sm text-slate-500">Sin materiales en esta cita</p>
+              <Package size={24} className="text-slate-300 dark:text-gray-600" />
+              <p className="text-sm text-slate-500 dark:text-gray-400">Sin materiales en esta cita</p>
             </div>
           ) : (
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <table className="w-full text-sm">
                 <thead>
-                  <tr className="bg-slate-50 text-xs text-slate-500">
+                  <tr className="bg-slate-50 dark:bg-gray-700/50 text-xs text-slate-500 dark:text-gray-400">
                     <th className="w-5 py-2.5" />
                     <th className="w-6 py-2.5 text-center font-medium">#</th>
                     <th className="px-5 py-2.5 text-left font-medium">Material</th>
@@ -766,7 +766,7 @@ function EditableAppointment({
                   items={apt.materials.map((m) => m.productId)}
                   strategy={verticalListSortingStrategy}
                 >
-                  <tbody className="divide-y divide-slate-50">
+                  <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
                     {materials.map(({ product, quantity, total }, idx) => (
                       <SortableMaterialRow
                         key={product.id}
@@ -787,13 +787,13 @@ function EditableAppointment({
                   </tbody>
                 </SortableContext>
                 <tfoot>
-                  <tr className="border-t border-slate-200 bg-slate-50">
+                  <tr className="border-t border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50">
                     <td />
                     <td />
-                    <td colSpan={3} className="px-5 py-3 text-sm font-medium text-slate-600">
+                    <td colSpan={3} className="px-5 py-3 text-sm font-medium text-slate-600 dark:text-gray-400">
                       Subtotal cita {appointment.number}
                     </td>
-                    <td className="px-5 py-3 text-right font-bold text-slate-800">
+                    <td className="px-5 py-3 text-right font-bold text-slate-800 dark:text-gray-200">
                       {fmtC(materialCost)}
                     </td>
                     <td />
@@ -803,16 +803,16 @@ function EditableAppointment({
             </DndContext>
           )}
 
-          <div className="border-t border-slate-100 px-5 py-3 flex items-center gap-4">
+          <div className="border-t border-slate-100 dark:border-gray-700 px-5 py-3 flex items-center gap-4">
             <button
               onClick={() => setAddOpen(true)}
-              className="flex items-center gap-1.5 text-xs font-medium text-blue-600 hover:text-blue-700"
+              className="flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700"
             >
               <Plus size={13} /> Agregar material
             </button>
             <button
               onClick={() => setAddCategoryOpen(true)}
-              className="flex items-center gap-1.5 text-xs font-medium text-slate-500 hover:text-slate-700"
+              className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300"
             >
               <Plus size={13} /> Agregar por categoría
             </button>
@@ -900,7 +900,7 @@ export default function TreatmentDetailPage({
   if (loadingTreatments || loadingProducts) {
     return (
       <div className="flex h-full items-center justify-center">
-        <div className="text-slate-400">Cargando...</div>
+        <div className="text-slate-400 dark:text-gray-500">Cargando...</div>
       </div>
     );
   }
@@ -909,8 +909,8 @@ export default function TreatmentDetailPage({
     return (
       <div className="flex h-full items-center justify-center">
         <div className="text-center">
-          <AlertCircle size={40} className="text-slate-300 mx-auto mb-3" />
-          <p className="text-slate-500 font-medium">Tratamiento no encontrado</p>
+          <AlertCircle size={40} className="text-slate-300 dark:text-gray-600 mx-auto mb-3" />
+          <p className="text-slate-500 dark:text-gray-400 font-medium">Tratamiento no encontrado</p>
           <Button variant="ghost" size="sm" className="mt-3" onClick={() => router.push("/costos")}>
             <ArrowLeft size={14} /> Volver
           </Button>
@@ -928,7 +928,7 @@ export default function TreatmentDetailPage({
       <div className="flex items-start gap-4">
         <button
           onClick={() => router.push("/costos")}
-          className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700"
+          className="mt-0.5 flex items-center gap-1.5 text-sm text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300"
         >
           <ArrowLeft size={15} /> Costos
         </button>
@@ -936,7 +936,7 @@ export default function TreatmentDetailPage({
           {editName ? (
             <div className="flex items-center gap-2">
               <input
-                className="text-xl font-bold text-slate-800 border-b-2 border-blue-500 bg-transparent focus:outline-none w-full"
+                className="text-xl font-bold text-slate-800 dark:text-white border-b-2 border-blue-500 bg-transparent dark:bg-transparent focus:outline-none w-full"
                 value={nameValue}
                 onChange={(e) => setNameValue(e.target.value)}
                 autoFocus
@@ -963,14 +963,14 @@ export default function TreatmentDetailPage({
               className="flex items-center gap-2 group text-left"
               onClick={() => { setNameValue(treatment.name); setEditName(true); }}
             >
-              <h1 className="text-xl font-bold text-slate-800">{treatment.name}</h1>
-              <Edit2 size={14} className="text-slate-300 group-hover:text-slate-500" />
+              <h1 className="text-xl font-bold text-slate-800 dark:text-white">{treatment.name}</h1>
+              <Edit2 size={14} className="text-slate-300 dark:text-gray-600 group-hover:text-slate-500 dark:group-hover:text-gray-400" />
             </button>
           )}
           {treatment.description && (
-            <p className="text-sm text-slate-500 mt-0.5">{treatment.description}</p>
+            <p className="text-sm text-slate-500 dark:text-gray-400 mt-0.5">{treatment.description}</p>
           )}
-          <div className="mt-2 flex items-center gap-3 text-xs text-slate-400">
+          <div className="mt-2 flex items-center gap-3 text-xs text-slate-400 dark:text-gray-500">
             <span className="flex items-center gap-1">
               <Clock size={11} /> {treatment.total_hours}h profesional
             </span>
@@ -995,12 +995,12 @@ export default function TreatmentDetailPage({
       {/* Appointments */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-700">Materiales por cita</h2>
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-gray-300">Materiales por cita</h2>
           <div className="flex items-center gap-2">
             {clipboard && (
-              <span className="flex items-center gap-1.5 rounded-full bg-green-100 px-3 py-1 text-xs font-medium text-green-700">
+              <span className="flex items-center gap-1.5 rounded-full bg-green-100 dark:bg-green-900/30 px-3 py-1 text-xs font-medium text-green-700 dark:text-green-400">
                 <ClipboardPaste size={11} /> Copiado: {clipboard.name}
-                <button onClick={() => setClipboard(null)} className="ml-1 text-green-500 hover:text-green-700">
+                <button onClick={() => setClipboard(null)} className="ml-1 text-green-500 hover:text-green-700 dark:hover:text-green-300">
                   <X size={11} />
                 </button>
               </span>

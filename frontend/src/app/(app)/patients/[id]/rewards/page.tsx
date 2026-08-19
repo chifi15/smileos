@@ -159,27 +159,27 @@ function ProgramInfoPanel() {
   const manualTypes = config?.points_table.filter((e) => e.trigger === "manual") ?? [];
 
   return (
-    <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
+    <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
       <button
         onClick={() => setOpen((v) => !v)}
-        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-50 transition-colors"
+        className="w-full flex items-center justify-between px-5 py-4 text-left hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors"
       >
         <div className="flex items-center gap-2">
           <Star size={16} className="text-yellow-500" />
-          <span className="font-semibold text-slate-800 text-sm">Cómo funciona el programa</span>
+          <span className="font-semibold text-slate-800 dark:text-white text-sm">Cómo funciona el programa</span>
         </div>
         {open ? <ChevronUp size={16} className="text-slate-400" /> : <ChevronDown size={16} className="text-slate-400" />}
       </button>
 
       {open && (
-        <div className="border-t border-slate-100 px-5 py-4 space-y-5">
+        <div className="border-t border-slate-100 dark:border-gray-700 px-5 py-4 space-y-5">
           {isLoading ? (
             <div className="flex justify-center py-4"><Spinner /></div>
           ) : (
             <>
               {/* Niveles con beneficios */}
               <div>
-                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-2">Niveles y beneficios</p>
+                <p className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide mb-2">Niveles y beneficios</p>
                 <div className="space-y-2">
                   {config?.level_thresholds.map((lvl) => (
                     <div
@@ -214,9 +214,9 @@ function ProgramInfoPanel() {
               </div>
 
               {/* Política de inactividad */}
-              <div className="rounded-lg bg-amber-50 border border-amber-100 px-3 py-2.5">
-                <p className="text-xs font-semibold text-amber-700 mb-0.5">Política de inactividad</p>
-                <p className="text-xs text-amber-600">
+              <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 px-3 py-2.5">
+                <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-0.5">Política de inactividad</p>
+                <p className="text-xs text-amber-600 dark:text-amber-400">
                   Si un paciente no tiene visitas durante <strong>12 meses consecutivos</strong>,
                   sus puntos se vencen automáticamente y regresa al nivel Starter.
                 </p>
@@ -226,12 +226,12 @@ function ProgramInfoPanel() {
               <div>
                 <div className="flex items-center gap-1.5 mb-2">
                   <Zap size={13} className="text-amber-500" />
-                  <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Puntos automáticos</p>
+                  <p className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Puntos automáticos</p>
                 </div>
-                <div className="divide-y divide-slate-50 rounded-lg border border-slate-100 overflow-hidden">
+                <div className="divide-y divide-slate-50 dark:divide-gray-700 rounded-lg border border-slate-100 dark:border-gray-700 overflow-hidden">
                   {autoTypes.map((entry) => (
-                    <div key={entry.key} className="flex items-center justify-between px-3 py-2 bg-white">
-                      <span className="text-sm text-slate-700">{entry.label}</span>
+                    <div key={entry.key} className="flex items-center justify-between px-3 py-2 bg-white dark:bg-gray-800">
+                      <span className="text-sm text-slate-700 dark:text-gray-300">{entry.label}</span>
                       <span className="text-sm font-semibold text-green-600">+{entry.points} pts</span>
                     </div>
                   ))}
@@ -243,12 +243,12 @@ function ProgramInfoPanel() {
                 <div>
                   <div className="flex items-center gap-1.5 mb-2">
                     <Hand size={13} className="text-violet-500" />
-                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Bonos manuales</p>
+                    <p className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Bonos manuales</p>
                   </div>
-                  <div className="divide-y divide-slate-50 rounded-lg border border-slate-100 overflow-hidden">
+                  <div className="divide-y divide-slate-50 dark:divide-gray-700 rounded-lg border border-slate-100 dark:border-gray-700 overflow-hidden">
                     {manualTypes.map((entry) => (
-                      <div key={entry.key} className="flex items-center justify-between px-3 py-2 bg-white">
-                        <span className="text-sm text-slate-700">{entry.label}</span>
+                      <div key={entry.key} className="flex items-center justify-between px-3 py-2 bg-white dark:bg-gray-800">
+                        <span className="text-sm text-slate-700 dark:text-gray-300">{entry.label}</span>
                         <span className="text-sm font-semibold text-violet-600">+{entry.points} pts</span>
                       </div>
                     ))}
@@ -285,12 +285,12 @@ export default function PatientRewardsPage() {
         <div>
           <Link
             href={`/patients/${id}`}
-            className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+            className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300 transition-colors"
           >
             <ChevronLeft size={16} />
             {patient?.full_name ?? "Paciente"}
           </Link>
-          <h1 className="mt-2 text-xl font-semibold text-slate-800">Smile Rewards</h1>
+          <h1 className="mt-2 text-xl font-semibold text-slate-800 dark:text-white">Smile Rewards</h1>
         </div>
         {account && (
           <div className="flex gap-2">
@@ -338,13 +338,13 @@ export default function PatientRewardsPage() {
       {loadingAccount ? (
         <div className="flex justify-center py-10"><Spinner /></div>
       ) : !account ? (
-        <div className="rounded-xl bg-white p-8 text-center text-slate-400 shadow-sm border border-slate-100">
+        <div className="rounded-xl bg-white dark:bg-gray-800 p-8 text-center text-slate-400 dark:text-gray-500 shadow-sm border border-slate-100 dark:border-gray-700">
           Este paciente no tiene cuenta Smile Rewards.
         </div>
       ) : (
         <>
           {/* Cuenta */}
-          <div className="rounded-xl bg-white p-6 shadow-sm border border-slate-100">
+          <div className="rounded-xl bg-white dark:bg-gray-800 p-6 shadow-sm border border-slate-100 dark:border-gray-700">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex items-center gap-4">
                 <div className="flex h-14 w-14 items-center justify-center rounded-full bg-yellow-50">
@@ -355,26 +355,26 @@ export default function PatientRewardsPage() {
                     label={REWARDS_LEVEL_LABELS[account.level as RewardsLevel]}
                     className={`text-sm px-3 py-1 ${REWARDS_LEVEL_COLORS[account.level as RewardsLevel]}`}
                   />
-                  <p className="mt-1 text-3xl font-bold text-slate-800">
+                  <p className="mt-1 text-3xl font-bold text-slate-800 dark:text-white">
                     {account.total_points.toLocaleString("es-NI")}
-                    <span className="ml-2 text-base font-normal text-slate-400">puntos</span>
+                    <span className="ml-2 text-base font-normal text-slate-400 dark:text-gray-500">puntos</span>
                   </p>
                 </div>
               </div>
 
               {account.progress.next_level && (
                 <div className="w-64">
-                  <div className="flex justify-between text-xs text-slate-500 mb-1">
+                  <div className="flex justify-between text-xs text-slate-500 dark:text-gray-400 mb-1">
                     <span>Hacia {REWARDS_LEVEL_LABELS[account.progress.next_level as RewardsLevel]}</span>
                     <span>{account.progress.progress_pct}%</span>
                   </div>
-                  <div className="h-2 w-full rounded-full bg-slate-100">
+                  <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-gray-700">
                     <div
                       className="h-2 rounded-full bg-yellow-400 transition-all"
                       style={{ width: `${account.progress.progress_pct}%` }}
                     />
                   </div>
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-slate-400 dark:text-gray-500">
                     Faltan {account.progress.points_needed?.toLocaleString("es-NI")} puntos
                   </p>
                 </div>
@@ -382,22 +382,22 @@ export default function PatientRewardsPage() {
             </div>
 
             {account.benefits_suspended && (
-              <div className="mt-4 rounded-lg bg-amber-50 px-4 py-2.5 text-sm text-amber-700">
+              <div className="mt-4 rounded-lg bg-amber-50 dark:bg-amber-900/20 px-4 py-2.5 text-sm text-amber-700 dark:text-amber-400">
                 Beneficios suspendidos por inactividad mayor a 12 meses.
               </div>
             )}
 
             {account.last_visit_date && (
-              <p className="mt-3 text-xs text-slate-400">
+              <p className="mt-3 text-xs text-slate-400 dark:text-gray-500">
                 Última visita: {format(parseISO(account.last_visit_date), "d 'de' MMMM yyyy", { locale: es })}
               </p>
             )}
           </div>
 
           {/* Historial de transacciones */}
-          <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
-            <div className="px-5 py-4 border-b border-slate-100">
-              <h2 className="font-semibold text-slate-800">Historial de transacciones</h2>
+          <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+            <div className="px-5 py-4 border-b border-slate-100 dark:border-gray-700">
+              <h2 className="font-semibold text-slate-800 dark:text-white">Historial de transacciones</h2>
             </div>
 
             {loadingTx ? (
@@ -408,7 +408,7 @@ export default function PatientRewardsPage() {
               </div>
             ) : (
               <>
-                <div className="divide-y divide-slate-50">
+                <div className="divide-y divide-slate-50 dark:divide-gray-700">
                   {transactions.map((tx) => (
                     <div key={tx.id} className="flex items-center gap-4 px-5 py-3.5">
                       <div
@@ -422,11 +422,11 @@ export default function PatientRewardsPage() {
                         {tx.points > 0 ? <TrendingUp size={15} /> : <TrendingDown size={15} />}
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-800">
+                        <p className="text-sm font-medium text-slate-800 dark:text-white">
                           {TX_TYPE_LABELS[tx.transaction_type] ?? tx.transaction_type}
                         </p>
                         {tx.description && (
-                          <p className="text-xs text-slate-400 truncate">{tx.description}</p>
+                          <p className="text-xs text-slate-400 dark:text-gray-500 truncate">{tx.description}</p>
                         )}
                       </div>
                       <div className="text-right shrink-0">
@@ -438,11 +438,11 @@ export default function PatientRewardsPage() {
                         >
                           {tx.points > 0 ? "+" : ""}{tx.points}
                         </p>
-                        <p className="text-xs text-slate-400">
+                        <p className="text-xs text-slate-400 dark:text-gray-500">
                           {tx.balance_after.toLocaleString("es-NI")} total
                         </p>
                       </div>
-                      <div className="text-right text-xs text-slate-400 shrink-0 w-20">
+                      <div className="text-right text-xs text-slate-400 dark:text-gray-500 shrink-0 w-20">
                         {format(parseISO(tx.created_at), "dd/MM/yy", { locale: es })}
                       </div>
                     </div>
@@ -450,8 +450,8 @@ export default function PatientRewardsPage() {
                 </div>
 
                 {meta && meta.pages > 1 && (
-                  <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3">
-                    <p className="text-xs text-slate-500">
+                  <div className="flex items-center justify-between border-t border-slate-100 dark:border-gray-700 px-5 py-3">
+                    <p className="text-xs text-slate-500 dark:text-gray-400">
                       Página {page} de {meta.pages}
                     </p>
                     <div className="flex gap-2">

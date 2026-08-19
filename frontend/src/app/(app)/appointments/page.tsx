@@ -68,11 +68,11 @@ export default function AppointmentsPage() {
   return (
     <div className="flex h-full flex-col">
       {/* Page header */}
-      <div className="flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4">
+      <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-700 bg-white dark:bg-gray-800 px-6 py-4">
         <div>
-          <h1 className="text-xl font-semibold text-slate-800">Agenda</h1>
+          <h1 className="text-xl font-semibold text-slate-800 dark:text-white">Agenda</h1>
           {filteredAppointments.length > 0 && (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-gray-400">
               {filteredAppointments.length} citas en vista
               {statusCounts.completed ? ` · ${statusCounts.completed} completadas` : ""}
               {statusCounts.in_progress ? ` · ${statusCounts.in_progress} en progreso` : ""}
@@ -96,7 +96,7 @@ export default function AppointmentsPage() {
       </div>
 
       {/* Status legend */}
-      <div className="flex items-center gap-4 px-6 py-2 bg-white border-b border-slate-100">
+      <div className="flex items-center gap-4 px-6 py-2 bg-white dark:bg-gray-800 border-b border-slate-100 dark:border-gray-700">
         {[
           { color: "bg-slate-400", label: "Programada" },
           { color: "bg-blue-500", label: "Confirmada" },
@@ -106,7 +106,7 @@ export default function AppointmentsPage() {
         ].map(({ color, label }) => (
           <div key={label} className="flex items-center gap-1.5">
             <div className={`h-2.5 w-2.5 rounded-full ${color}`} />
-            <span className="text-xs text-slate-500">{label}</span>
+            <span className="text-xs text-slate-500 dark:text-gray-400">{label}</span>
           </div>
         ))}
       </div>

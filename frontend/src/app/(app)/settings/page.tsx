@@ -114,15 +114,15 @@ function CreateUserModal({ open, onClose }: CreateUserModalProps) {
             <p className="text-sm font-medium text-slate-800">{fullName}</p>
             <p className="text-xs text-slate-500 mt-0.5">{email}</p>
           </div>
-          <div className="rounded-xl bg-slate-50 border border-slate-200 p-4">
-            <p className="text-xs text-slate-500 mb-2">Contraseña temporal (cópiala ahora):</p>
+          <div className="rounded-xl bg-slate-50 dark:bg-gray-700 border border-slate-200 dark:border-gray-600 p-4">
+            <p className="text-xs text-slate-500 dark:text-gray-400 mb-2">Contraseña temporal (cópiala ahora):</p>
             <div className="flex items-center gap-2">
-              <code className="flex-1 text-sm font-mono font-semibold text-slate-800 bg-white rounded-lg border border-slate-200 px-3 py-2 break-all">
+              <code className="flex-1 text-sm font-mono font-semibold text-slate-800 dark:text-white bg-white dark:bg-gray-800 rounded-lg border border-slate-200 dark:border-gray-600 px-3 py-2 break-all">
                 {tempPassword}
               </code>
               <button
                 onClick={handleCopy}
-                className="rounded-lg border border-slate-200 bg-white p-2 text-slate-400 hover:text-slate-700 transition-colors"
+                className="rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 p-2 text-slate-400 hover:text-slate-700 dark:hover:text-gray-300 transition-colors"
               >
                 {copied ? <CheckCircle2 size={16} className="text-green-500" /> : <Copy size={16} />}
               </button>
@@ -201,8 +201,8 @@ function UserRow({ user }: { user: ClinicUser }) {
         {initials}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-slate-800 truncate">{user.full_name}</p>
-        <p className="text-xs text-slate-400 truncate">{user.email}</p>
+        <p className="text-sm font-medium text-slate-800 dark:text-white truncate">{user.full_name}</p>
+        <p className="text-xs text-slate-400 dark:text-gray-500 truncate">{user.email}</p>
       </div>
       <div className="shrink-0">
         <Badge
@@ -212,11 +212,11 @@ function UserRow({ user }: { user: ClinicUser }) {
       </div>
       <div className="shrink-0 text-right">
         {user.last_login_at ? (
-          <p className="text-xs text-slate-400">
+          <p className="text-xs text-slate-400 dark:text-gray-500">
             {format(parseISO(user.last_login_at), "d MMM yyyy", { locale: es })}
           </p>
         ) : (
-          <p className="text-xs text-slate-300">Sin acceso</p>
+          <p className="text-xs text-slate-300 dark:text-gray-600">Sin acceso</p>
         )}
       </div>
       <div className="shrink-0">
@@ -273,13 +273,13 @@ export default function SettingsPage() {
 
   return (
     <div className="p-6 space-y-6 max-w-3xl">
-      <h1 className="text-xl font-semibold text-slate-800">Configuración</h1>
+      <h1 className="text-xl font-semibold text-slate-800 dark:text-white">Configuración</h1>
 
       {/* Clinic info */}
-      <section className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
-        <div className="flex items-center gap-2 border-b border-slate-100 px-6 py-4">
-          <Building2 size={16} className="text-slate-400" />
-          <h2 className="font-semibold text-slate-800">Información de la clínica</h2>
+      <section className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+        <div className="flex items-center gap-2 border-b border-slate-100 dark:border-gray-700 px-6 py-4">
+          <Building2 size={16} className="text-slate-400 dark:text-gray-500" />
+          <h2 className="font-semibold text-slate-800 dark:text-white">Información de la clínica</h2>
         </div>
 
         {loadingSettings ? (
@@ -361,11 +361,11 @@ export default function SettingsPage() {
       </section>
 
       {/* Users */}
-      <section className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
+      <section className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-700 px-6 py-4">
           <div className="flex items-center gap-2">
-            <Users size={16} className="text-slate-400" />
-            <h2 className="font-semibold text-slate-800">Usuarios</h2>
+            <Users size={16} className="text-slate-400 dark:text-gray-500" />
+            <h2 className="font-semibold text-slate-800 dark:text-white">Usuarios</h2>
           </div>
           <Button size="sm" onClick={() => setShowCreateUser(true)}>
             <UserPlus size={15} />
@@ -378,11 +378,11 @@ export default function SettingsPage() {
             <Spinner />
           </div>
         ) : users.length === 0 ? (
-          <div className="py-10 text-center text-sm text-slate-400">
+          <div className="py-10 text-center text-sm text-slate-400 dark:text-gray-500">
             No hay usuarios registrados.
           </div>
         ) : (
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-slate-50 dark:divide-gray-700">
             {users.map((u) => (
               <UserRow key={u.id} user={u} />
             ))}
@@ -516,7 +516,7 @@ function PriceRow({ proc }: { proc: Procedure }) {
   }
 
   return (
-    <div ref={setNodeRef} style={style} className="flex items-start gap-3 px-5 py-3 hover:bg-slate-50 transition-colors bg-white">
+    <div ref={setNodeRef} style={style} className="flex items-start gap-3 px-5 py-3 hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors bg-white dark:bg-gray-800">
       {/* Drag handle */}
       <button
         {...attributes}
@@ -549,7 +549,7 @@ function PriceRow({ proc }: { proc: Procedure }) {
             </>
           ) : (
             <>
-              <span className="text-sm text-slate-700">{proc.name}</span>
+              <span className="text-sm text-slate-700 dark:text-gray-300">{proc.name}</span>
               <button onClick={() => { setNameInput(proc.name); setEditingName(true); }} className="text-slate-300 hover:text-blue-500 transition-colors shrink-0">
                 <Pencil size={12} />
               </button>
@@ -604,13 +604,13 @@ function PriceRow({ proc }: { proc: Procedure }) {
             </button>
           )}
           {linkingOpen && (
-            <div ref={linkingRef} style={{ top: dropdownPos.top, left: dropdownPos.left }} className="fixed z-50 w-56 rounded-xl border border-slate-200 bg-white shadow-lg overflow-hidden">
-              <p className="px-3 py-2 text-[10px] font-semibold text-slate-400 uppercase tracking-wide border-b border-slate-100">
+            <div ref={linkingRef} style={{ top: dropdownPos.top, left: dropdownPos.left }} className="fixed z-50 w-56 rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg overflow-hidden">
+              <p className="px-3 py-2 text-[10px] font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wide border-b border-slate-100 dark:border-gray-700">
                 Seleccionar tratamiento
               </p>
               <div className="max-h-48 overflow-y-auto">
                 {treatments.length === 0 && (
-                  <p className="px-3 py-3 text-xs text-slate-400">Sin tratamientos creados</p>
+                  <p className="px-3 py-3 text-xs text-slate-400 dark:text-gray-500">Sin tratamientos creados</p>
                 )}
                 {treatments.map((t) => (
                   <button
@@ -712,18 +712,18 @@ function PriceCatalogSection() {
 
   return (
     <section className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
-      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100">
+      <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-gray-700">
         <div className="flex items-center gap-2">
-          <Tag size={18} className="text-slate-500" />
-          <h2 className="font-semibold text-slate-800">Catálogo de Procedimientos y Precios</h2>
+          <Tag size={18} className="text-slate-500 dark:text-gray-400" />
+          <h2 className="font-semibold text-slate-800 dark:text-white">Catálogo de Procedimientos y Precios</h2>
         </div>
         <Button variant="secondary" size="sm" onClick={() => setShowAdd(true)}>
           <Plus size={15} /> Agregar procedimiento
         </Button>
       </div>
-      <div className="flex items-center justify-between px-5 py-2 bg-slate-50 border-b border-slate-100">
-        <span className="text-xs text-slate-400">Arrastra el ícono <GripVertical size={11} className="inline" /> para ordenar. Clic en el lápiz para editar.</span>
-        <div className="flex gap-6 text-xs font-semibold text-slate-400 pr-6">
+      <div className="flex items-center justify-between px-5 py-2 bg-slate-50 dark:bg-gray-700/50 border-b border-slate-100 dark:border-gray-700">
+        <span className="text-xs text-slate-400 dark:text-gray-500">Arrastra el ícono <GripVertical size={11} className="inline" /> para ordenar. Clic en el lápiz para editar.</span>
+        <div className="flex gap-6 text-xs font-semibold text-slate-400 dark:text-gray-500 pr-6">
           <span className="w-24 text-right">Precio</span>
           <span className="w-24 text-right">Costo operativo</span>
         </div>
@@ -733,7 +733,7 @@ function PriceCatalogSection() {
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={items.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-            <div className="divide-y divide-slate-50">
+            <div className="divide-y divide-slate-50 dark:divide-gray-700">
               {items.map((p) => <PriceRow key={p.id} proc={p} />)}
             </div>
           </SortableContext>
@@ -784,27 +784,27 @@ function BackupSection() {
 
   return (
     <section className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
-      <div className="flex items-center gap-2 border-b border-slate-100 px-6 py-4">
-        <Shield size={16} className="text-slate-400" />
-        <h2 className="font-semibold text-slate-800">Respaldo de datos</h2>
+      <div className="flex items-center gap-2 border-b border-slate-100 dark:border-gray-700 px-6 py-4">
+        <Shield size={16} className="text-slate-400 dark:text-gray-500" />
+        <h2 className="font-semibold text-slate-800 dark:text-white">Respaldo de datos</h2>
       </div>
       <div className="px-6 py-5 space-y-4">
-        <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="rounded-xl border border-amber-200 dark:border-amber-800/30 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm text-amber-800 dark:text-amber-400">
           <strong>Recomendación:</strong> Descarga un respaldo al menos una vez al mes y guárdalo en Drive o en tu computadora.
           El plan gratuito de la base de datos puede eliminar datos si la aplicación lleva 90 días sin uso.
         </div>
 
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="rounded-xl border border-slate-200 p-4 space-y-2">
-            <p className="text-sm font-semibold text-slate-700">Excel (.xlsx)</p>
-            <p className="text-xs text-slate-500">Para revisar tus datos tú mismo, imprimir o compartir. 6 hojas: Pacientes, Finanzas, Productos, Lotes, Tratamientos, Citas.</p>
+          <div className="rounded-xl border border-slate-200 dark:border-gray-600 p-4 space-y-2">
+            <p className="text-sm font-semibold text-slate-700 dark:text-gray-300">Excel (.xlsx)</p>
+            <p className="text-xs text-slate-500 dark:text-gray-400">Para revisar tus datos tú mismo, imprimir o compartir. 6 hojas: Pacientes, Finanzas, Productos, Lotes, Tratamientos, Citas.</p>
             <Button onClick={() => handleDownload("backup")} loading={loadingXlsx} variant="secondary" size="sm" className="w-full">
               <Download size={13} />
               {loadingXlsx ? "Generando…" : "Descargar Excel"}
             </Button>
           </div>
 
-          <div className="rounded-xl border border-blue-200 bg-blue-50/30 p-4 space-y-2">
+          <div className="rounded-xl border border-blue-200 dark:border-blue-800/30 bg-blue-50/30 dark:bg-blue-900/20 p-4 space-y-2">
             <p className="text-sm font-semibold text-slate-700">JSON <span className="text-xs font-normal text-blue-600 ml-1">recomendado para IA</span></p>
             <p className="text-xs text-slate-500">Formato estructurado ideal para recuperación con IA. Incluye todos los datos y relaciones entre registros (paciente → evoluciones, producto → lotes).</p>
             <Button onClick={() => handleDownload("json")} loading={loadingJson} variant="secondary" size="sm" className="w-full">
@@ -813,8 +813,8 @@ function BackupSection() {
             </Button>
           </div>
 
-          <div className="rounded-xl border border-slate-200 p-4 space-y-2">
-            <p className="text-sm font-semibold text-slate-700">Fotos de pacientes (.zip)</p>
+          <div className="rounded-xl border border-slate-200 dark:border-gray-600 p-4 space-y-2">
+            <p className="text-sm font-semibold text-slate-700 dark:text-gray-300">Fotos de pacientes (.zip)</p>
             <p className="text-xs text-slate-500">Todas las fotos clínicas organizadas por carpeta de paciente.</p>
             <Button onClick={() => handleDownload("photos")} loading={loadingPhotos} variant="secondary" size="sm" className="w-full">
               <Download size={13} />
@@ -822,8 +822,8 @@ function BackupSection() {
             </Button>
           </div>
 
-          <div className="rounded-xl border border-slate-200 p-4 space-y-2">
-            <p className="text-sm font-semibold text-slate-700">Facturas / recibos (.zip)</p>
+          <div className="rounded-xl border border-slate-200 dark:border-gray-600 p-4 space-y-2">
+            <p className="text-sm font-semibold text-slate-700 dark:text-gray-300">Facturas / recibos (.zip)</p>
             <p className="text-xs text-slate-500">Todas las facturas subidas, nombradas por fecha, paciente y descripción.</p>
             <Button onClick={() => handleDownload("receipts")} loading={loadingReceipts} variant="secondary" size="sm" className="w-full">
               <Download size={13} />
@@ -834,7 +834,7 @@ function BackupSection() {
 
         {error && <p className="text-sm text-red-500">{error}</p>}
 
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-slate-400 dark:text-gray-500">
           El archivo JSON puede pegarse en una conversación de IA junto con la instrucción "restaura estos datos en SmileOS" para recuperación completa.
         </p>
       </div>

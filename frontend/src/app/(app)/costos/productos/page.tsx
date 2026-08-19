@@ -148,21 +148,21 @@ function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?:
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white shadow-xl max-h-[90vh] overflow-y-auto">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 sticky top-0 bg-white z-10">
-          <h2 className="font-semibold text-slate-800">{initial ? "Editar producto" : "Nuevo producto"}</h2>
-          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100"><X size={16} /></button>
+      <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-800 shadow-xl max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-700 px-6 py-4 sticky top-0 bg-white dark:bg-gray-800 z-10">
+          <h2 className="font-semibold text-slate-800 dark:text-white">{initial ? "Editar producto" : "Nuevo producto"}</h2>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 dark:text-gray-500 hover:bg-slate-100 dark:hover:bg-gray-700"><X size={16} /></button>
         </div>
         <div className="px-6 py-5 space-y-5">
           <div className="space-y-3">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Nombre del producto *</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Nombre del producto *</label>
               <input autoFocus value={form.name} onChange={f("name")} placeholder="ej. Composite Bulk Fill A2"
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Categoría</label>
+                <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Categoría</label>
                 {showCustomInput ? (
                   <div className="flex gap-1">
                     <input
@@ -170,12 +170,12 @@ function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?:
                       value={form.category}
                       onChange={(e) => setForm((s) => ({ ...s, category: e.target.value }))}
                       placeholder="Nombre de categoría"
-                      className="flex-1 min-w-0 rounded-lg border border-blue-400 ring-2 ring-blue-200 px-3 py-2 text-sm focus:outline-none"
+                      className="flex-1 min-w-0 rounded-lg border border-blue-400 dark:border-blue-500 ring-2 ring-blue-200 dark:ring-blue-700 px-3 py-2 text-sm focus:outline-none dark:bg-gray-700 dark:text-white"
                     />
                     <button
                       type="button"
                       onClick={() => { setShowCustomInput(false); setForm((s) => ({ ...s, category: "otros" })); }}
-                      className="shrink-0 rounded-lg border border-slate-200 px-2 text-slate-400 hover:text-slate-600 hover:bg-slate-50 text-xs"
+                      className="shrink-0 rounded-lg border border-slate-200 dark:border-gray-600 px-2 text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 text-xs"
                       title="Volver a lista"
                     >
                       <X size={13} />
@@ -188,7 +188,7 @@ function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?:
                       if (e.target.value === CUSTOM_SENTINEL) { setShowCustomInput(true); setForm((s) => ({ ...s, category: "" })); }
                       else { setForm((s) => ({ ...s, category: e.target.value })); }
                     }}
-                    className="w-full h-9 rounded-lg border border-slate-300 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    className="w-full h-9 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     {ALL_CATEGORIES.map((c) => <option key={c} value={c}>{PRODUCT_CATEGORY_LABELS[c]}</option>)}
                     {extraCategories.filter((c) => !ALL_CATEGORIES.includes(c as ProductCategory)).map((c) => (
@@ -199,65 +199,65 @@ function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?:
                 )}
               </div>
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1">Proveedor</label>
+                <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Proveedor</label>
                 <input value={form.supplier} onChange={f("supplier")} placeholder="ej. INDENT"
-                  className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
             </div>
           </div>
 
-          <div className="rounded-xl border border-blue-100 bg-blue-50/40 p-4 space-y-4">
+          <div className="rounded-xl border border-blue-100 dark:border-blue-800/30 bg-blue-50/40 dark:bg-blue-900/20 p-4 space-y-4">
             <div className="flex items-center gap-2">
               <Calculator size={15} className="text-blue-600" />
-              <span className="text-sm font-semibold text-blue-800">Calculadora de costo por uso</span>
+              <span className="text-sm font-semibold text-blue-800 dark:text-blue-300">Calculadora de costo por uso</span>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Presentación total del producto</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1.5">Presentación total del producto</label>
               <div className="flex items-center gap-2">
                 <input type="number" min="0" step="any" value={form.presentationQty} onChange={f("presentationQty")} placeholder="ej. 1000"
-                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <select value={form.presentationUnit} onChange={f("presentationUnit")} className="w-28 h-9 rounded-lg border border-slate-300 px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                  className="flex-1 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <select value={form.presentationUnit} onChange={f("presentationUnit")} className="w-28 h-9 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
                   {PRESENTATION_UNITS.map((u) => <option key={u} value={u}>{u}</option>)}
                 </select>
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Cantidad usada por porción / cita</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1.5">Cantidad usada por porción / cita</label>
               <div className="flex items-center gap-2">
                 <input type="number" min="0" step="any" value={form.portionQty} onChange={f("portionQty")} placeholder="ej. 7"
-                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
-                <div className="flex h-9 w-28 items-center justify-center rounded-lg border border-slate-200 bg-slate-100 text-sm text-slate-500">{form.presentationUnit}</div>
+                  className="flex-1 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                <div className="flex h-9 w-28 items-center justify-center rounded-lg border border-slate-200 dark:border-gray-600 bg-slate-100 dark:bg-gray-700 text-sm text-slate-500 dark:text-gray-400">{form.presentationUnit}</div>
               </div>
             </div>
             {portions != null && (
-              <div className="flex items-center gap-2 rounded-lg bg-white border border-blue-100 px-4 py-3 text-sm">
-                <span className="text-slate-500">{fmt(pQty)}{form.presentationUnit} ÷ {fmt(portQty)}{form.presentationUnit} =</span>
-                <span className="font-bold text-blue-700 text-base">≈ {fmt(portions)} usos</span>
+              <div className="flex items-center gap-2 rounded-lg bg-white dark:bg-white/5 border border-blue-100 dark:border-blue-800/30 px-4 py-3 text-sm">
+                <span className="text-slate-500 dark:text-gray-400">{fmt(pQty)}{form.presentationUnit} ÷ {fmt(portQty)}{form.presentationUnit} =</span>
+                <span className="font-bold text-blue-700 dark:text-blue-300 text-base">≈ {fmt(portions)} usos</span>
               </div>
             )}
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1.5">Costo del producto completo (C$)</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1.5">Costo del producto completo (C$)</label>
               <div className="flex items-center gap-2">
                 <span className="text-sm text-slate-400">C$</span>
                 <input type="number" min="0" step="0.01" value={form.totalCost} onChange={f("totalCost")} placeholder="ej. 350.00"
-                  className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                  className="flex-1 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
               </div>
             </div>
             {hasCalc && autoPrice != null ? (
-              <div className="rounded-xl bg-green-50 border border-green-200 px-4 py-3">
+              <div className="rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800/30 px-4 py-3">
                 <div className="flex items-center gap-3">
-                  <div className="text-sm text-green-700">{fmtC(tCost)} ÷ {fmt(portions!)} usos</div>
+                  <div className="text-sm text-green-700 dark:text-green-400">{fmtC(tCost)} ÷ {fmt(portions!)} usos</div>
                   <ChevronRight size={14} className="text-green-400" />
-                  <div className="text-lg font-bold text-green-800">{fmtC(autoPrice)} / uso</div>
+                  <div className="text-lg font-bold text-green-800 dark:text-green-300">{fmtC(autoPrice)} / uso</div>
                 </div>
               </div>
             ) : (
               <div>
-                <label className="block text-xs font-medium text-slate-600 mb-1.5">Costo por porción / uso (C$) — manual</label>
+                <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1.5">Costo por porción / uso (C$) — manual</label>
                 <div className="flex items-center gap-2">
-                  <span className="text-sm text-slate-400">C$</span>
+                  <span className="text-sm text-slate-400 dark:text-gray-500">C$</span>
                   <input type="number" min="0" step="0.01" value={form.manualUnitPrice} onChange={f("manualUnitPrice")} placeholder="0.00"
-                    className="flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                    className="flex-1 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                 </div>
               </div>
             )}
@@ -265,20 +265,20 @@ function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?:
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="block text-xs font-medium text-slate-600 mb-1">Fecha de compra</label>
+              <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Fecha de compra</label>
               <input type="date" value={form.purchaseDate} onChange={f("purchaseDate")}
-                className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+                className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Notas (opcional)</label>
+            <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Notas (opcional)</label>
             <textarea value={form.notes} onChange={f("notes")} rows={2} placeholder="Observaciones, marca, referencia..."
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
+              className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none" />
           </div>
 
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-2">Foto del producto (opcional)</label>
+            <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-2">Foto del producto (opcional)</label>
             <input
               ref={fileInputRef}
               type="file"
@@ -291,13 +291,13 @@ function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?:
                 <img
                   src={form.imageUrl}
                   alt="preview"
-                  className="h-24 w-24 rounded-xl object-cover border border-slate-200"
+                  className="h-24 w-24 rounded-xl object-cover border border-slate-200 dark:border-gray-600"
                 />
                 <div className="flex flex-col gap-2 pt-1">
                   <button
                     type="button"
                     onClick={() => fileInputRef.current?.click()}
-                    className="rounded-lg border border-slate-300 px-3 py-1.5 text-xs text-slate-600 hover:bg-slate-50"
+                    className="rounded-lg border border-slate-300 dark:border-gray-600 px-3 py-1.5 text-xs text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700"
                   >
                     Cambiar foto
                   </button>
@@ -316,15 +316,15 @@ function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?:
                 onClick={() => fileInputRef.current?.click()}
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f) handleImageFile(f); }}
-                className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-200 py-6 text-center hover:border-blue-300 hover:bg-blue-50/30 transition-colors cursor-pointer"
+                className="flex w-full flex-col items-center gap-2 rounded-xl border-2 border-dashed border-slate-200 dark:border-gray-600 py-6 text-center hover:border-blue-300 hover:bg-blue-50/30 dark:hover:bg-blue-900/10 transition-colors cursor-pointer"
               >
-                <ImagePlus size={22} className="text-slate-300" />
-                <p className="text-xs text-slate-400">Haz clic o arrastra una imagen aquí</p>
+                <ImagePlus size={22} className="text-slate-300 dark:text-gray-600" />
+                <p className="text-xs text-slate-400 dark:text-gray-500">Haz clic o arrastra una imagen aquí</p>
               </button>
             )}
           </div>
         </div>
-        <div className="flex gap-3 border-t border-slate-100 px-6 py-4 sticky bottom-0 bg-white">
+        <div className="flex gap-3 border-t border-slate-100 dark:border-gray-700 px-6 py-4 sticky bottom-0 bg-white dark:bg-gray-800">
           <Button variant="secondary" className="flex-1" onClick={onClose}>Cancelar</Button>
           <Button className="flex-1" onClick={handleSave} disabled={!form.name.trim() || (!hasCalc && !form.manualUnitPrice)}>
             {initial ? "Guardar cambios" : "Agregar producto"}
@@ -346,11 +346,11 @@ function SortableProductRow({ product, onEdit, isDragDisabled, exchangeRate }: {
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 10 : undefined };
 
   return (
-    <tr ref={setNodeRef} style={style} className="group hover:bg-slate-50/50 border-b border-slate-50">
+    <tr ref={setNodeRef} style={style} className="group hover:bg-slate-50/50 dark:hover:bg-gray-700/50 border-b border-slate-50 dark:border-gray-700">
       <td className="pl-2 pr-1 py-3 w-7">
         {!isDragDisabled && (
           <button {...attributes} {...listeners}
-            className="cursor-grab active:cursor-grabbing rounded p-0.5 text-slate-300 hover:text-slate-500 hover:bg-slate-100 touch-none" title="Arrastrar">
+            className="cursor-grab active:cursor-grabbing rounded p-0.5 text-slate-300 dark:text-gray-600 hover:text-slate-500 dark:hover:text-gray-400 hover:bg-slate-100 dark:hover:bg-gray-700 touch-none" title="Arrastrar">
             <GripVertical size={14} />
           </button>
         )}
@@ -358,17 +358,17 @@ function SortableProductRow({ product, onEdit, isDragDisabled, exchangeRate }: {
       <td className="px-3 py-3">
         <div className="flex items-center gap-2.5">
           {product.image_url ? (
-            <img src={product.image_url} alt={product.name} className="h-9 w-9 rounded-lg object-cover border border-slate-100 shrink-0" />
+            <img src={product.image_url} alt={product.name} className="h-9 w-9 rounded-lg object-cover border border-slate-100 dark:border-gray-700 shrink-0" />
           ) : (
-            <div className="h-9 w-9 rounded-lg bg-slate-100 flex items-center justify-center shrink-0">
-              <Package size={14} className="text-slate-300" />
+            <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-gray-700 flex items-center justify-center shrink-0">
+              <Package size={14} className="text-slate-300 dark:text-gray-500" />
             </div>
           )}
           <div className="min-w-0">
-            <p className="font-medium text-slate-800">{product.name}</p>
-            {product.supplier && <p className="text-xs text-slate-400">{product.supplier}</p>}
-            {product.purchase_date && <p className="text-xs text-slate-400">Comprado: {new Date(product.purchase_date + "T00:00:00").toLocaleDateString("es-NI", { day: "2-digit", month: "short", year: "numeric" })}</p>}
-            {product.notes && <p className="text-xs text-slate-300 italic truncate max-w-[160px]">{product.notes}</p>}
+            <p className="font-medium text-slate-800 dark:text-white">{product.name}</p>
+            {product.supplier && <p className="text-xs text-slate-400 dark:text-gray-500">{product.supplier}</p>}
+            {product.purchase_date && <p className="text-xs text-slate-400 dark:text-gray-500">Comprado: {new Date(product.purchase_date + "T00:00:00").toLocaleDateString("es-NI", { day: "2-digit", month: "short", year: "numeric" })}</p>}
+            {product.notes && <p className="text-xs text-slate-300 dark:text-gray-600 italic truncate max-w-[160px]">{product.notes}</p>}
           </div>
         </div>
       </td>
@@ -380,19 +380,19 @@ function SortableProductRow({ product, onEdit, isDragDisabled, exchangeRate }: {
       <td className="px-4 py-3">
         {hasCalc ? (
           <div className="text-xs space-y-0.5">
-            <p className="text-slate-600"><span className="font-medium">{fmt(product.presentation_qty!)}{product.presentation_unit}</span> total · {fmt(product.portion_qty!)}{product.presentation_unit}/uso</p>
-            <p className="text-slate-400">≈ {fmt(portions!)} usos por frasco</p>
+            <p className="text-slate-600 dark:text-gray-400"><span className="font-medium">{fmt(product.presentation_qty!)}{product.presentation_unit}</span> total · {fmt(product.portion_qty!)}{product.presentation_unit}/uso</p>
+            <p className="text-slate-400 dark:text-gray-500">≈ {fmt(portions!)} usos por frasco</p>
           </div>
         ) : product.presentation ? (
-          <span className="text-sm text-slate-500">{product.presentation}</span>
-        ) : <span className="text-slate-300">—</span>}
+          <span className="text-sm text-slate-500 dark:text-gray-400">{product.presentation}</span>
+        ) : <span className="text-slate-300 dark:text-gray-600">—</span>}
       </td>
       <td className="px-4 py-3 text-right">
-        {product.total_cost != null ? <span className="text-sm text-slate-600 tabular-nums">{fmtC(product.total_cost)}</span> : <span className="text-slate-300 text-sm">—</span>}
+        {product.total_cost != null ? <span className="text-sm text-slate-600 dark:text-gray-400 tabular-nums">{fmtC(product.total_cost)}</span> : <span className="text-slate-300 dark:text-gray-600 text-sm">—</span>}
       </td>
       <td className="px-5 py-3 text-right">
-        <p className="font-semibold text-slate-800 tabular-nums">{fmtC(product.unit_price)}</p>
-        <p className="text-xs text-slate-400 tabular-nums">{fmtUSD(product.unit_price, exchangeRate)}</p>
+        <p className="font-semibold text-slate-800 dark:text-white tabular-nums">{fmtC(product.unit_price)}</p>
+        <p className="text-xs text-slate-400 dark:text-gray-500 tabular-nums">{fmtUSD(product.unit_price, exchangeRate)}</p>
         {hasCalc && <p className="text-[10px] text-green-600">calculado</p>}
       </td>
       <td className="pr-3 py-3">
@@ -458,17 +458,17 @@ export default function ProductosPage() {
   }
 
   if (isLoading) {
-    return <div className="flex items-center justify-center h-64"><div className="text-slate-400">Cargando...</div></div>;
+    return <div className="flex items-center justify-center h-64"><div className="text-slate-400 dark:text-gray-500">Cargando...</div></div>;
   }
 
   return (
     <div className="mx-auto max-w-5xl p-6">
       <div className="mb-6 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <Link href="/costos" className="text-slate-500 hover:text-slate-700"><ArrowLeft size={18} /></Link>
+          <Link href="/costos" className="text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200"><ArrowLeft size={18} /></Link>
           <div>
-            <h1 className="text-xl font-bold text-slate-800">Catálogo de Productos</h1>
-            <p className="text-sm text-slate-500 mt-0.5">Actualiza precios aquí y se reflejan en todos los tratamientos automáticamente</p>
+            <h1 className="text-xl font-bold text-slate-800 dark:text-white">Catálogo de Productos</h1>
+            <p className="text-sm text-slate-500 dark:text-gray-400 mt-0.5">Actualiza precios aquí y se reflejan en todos los tratamientos automáticamente</p>
           </div>
         </div>
         <Button size="sm" onClick={() => setShowNew(true)}><Plus size={15} /> Nuevo producto</Button>
@@ -476,31 +476,31 @@ export default function ProductosPage() {
 
       <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
         <div className="relative flex-1">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500" />
           <input type="text" placeholder="Buscar producto o proveedor..." value={search} onChange={(e) => setSearch(e.target.value)}
-            className="h-10 w-full rounded-lg border border-slate-300 pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            className="h-10 w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          <button onClick={() => setCategory("all")} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === "all" ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>Todos</button>
+          <button onClick={() => setCategory("all")} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === "all" ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-gray-600"}`}>Todos</button>
           {allCategoriesInUse.map((cat) => (
-            <button key={cat} onClick={() => setCategory(cat)} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === cat ? "bg-blue-600 text-white" : "bg-slate-100 text-slate-600 hover:bg-slate-200"}`}>
+            <button key={cat} onClick={() => setCategory(cat)} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === cat ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-gray-600"}`}>
               {categoryLabel(cat)}
             </button>
           ))}
         </div>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
-            <Package size={32} className="text-slate-300" />
-            <p className="text-slate-500 font-medium">Sin productos</p>
-            <p className="text-sm text-slate-400">Prueba con otro filtro o agrega un producto nuevo</p>
+            <Package size={32} className="text-slate-300 dark:text-gray-600" />
+            <p className="text-slate-500 dark:text-gray-400 font-medium">Sin productos</p>
+            <p className="text-sm text-slate-400 dark:text-gray-500">Prueba con otro filtro o agrega un producto nuevo</p>
           </div>
         ) : (
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100 bg-slate-50 text-xs text-slate-500">
+              <tr className="border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50 text-xs text-slate-500 dark:text-gray-400">
                 <th className="w-7 pl-2" />
                 <th className="px-3 py-3 text-left font-medium">Producto</th>
                 <th className="px-4 py-3 text-left font-medium">Categoría</th>
@@ -523,7 +523,7 @@ export default function ProductosPage() {
         )}
       </div>
 
-      <p className="mt-3 text-xs text-slate-400 text-center">
+      <p className="mt-3 text-xs text-slate-400 dark:text-gray-500 text-center">
         {filtered.length} producto{filtered.length !== 1 ? "s" : ""}
         {isDragDisabled ? " · Limpia la búsqueda para reordenar" : " · Arrastra para reordenar · Pasa el mouse para editar"}
       </p>

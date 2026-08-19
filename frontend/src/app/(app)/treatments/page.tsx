@@ -18,12 +18,12 @@ export default function TreatmentsPage() {
     <div className="flex h-full flex-col items-center justify-center p-6">
       <div className="w-full max-w-md text-center">
         <div className="mb-4 flex justify-center">
-          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-blue-50 dark:bg-blue-900/20">
             <ClipboardList size={32} className="text-blue-600" />
           </div>
         </div>
-        <h1 className="mb-1 text-xl font-semibold text-slate-800">Planes de Tratamiento</h1>
-        <p className="mb-6 text-sm text-slate-500">
+        <h1 className="mb-1 text-xl font-semibold text-slate-800 dark:text-white">Planes de Tratamiento</h1>
+        <p className="mb-6 text-sm text-slate-500 dark:text-gray-400">
           Busca un paciente para ver o gestionar sus planes de tratamiento.
         </p>
         <PatientSearch

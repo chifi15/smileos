@@ -62,7 +62,7 @@ function DatePicker({ day, month, year, onChange }: DatePickerProps) {
 
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
-  const sel = "rounded-lg border border-slate-200 bg-white px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
+  const sel = "rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500";
 
   return (
     <div className="flex gap-2">
@@ -122,7 +122,7 @@ function EvolutionForm({
     <div className="rounded-xl border-2 border-blue-200 bg-blue-50/40 p-4 space-y-3">
       <div className="flex flex-col gap-3 sm:flex-row">
         <div className="flex-1">
-          <label className="block text-xs font-medium text-slate-600 mb-1">Fecha</label>
+          <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Fecha</label>
           <DatePicker
             day={values.day}
             month={values.month}
@@ -131,11 +131,11 @@ function EvolutionForm({
           />
         </div>
         <div className="sm:w-44">
-          <label className="block text-xs font-medium text-slate-600 mb-1">Asistencia (opcional)</label>
+          <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Asistencia (opcional)</label>
           <select
             value={values.attendance}
             onChange={(e) => setValues((p) => ({ ...p, attendance: e.target.value as EvolutionAttendance | "" }))}
-            className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
           >
             <option value="">— Sin registro —</option>
             <option value="asistio">Asistió</option>
@@ -145,7 +145,7 @@ function EvolutionForm({
       </div>
 
       <div>
-        <label className="block text-xs font-medium text-slate-600 mb-1">
+        <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">
           Nota de evolución *
         </label>
         <textarea
@@ -154,12 +154,12 @@ function EvolutionForm({
           value={values.note}
           onChange={(e) => setValues((p) => ({ ...p, note: e.target.value }))}
           placeholder="Describe el tratamiento realizado, observaciones clínicas, indicaciones al paciente…"
-          className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 placeholder-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-full rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-white px-3 py-2 text-sm text-slate-700 placeholder-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
       </div>
 
       <div className="flex justify-end gap-2">
-        <button type="button" onClick={onCancel} className="px-3 py-1.5 text-sm text-slate-600 hover:text-slate-800">
+        <button type="button" onClick={onCancel} className="px-3 py-1.5 text-sm text-slate-600 dark:text-gray-400 hover:text-slate-800 dark:hover:text-white">
           Cancelar
         </button>
         <button
@@ -189,14 +189,14 @@ function EvolutionCard({
   return (
     <div className="flex gap-4 px-5 py-4">
       <div className="flex flex-col items-center pt-1 shrink-0">
-        <div className="h-3 w-3 rounded-full border-2 border-blue-400 bg-white" />
-        <div className="flex-1 w-px bg-slate-100 mt-1" />
+        <div className="h-3 w-3 rounded-full border-2 border-blue-400 bg-white dark:bg-gray-800" />
+        <div className="flex-1 w-px bg-slate-100 dark:bg-gray-700 mt-1" />
       </div>
 
       <div className="flex-1 min-w-0 pb-4">
         <div className="flex items-start justify-between gap-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-semibold text-slate-500 capitalize">{dateFormatted}</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-gray-400 capitalize">{dateFormatted}</span>
             {evo.attendance && (
               <span className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${ATTENDANCE_STYLES[evo.attendance]}`}>
                 {evo.attendance === "asistio"
@@ -209,7 +209,7 @@ function EvolutionCard({
           <div className="flex gap-1 shrink-0">
             <button
               onClick={onEdit}
-              className="rounded-md p-1.5 text-slate-300 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+              className="rounded-md p-1.5 text-slate-300 hover:bg-slate-100 dark:hover:bg-gray-700 hover:text-slate-600 dark:hover:text-gray-300 transition-colors"
               title="Editar"
             >
               <Pencil size={13} />
@@ -223,11 +223,11 @@ function EvolutionCard({
             </button>
           </div>
         </div>
-        <p className="mt-1.5 text-sm text-slate-700 whitespace-pre-line leading-relaxed">
+        <p className="mt-1.5 text-sm text-slate-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
           {evo.note}
         </p>
         {evo.created_by && (
-          <p className="mt-2 text-xs text-slate-400">
+          <p className="mt-2 text-xs text-slate-400 dark:text-gray-500">
             Por {evo.created_by.full_name} ·{" "}
             {format(parseISO(evo.created_at), "d MMM yyyy, HH:mm", { locale: es })}
           </p>
@@ -292,7 +292,7 @@ export default function EvolutionPage() {
       <div>
         <Link
           href={`/patients/${patientId}`}
-          className="inline-flex items-center gap-1.5 text-sm text-slate-500 hover:text-slate-700 transition-colors"
+          className="inline-flex items-center gap-1.5 text-sm text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300 transition-colors"
         >
           <ChevronLeft size={16} />
           {patient?.full_name ?? "Paciente"}
@@ -301,8 +301,8 @@ export default function EvolutionPage() {
 
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-slate-800">Evolución clínica</h1>
-          <p className="text-sm text-slate-500 mt-0.5">
+          <h1 className="text-xl font-bold text-slate-800 dark:text-white">Evolución clínica</h1>
+          <p className="text-sm text-slate-500 dark:text-gray-400 mt-0.5">
             {evolutions.length > 0
               ? `${evolutions.length} nota${evolutions.length !== 1 ? "s" : ""}`
               : "Sin notas aún"}
@@ -328,13 +328,13 @@ export default function EvolutionPage() {
         />
       )}
 
-      <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
+      <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
         {isLoading ? (
           <div className="flex justify-center py-10">
             <Spinner size="lg" />
           </div>
         ) : evolutions.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 py-12 text-slate-400">
+          <div className="flex flex-col items-center gap-3 py-12 text-slate-400 dark:text-gray-500">
             <p className="text-sm">No hay notas de evolución registradas.</p>
             {!showForm && (
               <button
@@ -347,7 +347,7 @@ export default function EvolutionPage() {
             )}
           </div>
         ) : (
-          <div className="divide-y divide-slate-50">
+          <div className="divide-y divide-slate-50 dark:divide-gray-700">
             {evolutions.map((evo) =>
               editingId === evo.id ? (
                 <div key={evo.id} className="px-5 py-4">

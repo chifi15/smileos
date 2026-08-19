@@ -215,7 +215,7 @@ export default function AppointmentDetailModal({ appointment: appt, onClose }: P
           {/* Patient */}
           <div className="mb-5 flex items-start justify-between gap-3">
             <div>
-              <h3 className="text-lg font-semibold text-slate-800">{appt.patient_name}</h3>
+              <h3 className="text-lg font-semibold text-slate-800 dark:text-white">{appt.patient_name}</h3>
               {appt.patient_rewards_level && (
                 <Badge
                   label={`★ ${REWARDS_LEVEL_LABELS[appt.patient_rewards_level as RewardsLevel]}`}
@@ -231,7 +231,7 @@ export default function AppointmentDetailModal({ appointment: appt, onClose }: P
               {canEdit && (
                 <button
                   onClick={() => setIsEditing(true)}
-                  className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700 transition-colors"
+                  className="rounded-lg p-1.5 text-slate-400 dark:text-gray-500 hover:bg-slate-100 dark:hover:bg-gray-700 hover:text-slate-700 dark:hover:text-gray-200 transition-colors"
                   title="Editar"
                 >
                   <Pencil size={15} />
@@ -241,50 +241,50 @@ export default function AppointmentDetailModal({ appointment: appt, onClose }: P
           </div>
 
           {/* Info rows */}
-          <div className="space-y-3 rounded-xl bg-slate-50 p-4 text-sm">
+          <div className="space-y-3 rounded-xl bg-slate-50 dark:bg-gray-700/50 p-4 text-sm">
             <div className="flex items-center gap-3">
-              <Clock size={15} className="shrink-0 text-slate-400" />
+              <Clock size={15} className="shrink-0 text-slate-400 dark:text-gray-500" />
               <div>
-                <span className="font-medium text-slate-700 capitalize">
+                <span className="font-medium text-slate-700 dark:text-gray-300 capitalize">
                   {formatDate(appt.scheduled_at)}
                 </span>
-                <span className="text-slate-500">
+                <span className="text-slate-500 dark:text-gray-400">
                   {" "}· {formatTime(appt.scheduled_at)} – {formatTime(appt.end_at)}
                 </span>
-                <span className="ml-2 text-xs text-slate-400">({appt.duration_minutes} min)</span>
+                <span className="ml-2 text-xs text-slate-400 dark:text-gray-500">({appt.duration_minutes} min)</span>
               </div>
             </div>
 
             <div className="flex items-center gap-3">
-              <Stethoscope size={15} className="shrink-0 text-slate-400" />
-              <span className="text-slate-700">{appt.dentist_name}</span>
+              <Stethoscope size={15} className="shrink-0 text-slate-400 dark:text-gray-500" />
+              <span className="text-slate-700 dark:text-gray-300">{appt.dentist_name}</span>
             </div>
 
             <div className="flex items-center gap-3">
-              <User size={15} className="shrink-0 text-slate-400" />
-              <span className="text-slate-700">
+              <User size={15} className="shrink-0 text-slate-400 dark:text-gray-500" />
+              <span className="text-slate-700 dark:text-gray-300">
                 {APPOINTMENT_TYPE_LABELS[appt.appointment_type]}
               </span>
             </div>
 
             {appt.reason && (
-              <div className="border-t border-slate-200 pt-3">
-                <p className="text-xs text-slate-400 mb-0.5">Motivo</p>
-                <p className="text-slate-700">{appt.reason}</p>
+              <div className="border-t border-slate-200 dark:border-gray-600 pt-3">
+                <p className="text-xs text-slate-400 dark:text-gray-500 mb-0.5">Motivo</p>
+                <p className="text-slate-700 dark:text-gray-300">{appt.reason}</p>
               </div>
             )}
 
             {appt.notes && (
-              <div className="border-t border-slate-200 pt-3">
-                <p className="text-xs text-slate-400 mb-0.5">Notas</p>
-                <p className="text-slate-700">{appt.notes}</p>
+              <div className="border-t border-slate-200 dark:border-gray-600 pt-3">
+                <p className="text-xs text-slate-400 dark:text-gray-500 mb-0.5">Notas</p>
+                <p className="text-slate-700 dark:text-gray-300">{appt.notes}</p>
               </div>
             )}
 
             {appt.cancellation_reason && (
-              <div className="border-t border-slate-200 pt-3">
-                <p className="text-xs text-slate-400 mb-0.5">Motivo de cancelación</p>
-                <p className="text-red-600">{appt.cancellation_reason}</p>
+              <div className="border-t border-slate-200 dark:border-gray-600 pt-3">
+                <p className="text-xs text-slate-400 dark:text-gray-500 mb-0.5">Motivo de cancelación</p>
+                <p className="text-red-600 dark:text-red-400">{appt.cancellation_reason}</p>
               </div>
             )}
           </div>
@@ -347,7 +347,7 @@ export default function AppointmentDetailModal({ appointment: appt, onClose }: P
                   Cancelar cita
                 </button>
               ) : (
-                <div className="rounded-xl border border-red-100 bg-red-50 p-4 space-y-3">
+                <div className="rounded-xl border border-red-100 dark:border-red-800/30 bg-red-50 dark:bg-red-900/20 p-4 space-y-3">
                   <Input
                     label="Motivo de cancelación (opcional)"
                     value={cancelReason}

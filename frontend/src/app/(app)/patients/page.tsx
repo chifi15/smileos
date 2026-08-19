@@ -27,20 +27,20 @@ function DeletePatientModal({ patient, onClose }: { patient: PatientToDelete; on
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white p-6 shadow-2xl">
+      <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-800 p-6 shadow-2xl">
         <div className="flex items-start justify-between mb-3">
-          <h3 className="font-semibold text-slate-800">Eliminar paciente</h3>
-          <button onClick={onClose} className="text-slate-400 hover:text-slate-600"><X size={16} /></button>
+          <h3 className="font-semibold text-slate-800 dark:text-white">Eliminar paciente</h3>
+          <button onClick={onClose} className="text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300"><X size={16} /></button>
         </div>
-        <p className="text-sm text-slate-500 mb-2">
+        <p className="text-sm text-slate-500 dark:text-gray-400 mb-2">
           ¿Eliminar permanentemente a <strong>{patient.name}</strong>?
         </p>
-        <p className="text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 mb-4">
+        <p className="text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2 mb-4">
           Esta acción no se puede deshacer. Si el paciente tiene citas, tratamientos o pagos vinculados, usa <strong>Reactivar</strong> o <strong>Desactivar</strong> en su perfil en su lugar.
         </p>
         <div className="flex gap-3">
           <button onClick={onClose}
-            className="flex-1 rounded-lg border border-slate-200 py-2 text-sm font-medium text-slate-600 hover:bg-slate-50">
+            className="flex-1 rounded-lg border border-slate-200 dark:border-gray-600 py-2 text-sm font-medium text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700">
             Cancelar
           </button>
           <button
@@ -128,16 +128,16 @@ export default function PatientsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-slate-800">Pacientes</h1>
+          <h1 className="text-xl font-semibold text-slate-800 dark:text-white">Pacientes</h1>
           {meta && (
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-slate-500 dark:text-gray-400">
               {meta.total} {showInactive ? "pacientes inactivos" : "pacientes activos"}
             </p>
           )}
         </div>
         <div className="flex items-center gap-2">
           {/* Active / Inactive toggle */}
-          <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
+          <div className="flex items-center gap-1 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 p-1">
             <button
               onClick={() => { setShowInactive(false); setPage(1); }}
               className={cn(
@@ -179,7 +179,8 @@ export default function PatientsPage() {
             placeholder="Buscar por nombre, teléfono o email..."
             className={cn(
               "h-10 w-full rounded-lg border border-slate-300 bg-white pl-9 pr-3 text-sm",
-              "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              "focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent",
+              "dark:border-gray-600 dark:bg-gray-700 dark:text-white dark:placeholder-gray-500"
             )}
           />
         </div>
@@ -193,7 +194,7 @@ export default function PatientsPage() {
       </div>
 
       {/* Table */}
-      <div className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
+      <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
         {isLoading ? (
           <div className="flex justify-center py-16">
             <Spinner />
@@ -218,31 +219,31 @@ export default function PatientsPage() {
           <>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-slate-100 bg-slate-50">
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                <tr className="border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">
                     Paciente
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">
                     Edad
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">
                     Teléfono
                   </th>
-                  <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500 md:table-cell">
+                  <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400 md:table-cell">
                     Email
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500">
+                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">
                     Rewards
                   </th>
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
                 {patients.map((p) => (
                   <tr
                     key={p.id}
                     className={cn(
-                      "cursor-pointer transition-colors hover:bg-blue-50/40",
+                      "cursor-pointer transition-colors hover:bg-blue-50/40 dark:hover:bg-blue-900/10",
                       showInactive && "opacity-75"
                     )}
                     onClick={() => router.push(`/patients/${p.id}`)}
@@ -251,12 +252,12 @@ export default function PatientsPage() {
                       <div className="flex items-center gap-3">
                         <div className={cn(
                           "flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold",
-                          showInactive ? "bg-slate-100 text-slate-400" : "bg-slate-100 text-slate-600"
+                          showInactive ? "bg-slate-100 dark:bg-gray-700 text-slate-400 dark:text-gray-500" : "bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300"
                         )}>
                           {p.full_name.split(" ").slice(0, 2).map((w) => w[0]).join("").toUpperCase()}
                         </div>
                         <div>
-                          <span className={cn("font-medium block", showInactive ? "text-slate-500" : "text-slate-800")}>
+                          <span className={cn("font-medium block", showInactive ? "text-slate-500 dark:text-gray-500" : "text-slate-800 dark:text-white")}>
                             {p.full_name}
                           </span>
                           {p.patient_number && (
@@ -267,9 +268,9 @@ export default function PatientsPage() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{age(p.date_of_birth)}</td>
-                    <td className="px-4 py-3 text-slate-600">{p.phone ?? "—"}</td>
-                    <td className="hidden px-4 py-3 text-slate-500 md:table-cell">{p.email ?? "—"}</td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-gray-400">{age(p.date_of_birth)}</td>
+                    <td className="px-4 py-3 text-slate-600 dark:text-gray-400">{p.phone ?? "—"}</td>
+                    <td className="hidden px-4 py-3 text-slate-500 dark:text-gray-500 md:table-cell">{p.email ?? "—"}</td>
                     <td className="px-4 py-3">
                       {p.rewards_level ? (
                         <Badge
@@ -315,8 +316,8 @@ export default function PatientsPage() {
 
             {/* Pagination */}
             {meta && meta.pages > 1 && (
-              <div className="flex items-center justify-between border-t border-slate-100 px-4 py-3">
-                <p className="text-xs text-slate-500">
+              <div className="flex items-center justify-between border-t border-slate-100 dark:border-gray-700 px-4 py-3">
+                <p className="text-xs text-slate-500 dark:text-gray-400">
                   {(meta.page - 1) * meta.per_page + 1}–
                   {Math.min(meta.page * meta.per_page, meta.total)} de {meta.total}
                 </p>
@@ -324,7 +325,7 @@ export default function PatientsPage() {
                   <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => goPage(page - 1)}>
                     <ChevronLeft size={14} />
                   </Button>
-                  <span className="text-xs text-slate-600">{page} / {meta.pages}</span>
+                  <span className="text-xs text-slate-600 dark:text-gray-400">{page} / {meta.pages}</span>
                   <Button variant="secondary" size="sm" disabled={page === meta.pages} onClick={() => goPage(page + 1)}>
                     <ChevronRight size={14} />
                   </Button>
