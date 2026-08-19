@@ -292,3 +292,72 @@ async def delete_transaction(
         raise NotFoundError("Transacción")
     await db.delete(tx)
     await db.commit()
+
+
+# ─── Expense Categories ────────────────────────────────────────────────────────
+
+DEFAULT_EXPENSE_CATEGORIES = [
+    ("laboratorio", "Laboratorio dental"),
+    ("insumos", "Insumos y materiales"),
+    ("renta", "Renta"),
+    ("servicios", "Servicios (agua/luz/internet)"),
+    ("salario", "Salario / Honorarios"),
+    ("otro_egreso", "Otro egreso"),
+]
+
+
+async def list_expense_categories(db: AsyncSession, clinic_id: uuid.UUID):
+    from app.models.finance import ExpenseCategory
+    result = await db.execute(
+        select(ExpenseCategory)
+        .where(ExpenseCategory.clinic_id == clinic_id)
+        .order_by(ExpenseCategory.sort_order, ExpenseCategory.label)
+    )
+    cats = list(result.scalars().all())
+    if not cats:
+        for i, (key, label) in enumerate(DEFAULT_EXPENSE_CATEGORIES):
+            cats.append(ExpenseCategory(clinic_id=clinic_id, key=key, label=label, sort_order=i))
+            db.add(cats[-1])
+        await db.commit()
+    return cats
+
+
+async def create_expense_category(db: AsyncSession, clinic_id: uuid.UUID, label: str) -> "ExpenseCategory":
+    from app.models.finance import ExpenseCategory
+    result = await db.execute(
+        select(func.count()).select_from(ExpenseCategory).where(ExpenseCategory.clinic_id == clinic_id)
+    )
+    count = result.scalar_one()
+    key = str(uuid.uuid4())
+    cat = ExpenseCategory(clinic_id=clinic_id, key=key, label=label, sort_order=count)
+    db.add(cat)
+    await db.commit()
+    await db.refresh(cat)
+    return cat
+
+
+async def update_expense_category(db: AsyncSession, clinic_id: uuid.UUID, cat_id: uuid.UUID, label: str):
+    from app.models.finance import ExpenseCategory
+    result = await db.execute(
+        select(ExpenseCategory).where(ExpenseCategory.id == cat_id, ExpenseCategory.clinic_id == clinic_id)
+    )
+    cat = result.scalar_one_or_none()
+    if not cat:
+        return None
+    cat.label = label
+    await db.commit()
+    await db.refresh(cat)
+    return cat
+
+
+async def delete_expense_category(db: AsyncSession, clinic_id: uuid.UUID, cat_id: uuid.UUID) -> bool:
+    from app.models.finance import ExpenseCategory
+    result = await db.execute(
+        select(ExpenseCategory).where(ExpenseCategory.id == cat_id, ExpenseCategory.clinic_id == clinic_id)
+    )
+    cat = result.scalar_one_or_none()
+    if not cat:
+        return False
+    await db.delete(cat)
+    await db.commit()
+    return True

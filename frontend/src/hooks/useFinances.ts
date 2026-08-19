@@ -190,6 +190,63 @@ export function useUploadReceipt(year: number, month: number) {
   });
 }
 
+export interface ExpenseCategoryItem {
+  id: string;
+  key: string;
+  label: string;
+  sort_order: number;
+}
+
+const EXPENSE_CATS_KEY = ["finances", "expense-categories"] as const;
+
+export function useExpenseCategories() {
+  return useQuery<ExpenseCategoryItem[]>({
+    queryKey: EXPENSE_CATS_KEY,
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data?: ExpenseCategoryItem[]; id?: string }[]>(
+        "/api/v1/finances/expense-categories"
+      );
+      return data as unknown as ExpenseCategoryItem[];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useCreateExpenseCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (label: string) => {
+      const { data } = await apiClient.post<ExpenseCategoryItem>("/api/v1/finances/expense-categories", { label });
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: EXPENSE_CATS_KEY }),
+    onError: () => toast.error("Error al crear la categoría."),
+  });
+}
+
+export function useUpdateExpenseCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, label }: { id: string; label: string }) => {
+      const { data } = await apiClient.patch<ExpenseCategoryItem>(`/api/v1/finances/expense-categories/${id}`, { label });
+      return data;
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: EXPENSE_CATS_KEY }),
+    onError: () => toast.error("Error al actualizar la categoría."),
+  });
+}
+
+export function useDeleteExpenseCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/api/v1/finances/expense-categories/${id}`);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: EXPENSE_CATS_KEY }),
+    onError: () => toast.error("Error al eliminar la categoría."),
+  });
+}
+
 export function useDeleteReceipt(year: number, month: number) {
   const qc = useQueryClient();
   return useMutation({

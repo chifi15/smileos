@@ -48,3 +48,13 @@ class FinanceTransaction(UUIDMixin, TimestampMixin, Base):
     patient: Mapped["Patient"] = relationship("Patient", foreign_keys=[patient_id])  # type: ignore  # noqa: F821
     procedure: Mapped["ProcedureCatalog"] = relationship("ProcedureCatalog", foreign_keys=[procedure_id])  # type: ignore  # noqa: F821
     created_by: Mapped["User"] = relationship("User", foreign_keys=[created_by_id])  # type: ignore  # noqa: F821
+
+
+class ExpenseCategory(Base):
+    __tablename__ = "expense_categories"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    clinic_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("clinics.id", ondelete="CASCADE"), nullable=False, index=True)
+    key: Mapped[str] = mapped_column(String(100), nullable=False)
+    label: Mapped[str] = mapped_column(String(200), nullable=False)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)

@@ -19,6 +19,7 @@ import {
   Check,
   ChevronDown,
   ChevronUp,
+  Settings2,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import apiClient from "@/lib/api-client";
@@ -35,6 +36,11 @@ import {
   usePatientTransactions,
   useUploadReceipt,
   useDeleteReceipt,
+  useExpenseCategories,
+  useCreateExpenseCategory,
+  useUpdateExpenseCategory,
+  useDeleteExpenseCategory,
+  type ExpenseCategoryItem,
 } from "@/hooks/useFinances";
 import { useProcedures } from "@/hooks/useCatalog";
 import { usePatientSearch } from "@/hooks/usePatients";
@@ -296,6 +302,97 @@ function ReceiptModal({ tx, year, month, onClose }: {
   );
 }
 
+// ─── Expense Category Manager ─────────────────────────────────────────────────
+
+function ExpenseCategoryManager({ onClose }: { onClose: () => void }) {
+  const { data: cats = [], isLoading } = useExpenseCategories();
+  const createCat = useCreateExpenseCategory();
+  const updateCat = useUpdateExpenseCategory();
+  const deleteCat = useDeleteExpenseCategory();
+  const [newLabel, setNewLabel] = useState("");
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingLabel, setEditingLabel] = useState("");
+
+  function handleCreate() {
+    const label = newLabel.trim();
+    if (!label) return;
+    createCat.mutate(label, { onSuccess: () => setNewLabel("") });
+  }
+
+  function startEdit(cat: ExpenseCategoryItem) {
+    setEditingId(cat.id);
+    setEditingLabel(cat.label);
+  }
+
+  function saveEdit() {
+    if (!editingId || !editingLabel.trim()) return;
+    updateCat.mutate({ id: editingId, label: editingLabel.trim() }, { onSuccess: () => setEditingId(null) });
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-gray-800 shadow-xl flex flex-col max-h-[85vh]">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-700 px-6 py-4 shrink-0">
+          <h2 className="font-semibold text-slate-800 dark:text-white">Categorías de egreso</h2>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-gray-700"><X size={16} /></button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 divide-y divide-slate-50 dark:divide-gray-700">
+          {isLoading ? (
+            <p className="px-6 py-8 text-center text-sm text-slate-400 dark:text-gray-500">Cargando...</p>
+          ) : cats.map((cat) => (
+            <div key={cat.id} className="flex items-center gap-3 px-5 py-3 group">
+              {editingId === cat.id ? (
+                <>
+                  <input
+                    autoFocus
+                    value={editingLabel}
+                    onChange={(e) => setEditingLabel(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") saveEdit(); if (e.key === "Escape") setEditingId(null); }}
+                    className="flex-1 rounded-lg border border-blue-400 dark:border-blue-500 dark:bg-gray-700 dark:text-white px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  />
+                  <button onClick={saveEdit} className="rounded p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/20"><Check size={15} /></button>
+                  <button onClick={() => setEditingId(null)} className="rounded p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-gray-700"><X size={15} /></button>
+                </>
+              ) : (
+                <>
+                  <span className="flex-1 text-sm text-slate-700 dark:text-gray-300">{cat.label}</span>
+                  <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                    <button onClick={() => startEdit(cat)} className="rounded p-1.5 text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-500" title="Editar"><Pencil size={13} /></button>
+                    <button
+                      onClick={() => { if (confirm(`¿Eliminar "${cat.label}"? Las transacciones existentes conservarán la clave.`)) deleteCat.mutate(cat.id); }}
+                      className="rounded p-1.5 text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500" title="Eliminar"
+                    ><Trash2 size={13} /></button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="border-t border-slate-100 dark:border-gray-700 px-5 py-4 shrink-0">
+          <div className="flex gap-2">
+            <input
+              value={newLabel}
+              onChange={(e) => setNewLabel(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}
+              placeholder="Nueva categoría..."
+              className="flex-1 rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <button
+              onClick={handleCreate}
+              disabled={!newLabel.trim() || createCat.isPending}
+              className="flex items-center gap-1.5 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              <Plus size={15} /> Agregar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Transaction Form Modal ────────────────────────────────────────────────────
 
 interface FormState {
@@ -360,7 +457,17 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   const { data: apiProducts = [] } = useCostProducts();
   const updateStock = useUpdateCostProductStock();
   const isIngreso = type === "ingreso";
-  const categories = isIngreso ? INCOME_CATEGORY_LABELS : EXPENSE_CATEGORY_LABELS;
+  const { data: expenseCats = [] } = useExpenseCategories();
+  const incomeCategories = INCOME_CATEGORY_LABELS;
+  const expenseCategoryMap = Object.fromEntries(expenseCats.map((c) => [c.key, c.label]));
+
+  // Set default egreso category once dynamic list loads (if not editing)
+  useEffect(() => {
+    if (!isIngreso && !isEdit && expenseCats.length > 0 && form.category === "laboratorio") {
+      set("category", expenseCats[0].key as FinanceCategory);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [expenseCats.length]);
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Materials actually used — initialized from the linked treatment template, editable by the user
@@ -499,9 +606,10 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
               <select value={form.category}
                 onChange={(e) => set("category", e.target.value as FinanceCategory)}
                 className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                {Object.entries(categories).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
-                ))}
+                {isIngreso
+                  ? Object.entries(incomeCategories).map(([k, v]) => <option key={k} value={k}>{v}</option>)
+                  : expenseCats.map((c) => <option key={c.key} value={c.key}>{c.label}</option>)
+                }
               </select>
             </div>
             <div>
@@ -839,6 +947,8 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
   const [tab, setTab] = useState<"all" | "ingreso" | "egreso">("all");
   const { data: txs = [], isLoading } = useTransactions(year, month, tab === "all" ? undefined : tab);
   const { data: exchangeRate = 37 } = useExchangeRate();
+  const { data: expenseCats = [] } = useExpenseCategories();
+  const dynamicCategoryLabels = Object.fromEntries(expenseCats.map((c) => [c.key, c.label]));
   const [toDelete, setToDelete] = useState<FinanceTransaction | null>(null);
   const [receiptTx, setReceiptTx] = useState<FinanceTransaction | null>(null);
   const [editTx, setEditTx] = useState<FinanceTransaction | null>(null);
@@ -974,7 +1084,7 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                           {tx.type === "ingreso" ? "Ingreso" : "Egreso"}
                         </span>
                       </td>
-                      <td className="px-4 py-3 text-slate-600 dark:text-gray-400 text-xs">{ALL_CATEGORY_LABELS[tx.category] ?? tx.category}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-gray-400 text-xs">{ALL_CATEGORY_LABELS[tx.category] ?? dynamicCategoryLabels[tx.category] ?? tx.category}</td>
                       <td className="px-4 py-3 text-slate-800 dark:text-gray-200 text-xs max-w-[160px] truncate">{tx.description}</td>
                       <td className="px-4 py-3 text-xs">
                         {tx.patient ? (
@@ -1261,6 +1371,7 @@ export default function FinancesPage() {
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [mainTab, setMainTab] = useState<"transactions" | "patients">("transactions");
   const [modal, setModal] = useState<"ingreso" | "egreso" | null>(null);
+  const [showCatManager, setShowCatManager] = useState(false);
   const { data: summary, isLoading: loadingSummary } = useFinanceSummary(year, month);
   const { data: exchangeRate = 37 } = useExchangeRate();
 
@@ -1293,10 +1404,16 @@ export default function FinancesPage() {
             className="flex items-center gap-2 rounded-xl bg-green-600 px-4 py-2 text-sm font-semibold text-white hover:bg-green-700">
             <Plus size={16} /> Ingreso
           </button>
-          <button onClick={() => setModal("egreso")}
-            className="flex items-center gap-2 rounded-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">
-            <Plus size={16} /> Egreso
-          </button>
+          <div className="flex items-center gap-1">
+            <button onClick={() => setModal("egreso")}
+              className="flex items-center gap-2 rounded-l-xl bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700">
+              <Plus size={16} /> Egreso
+            </button>
+            <button onClick={() => setShowCatManager(true)} title="Gestionar categorías de egreso"
+              className="flex items-center rounded-r-xl border-l border-red-700 bg-red-600 px-2 py-2 text-white hover:bg-red-700">
+              <Settings2 size={15} />
+            </button>
+          </div>
           <button
             onClick={() => {
               window.open(`${process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000"}/api/v1/finances/export/excel?year=${year}&month=${month}`, "_blank");
@@ -1358,6 +1475,7 @@ export default function FinancesPage() {
           onClose={() => setModal(null)}
         />
       )}
+      {showCatManager && <ExpenseCategoryManager onClose={() => setShowCatManager(false)} />}
     </div>
   );
 }
