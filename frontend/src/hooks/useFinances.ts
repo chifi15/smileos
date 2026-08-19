@@ -15,9 +15,17 @@ export interface HonorariosProcedure {
   total_honorarios: number;
 }
 
+export interface HonorariosDoctor {
+  doctor_id: string | null;
+  doctor_name: string;
+  total_honorarios: number;
+  procedures: Omit<HonorariosProcedure, "procedure_id">[];
+}
+
 export interface HonorariosData {
   total_honorarios: number;
   by_procedure: HonorariosProcedure[];
+  by_doctor: HonorariosDoctor[];
 }
 
 const keys = {

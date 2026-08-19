@@ -38,6 +38,7 @@ def _serialize(t) -> dict:
         "procedure": {"id": str(t.procedure.id), "name": t.procedure.name} if t.procedure else None,
         "procedure_quantity": t.procedure_quantity,
         "operational_cost_snapshot": float(t.operational_cost_snapshot) if t.operational_cost_snapshot else None,
+        "doctor": {"id": str(t.doctor.id), "full_name": t.doctor.full_name} if t.doctor else None,
         "invoice_number": t.invoice_number,
         "transaction_date": t.transaction_date.isoformat(),
         "notes": t.notes,
@@ -68,6 +69,7 @@ class TransactionCreate(BaseModel):
     patient_id: str | None = None
     procedure_id: str | None = None
     quantity: int = 1
+    doctor_id: str | None = None
     invoice_number: str | None = None
     transaction_date: date
     notes: str | None = None
@@ -81,6 +83,7 @@ class TransactionUpdate(BaseModel):
     patient_id: str | None = None
     procedure_id: str | None = None
     quantity: int | None = None
+    doctor_id: str | None = None
     invoice_number: str | None = None
     transaction_date: date | None = None
     notes: str | None = None

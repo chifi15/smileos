@@ -636,6 +636,7 @@ export interface FinanceTransaction {
   procedure: { id: string; name: string } | null;
   procedure_quantity: number;
   operational_cost_snapshot: number | null;
+  doctor: { id: string; full_name: string } | null;
   invoice_number: string | null;
   transaction_date: string;
   notes: string | null;
@@ -663,6 +664,7 @@ export interface TransactionCreatePayload {
   patient_id?: string;
   procedure_id?: string;
   quantity?: number;
+  doctor_id?: string | null;
   invoice_number?: string;
   transaction_date: string;
   notes?: string;

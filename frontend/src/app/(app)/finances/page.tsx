@@ -46,6 +46,7 @@ import {
 } from "@/hooks/useFinances";
 import { useProcedures } from "@/hooks/useCatalog";
 import { usePatientSearch } from "@/hooks/usePatients";
+import { useClinicUsers } from "@/hooks/useUsers";
 import {
   FinanceTransaction,
   FinanceType,
@@ -405,6 +406,7 @@ interface FormState {
   patient: PatientRef | null;
   procedure_id: string;
   quantity: string;
+  doctor_id: string;
   invoice_number: string;
   transaction_date: string;
   notes: string;
@@ -422,6 +424,7 @@ function emptyForm(type: FinanceType): FormState {
     patient: null,
     procedure_id: "",
     quantity: "1",
+    doctor_id: "",
     invoice_number: "",
     transaction_date: today,
     notes: "",
@@ -438,6 +441,7 @@ function formFromTx(tx: FinanceTransaction): FormState {
     patient: tx.patient ? { id: tx.patient.id, name: tx.patient.full_name } : null,
     procedure_id: tx.procedure?.id ?? "",
     quantity: String(tx.procedure_quantity ?? 1),
+    doctor_id: tx.doctor?.id ?? "",
     invoice_number: tx.invoice_number ?? "",
     transaction_date: tx.transaction_date,
     notes: tx.notes ?? "",
@@ -460,6 +464,8 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   const updateStock = useUpdateCostProductStock();
   const isIngreso = type === "ingreso";
   const { data: expenseCats = [] } = useExpenseCategories();
+  const { data: clinicUsers = [] } = useClinicUsers();
+  const doctors = clinicUsers.filter((u) => ["dentist", "clinic_owner", "admin"].includes(u.role));
   const incomeCategories = INCOME_CATEGORY_LABELS;
   const expenseCategoryMap = Object.fromEntries(expenseCats.map((c) => [c.key, c.label]));
 
@@ -520,6 +526,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         patient_id: form.patient?.id ?? null,
         procedure_id: form.procedure_id || null,
         quantity: qty,
+        doctor_id: form.doctor_id || null,
         invoice_number: form.invoice_number.trim() || null,
         notes: form.notes.trim() || null,
       };
@@ -534,6 +541,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
       original_amount: parseFloat(form.original_amount),
       original_currency: form.original_currency,
       transaction_date: form.transaction_date,
+      doctor_id: form.doctor_id || null,
     };
 
     if (form.patient?.id) payload.patient_id = form.patient.id;
@@ -704,6 +712,20 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
               </div>
             );
           })()}
+
+          {isIngreso && doctors.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Doctor que realizó el procedimiento</label>
+              <select value={form.doctor_id}
+                onChange={(e) => set("doctor_id", e.target.value)}
+                className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <option value="">— Sin asignar —</option>
+                {doctors.map((d) => (
+                  <option key={d.id} value={d.id}>{d.full_name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {/* ── Panel de materiales (solo en transacciones nuevas con tratamiento vinculado) ── */}
           {!isEdit && usedMaterials !== null && (
@@ -1369,6 +1391,7 @@ function ByPatientTab({ year, month }: { year: number; month: number }) {
 
 function HonorariosTab({ year, month }: { year: number; month: number }) {
   const { data, isLoading } = useHonorarios(year, month);
+  const [view, setView] = useState<"doctor" | "procedure">("doctor");
 
   if (isLoading) {
     return (
@@ -1393,71 +1416,115 @@ function HonorariosTab({ year, month }: { year: number; month: number }) {
     );
   }
 
-  const max = data.by_procedure[0]?.total_honorarios ?? 1;
+  const maxProc = data.by_procedure[0]?.total_honorarios ?? 1;
+  const maxDoc = data.by_doctor[0]?.total_honorarios ?? 1;
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
-      <div className="px-5 py-3 border-b border-slate-100 dark:border-gray-700 flex items-center justify-between">
-        <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-300">
-          Honorarios por procedimiento
-        </h3>
-        <span className="text-xs font-semibold text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 px-2 py-0.5 rounded-full">
-          Total: C$ {fmt(data.total_honorarios)}
+    <div className="space-y-4">
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex gap-1 bg-slate-100 dark:bg-gray-700 rounded-xl p-1 w-fit">
+          <button onClick={() => setView("doctor")}
+            className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
+              view === "doctor" ? "bg-white dark:bg-gray-800 text-slate-800 dark:text-white shadow-sm" : "text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300"
+            }`}>
+            Por doctor
+          </button>
+          <button onClick={() => setView("procedure")}
+            className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
+              view === "procedure" ? "bg-white dark:bg-gray-800 text-slate-800 dark:text-white shadow-sm" : "text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300"
+            }`}>
+            Por procedimiento
+          </button>
+        </div>
+        <span className="text-sm font-semibold text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 border border-purple-200 dark:border-purple-800 px-3 py-1 rounded-full">
+          Total mes: C$ {fmt(data.total_honorarios)}
         </span>
       </div>
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b border-slate-100 dark:border-gray-700 text-xs text-slate-500 dark:text-gray-400">
-            <th className="px-5 py-2.5 text-left font-medium">Procedimiento</th>
-            <th className="px-4 py-2.5 text-right font-medium">Honorario / unidad</th>
-            <th className="px-4 py-2.5 text-right font-medium">Cantidad</th>
-            <th className="px-5 py-2.5 text-right font-medium">Total honorarios</th>
-            <th className="px-5 py-2.5 text-right font-medium w-40">Distribución</th>
-          </tr>
-        </thead>
-        <tbody>
-          {data.by_procedure.map((row: HonorariosProcedure) => (
-            <tr key={row.procedure_id} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30">
-              <td className="px-5 py-3 font-medium text-slate-800 dark:text-gray-200">
-                {row.procedure_name}
-              </td>
-              <td className="px-4 py-3 text-right text-slate-600 dark:text-gray-400">
-                C$ {fmt(row.fee_per_unit)}
-              </td>
-              <td className="px-4 py-3 text-right text-slate-600 dark:text-gray-400">
-                {row.quantity}
-              </td>
-              <td className="px-5 py-3 text-right font-semibold text-purple-700 dark:text-purple-400">
-                C$ {fmt(row.total_honorarios)}
-              </td>
-              <td className="px-5 py-3">
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 h-2 bg-slate-100 dark:bg-gray-700 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-purple-500 dark:bg-purple-400 rounded-full"
-                      style={{ width: `${(row.total_honorarios / max) * 100}%` }}
-                    />
+
+      {view === "doctor" ? (
+        <div className="space-y-4">
+          {data.by_doctor.map((doc: HonorariosDoctor) => (
+            <div key={doc.doctor_id ?? "__sin_doctor__"} className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+              <div className="px-5 py-3 bg-purple-50 dark:bg-purple-900/20 border-b border-purple-100 dark:border-purple-800/40 flex items-center justify-between">
+                <span className="font-semibold text-slate-800 dark:text-gray-200 text-sm">{doc.doctor_name}</span>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 w-32 h-2 bg-purple-100 dark:bg-purple-800/40 rounded-full overflow-hidden">
+                    <div className="h-full bg-purple-500 dark:bg-purple-400 rounded-full"
+                      style={{ width: `${(doc.total_honorarios / maxDoc) * 100}%` }} />
                   </div>
-                  <span className="text-xs text-slate-400 dark:text-gray-500 w-8 text-right">
-                    {Math.round((row.total_honorarios / data.total_honorarios) * 100)}%
+                  <span className="text-sm font-bold text-purple-700 dark:text-purple-400 whitespace-nowrap">
+                    C$ {fmt(doc.total_honorarios)}
                   </span>
                 </div>
-              </td>
-            </tr>
+              </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-gray-700 text-xs text-slate-500 dark:text-gray-400">
+                    <th className="px-5 py-2 text-left font-medium">Procedimiento</th>
+                    <th className="px-4 py-2 text-right font-medium">Honorario/u.</th>
+                    <th className="px-4 py-2 text-right font-medium">Cant.</th>
+                    <th className="px-5 py-2 text-right font-medium">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {doc.procedures.map((p, i) => (
+                    <tr key={i} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30">
+                      <td className="px-5 py-2.5 text-slate-700 dark:text-gray-300">{p.procedure_name}</td>
+                      <td className="px-4 py-2.5 text-right text-slate-500 dark:text-gray-400">C$ {fmt(p.fee_per_unit)}</td>
+                      <td className="px-4 py-2.5 text-right text-slate-500 dark:text-gray-400">{p.quantity}</td>
+                      <td className="px-5 py-2.5 text-right font-semibold text-purple-700 dark:text-purple-400">C$ {fmt(p.total_honorarios)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           ))}
-        </tbody>
-        <tfoot>
-          <tr className="bg-purple-50 dark:bg-purple-900/20">
-            <td colSpan={3} className="px-5 py-3 text-sm font-bold text-slate-700 dark:text-gray-300">
-              Total honorarios del Dr.
-            </td>
-            <td className="px-5 py-3 text-right text-base font-bold text-purple-700 dark:text-purple-400">
-              C$ {fmt(data.total_honorarios)}
-            </td>
-            <td />
-          </tr>
-        </tfoot>
-      </table>
+        </div>
+      ) : (
+        <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 dark:border-gray-700 text-xs text-slate-500 dark:text-gray-400">
+                <th className="px-5 py-2.5 text-left font-medium">Procedimiento</th>
+                <th className="px-4 py-2.5 text-right font-medium">Honorario / unidad</th>
+                <th className="px-4 py-2.5 text-right font-medium">Cantidad</th>
+                <th className="px-5 py-2.5 text-right font-medium">Total honorarios</th>
+                <th className="px-5 py-2.5 text-right font-medium w-40">Distribución</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.by_procedure.map((row: HonorariosProcedure) => (
+                <tr key={row.procedure_id} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30">
+                  <td className="px-5 py-3 font-medium text-slate-800 dark:text-gray-200">{row.procedure_name}</td>
+                  <td className="px-4 py-3 text-right text-slate-600 dark:text-gray-400">C$ {fmt(row.fee_per_unit)}</td>
+                  <td className="px-4 py-3 text-right text-slate-600 dark:text-gray-400">{row.quantity}</td>
+                  <td className="px-5 py-3 text-right font-semibold text-purple-700 dark:text-purple-400">C$ {fmt(row.total_honorarios)}</td>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-2 bg-slate-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div className="h-full bg-purple-500 dark:bg-purple-400 rounded-full"
+                          style={{ width: `${(row.total_honorarios / maxProc) * 100}%` }} />
+                      </div>
+                      <span className="text-xs text-slate-400 dark:text-gray-500 w-8 text-right">
+                        {Math.round((row.total_honorarios / data.total_honorarios) * 100)}%
+                      </span>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="bg-purple-50 dark:bg-purple-900/20">
+                <td colSpan={3} className="px-5 py-3 text-sm font-bold text-slate-700 dark:text-gray-300">Total</td>
+                <td className="px-5 py-3 text-right text-base font-bold text-purple-700 dark:text-purple-400">
+                  C$ {fmt(data.total_honorarios)}
+                </td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
     </div>
   );
 }

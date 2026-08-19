@@ -15,6 +15,7 @@ from app.core.exceptions import NotFoundError
 _LOAD = [
     selectinload(FinanceTransaction.patient),
     selectinload(FinanceTransaction.procedure),
+    selectinload(FinanceTransaction.doctor),
     selectinload(FinanceTransaction.created_by),
 ]
 
@@ -125,6 +126,7 @@ async def create_transaction(
         procedure_id=uuid.UUID(str(proc_id)) if proc_id else None,
         procedure_quantity=quantity,
         operational_cost_snapshot=op_cost,
+        doctor_id=uuid.UUID(str(data["doctor_id"])) if data.get("doctor_id") else None,
         invoice_number=data.get("invoice_number"),
         transaction_date=data["transaction_date"],
         notes=data.get("notes"),
@@ -201,6 +203,8 @@ async def get_honorarios_by_procedure(
     }
 
     procedure_totals: dict[str, dict] = {}
+    # doctor_id -> { doctor_name, procedures: {proc_id -> {...}}, total }
+    doctor_totals: dict[str, dict] = {}
     total_honorarios = 0.0
 
     for tx in rows:
@@ -210,19 +214,44 @@ async def get_honorarios_by_procedure(
         if not ct:
             continue
         fee_per_unit = ct.professional_fee_per_hour * ct.total_hours
-        fee = fee_per_unit * (tx.procedure_quantity or 1)
+        qty = tx.procedure_quantity or 1
+        fee = fee_per_unit * qty
         proc_id = str(tx.procedure_id)
+        proc_name = tx.procedure.name if tx.procedure else "—"
+
         if proc_id not in procedure_totals:
             procedure_totals[proc_id] = {
                 "procedure_id": proc_id,
-                "procedure_name": tx.procedure.name if tx.procedure else "—",
+                "procedure_name": proc_name,
                 "fee_per_unit": round(fee_per_unit, 2),
                 "quantity": 0,
                 "total_honorarios": 0.0,
             }
-        procedure_totals[proc_id]["quantity"] += tx.procedure_quantity or 1
+        procedure_totals[proc_id]["quantity"] += qty
         procedure_totals[proc_id]["total_honorarios"] += fee
         total_honorarios += fee
+
+        # Group by doctor
+        doc_key = str(tx.doctor_id) if tx.doctor_id else "__sin_doctor__"
+        doc_name = tx.doctor.full_name if tx.doctor else "Sin doctor asignado"
+        if doc_key not in doctor_totals:
+            doctor_totals[doc_key] = {
+                "doctor_id": str(tx.doctor_id) if tx.doctor_id else None,
+                "doctor_name": doc_name,
+                "total_honorarios": 0.0,
+                "procedures": {},
+            }
+        doctor_totals[doc_key]["total_honorarios"] += fee
+        doc_procs = doctor_totals[doc_key]["procedures"]
+        if proc_id not in doc_procs:
+            doc_procs[proc_id] = {
+                "procedure_name": proc_name,
+                "fee_per_unit": round(fee_per_unit, 2),
+                "quantity": 0,
+                "total_honorarios": 0.0,
+            }
+        doc_procs[proc_id]["quantity"] += qty
+        doc_procs[proc_id]["total_honorarios"] += fee
 
     by_procedure = sorted(
         procedure_totals.values(),
@@ -232,9 +261,25 @@ async def get_honorarios_by_procedure(
     for r in by_procedure:
         r["total_honorarios"] = round(r["total_honorarios"], 2)
 
+    by_doctor = sorted(
+        doctor_totals.values(),
+        key=lambda x: x["total_honorarios"],
+        reverse=True,
+    )
+    for d in by_doctor:
+        d["total_honorarios"] = round(d["total_honorarios"], 2)
+        d["procedures"] = sorted(
+            d["procedures"].values(),
+            key=lambda x: x["total_honorarios"],
+            reverse=True,
+        )
+        for p in d["procedures"]:
+            p["total_honorarios"] = round(p["total_honorarios"], 2)
+
     return {
         "total_honorarios": round(total_honorarios, 2),
         "by_procedure": by_procedure,
+        "by_doctor": by_doctor,
     }
 
 
@@ -283,6 +328,9 @@ async def update_transaction(
 
     if "patient_id" in data:
         tx.patient_id = uuid.UUID(str(data["patient_id"])) if data["patient_id"] else None
+
+    if "doctor_id" in data:
+        tx.doctor_id = uuid.UUID(str(data["doctor_id"])) if data["doctor_id"] else None
 
     upd_quantity = max(1, int(data["quantity"])) if data.get("quantity") else None
 
