@@ -26,6 +26,7 @@ export interface ApiProduct {
 export interface ApiMaterial {
   productId: string;
   quantity: number;
+  altGroup?: string | null;
 }
 
 export interface ApiAppointment {

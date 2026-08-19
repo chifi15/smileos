@@ -71,6 +71,7 @@ export interface Product {
 export interface MaterialUsage {
   productId: string;
   quantity: number;
+  altGroup?: string | null;
 }
 
 export interface TreatmentAppointment {
@@ -100,6 +101,8 @@ export interface AppointmentCostDetail {
     product: Product;
     quantity: number;
     total: number;
+    altGroup: string | null;
+    countsInCost: boolean;
   }>;
 }
 

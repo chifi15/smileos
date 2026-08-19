@@ -479,7 +479,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Materials actually used — initialized from the linked treatment template, editable by the user
-  type UsedMaterial = { productId: string; qty: number };
+  type UsedMaterial = { productId: string; qty: number; altGroup?: string | null };
   const [usedMaterials, setUsedMaterials] = useState<UsedMaterial[] | null>(null);
   const [materialsOpen, setMaterialsOpen] = useState(false);
   const [addMatSearch, setAddMatSearch] = useState("");
@@ -489,12 +489,20 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     const treatment = apiTreatments.find((t) => t.procedure_catalog_id === procedureId);
     if (!treatment) { setUsedMaterials(null); return; }
     const totals = new Map<string, number>();
+    const groups = new Map<string, string | null>();
     for (const apt of treatment.appointments) {
       for (const m of apt.materials) {
         totals.set(m.productId, (totals.get(m.productId) ?? 0) + m.quantity);
+        if (!groups.has(m.productId)) groups.set(m.productId, m.altGroup ?? null);
       }
     }
-    setUsedMaterials(Array.from(totals.entries()).map(([productId, qty]) => ({ productId, qty })));
+    setUsedMaterials(
+      Array.from(totals.entries()).map(([productId, qty]) => ({
+        productId,
+        qty,
+        altGroup: groups.get(productId) ?? null,
+      }))
+    );
     setMaterialsOpen(true);
   }
 
@@ -749,6 +757,11 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
 
               {materialsOpen && (
                 <div className="border-t border-slate-100 dark:border-gray-700 divide-y divide-slate-50 dark:divide-gray-700">
+                  {usedMaterials.some((m) => m.altGroup) && (
+                    <p className="px-4 py-2.5 text-[10px] text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-b border-orange-100 dark:border-orange-800/30">
+                      Materiales con <strong>Alt</strong> son alternativos entre sí — elimina los que no usaste para descontar solo el correcto del inventario.
+                    </p>
+                  )}
                   {usedMaterials.length === 0 ? (
                     <p className="px-4 py-3 text-xs text-slate-400 dark:text-gray-500 italic">Sin materiales — no se descontará nada del inventario.</p>
                   ) : (
@@ -760,6 +773,11 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                             {product?.name ?? m.productId}
                             {product?.portion_description && (
                               <span className="text-slate-400 dark:text-gray-500 ml-1">/ {product.portion_description}</span>
+                            )}
+                            {m.altGroup && (
+                              <span className="ml-1.5 inline-flex items-center rounded px-1 py-0.5 text-[9px] font-semibold bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 border border-orange-200 dark:border-orange-700">
+                                Alt {m.altGroup}
+                              </span>
                             )}
                           </span>
                           <input

@@ -48,15 +48,33 @@ export function calculateTreatmentCosts(
   const productMap = new Map(products.map((p) => [p.id, p]));
 
   const appointmentCosts = treatment.appointments.map((apt) => {
-    const materials = apt.materials
+    const rawMaterials = apt.materials
       .map((usage) => {
         const product = productMap.get(usage.productId);
         if (!product) return null;
-        return { product, quantity: usage.quantity, total: product.unitPrice * usage.quantity };
+        return {
+          product,
+          quantity: usage.quantity,
+          total: product.unitPrice * usage.quantity,
+          altGroup: usage.altGroup ?? null,
+        };
       })
-      .filter(Boolean) as Array<{ product: Product; quantity: number; total: number }>;
+      .filter(Boolean) as Array<{ product: Product; quantity: number; total: number; altGroup: string | null }>;
 
-    const materialCost = materials.reduce((sum, m) => sum + m.total, 0);
+    // For each alt group, find the max cost — only that one counts
+    const groupMax = new Map<string, number>();
+    for (const m of rawMaterials) {
+      if (m.altGroup) {
+        groupMax.set(m.altGroup, Math.max(groupMax.get(m.altGroup) ?? 0, m.total));
+      }
+    }
+
+    const materials = rawMaterials.map((m) => ({
+      ...m,
+      countsInCost: m.altGroup ? m.total === groupMax.get(m.altGroup) : true,
+    }));
+
+    const materialCost = materials.reduce((sum, m) => m.countsInCost ? sum + m.total : sum, 0);
     return { appointment: apt, materialCost, materials };
   });
 

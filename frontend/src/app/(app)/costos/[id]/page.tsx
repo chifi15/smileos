@@ -19,6 +19,7 @@ import {
   Copy,
   ClipboardPaste,
   GripVertical,
+  Link2,
 } from "lucide-react";
 import {
   DndContext,
@@ -61,6 +62,21 @@ import { PRODUCT_CATEGORY_LABELS, categoryLabel, categoryColor } from "@/types/c
 import CostSummaryBar from "@/components/costos/CostSummaryBar";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+
+// ─── Alt Group Helpers ────────────────────────────────────────────────────────
+
+const ALT_GROUP_COLORS: Record<string, string> = {
+  A: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 border border-orange-200 dark:border-orange-700",
+  B: "bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400 border border-violet-200 dark:border-violet-700",
+  C: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 border border-teal-200 dark:border-teal-700",
+  D: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 border border-pink-200 dark:border-pink-700",
+  E: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-700",
+};
+const ALT_GROUP_LETTERS = ["A", "B", "C", "D", "E"];
+
+function altGroupColor(g: string) {
+  return ALT_GROUP_COLORS[g] ?? "bg-slate-100 text-slate-600 border border-slate-200";
+}
 
 // ─── Edit Treatment Settings Panel ────────────────────────────────────────────
 
@@ -441,6 +457,9 @@ function SortableMaterialRow({
   product,
   quantity,
   total,
+  altGroup,
+  countsInCost,
+  availableGroups,
   editQty,
   editQtyValue,
   onEditQtyStart,
@@ -448,12 +467,16 @@ function SortableMaterialRow({
   onEditQtySave,
   onEditQtyCancel,
   onRemove,
+  onSetAltGroup,
 }: {
   productId: string;
   rowIndex: number;
   product: { id: string; name: string; unitPrice: number; category: string };
   quantity: number;
   total: number;
+  altGroup: string | null;
+  countsInCost: boolean;
+  availableGroups: string[];
   editQty: string | null;
   editQtyValue: string;
   onEditQtyStart: () => void;
@@ -461,9 +484,11 @@ function SortableMaterialRow({
   onEditQtySave: () => void;
   onEditQtyCancel: () => void;
   onRemove: () => void;
+  onSetAltGroup: (g: string | null) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: productId });
+  const [groupOpen, setGroupOpen] = useState(false);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -471,8 +496,10 @@ function SortableMaterialRow({
     opacity: isDragging ? 0.5 : 1,
   };
 
+  const nextNewGroup = ALT_GROUP_LETTERS.find((l) => !availableGroups.includes(l)) ?? "A";
+
   return (
-    <tr ref={setNodeRef} style={style} className="group hover:bg-slate-50/50 dark:hover:bg-gray-700/30">
+    <tr ref={setNodeRef} style={style} className={`group hover:bg-slate-50/50 dark:hover:bg-gray-700/30 ${!countsInCost ? "opacity-60" : ""}`}>
       <td className="pl-3 pr-1 py-2.5 w-5">
         <button
           {...attributes}
@@ -487,7 +514,17 @@ function SortableMaterialRow({
         {rowIndex}
       </td>
       <td className="px-5 py-2.5">
-        <p className="font-medium text-slate-700 dark:text-gray-300 text-sm">{product.name}</p>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          <p className={`font-medium text-sm ${countsInCost ? "text-slate-700 dark:text-gray-300" : "text-slate-400 dark:text-gray-500 line-through"}`}>
+            {product.name}
+          </p>
+          {altGroup && (
+            <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ${altGroupColor(altGroup)}`}>
+              Alt {altGroup}
+              {!countsInCost && <span className="ml-1 opacity-60">(no cuenta)</span>}
+            </span>
+          )}
+        </div>
         <span className={`inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium ${categoryColor(product.category)}`}>
           {categoryLabel(product.category)}
         </span>
@@ -509,10 +546,7 @@ function SortableMaterialRow({
                 if (e.key === "Escape") onEditQtyCancel();
               }}
             />
-            <button
-              onClick={onEditQtySave}
-              className="rounded p-0.5 text-green-600 hover:bg-green-50"
-            >
+            <button onClick={onEditQtySave} className="rounded p-0.5 text-green-600 hover:bg-green-50">
               <Check size={13} />
             </button>
           </div>
@@ -526,16 +560,62 @@ function SortableMaterialRow({
           </button>
         )}
       </td>
-      <td className="px-5 py-2.5 text-right font-medium text-slate-800 dark:text-gray-200">
+      <td className={`px-5 py-2.5 text-right font-medium ${countsInCost ? "text-slate-800 dark:text-gray-200" : "text-slate-400 dark:text-gray-500 line-through"}`}>
         {fmtC(total)}
       </td>
       <td className="pr-3 text-center">
-        <button
-          onClick={onRemove}
-          className="hidden rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500 group-hover:block"
-        >
-          <Trash2 size={12} />
-        </button>
+        <div className="hidden group-hover:flex items-center justify-end gap-0.5">
+          {/* Botón de grupo alternativo */}
+          <div className="relative">
+            <button
+              title="Marcar como alternativa"
+              onClick={() => setGroupOpen((v) => !v)}
+              className={`rounded p-1 transition-colors ${altGroup ? altGroupColor(altGroup) : "text-slate-300 hover:bg-orange-50 hover:text-orange-500"}`}
+            >
+              <Link2 size={12} />
+            </button>
+            {groupOpen && (
+              <div className="absolute right-0 top-full mt-1 z-30 min-w-[150px] rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg overflow-hidden">
+                <p className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wide border-b border-slate-100 dark:border-gray-700">
+                  Grupo alternativo
+                </p>
+                {/* Grupos ya existentes */}
+                {availableGroups.map((g) => (
+                  <button key={g}
+                    onClick={() => { onSetAltGroup(g); setGroupOpen(false); }}
+                    className={`flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-gray-700 ${altGroup === g ? "font-semibold" : ""}`}
+                  >
+                    <span className={`rounded px-1.5 py-0.5 text-[10px] font-semibold ${altGroupColor(g)}`}>Alt {g}</span>
+                    {altGroup === g && <Check size={11} className="text-green-500 ml-auto" />}
+                  </button>
+                ))}
+                {/* Nuevo grupo */}
+                {!availableGroups.includes(nextNewGroup) || altGroup !== nextNewGroup ? (
+                  <button
+                    onClick={() => { onSetAltGroup(nextNewGroup); setGroupOpen(false); }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-600 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-700 border-t border-slate-100 dark:border-gray-700"
+                  >
+                    <Link2 size={11} />
+                    Nuevo grupo {nextNewGroup}
+                  </button>
+                ) : null}
+                {/* Quitar del grupo */}
+                {altGroup && (
+                  <button
+                    onClick={() => { onSetAltGroup(null); setGroupOpen(false); }}
+                    className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 border-t border-slate-100 dark:border-gray-700"
+                  >
+                    <X size={11} />
+                    Quitar del grupo
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+          <button onClick={onRemove} className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500">
+            <Trash2 size={12} />
+          </button>
+        </div>
       </td>
     </tr>
   );
@@ -590,6 +670,14 @@ function EditableAppointment({
     onUpdateApt({ materials: apt.materials.filter((m) => m.productId !== productId) });
   }
 
+  function setAltGroup(productId: string, group: string | null) {
+    onUpdateApt({
+      materials: apt.materials.map((m) =>
+        m.productId === productId ? { ...m, altGroup: group } : m
+      ),
+    });
+  }
+
   function saveName() {
     const trimmed = editNameValue.trim();
     if (trimmed) onUpdateApt({ name: trimmed });
@@ -606,6 +694,9 @@ function EditableAppointment({
     });
     setEditQty(null);
   }
+
+  // Groups currently used in this appointment
+  const usedGroupsInHeader = [...new Set(apt.materials.filter(m => m.altGroup).map(m => m.altGroup as string))];
 
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
@@ -656,7 +747,14 @@ function EditableAppointment({
         </div>
         <div className="flex items-center gap-2">
           <div className="text-right">
-            <p className="text-xs text-slate-500 dark:text-gray-400">Costo cita</p>
+            <p className="text-xs text-slate-500 dark:text-gray-400">
+              Costo cita
+              {usedGroupsInHeader.length > 0 && (
+                <span className="ml-1 text-orange-500 dark:text-orange-400" title="Tiene materiales alternativos: solo se suma el más caro de cada grupo">
+                  (alt)
+                </span>
+              )}
+            </p>
             <p className="font-semibold text-slate-800 dark:text-gray-200">{fmtC(materialCost)}</p>
           </div>
 
@@ -767,23 +865,30 @@ function EditableAppointment({
                   strategy={verticalListSortingStrategy}
                 >
                   <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
-                    {materials.map(({ product, quantity, total }, idx) => (
-                      <SortableMaterialRow
-                        key={product.id}
-                        productId={product.id}
-                        rowIndex={idx + 1}
-                        product={product}
-                        quantity={quantity}
-                        total={total}
-                        editQty={editQty}
-                        editQtyValue={editQtyValue}
-                        onEditQtyStart={() => { setEditQty(product.id); setEditQtyValue(String(quantity)); }}
-                        onEditQtyChange={setEditQtyValue}
-                        onEditQtySave={() => saveQty(product.id)}
-                        onEditQtyCancel={() => setEditQty(null)}
-                        onRemove={() => removeMaterial(product.id)}
-                      />
-                    ))}
+                    {(() => {
+                      const usedGroups = [...new Set(materials.filter(m => m.altGroup).map(m => m.altGroup as string))];
+                      return materials.map(({ product, quantity, total, altGroup, countsInCost }, idx) => (
+                        <SortableMaterialRow
+                          key={product.id}
+                          productId={product.id}
+                          rowIndex={idx + 1}
+                          product={product}
+                          quantity={quantity}
+                          total={total}
+                          altGroup={altGroup}
+                          countsInCost={countsInCost}
+                          availableGroups={usedGroups}
+                          editQty={editQty}
+                          editQtyValue={editQtyValue}
+                          onEditQtyStart={() => { setEditQty(product.id); setEditQtyValue(String(quantity)); }}
+                          onEditQtyChange={setEditQtyValue}
+                          onEditQtySave={() => saveQty(product.id)}
+                          onEditQtyCancel={() => setEditQty(null)}
+                          onRemove={() => removeMaterial(product.id)}
+                          onSetAltGroup={(g) => setAltGroup(product.id, g)}
+                        />
+                      ));
+                    })()}
                   </tbody>
                 </SortableContext>
                 <tfoot>
