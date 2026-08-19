@@ -1134,7 +1134,7 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
-                          tx.type === "ingreso" ? "bg-green-100 text-green-700" : "bg-red-100 text-red-700"
+                          tx.type === "ingreso" ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400" : "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400"
                         }`}>
                           {tx.type === "ingreso" ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
                           {tx.type === "ingreso" ? "Ingreso" : "Egreso"}
@@ -1155,7 +1155,7 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                       <td className="px-4 py-3 text-slate-500 dark:text-gray-400 text-xs">{tx.procedure?.name ?? "—"}</td>
                       <td className="px-4 py-3 text-slate-500 dark:text-gray-400 text-xs">{tx.invoice_number ?? "—"}</td>
                       <td className={`px-4 py-3 text-right font-mono text-sm font-semibold ${
-                        tx.type === "ingreso" ? "text-green-700" : "text-red-600"
+                        tx.type === "ingreso" ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"
                       }`}>
                         C${fmt(tx.amount_cordobas)}
                       </td>
@@ -1168,8 +1168,8 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                           title={tx.receipt_url ? "Ver comprobante" : "Subir comprobante"}
                           className={`rounded-lg p-1.5 transition-colors ${
                             tx.receipt_url
-                              ? "text-green-600 bg-green-50 hover:bg-green-100"
-                              : "text-slate-300 hover:text-blue-500 hover:bg-blue-50"
+                              ? "text-green-600 bg-green-50 hover:bg-green-100 dark:text-green-400 dark:bg-green-900/30 dark:hover:bg-green-900/50"
+                              : "text-slate-300 hover:text-blue-500 hover:bg-blue-50 dark:text-gray-600 dark:hover:text-blue-400 dark:hover:bg-blue-900/30"
                           }`}
                         >
                           <Camera size={14} />
@@ -1271,7 +1271,7 @@ function PatientTransactionsModal({ patientId, patientName, onClose }: {
         <div className="grid grid-cols-3 divide-x divide-slate-100 dark:divide-gray-700 border-b border-slate-100 dark:border-gray-700 shrink-0">
           <div className="px-5 py-3 text-center">
             <p className="text-xs text-slate-400 dark:text-gray-500 mb-0.5">Total ingresos</p>
-            <p className="text-base font-bold text-green-700">C$ {fmt(totalIngresos)}</p>
+            <p className="text-base font-bold text-green-700 dark:text-green-400">C$ {fmt(totalIngresos)}</p>
           </div>
           <div className="px-5 py-3 text-center">
             <p className="text-xs text-slate-400 dark:text-gray-500 mb-0.5">Pagos realizados</p>
@@ -1279,7 +1279,7 @@ function PatientTransactionsModal({ patientId, patientName, onClose }: {
           </div>
           <div className="px-5 py-3 text-center">
             <p className="text-xs text-slate-400 dark:text-gray-500 mb-0.5">Total egresos</p>
-            <p className="text-base font-bold text-red-600">C$ {fmt(totalEgresos)}</p>
+            <p className="text-base font-bold text-red-600 dark:text-red-400">C$ {fmt(totalEgresos)}</p>
           </div>
         </div>
 
@@ -1318,7 +1318,7 @@ function PatientTransactionsModal({ patientId, patientName, onClose }: {
                       {tx.procedure?.name ?? "—"}
                     </td>
                     <td className={`px-5 py-3 text-right font-mono text-sm font-semibold ${
-                      tx.type === "ingreso" ? "text-green-700" : "text-red-600"
+                      tx.type === "ingreso" ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"
                     }`}>
                       {tx.type === "egreso" ? "-" : ""}C${fmt(tx.amount_cordobas)}
                     </td>
