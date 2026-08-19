@@ -85,9 +85,9 @@ function SummaryCard({ label, value, color, sub }: {
 }) {
   return (
     <div className={`rounded-xl border p-4 ${color}`}>
-      <p className="text-xs font-medium text-slate-500 dark:text-gray-400 mb-1">{label}</p>
+      <p className="text-xs font-medium text-slate-500 dark:text-gray-300 mb-1">{label}</p>
       <p className="text-xl font-bold text-slate-800 dark:text-white">C$ {fmt(value)}</p>
-      {sub && <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">{sub}</p>}
+      {sub && <p className="text-xs text-slate-400 dark:text-gray-400 mt-0.5">{sub}</p>}
     </div>
   );
 }
@@ -1630,19 +1630,19 @@ export default function FinancesPage() {
       ) : summary ? (
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <SummaryCard label="Ingresos Brutos" value={summary.ingresos_brutos}
-            color="bg-green-50 border-green-200" sub={`${summary.count_ingresos} transacciones`} />
+            color="bg-green-50 border-green-200 dark:bg-green-900/40 dark:border-green-700" sub={`${summary.count_ingresos} transacciones`} />
           <SummaryCard label="Egresos" value={summary.egresos}
-            color="bg-red-50 border-red-200" sub={`${summary.count_egresos} transacciones`} />
+            color="bg-red-50 border-red-200 dark:bg-red-900/40 dark:border-red-700" sub={`${summary.count_egresos} transacciones`} />
           <SummaryCard label="Costos Operativos" value={summary.costos_operativos}
-            color="bg-amber-50 border-amber-200" sub="De procedimientos" />
+            color="bg-amber-50 border-amber-200 dark:bg-amber-900/40 dark:border-amber-700" sub="De procedimientos" />
           <SummaryCard label="Ingreso Neto" value={summary.ingreso_neto}
-            color={summary.ingreso_neto >= 0 ? "bg-blue-50 border-blue-200" : "bg-rose-50 border-rose-200"}
+            color={summary.ingreso_neto >= 0 ? "bg-blue-50 border-blue-200 dark:bg-blue-900/40 dark:border-blue-700" : "bg-rose-50 border-rose-200 dark:bg-rose-900/40 dark:border-rose-700"}
             sub="Bruto − egresos" />
           <SummaryCard label="Ingreso Neto (c/ Op.)" value={summary.ingreso_neto_con_op}
-            color={summary.ingreso_neto_con_op >= 0 ? "bg-indigo-50 border-indigo-200" : "bg-rose-50 border-rose-200"}
+            color={summary.ingreso_neto_con_op >= 0 ? "bg-indigo-50 border-indigo-200 dark:bg-indigo-900/40 dark:border-indigo-700" : "bg-rose-50 border-rose-200 dark:bg-rose-900/40 dark:border-rose-700"}
             sub="− egresos − costos op." />
           <SummaryCard label="Honorarios Dr." value={honorariosData?.total_honorarios ?? 0}
-            color="bg-purple-50 border-purple-200" sub="De procedimientos facturados" />
+            color="bg-purple-50 border-purple-200 dark:bg-purple-900/40 dark:border-purple-700" sub="De procedimientos facturados" />
         </div>
       ) : null}
 
