@@ -24,6 +24,10 @@ RESOURCE_TYPE_LABELS: dict[str, str] = {
     "photo": "Fotografía",
     "settings": "Configuración",
     "user": "Usuario",
+    "cost_product": "Producto",
+    "cost_treatment": "Costos operativos",
+    "cost_product_lot": "Lote de producto",
+    "fixed_costs": "Costos fijos",
 }
 
 

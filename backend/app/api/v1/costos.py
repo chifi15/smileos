@@ -396,6 +396,11 @@ async def add_appointment(
     obj = await svc.add_appointment(db, current_user.clinic_id, treatment_id)
     if not obj:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Tratamiento no encontrado"})
+    await audit_service.log(
+        db, clinic_id=current_user.clinic_id, user_id=current_user.id,
+        action="treatment.appointment_added", resource_type="cost_treatment", resource_id=str(treatment_id),
+        description=f"Agregó nueva cita a tratamiento: {obj.name}",
+    )
     return obj
 
 
@@ -409,6 +414,11 @@ async def duplicate_appointment(
     obj = await svc.duplicate_appointment(db, current_user.clinic_id, treatment_id, apt_id)
     if not obj:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Cita no encontrada"})
+    await audit_service.log(
+        db, clinic_id=current_user.clinic_id, user_id=current_user.id,
+        action="treatment.appointment_duplicated", resource_type="cost_treatment", resource_id=str(treatment_id),
+        description=f"Duplicó cita en tratamiento: {obj.name}",
+    )
     return obj
 
 
@@ -424,6 +434,14 @@ async def update_appointment(
     obj = await svc.update_appointment(db, current_user.clinic_id, treatment_id, apt_id, updates)
     if not obj:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Cita no encontrada"})
+    if "materials" in updates:
+        apt = next((a for a in obj.appointments if a.id == apt_id), None)
+        apt_name = apt.name if apt else "cita"
+        await audit_service.log(
+            db, clinic_id=current_user.clinic_id, user_id=current_user.id,
+            action="treatment.materials_updated", resource_type="cost_treatment", resource_id=str(treatment_id),
+            description=f"Actualizó materiales de \"{apt_name}\" en tratamiento: {obj.name}",
+        )
     return obj
 
 
@@ -434,9 +452,18 @@ async def delete_appointment(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
+    treatments = await svc.get_treatments(db, current_user.clinic_id)
+    target_t = next((t for t in treatments if t.id == treatment_id), None)
+    target_a = next((a for a in target_t.appointments if a.id == apt_id), None) if target_t else None
     obj = await svc.delete_appointment(db, current_user.clinic_id, treatment_id, apt_id)
     if not obj:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Cita no encontrada"})
+    apt_label = f'"{target_a.name}" ' if target_a else ""
+    await audit_service.log(
+        db, clinic_id=current_user.clinic_id, user_id=current_user.id,
+        action="treatment.appointment_deleted", resource_type="cost_treatment", resource_id=str(treatment_id),
+        description=f"Eliminó cita {apt_label}de tratamiento: {obj.name}",
+    )
     return obj
 
 
@@ -450,6 +477,11 @@ async def merge_appointments(
     obj = await svc.merge_appointments(db, current_user.clinic_id, treatment_id, body.target_id, body.source_id)
     if not obj:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Tratamiento o citas no encontrados"})
+    await audit_service.log(
+        db, clinic_id=current_user.clinic_id, user_id=current_user.id,
+        action="treatment.appointments_merged", resource_type="cost_treatment", resource_id=str(treatment_id),
+        description=f"Fusionó citas en tratamiento: {obj.name}",
+    )
     return obj
 
 
