@@ -7,11 +7,26 @@ import {
   TransactionCreatePayload,
 } from "@/types";
 
+export interface HonorariosProcedure {
+  procedure_id: string;
+  procedure_name: string;
+  fee_per_unit: number;
+  quantity: number;
+  total_honorarios: number;
+}
+
+export interface HonorariosData {
+  total_honorarios: number;
+  by_procedure: HonorariosProcedure[];
+}
+
 const keys = {
   transactions: (year: number, month: number, type?: string) =>
     ["finances", year, month, type ?? "all"] as const,
   summary: (year: number, month: number) =>
     ["finances-summary", year, month] as const,
+  honorarios: (year: number, month: number) =>
+    ["finances-honorarios", year, month] as const,
   rate: () => ["exchange-rate"] as const,
 };
 
@@ -105,6 +120,18 @@ export function usePatientTransactions(patientId: string | null) {
       return data.data;
     },
     enabled: !!patientId,
+  });
+}
+
+export function useHonorarios(year: number, month: number) {
+  return useQuery({
+    queryKey: keys.honorarios(year, month),
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: HonorariosData }>(
+        `/api/v1/finances/honorarios?year=${year}&month=${month}`
+      );
+      return data.data;
+    },
   });
 }
 

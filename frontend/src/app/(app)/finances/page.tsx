@@ -40,7 +40,9 @@ import {
   useCreateExpenseCategory,
   useUpdateExpenseCategory,
   useDeleteExpenseCategory,
+  useHonorarios,
   type ExpenseCategoryItem,
+  type HonorariosProcedure,
 } from "@/hooks/useFinances";
 import { useProcedures } from "@/hooks/useCatalog";
 import { usePatientSearch } from "@/hooks/usePatients";
@@ -1363,16 +1365,114 @@ function ByPatientTab({ year, month }: { year: number; month: number }) {
   );
 }
 
+// ─── Honorarios Tab ───────────────────────────────────────────────────────────
+
+function HonorariosTab({ year, month }: { year: number; month: number }) {
+  const { data, isLoading } = useHonorarios(year, month);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-12 rounded-xl bg-slate-100 dark:bg-gray-700 animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (!data || data.by_procedure.length === 0) {
+    return (
+      <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-10 text-center">
+        <p className="text-slate-500 dark:text-gray-400 text-sm">
+          No hay honorarios registrados para este mes.
+        </p>
+        <p className="text-slate-400 dark:text-gray-500 text-xs mt-1">
+          Los honorarios se calculan desde los procedimientos con costo en el módulo de Costos.
+        </p>
+      </div>
+    );
+  }
+
+  const max = data.by_procedure[0]?.total_honorarios ?? 1;
+
+  return (
+    <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+      <div className="px-5 py-3 border-b border-slate-100 dark:border-gray-700 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-slate-700 dark:text-gray-300">
+          Honorarios por procedimiento
+        </h3>
+        <span className="text-xs font-semibold text-purple-700 dark:text-purple-400 bg-purple-50 dark:bg-purple-900/30 px-2 py-0.5 rounded-full">
+          Total: C$ {fmt(data.total_honorarios)}
+        </span>
+      </div>
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-slate-100 dark:border-gray-700 text-xs text-slate-500 dark:text-gray-400">
+            <th className="px-5 py-2.5 text-left font-medium">Procedimiento</th>
+            <th className="px-4 py-2.5 text-right font-medium">Honorario / unidad</th>
+            <th className="px-4 py-2.5 text-right font-medium">Cantidad</th>
+            <th className="px-5 py-2.5 text-right font-medium">Total honorarios</th>
+            <th className="px-5 py-2.5 text-right font-medium w-40">Distribución</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.by_procedure.map((row: HonorariosProcedure) => (
+            <tr key={row.procedure_id} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30">
+              <td className="px-5 py-3 font-medium text-slate-800 dark:text-gray-200">
+                {row.procedure_name}
+              </td>
+              <td className="px-4 py-3 text-right text-slate-600 dark:text-gray-400">
+                C$ {fmt(row.fee_per_unit)}
+              </td>
+              <td className="px-4 py-3 text-right text-slate-600 dark:text-gray-400">
+                {row.quantity}
+              </td>
+              <td className="px-5 py-3 text-right font-semibold text-purple-700 dark:text-purple-400">
+                C$ {fmt(row.total_honorarios)}
+              </td>
+              <td className="px-5 py-3">
+                <div className="flex items-center gap-2">
+                  <div className="flex-1 h-2 bg-slate-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-purple-500 dark:bg-purple-400 rounded-full"
+                      style={{ width: `${(row.total_honorarios / max) * 100}%` }}
+                    />
+                  </div>
+                  <span className="text-xs text-slate-400 dark:text-gray-500 w-8 text-right">
+                    {Math.round((row.total_honorarios / data.total_honorarios) * 100)}%
+                  </span>
+                </div>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="bg-purple-50 dark:bg-purple-900/20">
+            <td colSpan={3} className="px-5 py-3 text-sm font-bold text-slate-700 dark:text-gray-300">
+              Total honorarios del Dr.
+            </td>
+            <td className="px-5 py-3 text-right text-base font-bold text-purple-700 dark:text-purple-400">
+              C$ {fmt(data.total_honorarios)}
+            </td>
+            <td />
+          </tr>
+        </tfoot>
+      </table>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function FinancesPage() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
-  const [mainTab, setMainTab] = useState<"transactions" | "patients">("transactions");
+  const [mainTab, setMainTab] = useState<"transactions" | "patients" | "honorarios">("transactions");
   const [modal, setModal] = useState<"ingreso" | "egreso" | null>(null);
   const [showCatManager, setShowCatManager] = useState(false);
   const { data: summary, isLoading: loadingSummary } = useFinanceSummary(year, month);
+  const { data: honorariosData } = useHonorarios(year, month);
   const { data: exchangeRate = 37 } = useExchangeRate();
 
   const prevMonth = useCallback(() => {
@@ -1425,11 +1525,11 @@ export default function FinancesPage() {
       </div>
 
       {loadingSummary ? (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
-          {[...Array(5)].map((_, i) => <div key={i} className="h-20 rounded-xl bg-slate-100 dark:bg-gray-700 animate-pulse" />)}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+          {[...Array(6)].map((_, i) => <div key={i} className="h-20 rounded-xl bg-slate-100 dark:bg-gray-700 animate-pulse" />)}
         </div>
       ) : summary ? (
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           <SummaryCard label="Ingresos Brutos" value={summary.ingresos_brutos}
             color="bg-green-50 border-green-200" sub={`${summary.count_ingresos} transacciones`} />
           <SummaryCard label="Egresos" value={summary.egresos}
@@ -1442,6 +1542,8 @@ export default function FinancesPage() {
           <SummaryCard label="Ingreso Neto (c/ Op.)" value={summary.ingreso_neto_con_op}
             color={summary.ingreso_neto_con_op >= 0 ? "bg-indigo-50 border-indigo-200" : "bg-rose-50 border-rose-200"}
             sub="− egresos − costos op." />
+          <SummaryCard label="Honorarios Dr." value={honorariosData?.total_honorarios ?? 0}
+            color="bg-purple-50 border-purple-200" sub="De procedimientos facturados" />
         </div>
       ) : null}
 
@@ -1458,12 +1560,20 @@ export default function FinancesPage() {
           }`}>
           Por paciente
         </button>
+        <button onClick={() => setMainTab("honorarios")}
+          className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
+            mainTab === "honorarios" ? "bg-white dark:bg-gray-800 text-slate-800 dark:text-white shadow-sm" : "text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300"
+          }`}>
+          Honorarios Dr.
+        </button>
       </div>
 
       {mainTab === "transactions" ? (
         <TransactionsTab year={year} month={month} />
-      ) : (
+      ) : mainTab === "patients" ? (
         <ByPatientTab year={year} month={month} />
+      ) : (
+        <HonorariosTab year={year} month={month} />
       )}
 
       {modal && (

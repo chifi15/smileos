@@ -141,6 +141,17 @@ async def list_patient_transactions(
     return {"success": True, "data": [_serialize(t) for t in txs]}
 
 
+@router.get("/honorarios")
+async def get_honorarios(
+    user: Annotated[object, require_permission("view_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    year: int = Query(...),
+    month: int = Query(...),
+):
+    data = await finance_service.get_honorarios_by_procedure(db, user.clinic_id, year, month)
+    return {"success": True, "data": data}
+
+
 @router.get("")
 async def list_transactions(
     user: Annotated[object, require_permission("view_patients")],

@@ -181,6 +181,63 @@ async def get_income_by_patient(
     ]
 
 
+async def get_honorarios_by_procedure(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    year: int,
+    month: int,
+) -> dict:
+    from app.models.costos import CostTreatment
+
+    rows = await list_transactions(db, clinic_id, year, month, tx_type="ingreso")
+
+    cost_treatments = await db.execute(
+        select(CostTreatment).where(CostTreatment.clinic_id == clinic_id)
+    )
+    cost_map = {
+        str(ct.procedure_catalog_id): ct
+        for ct in cost_treatments.scalars()
+        if ct.procedure_catalog_id
+    }
+
+    procedure_totals: dict[str, dict] = {}
+    total_honorarios = 0.0
+
+    for tx in rows:
+        if not tx.procedure_id:
+            continue
+        ct = cost_map.get(str(tx.procedure_id))
+        if not ct:
+            continue
+        fee_per_unit = ct.professional_fee_per_hour * ct.total_hours
+        fee = fee_per_unit * (tx.procedure_quantity or 1)
+        proc_id = str(tx.procedure_id)
+        if proc_id not in procedure_totals:
+            procedure_totals[proc_id] = {
+                "procedure_id": proc_id,
+                "procedure_name": tx.procedure.name if tx.procedure else "—",
+                "fee_per_unit": round(fee_per_unit, 2),
+                "quantity": 0,
+                "total_honorarios": 0.0,
+            }
+        procedure_totals[proc_id]["quantity"] += tx.procedure_quantity or 1
+        procedure_totals[proc_id]["total_honorarios"] += fee
+        total_honorarios += fee
+
+    by_procedure = sorted(
+        procedure_totals.values(),
+        key=lambda x: x["total_honorarios"],
+        reverse=True,
+    )
+    for r in by_procedure:
+        r["total_honorarios"] = round(r["total_honorarios"], 2)
+
+    return {
+        "total_honorarios": round(total_honorarios, 2),
+        "by_procedure": by_procedure,
+    }
+
+
 async def list_patient_transactions(
     db: AsyncSession,
     clinic_id: uuid.UUID,
