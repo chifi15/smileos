@@ -41,12 +41,13 @@ import {
   useUpdateExpenseCategory,
   useDeleteExpenseCategory,
   useHonorarios,
+  useDoctors,
   type ExpenseCategoryItem,
   type HonorariosProcedure,
+  type HonorariosDoctor,
 } from "@/hooks/useFinances";
 import { useProcedures } from "@/hooks/useCatalog";
 import { usePatientSearch } from "@/hooks/usePatients";
-import { useDoctors } from "@/hooks/useFinances";
 import {
   FinanceTransaction,
   FinanceType,
