@@ -61,18 +61,22 @@ export function calculateTreatmentCosts(
       })
       .filter(Boolean) as Array<{ product: Product; quantity: number; total: number; altGroup: string | null }>;
 
-    // For each alt group, find the max cost — only that one counts
+    // For each alt group, find the max cost — only ONE item counts (first with max cost)
     const groupMax = new Map<string, number>();
     for (const m of rawMaterials) {
       if (m.altGroup) {
         groupMax.set(m.altGroup, Math.max(groupMax.get(m.altGroup) ?? 0, m.total));
       }
     }
-
-    const materials = rawMaterials.map((m) => ({
-      ...m,
-      countsInCost: m.altGroup ? m.total === groupMax.get(m.altGroup) : true,
-    }));
+    const groupCounted = new Set<string>();
+    const materials = rawMaterials.map((m) => {
+      if (!m.altGroup) return { ...m, countsInCost: true };
+      if (m.total === groupMax.get(m.altGroup) && !groupCounted.has(m.altGroup)) {
+        groupCounted.add(m.altGroup);
+        return { ...m, countsInCost: true };
+      }
+      return { ...m, countsInCost: false };
+    });
 
     const materialCost = materials.reduce((sum, m) => m.countsInCost ? sum + m.total : sum, 0);
     return { appointment: apt, materialCost, materials };
