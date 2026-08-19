@@ -67,6 +67,17 @@ function fmt(n: number) {
   return new Intl.NumberFormat("es-NI", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 }
 
+const ALT_FINANCE_COLORS: Record<string, { row: string; badge: string }> = {
+  A: { row: "border-l-2 border-l-orange-400 bg-orange-50/50 dark:bg-orange-900/10", badge: "bg-orange-100 text-orange-700 border-orange-200 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-700" },
+  B: { row: "border-l-2 border-l-violet-400 bg-violet-50/50 dark:bg-violet-900/10", badge: "bg-violet-100 text-violet-700 border-violet-200 dark:bg-violet-900/30 dark:text-violet-400 dark:border-violet-700" },
+  C: { row: "border-l-2 border-l-teal-400 bg-teal-50/50 dark:bg-teal-900/10", badge: "bg-teal-100 text-teal-700 border-teal-200 dark:bg-teal-900/30 dark:text-teal-400 dark:border-teal-700" },
+  D: { row: "border-l-2 border-l-pink-400 bg-pink-50/50 dark:bg-pink-900/10", badge: "bg-pink-100 text-pink-700 border-pink-200 dark:bg-pink-900/30 dark:text-pink-400 dark:border-pink-700" },
+  E: { row: "border-l-2 border-l-yellow-400 bg-yellow-50/50 dark:bg-yellow-900/10", badge: "bg-yellow-100 text-yellow-700 border-yellow-200 dark:bg-yellow-900/30 dark:text-yellow-400 dark:border-yellow-700" },
+};
+function altFinanceColor(g: string) {
+  return ALT_FINANCE_COLORS[g] ?? { row: "border-l-2 border-l-slate-300", badge: "bg-slate-100 text-slate-600 border-slate-200" };
+}
+
 // ─── Summary Card ─────────────────────────────────────────────────────────────
 
 function SummaryCard({ label, value, color, sub }: {
@@ -768,14 +779,14 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                     usedMaterials.map((m) => {
                       const product = apiProducts.find((p) => p.id === m.productId);
                       return (
-                        <div key={m.productId} className="flex items-center gap-3 px-4 py-2">
+                        <div key={m.productId} className={`flex items-center gap-3 px-4 py-2 ${m.altGroup ? altFinanceColor(m.altGroup).row : ""}`}>
                           <span className="flex-1 text-xs text-slate-700 dark:text-gray-300 truncate">
                             {product?.name ?? m.productId}
                             {product?.portion_description && (
                               <span className="text-slate-400 dark:text-gray-500 ml-1">/ {product.portion_description}</span>
                             )}
                             {m.altGroup && (
-                              <span className="ml-1.5 inline-flex items-center rounded px-1 py-0.5 text-[9px] font-semibold bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400 border border-orange-200 dark:border-orange-700">
+                              <span className={`ml-1.5 inline-flex items-center rounded px-1 py-0.5 text-[9px] font-semibold border ${altFinanceColor(m.altGroup).badge}`}>
                                 Alt {m.altGroup}
                               </span>
                             )}
