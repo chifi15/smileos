@@ -46,7 +46,7 @@ import {
 } from "@/hooks/useFinances";
 import { useProcedures } from "@/hooks/useCatalog";
 import { usePatientSearch } from "@/hooks/usePatients";
-import { useClinicUsers } from "@/hooks/useUsers";
+import { useDoctors } from "@/hooks/useFinances";
 import {
   FinanceTransaction,
   FinanceType,
@@ -464,8 +464,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   const updateStock = useUpdateCostProductStock();
   const isIngreso = type === "ingreso";
   const { data: expenseCats = [] } = useExpenseCategories();
-  const { data: clinicUsers = [] } = useClinicUsers();
-  const doctors = clinicUsers.filter((u) => ["dentist", "clinic_owner", "admin"].includes(u.role));
+  const { data: doctors = [] } = useDoctors();
   const incomeCategories = INCOME_CATEGORY_LABELS;
   const expenseCategoryMap = Object.fromEntries(expenseCats.map((c) => [c.key, c.label]));
 
@@ -713,7 +712,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
             );
           })()}
 
-          {isIngreso && doctors.length > 0 && (
+          {isIngreso && (
             <div>
               <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Doctor que realizó el procedimiento</label>
               <select value={form.doctor_id}

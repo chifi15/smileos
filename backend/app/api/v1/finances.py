@@ -15,6 +15,7 @@ from app.core.dependencies import require_permission
 from app.core import storage
 from app.core.exceptions import NotFoundError, ValidationError
 from app.models.finance import FinanceTransaction
+from app.models.user import User
 from app.services import finance_service, audit_service
 
 router = APIRouter(prefix="/finances", tags=["Finanzas"])
@@ -91,6 +92,25 @@ class TransactionUpdate(BaseModel):
 
 class ExchangeRateUpdate(BaseModel):
     rate: float
+
+
+@router.get("/doctors")
+async def list_doctors(
+    user: Annotated[object, require_permission("view_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from sqlalchemy import select
+    result = await db.execute(
+        select(User)
+        .where(
+            User.clinic_id == user.clinic_id,
+            User.is_active == True,
+            User.role.in_(["clinic_owner", "admin", "dentist"]),
+        )
+        .order_by(User.full_name)
+    )
+    doctors = result.scalars().all()
+    return {"success": True, "data": [{"id": str(d.id), "full_name": d.full_name, "role": d.role} for d in doctors]}
 
 
 @router.get("/exchange-rate")

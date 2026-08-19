@@ -131,6 +131,23 @@ export function usePatientTransactions(patientId: string | null) {
   });
 }
 
+export interface DoctorOption {
+  id: string;
+  full_name: string;
+  role: string;
+}
+
+export function useDoctors() {
+  return useQuery({
+    queryKey: ["finances-doctors"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: DoctorOption[] }>("/api/v1/finances/doctors");
+      return data.data;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
 export function useHonorarios(year: number, month: number) {
   return useQuery({
     queryKey: keys.honorarios(year, month),
