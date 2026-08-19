@@ -70,7 +70,7 @@ function ItemRow({ item, onUpdate, onDelete }: {
               onBlur={saveAmount}
               className="w-24 rounded border border-blue-400 dark:border-blue-500 dark:bg-gray-700 dark:text-white px-2 py-1 text-sm text-right focus:outline-none focus:ring-1 focus:ring-blue-500"
             />
-            <button onClick={saveAmount} className="text-green-600 hover:text-green-700"><Check size={13} /></button>
+            <button onClick={saveAmount} className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300"><Check size={13} /></button>
             <button onClick={() => { setAmountDraft(String(item.amount)); setEditAmount(false); }} className="text-slate-400 hover:text-slate-600"><X size={13} /></button>
           </div>
         ) : (
@@ -246,7 +246,7 @@ export default function CostosFijosPage() {
                   onBlur={savePatients}
                   className="w-20 rounded-lg border border-blue-400 dark:border-blue-500 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <button onClick={savePatients} className="text-green-600 hover:text-green-700"><Check size={14} /></button>
+                <button onClick={savePatients} className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300"><Check size={14} /></button>
                 <button onClick={() => setEditingPatients(false)} className="text-slate-400"><X size={14} /></button>
               </div>
             ) : (

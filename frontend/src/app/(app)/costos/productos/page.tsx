@@ -487,7 +487,7 @@ function SortableProductRow({ product, onEdit, onViewUsage, isDragDisabled, exch
       <td className="px-5 py-3 text-right">
         <p className="font-semibold text-slate-800 dark:text-white tabular-nums">{fmtC(product.unit_price)}</p>
         <p className="text-xs text-slate-400 dark:text-gray-500 tabular-nums">{fmtUSD(product.unit_price, exchangeRate)}</p>
-        {hasCalc && <p className="text-[10px] text-green-600">calculado</p>}
+        {hasCalc && <p className="text-[10px] text-green-600 dark:text-green-400">calculado</p>}
       </td>
       <td className="pr-3 py-3">
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">

@@ -158,7 +158,7 @@ function TreatmentSettings({
               <span className="text-blue-700 dark:text-blue-400">
                 Costos fijos por paciente: <strong>C$ {globalFixedCost.toFixed(2)}</strong>
               </span>
-              <a href="/costos/costos-fijos" className="ml-auto text-xs text-blue-600 hover:underline font-medium">
+              <a href="/costos/costos-fijos" className="ml-auto text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium">
                 Editar →
               </a>
             </div>
@@ -546,7 +546,7 @@ function SortableMaterialRow({
                 if (e.key === "Escape") onEditQtyCancel();
               }}
             />
-            <button onClick={onEditQtySave} className="rounded p-0.5 text-green-600 hover:bg-green-50">
+            <button onClick={onEditQtySave} className="rounded p-0.5 text-green-600 dark:text-green-400 hover:bg-green-50 dark:hover:bg-green-900/20">
               <Check size={13} />
             </button>
           </div>
@@ -782,7 +782,7 @@ function EditableAppointment({
               <button
                 onClick={() => setPasteOpen((v) => !v)}
                 title={`Pegar materiales de "${clipboard.name}"`}
-                className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${pasteOpen ? "bg-green-100 text-green-700" : "text-slate-400 hover:bg-green-50 hover:text-green-600"}`}
+                className={`flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium transition-colors ${pasteOpen ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400" : "text-slate-400 hover:bg-green-50 hover:text-green-600 dark:hover:bg-green-900/20 dark:hover:text-green-400"}`}
               >
                 <ClipboardPaste size={14} />
                 Pegar
@@ -1055,7 +1055,7 @@ export default function TreatmentDetailPage({
               />
               <button
                 onClick={() => { updateTreatment.mutate({ id, name: nameValue }); setEditName(false); }}
-                className="text-green-600 hover:text-green-700"
+                className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300"
               >
                 <Check size={16} />
               </button>
