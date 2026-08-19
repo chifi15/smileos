@@ -507,12 +507,15 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         if (!groups.has(m.productId)) groups.set(m.productId, m.altGroup ?? null);
       }
     }
+    const validIds = new Set(apiProducts.map((p) => p.id));
     setUsedMaterials(
-      Array.from(totals.entries()).map(([productId, qty]) => ({
-        productId,
-        qty,
-        altGroup: groups.get(productId) ?? null,
-      }))
+      Array.from(totals.entries())
+        .filter(([productId]) => validIds.has(productId))
+        .map(([productId, qty]) => ({
+          productId,
+          qty,
+          altGroup: groups.get(productId) ?? null,
+        }))
     );
     setMaterialsOpen(true);
   }
