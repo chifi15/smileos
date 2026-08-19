@@ -388,7 +388,12 @@ function SortableProductRow({ product, onEdit, isDragDisabled, exchangeRate }: {
         ) : <span className="text-slate-300 dark:text-gray-600">—</span>}
       </td>
       <td className="px-4 py-3 text-right">
-        {product.total_cost != null ? <span className="text-sm text-slate-600 dark:text-gray-400 tabular-nums">{fmtC(product.total_cost)}</span> : <span className="text-slate-300 dark:text-gray-600 text-sm">—</span>}
+        {product.total_cost != null ? (
+          <div>
+            <p className="text-sm text-slate-600 dark:text-gray-400 tabular-nums">{fmtC(product.total_cost)}</p>
+            <p className="text-xs text-slate-400 dark:text-gray-500 tabular-nums">{fmtUSD(product.total_cost, exchangeRate)}</p>
+          </div>
+        ) : <span className="text-slate-300 dark:text-gray-600 text-sm">—</span>}
       </td>
       <td className="px-5 py-3 text-right">
         <p className="font-semibold text-slate-800 dark:text-white tabular-nums">{fmtC(product.unit_price)}</p>
