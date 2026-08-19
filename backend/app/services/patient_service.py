@@ -1,8 +1,14 @@
+import unicodedata
 import uuid
 from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_, update, text
+
+
+def _normalize(text: str) -> str:
+    """Strip accents and lowercase for accent-insensitive comparison."""
+    return unicodedata.normalize("NFD", text).encode("ascii", "ignore").decode("ascii").lower()
 from sqlalchemy.orm import selectinload
 
 from sqlalchemy import delete as sa_delete
@@ -100,13 +106,13 @@ async def list_patients(
         base = base.where(Patient.is_active == True)
 
     if search:
-        term = f"%{search.strip().lower()}%"
+        term = f"%{_normalize(search.strip())}%"
         base = base.where(
             or_(
-                func.lower(Patient.first_name + " " + Patient.last_name).like(term),
-                Patient.phone.like(term),
-                func.lower(Patient.email).like(term),
-                Patient.id_number.like(term),
+                func.lower(func.unaccent(Patient.first_name + " " + Patient.last_name)).like(term),
+                Patient.phone.like(f"%{search.strip()}%"),
+                func.lower(func.unaccent(func.coalesce(Patient.email, ""))).like(term),
+                Patient.id_number.like(f"%{search.strip()}%"),
             )
         )
 
@@ -251,11 +257,11 @@ async def search_patients_simple(
         .where(Patient.clinic_id == clinic_id, Patient.is_active == True)
     )
     if q.strip():
-        term = f"%{q.strip().lower()}%"
+        term = f"%{_normalize(q.strip())}%"
         base_q = base_q.where(
             or_(
-                func.lower(Patient.first_name + " " + Patient.last_name).like(term),
-                Patient.phone.like(term),
+                func.lower(func.unaccent(Patient.first_name + " " + Patient.last_name)).like(term),
+                Patient.phone.like(f"%{q.strip()}%"),
             )
         ).order_by(Patient.first_name, Patient.last_name)
     else:
