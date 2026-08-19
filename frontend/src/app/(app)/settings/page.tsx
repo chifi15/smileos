@@ -29,11 +29,11 @@ const ROLE_LABELS: Record<UserRole, string> = {
 };
 
 const ROLE_COLORS: Record<UserRole, string> = {
-  clinic_owner: "bg-violet-100 text-violet-700",
-  admin: "bg-blue-100 text-blue-700",
-  dentist: "bg-green-100 text-green-700",
-  receptionist: "bg-amber-100 text-amber-700",
-  assistant: "bg-slate-100 text-slate-600",
+  clinic_owner: "bg-violet-100 text-violet-700 dark:bg-violet-900/40 dark:text-violet-300",
+  admin: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
+  dentist: "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300",
+  receptionist: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+  assistant: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
 };
 
 const roleOptions: { value: UserRole; label: string }[] = [
@@ -107,12 +107,12 @@ function CreateUserModal({ open, onClose }: CreateUserModalProps) {
     return (
       <Modal open={open} onClose={handleClose} title="Usuario creado" size="sm">
         <div className="space-y-4">
-          <div className="flex items-center justify-center rounded-full bg-green-50 w-14 h-14 mx-auto">
-            <CheckCircle2 size={28} className="text-green-500" />
+          <div className="flex items-center justify-center rounded-full bg-green-50 dark:bg-green-900/30 w-14 h-14 mx-auto">
+            <CheckCircle2 size={28} className="text-green-500 dark:text-green-400" />
           </div>
           <div className="text-center">
-            <p className="text-sm font-medium text-slate-800">{fullName}</p>
-            <p className="text-xs text-slate-500 mt-0.5">{email}</p>
+            <p className="text-sm font-medium text-slate-800 dark:text-white">{fullName}</p>
+            <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">{email}</p>
           </div>
           <div className="rounded-xl bg-slate-50 dark:bg-gray-700 border border-slate-200 dark:border-gray-600 p-4">
             <p className="text-xs text-slate-500 dark:text-gray-400 mb-2">Contraseña temporal (cópiala ahora):</p>
@@ -127,7 +127,7 @@ function CreateUserModal({ open, onClose }: CreateUserModalProps) {
                 {copied ? <CheckCircle2 size={16} className="text-green-500" /> : <Copy size={16} />}
               </button>
             </div>
-            <p className="mt-2 text-xs text-amber-600">
+            <p className="mt-2 text-xs text-amber-600 dark:text-amber-400">
               El usuario deberá cambiarla en su primer inicio de sesión.
             </p>
           </div>
@@ -197,7 +197,7 @@ function UserRow({ user }: { user: ClinicUser }) {
 
   return (
     <div className="flex items-center gap-4 px-5 py-3.5">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 text-sm font-semibold text-blue-700">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/40 text-sm font-semibold text-blue-700 dark:text-blue-300">
         {initials}
       </div>
       <div className="flex-1 min-w-0">
@@ -222,7 +222,7 @@ function UserRow({ user }: { user: ClinicUser }) {
       <div className="shrink-0">
         <Badge
           label={user.is_active ? "Activo" : "Inactivo"}
-          className={user.is_active ? "bg-green-100 text-green-700" : "bg-slate-100 text-slate-400"}
+          className={user.is_active ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300" : "bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-400"}
         />
       </div>
     </div>
@@ -436,9 +436,9 @@ function EditableAmount({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") save(); if (e.key === "Escape") setEditing(false); }}
-          className="w-24 rounded border border-blue-300 px-2 py-1 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className="w-24 rounded border border-blue-300 dark:border-blue-500 dark:bg-gray-700 dark:text-white px-2 py-1 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
-        <button onClick={save} disabled={isPending} className="text-green-600 hover:text-green-700 disabled:opacity-50">
+        <button onClick={save} disabled={isPending} className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 disabled:opacity-50">
           <Check size={14} />
         </button>
         <button onClick={() => setEditing(false)} className="text-slate-400 hover:text-slate-600">
@@ -451,10 +451,10 @@ function EditableAmount({
   return (
     <div className="flex items-center gap-1">
       <span className="text-xs text-slate-400 mr-1">{label}</span>
-      <span className="text-sm font-medium text-slate-800 w-24 text-right">
+      <span className="text-sm font-medium text-slate-800 dark:text-gray-200 w-24 text-right">
         {value != null
           ? `C$ ${Number(value).toLocaleString("es-NI", { minimumFractionDigits: 0 })}`
-          : <span className="text-slate-400 font-normal text-xs">—</span>}
+          : <span className="text-slate-400 dark:text-gray-500 font-normal text-xs">—</span>}
       </span>
       <button onClick={() => { setInput(value != null ? String(value) : ""); setEditing(true); }} className="text-slate-300 hover:text-blue-500 transition-colors">
         <Pencil size={13} />
@@ -538,9 +538,9 @@ function PriceRow({ proc }: { proc: Procedure }) {
                 value={nameInput}
                 onChange={(e) => setNameInput(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") saveName(); if (e.key === "Escape") { setNameInput(proc.name); setEditingName(false); } }}
-                className="flex-1 rounded border border-blue-300 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 rounded border border-blue-300 dark:border-blue-500 dark:bg-gray-700 dark:text-white px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
-              <button onClick={saveName} disabled={update.isPending} className="text-green-600 hover:text-green-700 disabled:opacity-50 shrink-0">
+              <button onClick={saveName} disabled={update.isPending} className="text-green-600 dark:text-green-400 hover:text-green-700 dark:hover:text-green-300 disabled:opacity-50 shrink-0">
                 <Check size={14} />
               </button>
               <button onClick={() => { setNameInput(proc.name); setEditingName(false); }} className="text-slate-400 hover:text-slate-600 shrink-0">
@@ -579,7 +579,7 @@ function PriceRow({ proc }: { proc: Procedure }) {
               <button
                 ref={triggerRef}
                 onClick={() => linkingOpen ? setLinkingOpen(false) : openDropdown()}
-                className="flex items-center gap-1 rounded-md bg-blue-50 border border-blue-200 px-2 py-1 text-xs font-medium text-blue-700 hover:bg-blue-100 transition-colors max-w-[160px]"
+                className="flex items-center gap-1 rounded-md bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 px-2 py-1 text-xs font-medium text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/50 transition-colors max-w-[160px]"
                 title={linkedTreatment.name}
               >
                 <Link2 size={11} className="shrink-0" />
@@ -620,7 +620,7 @@ function PriceRow({ proc }: { proc: Procedure }) {
                       linkProcedure.mutate({ treatmentId: t.id, procedureCatalogId: proc.id });
                       setLinkingOpen(false);
                     }}
-                    className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-blue-50 transition-colors ${linkedTreatment?.id === t.id ? "text-blue-700 font-medium" : "text-slate-700"}`}
+                    className={`flex w-full items-center gap-2 px-3 py-2.5 text-left text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors ${linkedTreatment?.id === t.id ? "text-blue-700 dark:text-blue-400 font-medium" : "text-slate-700 dark:text-gray-300"}`}
                   >
                     {linkedTreatment?.id === t.id && <Check size={12} className="text-blue-600 shrink-0" />}
                     <span className={linkedTreatment?.id === t.id ? "" : "pl-4"}>{t.name}</span>
@@ -667,15 +667,15 @@ function AddProcedureModal({ open, onClose }: { open: boolean; onClose: () => vo
         <Input label="Nombre del procedimiento *" value={name} onChange={(e) => setName(e.target.value)} required />
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Precio (C$)</label>
+            <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Precio (C$)</label>
             <input type="number" min="0" step="0.01" value={price} onChange={(e) => setPrice(e.target.value)}
               placeholder="0.00"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
-            <label className="block text-xs font-medium text-slate-600 mb-1">Duración (min)</label>
+            <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Duración (min)</label>
             <input type="number" min="5" step="5" value={duration} onChange={(e) => setDuration(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
           </div>
         </div>
         <div className="flex justify-end gap-3 pt-1">
@@ -711,7 +711,7 @@ function PriceCatalogSection() {
   }
 
   return (
-    <section className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
+    <section className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
       <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-gray-700">
         <div className="flex items-center gap-2">
           <Tag size={18} className="text-slate-500 dark:text-gray-400" />
@@ -783,7 +783,7 @@ function BackupSection() {
   }
 
   return (
-    <section className="rounded-xl bg-white shadow-sm border border-slate-100 overflow-hidden">
+    <section className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
       <div className="flex items-center gap-2 border-b border-slate-100 dark:border-gray-700 px-6 py-4">
         <Shield size={16} className="text-slate-400 dark:text-gray-500" />
         <h2 className="font-semibold text-slate-800 dark:text-white">Respaldo de datos</h2>
@@ -805,8 +805,8 @@ function BackupSection() {
           </div>
 
           <div className="rounded-xl border border-blue-200 dark:border-blue-800/30 bg-blue-50/30 dark:bg-blue-900/20 p-4 space-y-2">
-            <p className="text-sm font-semibold text-slate-700">JSON <span className="text-xs font-normal text-blue-600 ml-1">recomendado para IA</span></p>
-            <p className="text-xs text-slate-500">Formato estructurado ideal para recuperación con IA. Incluye todos los datos y relaciones entre registros (paciente → evoluciones, producto → lotes).</p>
+            <p className="text-sm font-semibold text-slate-700 dark:text-gray-300">JSON <span className="text-xs font-normal text-blue-600 dark:text-blue-400 ml-1">recomendado para IA</span></p>
+            <p className="text-xs text-slate-500 dark:text-gray-400">Formato estructurado ideal para recuperación con IA. Incluye todos los datos y relaciones entre registros (paciente → evoluciones, producto → lotes).</p>
             <Button onClick={() => handleDownload("json")} loading={loadingJson} variant="secondary" size="sm" className="w-full">
               <Download size={13} />
               {loadingJson ? "Generando…" : "Descargar JSON"}
@@ -832,7 +832,7 @@ function BackupSection() {
           </div>
         </div>
 
-        {error && <p className="text-sm text-red-500">{error}</p>}
+        {error && <p className="text-sm text-red-500 dark:text-red-400">{error}</p>}
 
         <p className="text-xs text-slate-400 dark:text-gray-500">
           El archivo JSON puede pegarse en una conversación de IA junto con la instrucción "restaura estos datos en SmileOS" para recuperación completa.
