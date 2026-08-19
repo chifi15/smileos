@@ -67,6 +67,18 @@ class MinStockIn(BaseModel):
     min_qty: Optional[float]
 
 
+class ProductUsageRecord(BaseModel):
+    patient_id: str
+    patient_name: str
+    date: str
+    procedure_name: Optional[str]
+    treatment_name: str
+    qty_per_procedure: float
+    procedure_quantity: int
+    total_quantity: float
+    transaction_id: str
+
+
 class AppointmentOut(BaseModel):
     id: uuid.UUID
     number: int
@@ -543,3 +555,12 @@ async def delete_lot(
     ok = await svc.delete_lot(db, current_user.clinic_id, lot_id)
     if not ok:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Lote no encontrado"})
+
+
+@router.get("/products/{product_id}/patient-usage", response_model=List[ProductUsageRecord])
+async def get_product_patient_usage(
+    product_id: uuid.UUID,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    return await svc.get_product_patient_usage(db, current_user.clinic_id, product_id)

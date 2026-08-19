@@ -244,6 +244,22 @@ export function useUpdateCostAppointment() {
   return useMutation({
     mutationFn: ({ treatmentId, aptId, ...data }: { treatmentId: string; aptId: string; name?: string; materials?: ApiMaterial[] }) =>
       api.put(`/api/v1/costos/treatments/${treatmentId}/appointments/${aptId}`, data).then((r) => r.data),
+    onMutate: async ({ treatmentId, aptId, ...data }) => {
+      await qc.cancelQueries({ queryKey: TREATMENTS_KEY });
+      const prev = qc.getQueryData<ApiTreatment[]>(TREATMENTS_KEY);
+      if (prev) {
+        qc.setQueryData<ApiTreatment[]>(
+          TREATMENTS_KEY,
+          prev.map((t) =>
+            t.id !== treatmentId
+              ? t
+              : { ...t, appointments: t.appointments.map((a) => (a.id !== aptId ? a : { ...a, ...data })) }
+          )
+        );
+      }
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(TREATMENTS_KEY, ctx.prev); },
     onSuccess: () => qc.invalidateQueries({ queryKey: TREATMENTS_KEY }),
   });
 }
@@ -302,6 +318,26 @@ export function useUpdateFixedCosts() {
 }
 
 // ─── Product Lots ──────────────────────────────────────────────────────────
+
+export interface ProductUsageRecord {
+  patient_id: string;
+  patient_name: string;
+  date: string;
+  procedure_name: string | null;
+  treatment_name: string;
+  qty_per_procedure: number;
+  procedure_quantity: number;
+  total_quantity: number;
+  transaction_id: string;
+}
+
+export function useProductPatientUsage(productId: string | null) {
+  return useQuery<ProductUsageRecord[]>({
+    queryKey: ["costos", "product-usage", productId],
+    queryFn: () => api.get(`/api/v1/costos/products/${productId}/patient-usage`).then((r) => r.data),
+    enabled: !!productId,
+  });
+}
 
 export function useProductLots(productId: string | null) {
   return useQuery<ApiProductLot[]>({

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { ArrowLeft, Plus, Trash2, Search, X, Edit2, Package, Calculator, ChevronRight, GripVertical, ImagePlus } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Search, X, Edit2, Package, Calculator, ChevronRight, GripVertical, ImagePlus, Users, Loader2 } from "lucide-react";
 import Link from "next/link";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -12,6 +12,7 @@ import {
   useUpdateCostProduct,
   useDeleteCostProduct,
   useReorderCostProducts,
+  useProductPatientUsage,
   ApiProduct,
 } from "@/hooks/useCostos";
 import {
@@ -335,9 +336,97 @@ function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?:
   );
 }
 
+// ─── Modal de uso por paciente ────────────────────────────────────────────────
+
+function ProductUsageModal({ product, onClose }: { product: ApiProduct; onClose: () => void }) {
+  const { data: usage = [], isLoading } = useProductPatientUsage(product.id);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-gray-800 shadow-xl flex flex-col max-h-[85vh]">
+        {/* Header */}
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-700 px-6 py-4 shrink-0">
+          <div>
+            <h2 className="font-semibold text-slate-800 dark:text-white">Uso por paciente</h2>
+            <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">{product.name}</p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 dark:text-gray-500 hover:bg-slate-100 dark:hover:bg-gray-700">
+            <X size={16} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="overflow-y-auto flex-1">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-16 gap-2 text-slate-400 dark:text-gray-500">
+              <Loader2 size={18} className="animate-spin" />
+              <span className="text-sm">Cargando...</span>
+            </div>
+          ) : usage.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-16 text-center">
+              <Users size={28} className="text-slate-200 dark:text-gray-600" />
+              <p className="text-sm text-slate-500 dark:text-gray-400">Este material no está vinculado a ningún procedimiento registrado en finanzas.</p>
+              <p className="text-xs text-slate-400 dark:text-gray-500 max-w-xs">
+                Para rastrear su uso, vincula su tratamiento de costos a un procedimiento del catálogo y registra los cobros en el módulo de Finanzas.
+              </p>
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-gray-700/50 text-xs text-slate-500 dark:text-gray-400 sticky top-0">
+                  <th className="px-5 py-3 text-left font-medium">Paciente</th>
+                  <th className="px-4 py-3 text-left font-medium">Procedimiento</th>
+                  <th className="px-4 py-3 text-center font-medium">Fecha</th>
+                  <th className="px-5 py-3 text-right font-medium">Porciones usadas</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
+                {usage.map((row) => (
+                  <tr key={row.transaction_id} className="hover:bg-slate-50/50 dark:hover:bg-gray-700/30">
+                    <td className="px-5 py-3">
+                      <p className="font-medium text-slate-700 dark:text-gray-300">{row.patient_name}</p>
+                    </td>
+                    <td className="px-4 py-3">
+                      <p className="text-slate-600 dark:text-gray-400">{row.procedure_name ?? "—"}</p>
+                      <p className="text-xs text-slate-400 dark:text-gray-500">{row.treatment_name}</p>
+                    </td>
+                    <td className="px-4 py-3 text-center text-slate-500 dark:text-gray-400 tabular-nums">
+                      {new Date(row.date + "T00:00:00").toLocaleDateString("es-NI", { day: "2-digit", month: "short", year: "numeric" })}
+                    </td>
+                    <td className="px-5 py-3 text-right">
+                      <p className="font-semibold text-slate-800 dark:text-white tabular-nums">
+                        {row.total_quantity % 1 === 0 ? row.total_quantity : row.total_quantity.toFixed(2)}
+                      </p>
+                      {row.procedure_quantity > 1 && (
+                        <p className="text-xs text-slate-400 dark:text-gray-500">
+                          {row.qty_per_procedure % 1 === 0 ? row.qty_per_procedure : row.qty_per_procedure.toFixed(2)} × {row.procedure_quantity}
+                        </p>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot>
+                <tr className="border-t border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50">
+                  <td colSpan={3} className="px-5 py-3 text-sm font-medium text-slate-600 dark:text-gray-400">
+                    Total — {usage.length} registro{usage.length !== 1 ? "s" : ""}
+                  </td>
+                  <td className="px-5 py-3 text-right font-bold text-slate-800 dark:text-white tabular-nums">
+                    {(() => { const t = usage.reduce((s, r) => s + r.total_quantity, 0); return t % 1 === 0 ? t : t.toFixed(2); })()}
+                  </td>
+                </tr>
+              </tfoot>
+            </table>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Fila sortable ────────────────────────────────────────────────────────────
 
-function SortableProductRow({ product, onEdit, isDragDisabled, exchangeRate }: { product: ApiProduct; onEdit: () => void; isDragDisabled: boolean; exchangeRate: number }) {
+function SortableProductRow({ product, onEdit, onViewUsage, isDragDisabled, exchangeRate }: { product: ApiProduct; onEdit: () => void; onViewUsage: () => void; isDragDisabled: boolean; exchangeRate: number }) {
   const deleteProduct = useDeleteCostProduct();
   const portions = calcPortions(product.presentation_qty, product.portion_qty);
   const hasCalc = portions != null && product.total_cost != null;
@@ -402,6 +491,7 @@ function SortableProductRow({ product, onEdit, isDragDisabled, exchangeRate }: {
       </td>
       <td className="pr-3 py-3">
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={onViewUsage} className="rounded p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-500" title="Ver uso por paciente"><Users size={13} /></button>
           <button onClick={onEdit} className="rounded p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-500" title="Editar"><Edit2 size={13} /></button>
           <button onClick={() => { if (confirm(`¿Eliminar "${product.name}"?`)) deleteProduct.mutate(product.id); }}
             className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500" title="Eliminar"><Trash2 size={13} /></button>
@@ -425,6 +515,7 @@ export default function ProductosPage() {
   const [category, setCategory] = useState<string>("all");
   const [showNew, setShowNew] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
+  const [usageProduct, setUsageProduct] = useState<ApiProduct | null>(null);
 
   const hasFilter = search.trim() !== "" || category !== "all";
   const isDragDisabled = search.trim() !== "";
@@ -519,7 +610,7 @@ export default function ProductosPage() {
               <SortableContext items={filtered.map((p) => p.id)} strategy={verticalListSortingStrategy}>
                 <tbody>
                   {filtered.map((p) => (
-                    <SortableProductRow key={p.id} product={p} onEdit={() => setEditingProduct(p)} isDragDisabled={isDragDisabled} exchangeRate={exchangeRate} />
+                    <SortableProductRow key={p.id} product={p} onEdit={() => setEditingProduct(p)} onViewUsage={() => setUsageProduct(p)} isDragDisabled={isDragDisabled} exchangeRate={exchangeRate} />
                   ))}
                 </tbody>
               </SortableContext>
@@ -547,6 +638,9 @@ export default function ProductosPage() {
           onSave={(data) => updateProduct.mutate({ id: editingProduct.id, ...data })}
           onClose={() => setEditingProduct(null)}
         />
+      )}
+      {usageProduct && (
+        <ProductUsageModal product={usageProduct} onClose={() => setUsageProduct(null)} />
       )}
     </div>
   );

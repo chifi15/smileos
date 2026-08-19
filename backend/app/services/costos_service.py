@@ -777,3 +777,73 @@ async def delete_lot(db: AsyncSession, clinic_id: uuid.UUID, lot_id: uuid.UUID) 
     await db.delete(lot)
     await db.flush()
     return True
+
+
+async def get_product_patient_usage(db: AsyncSession, clinic_id: uuid.UUID, product_id: uuid.UUID) -> list[dict]:
+    from app.models.finance import FinanceTransaction
+
+    product_id_str = str(product_id)
+
+    # Find all cost treatments for this clinic that use this product
+    result = await db.execute(
+        select(CostTreatment)
+        .where(CostTreatment.clinic_id == clinic_id)
+        .options(selectinload(CostTreatment.appointments))
+    )
+    treatments = list(result.scalars().all())
+
+    # Map procedure_catalog_id → {treatment_name, qty_per_procedure}
+    procedure_usage: dict[str, dict] = {}
+    for treatment in treatments:
+        if not treatment.procedure_catalog_id:
+            continue
+        total_qty = sum(
+            float(mat.get("quantity", 0))
+            for apt in treatment.appointments
+            for mat in (apt.materials or [])
+            if mat.get("productId") == product_id_str
+        )
+        if total_qty > 0:
+            proc_str = str(treatment.procedure_catalog_id)
+            if proc_str not in procedure_usage:
+                procedure_usage[proc_str] = {"treatment_name": treatment.name, "qty": total_qty}
+
+    if not procedure_usage:
+        return []
+
+    proc_ids = [uuid.UUID(pid) for pid in procedure_usage.keys()]
+
+    ft_result = await db.execute(
+        select(FinanceTransaction)
+        .where(
+            FinanceTransaction.clinic_id == clinic_id,
+            FinanceTransaction.procedure_id.in_(proc_ids),
+            FinanceTransaction.patient_id.isnot(None),
+        )
+        .options(
+            selectinload(FinanceTransaction.patient),
+            selectinload(FinanceTransaction.procedure),
+        )
+        .order_by(FinanceTransaction.transaction_date.desc())
+    )
+    transactions = list(ft_result.scalars().all())
+
+    usage = []
+    for tx in transactions:
+        t_info = procedure_usage.get(str(tx.procedure_id))
+        if not t_info:
+            continue
+        proc_qty = tx.procedure_quantity or 1
+        usage.append({
+            "patient_id": str(tx.patient_id),
+            "patient_name": tx.patient.full_name if tx.patient else "—",
+            "date": tx.transaction_date.isoformat(),
+            "procedure_name": tx.procedure.name if tx.procedure else None,
+            "treatment_name": t_info["treatment_name"],
+            "qty_per_procedure": t_info["qty"],
+            "procedure_quantity": proc_qty,
+            "total_quantity": t_info["qty"] * proc_qty,
+            "transaction_id": str(tx.id),
+        })
+
+    return usage
