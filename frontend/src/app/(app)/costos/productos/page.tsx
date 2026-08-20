@@ -107,8 +107,7 @@ function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?:
   const f = (key: keyof ProductFormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((s) => ({ ...s, [key]: e.target.value }));
 
-  const isCustomCategory = !ALL_CATEGORIES.includes(form.category as ProductCategory) && form.category !== "";
-  const [showCustomInput, setShowCustomInput] = useState(isCustomCategory);
+  const [showCustomInput, setShowCustomInput] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function handleImageFile(file: File) {
@@ -120,6 +119,7 @@ function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?:
   const allSelectableCategories = [
     ...ALL_CATEGORIES,
     ...extraCategories.filter((c) => !ALL_CATEGORIES.includes(c as ProductCategory)),
+    ...(form.category && !ALL_CATEGORIES.includes(form.category as ProductCategory) && !extraCategories.includes(form.category) ? [form.category] : []),
   ];
 
   const pQty = parseFloat(form.presentationQty) || 0;
@@ -193,9 +193,10 @@ function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?:
                     }}
                     className="w-full h-9 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
-                    {ALL_CATEGORIES.map((c) => <option key={c} value={c}>{PRODUCT_CATEGORY_LABELS[c]}</option>)}
-                    {extraCategories.filter((c) => !ALL_CATEGORIES.includes(c as ProductCategory)).map((c) => (
-                      <option key={c} value={c}>{c.charAt(0).toUpperCase() + c.slice(1)}</option>
+                    {allSelectableCategories.map((c) => (
+                      <option key={c} value={c}>
+                        {PRODUCT_CATEGORY_LABELS[c] ?? c.charAt(0).toUpperCase() + c.slice(1)}
+                      </option>
                     ))}
                     <option value={CUSTOM_SENTINEL}>+ Nueva categoría…</option>
                   </select>
