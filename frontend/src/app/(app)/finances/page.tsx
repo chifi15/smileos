@@ -418,6 +418,7 @@ interface FormState {
   patient: PatientRef | null;
   procedure_id: string;
   quantity: string;
+  sessions: string;
   doctor_id: string;
   invoice_number: string;
   transaction_date: string;
@@ -436,6 +437,7 @@ function emptyForm(type: FinanceType): FormState {
     patient: null,
     procedure_id: "",
     quantity: "1",
+    sessions: "1",
     doctor_id: "",
     invoice_number: "",
     transaction_date: today,
@@ -453,6 +455,7 @@ function formFromTx(tx: FinanceTransaction): FormState {
     patient: tx.patient ? { id: tx.patient.id, name: tx.patient.full_name } : null,
     procedure_id: tx.procedure?.id ?? "",
     quantity: String(tx.procedure_quantity ?? 1),
+    sessions: "1",
     doctor_id: tx.doctor?.id ?? "",
     invoice_number: tx.invoice_number ?? "",
     transaction_date: tx.transaction_date,
@@ -537,6 +540,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     }
 
     const qty = Math.max(1, parseInt(form.quantity) || 1);
+    const sessions = Math.max(1, parseInt(form.sessions) || 1);
 
     if (isEdit) {
       const payload: Record<string, unknown> = {
@@ -548,6 +552,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         patient_id: form.patient?.id ?? null,
         procedure_id: form.procedure_id || null,
         quantity: qty,
+        sessions,
         doctor_id: form.doctor_id || null,
         invoice_number: form.invoice_number.trim() || null,
         notes: form.notes.trim() || null,
@@ -567,7 +572,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     };
 
     if (form.patient?.id) payload.patient_id = form.patient.id;
-    if (form.procedure_id) { payload.procedure_id = form.procedure_id; payload.quantity = qty; }
+    if (form.procedure_id) { payload.procedure_id = form.procedure_id; payload.quantity = qty; if (sessions > 1) payload.sessions = sessions; }
     if (form.invoice_number.trim()) payload.invoice_number = form.invoice_number.trim();
     if (form.notes.trim()) payload.notes = form.notes.trim();
 
@@ -698,6 +703,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
               onChange={(e) => {
                 set("procedure_id", e.target.value);
                 set("quantity", "1");
+                set("sessions", "1");
                 if (!isEdit) initMaterialsFromTreatment(e.target.value);
               }}
               className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
@@ -711,11 +717,12 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
           {form.procedure_id && (() => {
             const proc = procedures.find((p) => p.id === form.procedure_id);
             const qty = Math.max(1, parseInt(form.quantity) || 1);
+            const sess = Math.max(1, parseInt(form.sessions) || 1);
             const unitCost = proc?.operational_cost ?? 0;
-            const totalCost = unitCost * qty;
+            const costThisSession = sess > 1 ? unitCost * qty / sess : unitCost * qty;
             return (
               <div className="flex items-end gap-3">
-                <div className="w-28 shrink-0">
+                <div className="w-24 shrink-0">
                   <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Cantidad</label>
                   <input
                     type="number"
@@ -726,9 +733,26 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                     className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   />
                 </div>
+                <div className="w-24 shrink-0">
+                  <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">
+                    Sesiones
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    step="1"
+                    value={form.sessions}
+                    onChange={(e) => set("sessions", e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    title="Número total de sesiones del tratamiento. El costo operativo se divide entre las sesiones."
+                  />
+                </div>
                 {unitCost > 0 && (
                   <p className="mb-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2 flex-1">
-                    Costo op.: C${fmt(unitCost)} × {qty} = <strong>C${fmt(totalCost)}</strong>
+                    {sess > 1
+                      ? <>Costo op.: C${fmt(unitCost)} ÷ {sess} ses. = <strong>C${fmt(costThisSession)}</strong></>
+                      : <>Costo op.: C${fmt(unitCost)} × {qty} = <strong>C${fmt(costThisSession)}</strong></>
+                    }
                   </p>
                 )}
               </div>

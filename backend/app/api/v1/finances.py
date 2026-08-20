@@ -70,6 +70,7 @@ class TransactionCreate(BaseModel):
     patient_id: str | None = None
     procedure_id: str | None = None
     quantity: int = 1
+    sessions: int = 1
     doctor_id: str | None = None
     invoice_number: str | None = None
     transaction_date: date
@@ -84,6 +85,7 @@ class TransactionUpdate(BaseModel):
     patient_id: str | None = None
     procedure_id: str | None = None
     quantity: int | None = None
+    sessions: int | None = None
     doctor_id: str | None = None
     invoice_number: str | None = None
     transaction_date: date | None = None

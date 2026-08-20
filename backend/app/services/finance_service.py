@@ -103,6 +103,7 @@ async def create_transaction(
     op_cost = None
     proc_id = data.get("procedure_id")
     quantity = max(1, int(data.get("quantity") or 1))
+    sessions = max(1, int(data.get("sessions") or 1))
     if proc_id:
         proc = await db.scalar(
             select(ProcedureCatalog).where(
@@ -111,7 +112,7 @@ async def create_transaction(
             )
         )
         if proc and proc.operational_cost:
-            op_cost = Decimal(str(proc.operational_cost)) * quantity
+            op_cost = round(Decimal(str(proc.operational_cost)) * quantity / sessions, 2)
 
     tx = FinanceTransaction(
         clinic_id=clinic_id,
@@ -333,6 +334,7 @@ async def update_transaction(
         tx.doctor_id = uuid.UUID(str(data["doctor_id"])) if data["doctor_id"] else None
 
     upd_quantity = max(1, int(data["quantity"])) if data.get("quantity") else None
+    upd_sessions = max(1, int(data["sessions"])) if data.get("sessions") else 1
 
     if "procedure_id" in data:
         proc_id = data["procedure_id"]
@@ -345,11 +347,11 @@ async def update_transaction(
                 )
             )
             base = Decimal(str(proc.operational_cost)) if proc and proc.operational_cost else None
-            tx.operational_cost_snapshot = round(base * (upd_quantity or 1), 2) if base else None
+            tx.operational_cost_snapshot = round(base * (upd_quantity or 1) / upd_sessions, 2) if base else None
         else:
             tx.operational_cost_snapshot = None
     elif upd_quantity is not None and tx.procedure_id:
-        # Solo cambió la cantidad, mismo procedimiento
+        # Solo cambió la cantidad o sesiones, mismo procedimiento
         proc = await db.scalar(
             select(ProcedureCatalog).where(
                 ProcedureCatalog.id == tx.procedure_id,
@@ -357,7 +359,7 @@ async def update_transaction(
             )
         )
         if proc and proc.operational_cost:
-            tx.operational_cost_snapshot = round(Decimal(str(proc.operational_cost)) * upd_quantity, 2)
+            tx.operational_cost_snapshot = round(Decimal(str(proc.operational_cost)) * upd_quantity / upd_sessions, 2)
 
     if upd_quantity is not None:
         tx.procedure_quantity = upd_quantity
