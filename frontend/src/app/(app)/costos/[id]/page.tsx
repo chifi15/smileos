@@ -488,7 +488,7 @@ function SortableMaterialRow({
   onRemove: () => void;
   onSetAltGroup: (g: string | null) => void;
   isSelected: boolean;
-  onToggleSelect: () => void;
+  onToggleSelect: (shiftKey: boolean) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: productId });
@@ -508,7 +508,8 @@ function SortableMaterialRow({
         <input
           type="checkbox"
           checked={isSelected}
-          onChange={onToggleSelect}
+          readOnly
+          onClick={(e) => { e.stopPropagation(); onToggleSelect(e.shiftKey); }}
           className="rounded border-slate-300 dark:border-gray-500 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
         />
       </td>
@@ -674,23 +675,38 @@ function EditableAppointment({
   const [editQty, setEditQty] = useState<string | null>(null);
   const [editQtyValue, setEditQtyValue] = useState("");
   const [selectedMaterials, setSelectedMaterials] = useState<Set<string>>(new Set());
+  const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
 
-  useEffect(() => { if (!open) setSelectedMaterials(new Set()); }, [open]);
+  useEffect(() => { if (!open) { setSelectedMaterials(new Set()); setLastSelectedIndex(null); } }, [open]);
 
-  function toggleSelect(productId: string) {
-    setSelectedMaterials((prev) => {
-      const next = new Set(prev);
-      next.has(productId) ? next.delete(productId) : next.add(productId);
-      return next;
-    });
+  function toggleSelect(productId: string, index: number, shiftKey: boolean) {
+    if (shiftKey && lastSelectedIndex !== null) {
+      const start = Math.min(lastSelectedIndex, index);
+      const end = Math.max(lastSelectedIndex, index);
+      const rangeIds = apt.materials.slice(start, end + 1).map((m) => m.productId);
+      setSelectedMaterials((prev) => {
+        const next = new Set(prev);
+        rangeIds.forEach((id) => next.add(id));
+        return next;
+      });
+    } else {
+      setSelectedMaterials((prev) => {
+        const next = new Set(prev);
+        next.has(productId) ? next.delete(productId) : next.add(productId);
+        return next;
+      });
+    }
+    setLastSelectedIndex(index);
   }
 
   function selectAll() {
     setSelectedMaterials(new Set(apt.materials.map((m) => m.productId)));
+    setLastSelectedIndex(null);
   }
 
   function clearSelection() {
     setSelectedMaterials(new Set());
+    setLastSelectedIndex(null);
   }
 
   function deleteSelected() {
@@ -938,7 +954,7 @@ function EditableAppointment({
                           onRemove={() => removeMaterial(product.id)}
                           onSetAltGroup={(g) => setAltGroup(product.id, g)}
                           isSelected={selectedMaterials.has(product.id)}
-                          onToggleSelect={() => toggleSelect(product.id)}
+                          onToggleSelect={(shiftKey) => toggleSelect(product.id, idx, shiftKey)}
                         />
                       ));
                     })()}
