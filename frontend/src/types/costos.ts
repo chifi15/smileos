@@ -18,13 +18,13 @@ export const PRODUCT_CATEGORY_LABELS: Record<string, string> = {
 };
 
 export const PRODUCT_CATEGORY_COLORS: Record<string, string> = {
-  desechable: "bg-blue-50 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-  anestesia: "bg-purple-50 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300",
-  endodoncia: "bg-orange-50 text-orange-700 dark:bg-orange-900/40 dark:text-orange-300",
-  restauracion: "bg-green-50 text-green-700 dark:bg-green-900/40 dark:text-green-300",
-  profilaxis: "bg-teal-50 text-teal-700 dark:bg-teal-900/40 dark:text-teal-300",
-  instrumental: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
-  otros: "bg-gray-50 text-gray-600 dark:bg-gray-700 dark:text-gray-300",
+  desechable:   "bg-blue-50    text-blue-700    dark:bg-blue-900/70    dark:text-blue-200",
+  anestesia:    "bg-violet-50  text-violet-700  dark:bg-violet-900/70  dark:text-violet-200",
+  endodoncia:   "bg-amber-50   text-amber-700   dark:bg-amber-900/70   dark:text-amber-200",
+  restauracion: "bg-emerald-50 text-emerald-700 dark:bg-emerald-900/70 dark:text-emerald-200",
+  profilaxis:   "bg-cyan-50    text-cyan-700    dark:bg-cyan-900/70    dark:text-cyan-200",
+  instrumental: "bg-indigo-50  text-indigo-700  dark:bg-indigo-900/70  dark:text-indigo-200",
+  otros:        "bg-zinc-100   text-zinc-600    dark:bg-zinc-800       dark:text-zinc-300",
 };
 
 export function categoryLabel(cat: string): string {
