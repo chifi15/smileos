@@ -426,7 +426,7 @@ function ProductUsageModal({ product, onClose }: { product: ApiProduct; onClose:
 
 // ─── Fila sortable ────────────────────────────────────────────────────────────
 
-function SortableProductRow({ product, onEdit, onViewUsage, isDragDisabled, exchangeRate }: { product: ApiProduct; onEdit: () => void; onViewUsage: () => void; isDragDisabled: boolean; exchangeRate: number }) {
+function SortableProductRow({ product, onEdit, onViewUsage, isDragDisabled, exchangeRate, rowNumber }: { product: ApiProduct; onEdit: () => void; onViewUsage: () => void; isDragDisabled: boolean; exchangeRate: number; rowNumber: number }) {
   const deleteProduct = useDeleteCostProduct();
   const portions = calcPortions(product.presentation_qty, product.portion_qty);
   const hasCalc = portions != null && product.total_cost != null;
@@ -444,6 +444,7 @@ function SortableProductRow({ product, onEdit, onViewUsage, isDragDisabled, exch
           </button>
         )}
       </td>
+      <td className="pr-2 py-3 text-right tabular-nums text-xs text-slate-400 dark:text-gray-500 w-8 select-none">{rowNumber}</td>
       <td className="px-3 py-3">
         <div className="flex items-center gap-2.5">
           {product.image_url ? (
@@ -577,12 +578,17 @@ export default function ProductosPage() {
             className="h-10 w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-800 dark:text-white pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          <button onClick={() => setCategory("all")} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === "all" ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-gray-600"}`}>Todos</button>
-          {allCategoriesInUse.map((cat) => (
-            <button key={cat} onClick={() => setCategory(cat)} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === cat ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-gray-600"}`}>
-              {categoryLabel(cat)}
-            </button>
-          ))}
+          <button onClick={() => setCategory("all")} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === "all" ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-gray-600"}`}>
+            Todos <span className={`ml-1 tabular-nums ${category === "all" ? "opacity-80" : "opacity-60"}`}>({products.length})</span>
+          </button>
+          {allCategoriesInUse.map((cat) => {
+            const count = products.filter((p) => p.category === cat).length;
+            return (
+              <button key={cat} onClick={() => setCategory(cat)} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === cat ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-gray-600"}`}>
+                {categoryLabel(cat)} <span className={`ml-1 tabular-nums ${category === cat ? "opacity-80" : "opacity-60"}`}>({count})</span>
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -598,6 +604,7 @@ export default function ProductosPage() {
             <thead>
               <tr className="border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50 text-xs text-slate-500 dark:text-gray-400">
                 <th className="w-7 pl-2" />
+                <th className="pr-2 py-3 text-right font-medium w-8">#</th>
                 <th className="px-3 py-3 text-left font-medium">Producto</th>
                 <th className="px-4 py-3 text-left font-medium">Categoría</th>
                 <th className="px-4 py-3 text-left font-medium">Presentación / uso</th>
@@ -609,8 +616,8 @@ export default function ProductosPage() {
             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
               <SortableContext items={filtered.map((p) => p.id)} strategy={verticalListSortingStrategy}>
                 <tbody>
-                  {filtered.map((p) => (
-                    <SortableProductRow key={p.id} product={p} onEdit={() => setEditingProduct(p)} onViewUsage={() => setUsageProduct(p)} isDragDisabled={isDragDisabled} exchangeRate={exchangeRate} />
+                  {filtered.map((p, i) => (
+                    <SortableProductRow key={p.id} product={p} onEdit={() => setEditingProduct(p)} onViewUsage={() => setUsageProduct(p)} isDragDisabled={isDragDisabled} exchangeRate={exchangeRate} rowNumber={i + 1} />
                   ))}
                 </tbody>
               </SortableContext>
