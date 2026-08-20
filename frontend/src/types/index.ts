@@ -476,13 +476,11 @@ export interface ClinicSettings {
   legal_name: string | null;
   phone: string | null;
   email: string | null;
-  address: string | null;
-  currency: string;
-  default_appointment_duration: number;
-  timezone: string;
+  address_line1: string | null;
+  currency_code: string;
+  default_appointment_duration_minutes: number;
   usd_exchange_rate: number;
-  created_at: string;
-  updated_at: string;
+  updated_at: string | null;
 }
 
 // ─── Schedule ─────────────────────────────────────────────────────────────────

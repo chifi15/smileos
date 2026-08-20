@@ -7,8 +7,8 @@ export function useClinicSettings() {
   return useQuery({
     queryKey: ["settings"],
     queryFn: async () => {
-      const { data } = await apiClient.get<{ data: ClinicSettings }>("/api/v1/settings");
-      return data.data;
+      const { data } = await apiClient.get<{ data: { settings: ClinicSettings } }>("/api/v1/settings");
+      return data.data.settings;
     },
     staleTime: 5 * 60 * 1000,
   });

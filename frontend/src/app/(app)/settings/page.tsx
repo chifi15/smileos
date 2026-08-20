@@ -251,22 +251,22 @@ export default function SettingsPage() {
     setLegalName(settings.legal_name ?? "");
     setPhone(settings.phone ?? "");
     setEmail(settings.email ?? "");
-    setAddress(settings.address ?? "");
-    setCurrency(settings.currency ?? "NIO");
-    setDuration(String(settings.default_appointment_duration ?? 30));
+    setAddress(settings.address_line1 ?? "");
+    setCurrency(settings.currency_code ?? "NIO");
+    setDuration(String(settings.default_appointment_duration_minutes ?? 30));
     setExchangeRate(String(settings.usd_exchange_rate ?? 37));
   }, [settings]);
 
   function handleSaveSettings(e: React.FormEvent) {
     e.preventDefault();
     updateSettings.mutate({
-      display_name: displayName.trim(),
+      display_name: displayName.trim() || undefined,
       legal_name: legalName.trim() || null,
       phone: phone.trim() || null,
       email: email.trim() || null,
-      address: address.trim() || null,
-      currency,
-      default_appointment_duration: Number(duration),
+      address_line1: address.trim() || null,
+      currency_code: currency,
+      default_appointment_duration_minutes: Number(duration),
       usd_exchange_rate: Number(exchangeRate) || 37,
     });
   }
