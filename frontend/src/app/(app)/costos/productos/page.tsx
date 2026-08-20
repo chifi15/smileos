@@ -307,7 +307,7 @@ function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?:
                   <button
                     type="button"
                     onClick={() => setForm((s) => ({ ...s, imageUrl: "" }))}
-                    className="rounded-lg border border-red-200 px-3 py-1.5 text-xs text-red-500 hover:bg-red-50"
+                    className="rounded-lg border border-red-200 dark:border-red-800/50 px-3 py-1.5 text-xs text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
                   >
                     Eliminar foto
                   </button>
@@ -494,10 +494,10 @@ function SortableProductRow({ product, onEdit, onViewUsage, isDragDisabled, exch
       </td>
       <td className="pr-3 py-3">
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={onViewUsage} className="rounded p-1.5 text-slate-400 hover:bg-violet-50 hover:text-violet-500" title="Ver uso por paciente"><Users size={13} /></button>
-          <button onClick={onEdit} className="rounded p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-500" title="Editar"><Edit2 size={13} /></button>
+          <button onClick={onViewUsage} className="rounded p-1.5 text-slate-400 hover:bg-violet-50 dark:hover:bg-violet-900/30 hover:text-violet-500" title="Ver uso por paciente"><Users size={13} /></button>
+          <button onClick={onEdit} className="rounded p-1.5 text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-500" title="Editar"><Edit2 size={13} /></button>
           <button onClick={() => { if (confirm(`¿Eliminar "${product.name}"?`)) deleteProduct.mutate(product.id); }}
-            className="rounded p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-500" title="Eliminar"><Trash2 size={13} /></button>
+            className="rounded p-1.5 text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500" title="Eliminar"><Trash2 size={13} /></button>
         </div>
       </td>
     </tr>

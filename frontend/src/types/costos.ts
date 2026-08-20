@@ -32,7 +32,7 @@ export function categoryLabel(cat: string): string {
 }
 
 export function categoryColor(cat: string): string {
-  return PRODUCT_CATEGORY_COLORS[cat] ?? "bg-gray-50 text-gray-600";
+  return PRODUCT_CATEGORY_COLORS[cat] ?? "bg-gray-50 text-gray-600 dark:bg-gray-700/40 dark:text-gray-300";
 }
 
 export interface FixedCostItem {
