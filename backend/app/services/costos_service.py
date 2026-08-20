@@ -362,6 +362,26 @@ async def reorder_products(db: AsyncSession, clinic_id: uuid.UUID, ordered_ids: 
     await db.flush()
 
 
+async def rename_category(db: AsyncSession, clinic_id: uuid.UUID, from_cat: str, to_cat: str) -> int:
+    result = await db.execute(
+        update(CostProduct)
+        .where(CostProduct.clinic_id == clinic_id, CostProduct.category == from_cat)
+        .values(category=to_cat)
+    )
+    await db.flush()
+    return result.rowcount
+
+
+async def delete_category(db: AsyncSession, clinic_id: uuid.UUID, category: str, reassign_to: str) -> int:
+    result = await db.execute(
+        update(CostProduct)
+        .where(CostProduct.clinic_id == clinic_id, CostProduct.category == category)
+        .values(category=reassign_to)
+    )
+    await db.flush()
+    return result.rowcount
+
+
 async def update_product_stock(db: AsyncSession, clinic_id: uuid.UUID, product_id: uuid.UUID, qty: float, operation: str) -> Optional[CostProduct]:
     result = await db.execute(
         select(CostProduct).where(CostProduct.id == product_id, CostProduct.clinic_id == clinic_id)

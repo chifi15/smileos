@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef } from "react";
-import { ArrowLeft, Plus, Trash2, Search, X, Edit2, Package, Calculator, ChevronRight, GripVertical, ImagePlus, Users, Loader2 } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Search, X, Edit2, Package, Calculator, ChevronRight, GripVertical, ImagePlus, Users, Loader2, Check } from "lucide-react";
 import Link from "next/link";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -13,6 +13,8 @@ import {
   useDeleteCostProduct,
   useReorderCostProducts,
   useProductPatientUsage,
+  useRenameCostCategory,
+  useDeleteCostCategory,
   ApiProduct,
 } from "@/hooks/useCostos";
 import {
@@ -517,6 +519,32 @@ export default function ProductosPage() {
   const [showNew, setShowNew] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
   const [usageProduct, setUsageProduct] = useState<ApiProduct | null>(null);
+  const [editingCategory, setEditingCategory] = useState<string | null>(null);
+  const [editCategoryValue, setEditCategoryValue] = useState("");
+  const renameCategory = useRenameCostCategory();
+  const deleteCategory = useDeleteCostCategory();
+
+  function handleRenameCategory(oldCat: string) {
+    const newCat = editCategoryValue.trim();
+    if (!newCat || newCat === oldCat) { setEditingCategory(null); return; }
+    renameCategory.mutate({ from_category: oldCat, to_category: newCat }, {
+      onSuccess: () => {
+        if (category === oldCat) setCategory(newCat);
+        setEditingCategory(null);
+      },
+    });
+  }
+
+  function handleDeleteCategory(cat: string) {
+    const count = products.filter((p) => p.category === cat).length;
+    const msg = count > 0
+      ? `¿Eliminar la categoría "${categoryLabel(cat)}"? Los ${count} producto${count !== 1 ? "s" : ""} se moverán a "Otros".`
+      : `¿Eliminar la categoría "${categoryLabel(cat)}"?`;
+    if (!confirm(msg)) return;
+    deleteCategory.mutate({ category: cat }, {
+      onSuccess: () => { if (category === cat) setCategory("all"); },
+    });
+  }
 
   const hasFilter = search.trim() !== "" || category !== "all";
   const isDragDisabled = search.trim() !== "";
@@ -583,10 +611,55 @@ export default function ProductosPage() {
           </button>
           {allCategoriesInUse.map((cat) => {
             const count = products.filter((p) => p.category === cat).length;
+            const isCustom = !ALL_CATEGORIES.includes(cat as ProductCategory);
+
+            if (editingCategory === cat) {
+              return (
+                <div key={cat} className="flex items-center gap-1">
+                  <input
+                    autoFocus
+                    value={editCategoryValue}
+                    onChange={(e) => setEditCategoryValue(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") handleRenameCategory(cat);
+                      if (e.key === "Escape") setEditingCategory(null);
+                    }}
+                    className="h-8 w-32 rounded-lg border border-blue-400 ring-2 ring-blue-100 dark:ring-blue-800 px-2 text-xs focus:outline-none dark:bg-gray-700 dark:text-white dark:border-blue-500"
+                  />
+                  <button onClick={() => handleRenameCategory(cat)} title="Guardar" className="rounded p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30">
+                    <Check size={13} />
+                  </button>
+                  <button onClick={() => setEditingCategory(null)} title="Cancelar" className="rounded p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-gray-700">
+                    <X size={13} />
+                  </button>
+                </div>
+              );
+            }
+
             return (
-              <button key={cat} onClick={() => setCategory(cat)} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === cat ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-gray-600"}`}>
-                {categoryLabel(cat)} <span className={`ml-1 tabular-nums ${category === cat ? "opacity-80" : "opacity-60"}`}>({count})</span>
-              </button>
+              <div key={cat} className="group/chip flex items-center gap-0.5">
+                <button onClick={() => setCategory(cat)} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === cat ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-gray-600"}`}>
+                  {categoryLabel(cat)} <span className={`ml-1 tabular-nums ${category === cat ? "opacity-80" : "opacity-60"}`}>({count})</span>
+                </button>
+                {isCustom && (
+                  <div className="flex items-center gap-0.5 opacity-0 group-hover/chip:opacity-100 transition-opacity">
+                    <button
+                      onClick={() => { setEditingCategory(cat); setEditCategoryValue(cat); }}
+                      title="Renombrar categoría"
+                      className="rounded p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                    >
+                      <Edit2 size={11} />
+                    </button>
+                    <button
+                      onClick={() => handleDeleteCategory(cat)}
+                      title="Eliminar categoría"
+                      className="rounded p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"
+                    >
+                      <Trash2 size={11} />
+                    </button>
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>

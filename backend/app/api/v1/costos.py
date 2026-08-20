@@ -194,6 +194,11 @@ class LotOut(BaseModel):
         from_attributes = True
 
 
+class CategoryRenameIn(BaseModel):
+    from_category: str
+    to_category: str
+
+
 # ─── Products ─────────────────────────────────────────────────────────────────
 
 @router.get("/products", response_model=List[ProductOut])
@@ -295,6 +300,29 @@ async def update_min_stock(
     if not obj:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Producto no encontrado"})
     return obj
+
+
+# ─── Categories ───────────────────────────────────────────────────────────────
+
+@router.post("/categories/rename", status_code=204)
+async def rename_category(
+    body: CategoryRenameIn,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    if not body.from_category.strip() or not body.to_category.strip():
+        raise HTTPException(status_code=400, detail={"code": "INVALID", "message": "Categorías no pueden estar vacías"})
+    await svc.rename_category(db, current_user.clinic_id, body.from_category.strip(), body.to_category.strip())
+
+
+@router.delete("/categories/{category}", status_code=204)
+async def delete_category(
+    category: str,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+    reassign_to: str = "otros",
+):
+    await svc.delete_category(db, current_user.clinic_id, category, reassign_to)
 
 
 # ─── Treatments ───────────────────────────────────────────────────────────────

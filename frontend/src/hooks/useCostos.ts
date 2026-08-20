@@ -115,6 +115,24 @@ export function useDeleteCostProduct() {
   });
 }
 
+export function useRenameCostCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ from_category, to_category }: { from_category: string; to_category: string }) =>
+      api.post("/api/v1/costos/categories/rename", { from_category, to_category }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: PRODUCTS_KEY }),
+  });
+}
+
+export function useDeleteCostCategory() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ category, reassign_to = "otros" }: { category: string; reassign_to?: string }) =>
+      api.delete(`/api/v1/costos/categories/${encodeURIComponent(category)}`, { params: { reassign_to } }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: PRODUCTS_KEY }),
+  });
+}
+
 export function useReorderCostProducts() {
   const qc = useQueryClient();
   return useMutation({
