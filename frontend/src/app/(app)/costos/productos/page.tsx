@@ -550,7 +550,7 @@ export default function ProductosPage() {
   const isDragDisabled = search.trim() !== "";
 
   const allCategoriesInUse: string[] = [
-    ...ALL_CATEGORIES,
+    ...ALL_CATEGORIES.filter((c) => products.some((p) => p.category === c)),
     ...products.map((p) => p.category).filter((c) => !ALL_CATEGORIES.includes(c as ProductCategory)),
   ].filter((v, i, a) => a.indexOf(v) === i);
 
@@ -611,8 +611,6 @@ export default function ProductosPage() {
           </button>
           {allCategoriesInUse.map((cat) => {
             const count = products.filter((p) => p.category === cat).length;
-            const isCustom = !ALL_CATEGORIES.includes(cat as ProductCategory);
-
             if (editingCategory === cat) {
               return (
                 <div key={cat} className="flex items-center gap-1">
@@ -641,8 +639,7 @@ export default function ProductosPage() {
                 <button onClick={() => setCategory(cat)} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === cat ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-gray-600"}`}>
                   {categoryLabel(cat)} <span className={`ml-1 tabular-nums ${category === cat ? "opacity-80" : "opacity-60"}`}>({count})</span>
                 </button>
-                {isCustom && (
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover/chip:opacity-100 transition-opacity">
+                <div className="flex items-center gap-0.5 opacity-0 group-hover/chip:opacity-100 transition-opacity">
                     <button
                       onClick={() => { setEditingCategory(cat); setEditCategoryValue(cat); }}
                       title="Renombrar categoría"
@@ -658,7 +655,6 @@ export default function ProductosPage() {
                       <Trash2 size={11} />
                     </button>
                   </div>
-                )}
               </div>
             );
           })}
