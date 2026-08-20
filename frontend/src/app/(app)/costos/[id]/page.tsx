@@ -1,6 +1,6 @@
 "use client";
 
-import { use, useState } from "react";
+import { use, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -468,6 +468,8 @@ function SortableMaterialRow({
   onEditQtyCancel,
   onRemove,
   onSetAltGroup,
+  isSelected,
+  onToggleSelect,
 }: {
   productId: string;
   rowIndex: number;
@@ -485,6 +487,8 @@ function SortableMaterialRow({
   onEditQtyCancel: () => void;
   onRemove: () => void;
   onSetAltGroup: (g: string | null) => void;
+  isSelected: boolean;
+  onToggleSelect: () => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: productId });
@@ -499,8 +503,16 @@ function SortableMaterialRow({
   const nextNewGroup = ALT_GROUP_LETTERS.find((l) => !availableGroups.includes(l)) ?? "A";
 
   return (
-    <tr ref={setNodeRef} style={style} className={`group hover:bg-slate-50/50 dark:hover:bg-gray-700/30 ${!countsInCost ? "opacity-60" : ""}`}>
-      <td className="pl-3 pr-1 py-2.5 w-5">
+    <tr ref={setNodeRef} style={style} className={`group hover:bg-slate-50/50 dark:hover:bg-gray-700/30 ${!countsInCost ? "opacity-60" : ""} ${isSelected ? "bg-blue-50/60 dark:bg-blue-900/20" : ""}`}>
+      <td className="pl-3 w-8 py-2.5" onClick={(e) => e.stopPropagation()}>
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={onToggleSelect}
+          className="rounded border-slate-300 dark:border-gray-500 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+        />
+      </td>
+      <td className="pr-1 py-2.5 w-5">
         <button
           {...attributes}
           {...listeners}
@@ -661,6 +673,36 @@ function EditableAppointment({
   const [editNameValue, setEditNameValue] = useState("");
   const [editQty, setEditQty] = useState<string | null>(null);
   const [editQtyValue, setEditQtyValue] = useState("");
+  const [selectedMaterials, setSelectedMaterials] = useState<Set<string>>(new Set());
+
+  useEffect(() => { if (!open) setSelectedMaterials(new Set()); }, [open]);
+
+  function toggleSelect(productId: string) {
+    setSelectedMaterials((prev) => {
+      const next = new Set(prev);
+      next.has(productId) ? next.delete(productId) : next.add(productId);
+      return next;
+    });
+  }
+
+  function selectAll() {
+    setSelectedMaterials(new Set(apt.materials.map((m) => m.productId)));
+  }
+
+  function clearSelection() {
+    setSelectedMaterials(new Set());
+  }
+
+  function deleteSelected() {
+    onUpdateApt({ materials: apt.materials.filter((m) => !selectedMaterials.has(m.productId)) });
+    setSelectedMaterials(new Set());
+  }
+
+  function copySelected() {
+    const mats = apt.materials.filter((m) => selectedMaterials.has(m.productId));
+    onCopy(mats, `${appointment.name} (${selectedMaterials.size} mat.)`, appointment.id);
+    setSelectedMaterials(new Set());
+  }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
 
@@ -851,6 +893,15 @@ function EditableAppointment({
               <table className="w-full text-sm">
                 <thead>
                   <tr className="bg-slate-50 dark:bg-gray-700/50 text-xs text-slate-500 dark:text-gray-400">
+                    <th className="pl-3 w-8 py-2.5">
+                      <input
+                        type="checkbox"
+                        checked={selectedMaterials.size === apt.materials.length && apt.materials.length > 0}
+                        onChange={(e) => e.target.checked ? selectAll() : clearSelection()}
+                        className="rounded border-slate-300 dark:border-gray-500 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
+                        title="Seleccionar todo"
+                      />
+                    </th>
                     <th className="w-5 py-2.5" />
                     <th className="w-6 py-2.5 text-center font-medium">#</th>
                     <th className="px-5 py-2.5 text-left font-medium">Material</th>
@@ -886,6 +937,8 @@ function EditableAppointment({
                           onEditQtyCancel={() => setEditQty(null)}
                           onRemove={() => removeMaterial(product.id)}
                           onSetAltGroup={(g) => setAltGroup(product.id, g)}
+                          isSelected={selectedMaterials.has(product.id)}
+                          onToggleSelect={() => toggleSelect(product.id)}
                         />
                       ));
                     })()}
@@ -906,6 +959,32 @@ function EditableAppointment({
                 </tfoot>
               </table>
             </DndContext>
+          )}
+
+          {selectedMaterials.size > 0 && (
+            <div className="border-t border-blue-200 dark:border-blue-800/40 bg-blue-50 dark:bg-blue-900/20 px-5 py-2.5 flex items-center gap-4">
+              <span className="text-xs font-semibold text-blue-700 dark:text-blue-400">
+                {selectedMaterials.size} seleccionado{selectedMaterials.size !== 1 ? "s" : ""}
+              </span>
+              <button
+                onClick={copySelected}
+                className="flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+              >
+                <Copy size={12} /> Copiar seleccionados
+              </button>
+              <button
+                onClick={deleteSelected}
+                className="flex items-center gap-1.5 text-xs font-medium text-red-500 hover:text-red-600"
+              >
+                <Trash2 size={12} /> Eliminar seleccionados
+              </button>
+              <button
+                onClick={clearSelection}
+                className="ml-auto text-xs text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300"
+              >
+                Cancelar
+              </button>
+            </div>
           )}
 
           <div className="border-t border-slate-100 dark:border-gray-700 px-5 py-3 flex items-center gap-4">
