@@ -18,7 +18,6 @@ export function useUpdateSettings() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (values: Partial<Omit<ClinicSettings, "id" | "updated_at">>) => {
-      console.log("[settings] PATCH payload:", values);
       const { data } = await apiClient.patch<{ data: ClinicSettings }>("/api/v1/settings", values);
       return data.data;
     },
@@ -26,12 +25,6 @@ export function useUpdateSettings() {
       qc.setQueryData(["settings"], updated);
       toast.success("Configuración guardada.");
     },
-    onError: (err: unknown) => {
-      const axiosErr = err as { response?: { status?: number; data?: { error?: { message?: string } } } };
-      const status = axiosErr?.response?.status;
-      const msg = axiosErr?.response?.data?.error?.message;
-      console.error("[settings] PATCH /api/v1/settings falló", { status, msg, payload: err });
-      toast.error(msg ? `Error ${status}: ${msg}` : `Error al guardar (${status ?? "red"})`);
-    },
+    onError: () => toast.error("Error al guardar la configuración."),
   });
 }

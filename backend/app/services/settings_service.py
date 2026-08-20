@@ -61,6 +61,7 @@ async def update_clinic_settings(
         setattr(settings, k, v)
 
     await db.flush()
+    await db.refresh(settings)
     return settings
 
 
