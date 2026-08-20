@@ -18,6 +18,7 @@ export function useUpdateSettings() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (values: Partial<Omit<ClinicSettings, "id" | "updated_at">>) => {
+      console.log("[settings] PATCH payload:", values);
       const { data } = await apiClient.patch<{ data: ClinicSettings }>("/api/v1/settings", values);
       return data.data;
     },
