@@ -663,6 +663,7 @@ export interface TransactionCreatePayload {
   procedure_id?: string;
   quantity?: number;
   sessions?: number;
+  operational_cost_override?: number;
   doctor_id?: string | null;
   invoice_number?: string;
   transaction_date: string;

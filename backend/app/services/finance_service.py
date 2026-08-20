@@ -104,15 +104,19 @@ async def create_transaction(
     proc_id = data.get("procedure_id")
     quantity = max(1, int(data.get("quantity") or 1))
     sessions = max(1, int(data.get("sessions") or 1))
+    cost_override = data.get("operational_cost_override")
     if proc_id:
-        proc = await db.scalar(
-            select(ProcedureCatalog).where(
-                ProcedureCatalog.id == uuid.UUID(str(proc_id)),
-                ProcedureCatalog.clinic_id == clinic_id,
+        if cost_override is not None:
+            op_cost = round(Decimal(str(cost_override)), 2)
+        else:
+            proc = await db.scalar(
+                select(ProcedureCatalog).where(
+                    ProcedureCatalog.id == uuid.UUID(str(proc_id)),
+                    ProcedureCatalog.clinic_id == clinic_id,
+                )
             )
-        )
-        if proc and proc.operational_cost:
-            op_cost = round(Decimal(str(proc.operational_cost)) * quantity / sessions, 2)
+            if proc and proc.operational_cost:
+                op_cost = round(Decimal(str(proc.operational_cost)) * quantity / sessions, 2)
 
     tx = FinanceTransaction(
         clinic_id=clinic_id,
@@ -335,21 +339,27 @@ async def update_transaction(
 
     upd_quantity = max(1, int(data["quantity"])) if data.get("quantity") else None
     upd_sessions = max(1, int(data["sessions"])) if data.get("sessions") else 1
+    upd_cost_override = data.get("operational_cost_override")
 
     if "procedure_id" in data:
         proc_id = data["procedure_id"]
         tx.procedure_id = uuid.UUID(str(proc_id)) if proc_id else None
         if proc_id:
-            proc = await db.scalar(
-                select(ProcedureCatalog).where(
-                    ProcedureCatalog.id == uuid.UUID(str(proc_id)),
-                    ProcedureCatalog.clinic_id == clinic_id,
+            if upd_cost_override is not None:
+                tx.operational_cost_snapshot = round(Decimal(str(upd_cost_override)), 2)
+            else:
+                proc = await db.scalar(
+                    select(ProcedureCatalog).where(
+                        ProcedureCatalog.id == uuid.UUID(str(proc_id)),
+                        ProcedureCatalog.clinic_id == clinic_id,
+                    )
                 )
-            )
-            base = Decimal(str(proc.operational_cost)) if proc and proc.operational_cost else None
-            tx.operational_cost_snapshot = round(base * (upd_quantity or 1) / upd_sessions, 2) if base else None
+                base = Decimal(str(proc.operational_cost)) if proc and proc.operational_cost else None
+                tx.operational_cost_snapshot = round(base * (upd_quantity or 1) / upd_sessions, 2) if base else None
         else:
             tx.operational_cost_snapshot = None
+    elif upd_cost_override is not None and tx.procedure_id:
+        tx.operational_cost_snapshot = round(Decimal(str(upd_cost_override)), 2)
     elif upd_quantity is not None and tx.procedure_id:
         # Solo cambió la cantidad o sesiones, mismo procedimiento
         proc = await db.scalar(

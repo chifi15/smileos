@@ -71,6 +71,7 @@ class TransactionCreate(BaseModel):
     procedure_id: str | None = None
     quantity: int = 1
     sessions: int = 1
+    operational_cost_override: float | None = None
     doctor_id: str | None = None
     invoice_number: str | None = None
     transaction_date: date
@@ -86,6 +87,7 @@ class TransactionUpdate(BaseModel):
     procedure_id: str | None = None
     quantity: int | None = None
     sessions: int | None = None
+    operational_cost_override: float | None = None
     doctor_id: str | None = None
     invoice_number: str | None = None
     transaction_date: date | None = None
