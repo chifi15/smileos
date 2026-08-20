@@ -417,6 +417,7 @@ interface FormState {
   original_currency: "NIO" | "USD";
   patient: PatientRef | null;
   procedure_id: string;
+  appointment_id: string;
   quantity: string;
   sessions: string;
   doctor_id: string;
@@ -436,6 +437,7 @@ function emptyForm(type: FinanceType): FormState {
     original_currency: "NIO",
     patient: null,
     procedure_id: "",
+    appointment_id: "",
     quantity: "1",
     sessions: "1",
     doctor_id: "",
@@ -454,6 +456,7 @@ function formFromTx(tx: FinanceTransaction): FormState {
     original_currency: (tx.original_currency as "NIO" | "USD") ?? "NIO",
     patient: tx.patient ? { id: tx.patient.id, name: tx.patient.full_name } : null,
     procedure_id: tx.procedure?.id ?? "",
+    appointment_id: "",
     quantity: String(tx.procedure_quantity ?? 1),
     sessions: "1",
     doctor_id: tx.doctor?.id ?? "",
@@ -523,6 +526,27 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     setMaterialsOpen(true);
   }
 
+  function initMaterialsFromAppointment(procedureId: string, aptId: string) {
+    const treatment = apiTreatments.find((t) => t.procedure_catalog_id === procedureId);
+    if (!treatment) { setUsedMaterials(null); return; }
+    const apt = treatment.appointments.find((a) => a.id === aptId);
+    if (!apt) { setUsedMaterials(null); return; }
+    const validIds = new Set(apiProducts.map((p) => p.id));
+    setUsedMaterials(
+      apt.materials
+        .filter((m) => validIds.has(m.productId))
+        .map((m) => ({ productId: m.productId, qty: m.quantity, altGroup: m.altGroup ?? null }))
+    );
+    setMaterialsOpen(true);
+  }
+
+  function calcMaterialsCost(materials: { productId: string; qty: number }[]): number {
+    return materials.reduce((sum, m) => {
+      const product = apiProducts.find((p) => p.id === m.productId);
+      return sum + (product ? product.unit_price * m.qty : 0);
+    }, 0);
+  }
+
   function set<K extends keyof FormState>(key: K, val: FormState[K]) {
     setForm((f) => ({ ...f, [key]: val }));
   }
@@ -541,6 +565,10 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
 
     const qty = Math.max(1, parseInt(form.quantity) || 1);
     const sessions = Math.max(1, parseInt(form.sessions) || 1);
+    // Si hay cita específica seleccionada y materiales cargados, calcular costo real de esa cita
+    const opCostOverride = form.appointment_id && usedMaterials
+      ? calcMaterialsCost(usedMaterials)
+      : null;
 
     if (isEdit) {
       const payload: Record<string, unknown> = {
@@ -557,6 +585,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         invoice_number: form.invoice_number.trim() || null,
         notes: form.notes.trim() || null,
       };
+      if (opCostOverride !== null) payload.operational_cost_override = opCostOverride;
       update.mutate({ txId: editTx!.id, payload }, { onSuccess: onClose });
       return;
     }
@@ -572,7 +601,12 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     };
 
     if (form.patient?.id) payload.patient_id = form.patient.id;
-    if (form.procedure_id) { payload.procedure_id = form.procedure_id; payload.quantity = qty; if (sessions > 1) payload.sessions = sessions; }
+    if (form.procedure_id) {
+      payload.procedure_id = form.procedure_id;
+      payload.quantity = qty;
+      if (sessions > 1) payload.sessions = sessions;
+      if (opCostOverride !== null) payload.operational_cost_override = opCostOverride;
+    }
     if (form.invoice_number.trim()) payload.invoice_number = form.invoice_number.trim();
     if (form.notes.trim()) payload.notes = form.notes.trim();
 
@@ -702,6 +736,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
             <select value={form.procedure_id}
               onChange={(e) => {
                 set("procedure_id", e.target.value);
+                set("appointment_id", "");
                 set("quantity", "1");
                 set("sessions", "1");
                 if (!isEdit) initMaterialsFromTreatment(e.target.value);
@@ -715,47 +750,88 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
           </div>
 
           {form.procedure_id && (() => {
+            const treatment = apiTreatments.find((t) => t.procedure_catalog_id === form.procedure_id);
+            const multiSession = !isEdit && treatment && treatment.appointments.length > 1;
             const proc = procedures.find((p) => p.id === form.procedure_id);
             const qty = Math.max(1, parseInt(form.quantity) || 1);
             const sess = Math.max(1, parseInt(form.sessions) || 1);
             const unitCost = proc?.operational_cost ?? 0;
-            const costThisSession = sess > 1 ? unitCost * qty / sess : unitCost * qty;
+            // Si hay cita específica, el costo viene de los materiales reales de esa cita
+            const matCost = form.appointment_id && usedMaterials ? calcMaterialsCost(usedMaterials) : null;
+            const costPreview = matCost !== null ? matCost : (sess > 1 ? unitCost * qty / sess : unitCost * qty);
             return (
-              <div className="flex items-end gap-3">
-                <div className="w-24 shrink-0">
-                  <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Cantidad</label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={form.quantity}
-                    onChange={(e) => set("quantity", e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div className="w-24 shrink-0">
-                  <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">
-                    Sesiones
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={form.sessions}
-                    onChange={(e) => set("sessions", e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    title="Número total de sesiones del tratamiento. El costo operativo se divide entre las sesiones."
-                  />
-                </div>
-                {unitCost > 0 && (
-                  <p className="mb-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2 flex-1">
-                    {sess > 1
-                      ? <>Costo op.: C${fmt(unitCost)} ÷ {sess} ses. = <strong>C${fmt(costThisSession)}</strong></>
-                      : <>Costo op.: C${fmt(unitCost)} × {qty} = <strong>C${fmt(costThisSession)}</strong></>
-                    }
-                  </p>
+              <>
+                {/* Selector de cita para tratamientos multi-sesión con plantilla definida */}
+                {multiSession && (
+                  <div>
+                    <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">
+                      ¿Qué cita del tratamiento es esta?
+                    </label>
+                    <select
+                      value={form.appointment_id}
+                      onChange={(e) => {
+                        const aptId = e.target.value;
+                        set("appointment_id", aptId);
+                        if (aptId) {
+                          initMaterialsFromAppointment(form.procedure_id, aptId);
+                        } else {
+                          initMaterialsFromTreatment(form.procedure_id);
+                        }
+                      }}
+                      className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">— Todas las citas (tratamiento completo) —</option>
+                      {treatment.appointments
+                        .slice()
+                        .sort((a, b) => a.number - b.number)
+                        .map((apt) => (
+                          <option key={apt.id} value={apt.id}>
+                            Cita {apt.number}{apt.name ? `: ${apt.name}` : ""} ({apt.materials.length} material{apt.materials.length !== 1 ? "es" : ""})
+                          </option>
+                        ))}
+                    </select>
+                  </div>
                 )}
-              </div>
+
+                <div className="flex items-end gap-3">
+                  <div className="w-24 shrink-0">
+                    <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Cantidad</label>
+                    <input
+                      type="number"
+                      min="1"
+                      step="1"
+                      value={form.quantity}
+                      onChange={(e) => set("quantity", e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  </div>
+                  {/* Sesiones: solo mostrar cuando NO hay cita específica seleccionada */}
+                  {!form.appointment_id && (
+                    <div className="w-24 shrink-0">
+                      <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Sesiones</label>
+                      <input
+                        type="number"
+                        min="1"
+                        step="1"
+                        value={form.sessions}
+                        onChange={(e) => set("sessions", e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        title="Número total de sesiones. El costo operativo se divide entre las sesiones."
+                      />
+                    </div>
+                  )}
+                  {(unitCost > 0 || matCost !== null) && (
+                    <p className="mb-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2 flex-1">
+                      {matCost !== null
+                        ? <>Costo op. esta cita: <strong>C${fmt(costPreview)}</strong> <span className="opacity-70">(por materiales)</span></>
+                        : sess > 1
+                          ? <>Costo op.: C${fmt(unitCost)} ÷ {sess} ses. = <strong>C${fmt(costPreview)}</strong></>
+                          : <>Costo op.: C${fmt(unitCost)} × {qty} = <strong>C${fmt(costPreview)}</strong></>
+                      }
+                    </p>
+                  )}
+                </div>
+              </>
             );
           })()}
 
