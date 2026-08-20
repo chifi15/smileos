@@ -58,7 +58,7 @@ import {
   apiProductToProduct,
   apiTreatmentToTreatment,
 } from "@/lib/costos-utils";
-import { PRODUCT_CATEGORY_LABELS, categoryLabel, categoryColor } from "@/types/costos";
+import { categoryLabel, categoryColor } from "@/types/costos";
 import CostSummaryBar from "@/components/costos/CostSummaryBar";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -291,13 +291,12 @@ function AddByCategoryModal({
   const existingIds = new Set(apt.materials.map((m) => m.productId));
   const available = products.filter((p) => !existingIds.has(p.id));
 
-  const byCategory = Object.entries(PRODUCT_CATEGORY_LABELS)
-    .map(([cat, label]) => ({
-      cat: cat as keyof typeof PRODUCT_CATEGORY_LABELS,
-      label,
-      items: available.filter((p) => p.category === cat),
-    }))
-    .filter((g) => g.items.length > 0);
+  const uniqueCats = [...new Set(available.map((p) => p.category))];
+  const byCategory = uniqueCats.map((cat) => ({
+    cat,
+    label: categoryLabel(cat),
+    items: available.filter((p) => p.category === cat),
+  }));
 
   function handleAddCategory(cat: string) {
     const toAdd = available.filter((p) => p.category === cat);
