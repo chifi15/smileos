@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { ArrowLeft, Plus, Trash2, Search, X, Edit2, Package, Calculator, ChevronRight, GripVertical, ImagePlus, Users, Loader2, Check } from "lucide-react";
 import Link from "next/link";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
@@ -15,6 +15,7 @@ import {
   useProductPatientUsage,
   useRenameCostCategory,
   useDeleteCostCategory,
+  useDeleteCostProducts,
   ApiProduct,
 } from "@/hooks/useCostos";
 import {
@@ -429,7 +430,7 @@ function ProductUsageModal({ product, onClose }: { product: ApiProduct; onClose:
 
 // ─── Fila sortable ────────────────────────────────────────────────────────────
 
-function SortableProductRow({ product, onEdit, onViewUsage, isDragDisabled, exchangeRate, rowNumber }: { product: ApiProduct; onEdit: () => void; onViewUsage: () => void; isDragDisabled: boolean; exchangeRate: number; rowNumber: number }) {
+function SortableProductRow({ product, onEdit, onViewUsage, isDragDisabled, exchangeRate, rowNumber, isSelected, onSelect }: { product: ApiProduct; onEdit: () => void; onViewUsage: () => void; isDragDisabled: boolean; exchangeRate: number; rowNumber: number; isSelected: boolean; onSelect: (shiftKey: boolean) => void }) {
   const deleteProduct = useDeleteCostProduct();
   const portions = calcPortions(product.presentation_qty, product.portion_qty);
   const hasCalc = portions != null && product.total_cost != null;
@@ -438,7 +439,16 @@ function SortableProductRow({ product, onEdit, onViewUsage, isDragDisabled, exch
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 10 : undefined };
 
   return (
-    <tr ref={setNodeRef} style={style} className="group hover:bg-slate-50/50 dark:hover:bg-gray-700/50 border-b border-slate-50 dark:border-gray-700">
+    <tr ref={setNodeRef} style={style} className={`group border-b border-slate-50 dark:border-gray-700 ${isSelected ? "bg-blue-50/70 dark:bg-blue-900/20" : "hover:bg-slate-50/50 dark:hover:bg-gray-700/50"}`}>
+      <td className="pl-3 py-3 w-10">
+        <input
+          type="checkbox"
+          checked={isSelected}
+          onChange={() => {}}
+          onClick={(e) => { e.stopPropagation(); onSelect(e.shiftKey); }}
+          className="rounded border-slate-300 dark:border-gray-600 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer accent-blue-600"
+        />
+      </td>
       <td className="pl-2 pr-1 py-3 w-7">
         {!isDragDisabled && (
           <button {...attributes} {...listeners}
@@ -524,6 +534,48 @@ export default function ProductosPage() {
   const [editCategoryValue, setEditCategoryValue] = useState("");
   const renameCategory = useRenameCostCategory();
   const deleteCategory = useDeleteCostCategory();
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const lastSelectedIndexRef = useRef<number | null>(null);
+  const bulkDelete = useDeleteCostProducts();
+
+  const filtered = products.filter((p) => {
+    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || (p.supplier ?? "").toLowerCase().includes(search.toLowerCase());
+    const matchCat = category === "all" || p.category === category;
+    return matchSearch && matchCat;
+  });
+
+  const allSelected = filtered.length > 0 && filtered.every((p) => selectedIds.has(p.id));
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  useEffect(() => {
+    setSelectedIds(new Set());
+    lastSelectedIndexRef.current = null;
+  }, [search, category]);
+
+  function handleSelect(id: string, index: number, shiftKey: boolean) {
+    if (shiftKey && lastSelectedIndexRef.current !== null) {
+      const from = Math.min(lastSelectedIndexRef.current, index);
+      const to = Math.max(lastSelectedIndexRef.current, index);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        for (let i = from; i <= to; i++) next.add(filtered[i].id);
+        return next;
+      });
+    } else {
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        if (next.has(id)) next.delete(id); else next.add(id);
+        return next;
+      });
+      lastSelectedIndexRef.current = index;
+    }
+  }
+
+  function handleBulkDelete() {
+    const count = selectedIds.size;
+    if (!confirm(`¿Eliminar ${count} producto${count !== 1 ? "s" : ""} seleccionado${count !== 1 ? "s" : ""}?`)) return;
+    bulkDelete.mutate([...selectedIds], { onSuccess: () => setSelectedIds(new Set()) });
+  }
 
   function handleRenameCategory(oldCat: string) {
     const newCat = editCategoryValue.trim();
@@ -554,12 +606,6 @@ export default function ProductosPage() {
     ...ALL_CATEGORIES.filter((c) => products.some((p) => p.category === c)),
     ...products.map((p) => p.category).filter((c) => !ALL_CATEGORIES.includes(c as ProductCategory)),
   ].filter((v, i, a) => a.indexOf(v) === i);
-
-  const filtered = products.filter((p) => {
-    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || (p.supplier ?? "").toLowerCase().includes(search.toLowerCase());
-    const matchCat = category === "all" || p.category === category;
-    return matchSearch && matchCat;
-  });
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -662,6 +708,26 @@ export default function ProductosPage() {
         </div>
       </div>
 
+      {selectedIds.size > 0 && (
+        <div className="mb-3 flex items-center gap-3 rounded-xl border border-blue-200 dark:border-blue-800/40 bg-blue-50 dark:bg-blue-900/20 px-4 py-2.5">
+          <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
+            {selectedIds.size} producto{selectedIds.size !== 1 ? "s" : ""} seleccionado{selectedIds.size !== 1 ? "s" : ""}
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={handleBulkDelete}
+              disabled={bulkDelete.isPending}
+              className="flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium bg-red-50 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/50 disabled:opacity-50"
+            >
+              <Trash2 size={13} /> Eliminar seleccionados
+            </button>
+            <button onClick={() => setSelectedIds(new Set())} className="text-xs text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200">
+              Cancelar
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-16 text-center">
@@ -673,6 +739,15 @@ export default function ProductosPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50 text-xs text-slate-500 dark:text-gray-400">
+                <th className="w-10 pl-3">
+                  <input
+                    type="checkbox"
+                    checked={allSelected}
+                    onChange={(e) => setSelectedIds(e.target.checked ? new Set(filtered.map((p) => p.id)) : new Set())}
+                    ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                    className="rounded border-slate-300 dark:border-gray-600 cursor-pointer accent-blue-600"
+                  />
+                </th>
                 <th className="w-7 pl-2" />
                 <th className="pr-2 py-3 text-right font-medium w-8">#</th>
                 <th className="px-3 py-3 text-left font-medium">Producto</th>
@@ -687,7 +762,7 @@ export default function ProductosPage() {
               <SortableContext items={filtered.map((p) => p.id)} strategy={verticalListSortingStrategy}>
                 <tbody>
                   {filtered.map((p, i) => (
-                    <SortableProductRow key={p.id} product={p} onEdit={() => setEditingProduct(p)} onViewUsage={() => setUsageProduct(p)} isDragDisabled={isDragDisabled} exchangeRate={exchangeRate} rowNumber={i + 1} />
+                    <SortableProductRow key={p.id} product={p} onEdit={() => setEditingProduct(p)} onViewUsage={() => setUsageProduct(p)} isDragDisabled={isDragDisabled} exchangeRate={exchangeRate} rowNumber={i + 1} isSelected={selectedIds.has(p.id)} onSelect={(shiftKey) => handleSelect(p.id, i, shiftKey)} />
                   ))}
                 </tbody>
               </SortableContext>

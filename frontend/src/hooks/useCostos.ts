@@ -115,6 +115,15 @@ export function useDeleteCostProduct() {
   });
 }
 
+export function useDeleteCostProducts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) =>
+      Promise.all(ids.map((id) => api.delete(`/api/v1/costos/products/${id}`))),
+    onSuccess: () => qc.invalidateQueries({ queryKey: PRODUCTS_KEY }),
+  });
+}
+
 export function useRenameCostCategory() {
   const qc = useQueryClient();
   return useMutation({
