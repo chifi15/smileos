@@ -47,6 +47,7 @@ import {
   useDuplicateCostAppointment,
   useMergeCostAppointments,
   useUpdateCostAppointment,
+  useLinkCostProcedure,
   ApiProduct,
   ApiTreatment,
   ApiAppointment,
@@ -59,6 +60,7 @@ import {
   apiTreatmentToTreatment,
 } from "@/lib/costos-utils";
 import { categoryLabel, categoryColor } from "@/types/costos";
+import { useProcedures } from "@/hooks/useCatalog";
 import CostSummaryBar from "@/components/costos/CostSummaryBar";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -1068,6 +1070,9 @@ export default function TreatmentDetailPage({
   const duplicateAppointment = useDuplicateCostAppointment();
   const mergeMutation = useMergeCostAppointments();
   const updateApt = useUpdateCostAppointment();
+  const linkProcedure = useLinkCostProcedure();
+
+  const { data: catalogProcedures = [] } = useProcedures();
 
   const treatment = treatments.find((t) => t.id === id);
   const products = apiProducts.map(apiProductToProduct);
@@ -1081,6 +1086,7 @@ export default function TreatmentDetailPage({
   const [editName, setEditName] = useState(false);
   const [nameValue, setNameValue] = useState("");
   const [clipboard, setClipboard] = useState<{ materials: MaterialUsage[]; name: string; sourceAptId: string } | null>(null);
+  const [linkOpen, setLinkOpen] = useState(false);
 
   function handlePaste(aptId: string, mode: "replace" | "merge") {
     if (!clipboard || !treatment) return;
@@ -1177,6 +1183,55 @@ export default function TreatmentDetailPage({
             <span>
               {treatment.appointments.length} cita{treatment.appointments.length !== 1 ? "s" : ""}
             </span>
+          </div>
+
+          {/* Vincular procedimiento del catálogo */}
+          <div className="mt-2 relative">
+            {treatment.procedure_catalog_id ? (
+              <div className="flex items-center gap-2 text-xs">
+                <Link2 size={11} className="text-green-500 shrink-0" />
+                <span className="text-slate-500 dark:text-gray-400">Vinculado a:</span>
+                <span className="font-medium text-slate-700 dark:text-gray-200">
+                  {catalogProcedures.find((p) => p.id === treatment.procedure_catalog_id)?.name ?? "Procedimiento"}
+                </span>
+                <button
+                  onClick={() => linkProcedure.mutate({ treatmentId: id, procedureCatalogId: null })}
+                  className="ml-1 text-slate-300 hover:text-red-400 dark:text-gray-600 dark:hover:text-red-400 transition-colors"
+                  title="Desvincular"
+                >
+                  <X size={11} />
+                </button>
+              </div>
+            ) : (
+              <div className="relative inline-block">
+                <button
+                  onClick={() => setLinkOpen((v) => !v)}
+                  className="flex items-center gap-1.5 text-xs text-slate-400 dark:text-gray-500 hover:text-blue-500 dark:hover:text-blue-400 transition-colors"
+                >
+                  <Link2 size={11} />
+                  Vincular a procedimiento del catálogo
+                </button>
+                {linkOpen && (
+                  <div className="absolute left-0 top-full mt-1 z-30 min-w-[220px] max-h-60 overflow-y-auto rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg">
+                    <p className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wide border-b border-slate-100 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-800">
+                      Seleccionar procedimiento
+                    </p>
+                    {catalogProcedures.map((p) => (
+                      <button
+                        key={p.id}
+                        onClick={() => { linkProcedure.mutate({ treatmentId: id, procedureCatalogId: p.id }); setLinkOpen(false); }}
+                        className="flex w-full items-center px-3 py-2 text-sm text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 text-left"
+                      >
+                        {p.name}
+                      </button>
+                    ))}
+                    {catalogProcedures.length === 0 && (
+                      <p className="px-3 py-2 text-xs text-slate-400 dark:text-gray-500">No hay procedimientos en el catálogo</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         </div>
       </div>
