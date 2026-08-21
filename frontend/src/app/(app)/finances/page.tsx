@@ -502,6 +502,14 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   const [addMatSearch, setAddMatSearch] = useState("");
   const [addMatOpen, setAddMatOpen] = useState(false);
 
+  // En modo edición, inicializar materiales cuando cargan los tratamientos (para mostrarlos como referencia)
+  useEffect(() => {
+    if (isEdit && form.procedure_id && apiTreatments.length > 0 && usedMaterials === null) {
+      initMaterialsFromTreatment(form.procedure_id);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiTreatments.length, isEdit, form.procedure_id]);
+
   function initMaterialsFromTreatment(procedureId: string) {
     const treatment = apiTreatments.find((t) => t.procedure_catalog_id === procedureId);
     if (!treatment) { setUsedMaterials(null); return; }
@@ -739,7 +747,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                 set("appointment_id", "");
                 set("quantity", "1");
                 set("sessions", "1");
-                if (!isEdit) initMaterialsFromTreatment(e.target.value);
+                initMaterialsFromTreatment(e.target.value);
               }}
               className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">— Sin procedimiento —</option>
@@ -849,8 +857,8 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
             </div>
           )}
 
-          {/* ── Panel de materiales (solo en transacciones nuevas con tratamiento vinculado) ── */}
-          {!isEdit && usedMaterials !== null && (
+          {/* ── Panel de materiales ── */}
+          {usedMaterials !== null && (
             <div className="rounded-xl border border-slate-200 dark:border-gray-600 overflow-hidden">
               <button
                 type="button"
@@ -860,11 +868,16 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                 <div className="flex items-center gap-2">
                   <Package size={14} className="text-slate-400 dark:text-gray-500" />
                   <span className="text-xs font-semibold text-slate-700 dark:text-gray-300">
-                    Materiales a descontar del inventario
+                    {isEdit ? "Materiales del procedimiento" : "Materiales a descontar del inventario"}
                   </span>
                   <span className="rounded-full bg-slate-100 dark:bg-gray-700 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:text-gray-400">
                     {usedMaterials.length}
                   </span>
+                  {isEdit && (
+                    <span className="text-[10px] text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded px-1.5 py-0.5">
+                      Solo referencia
+                    </span>
+                  )}
                 </div>
                 {materialsOpen ? <ChevronUp size={14} className="text-slate-400 dark:text-gray-500" /> : <ChevronDown size={14} className="text-slate-400 dark:text-gray-500" />}
               </button>
