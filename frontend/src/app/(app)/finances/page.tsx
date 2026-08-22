@@ -1243,7 +1243,7 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                         />
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-slate-600 dark:text-gray-400 text-xs">
-                        {new Date(tx.transaction_date + "T12:00:00").toLocaleDateString("es-NI", { day: "2-digit", month: "short" })}
+                        {new Date(tx.transaction_date + "T12:00:00").toLocaleDateString("es-NI", { weekday: "short", day: "2-digit", month: "short" })}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
@@ -1419,7 +1419,7 @@ function PatientTransactionsModal({ patientId, patientName, onClose }: {
                 {txs.map((tx) => (
                   <tr key={tx.id} className="hover:bg-slate-50 dark:hover:bg-gray-700">
                     <td className="px-5 py-3 text-xs text-slate-500 dark:text-gray-400 whitespace-nowrap">
-                      {new Date(tx.transaction_date + "T12:00:00").toLocaleDateString("es-NI", { day: "2-digit", month: "short", year: "numeric" })}
+                      {new Date(tx.transaction_date + "T12:00:00").toLocaleDateString("es-NI", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}
                     </td>
                     <td className="px-5 py-3 text-xs text-slate-600 dark:text-gray-400">
                       {ALL_CATEGORY_LABELS[tx.category] ?? tx.category}
