@@ -20,7 +20,9 @@ import {
   Stethoscope,
   ChevronLeft,
   ChevronRight,
+  Package,
 } from "lucide-react";
+import { categoryLabel, categoryColor } from "@/types/costos";
 import Spinner from "@/components/ui/Spinner";
 import {
   useReportSummary,
@@ -30,6 +32,7 @@ import {
   useTopExpenses,
   useDoctorReport,
   useTopPatients,
+  useTopMaterials,
 } from "@/hooks/useReports";
 
 const MONTHS = [
@@ -149,6 +152,7 @@ export default function ReportesPage() {
   const { data: topExp } = useTopExpenses(year, filterMonth);
   const { data: doctors } = useDoctorReport(year, filterMonth);
   const { data: topPatients } = useTopPatients(year, filterMonth);
+  const { data: topMaterials } = useTopMaterials(year, filterMonth);
 
   function prevMonth() {
     if (month === 1) { setMonth(12); setYear(y => y - 1); }
@@ -414,36 +418,75 @@ export default function ReportesPage() {
         </TableCard>
       </div>
 
-      {/* Row 3: Top pacientes */}
-      <TableCard title="Top pacientes por facturación" empty={!topPatients?.length}>
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
-              <th className="px-4 py-2 font-medium">#</th>
-              <th className="px-4 py-2 font-medium">Paciente</th>
-              <th className="px-4 py-2 font-medium text-right">Pagos</th>
-              <th className="px-4 py-2 font-medium text-right">Total pagado</th>
-            </tr>
-          </thead>
-          <tbody>
-            {topPatients?.map((p, i) => (
-              <tr key={p.patient_id} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
-                <td className="px-4 py-2.5 text-slate-400 dark:text-gray-500">{i + 1}</td>
-                <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-gray-200">
-                  <div className="flex items-center gap-2">
-                    <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[10px] font-bold">
-                      {p.patient_name.charAt(0).toUpperCase()}
-                    </div>
-                    {p.patient_name}
-                  </div>
-                </td>
-                <td className="px-4 py-2.5 text-right text-slate-600 dark:text-gray-300">{p.count}</td>
-                <td className="px-4 py-2.5 text-right font-semibold text-green-600 dark:text-green-400">{fmt(p.total)}</td>
+      {/* Row 3: Top pacientes + Materiales más usados */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <TableCard title="Top pacientes por facturación" empty={!topPatients?.length}>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
+                <th className="px-4 py-2 font-medium">#</th>
+                <th className="px-4 py-2 font-medium">Paciente</th>
+                <th className="px-4 py-2 font-medium text-right">Pagos</th>
+                <th className="px-4 py-2 font-medium text-right">Total pagado</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
-      </TableCard>
+            </thead>
+            <tbody>
+              {topPatients?.map((p, i) => (
+                <tr key={p.patient_id} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
+                  <td className="px-4 py-2.5 text-slate-400 dark:text-gray-500">{i + 1}</td>
+                  <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-gray-200">
+                    <div className="flex items-center gap-2">
+                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 text-[10px] font-bold">
+                        {p.patient_name.charAt(0).toUpperCase()}
+                      </div>
+                      {p.patient_name}
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-slate-600 dark:text-gray-300">{p.count}</td>
+                  <td className="px-4 py-2.5 text-right font-semibold text-green-600 dark:text-green-400">{fmt(p.total)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableCard>
+
+        <TableCard title="Materiales más usados" empty={!topMaterials?.length}>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
+                <th className="px-4 py-2 font-medium">#</th>
+                <th className="px-4 py-2 font-medium">Material</th>
+                <th className="px-4 py-2 font-medium text-right">Unidades</th>
+                <th className="px-4 py-2 font-medium text-right">Costo total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {topMaterials?.map((m, i) => (
+                <tr key={m.product_id} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
+                  <td className="px-4 py-2.5 text-slate-400 dark:text-gray-500">{i + 1}</td>
+                  <td className="px-4 py-2.5">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                        <Package size={12} />
+                      </div>
+                      <div className="min-w-0">
+                        <p className="font-medium text-slate-700 dark:text-gray-200 truncate">{m.name}</p>
+                        <span className={`inline-block mt-0.5 rounded px-1 py-0.5 text-[10px] leading-none ${categoryColor(m.category)}`}>
+                          {categoryLabel(m.category)}
+                        </span>
+                      </div>
+                    </div>
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-slate-600 dark:text-gray-300">
+                    {m.total_units % 1 === 0 ? m.total_units.toFixed(0) : m.total_units.toFixed(2)}
+                  </td>
+                  <td className="px-4 py-2.5 text-right font-semibold text-amber-600 dark:text-amber-400">{fmt(m.total_cost)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </TableCard>
+      </div>
     </div>
   );
 }

@@ -56,6 +56,15 @@ export interface TopPatient {
   count: number;
 }
 
+export interface TopMaterial {
+  product_id: string;
+  name: string;
+  category: string;
+  unit_price: number;
+  total_units: number;
+  total_cost: number;
+}
+
 const base = "/api/v1/reports/finances";
 
 export function useReportSummary(year: number, month: number) {
@@ -141,6 +150,19 @@ export function useTopPatients(year: number, month: number | null) {
       const params = month ? `year=${year}&month=${month}` : `year=${year}`;
       const { data } = await apiClient.get<{ data: TopPatient[] }>(
         `${base}/top-patients?${params}`
+      );
+      return data.data;
+    },
+  });
+}
+
+export function useTopMaterials(year: number, month: number | null) {
+  return useQuery({
+    queryKey: ["report-top-materials", year, month],
+    queryFn: async () => {
+      const params = month ? `year=${year}&month=${month}` : `year=${year}`;
+      const { data } = await apiClient.get<{ data: TopMaterial[] }>(
+        `${base}/top-materials?${params}`
       );
       return data.data;
     },

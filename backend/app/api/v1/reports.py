@@ -84,3 +84,14 @@ async def top_patients(
     from app.services.finance_service import get_income_by_patient
     data = await get_income_by_patient(db, user.clinic_id, year, month)
     return {"success": True, "data": data[:10]}
+
+
+@router.get("/finances/top-materials")
+async def top_materials(
+    user: Annotated[object, require_permission("view_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    year: int = Query(...),
+    month: int | None = Query(default=None),
+):
+    data = await reports_service.get_top_materials(db, user.clinic_id, year, month)
+    return {"success": True, "data": data}
