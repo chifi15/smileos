@@ -18,6 +18,7 @@ import {
   Package,
   Sun,
   Moon,
+  BarChart2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth.store";
@@ -41,6 +42,12 @@ const NAV = [
       { label: "Finanzas", href: "/finances", icon: TrendingUp },
       { label: "Costos", href: "/costos", icon: Calculator },
       { label: "Inventario", href: "/inventario", icon: Package },
+    ],
+  },
+  {
+    section: "Reportes",
+    items: [
+      { label: "Reportes", href: "/reportes", icon: BarChart2 },
     ],
   },
   {
