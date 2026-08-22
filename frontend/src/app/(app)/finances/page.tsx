@@ -57,6 +57,7 @@ import {
   ALL_CATEGORY_LABELS,
   TransactionCreatePayload,
 } from "@/types";
+import { fmtDate } from "@/lib/utils";
 
 const MONTHS_ES = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -67,15 +68,6 @@ function fmt(n: number) {
   return new Intl.NumberFormat("es-NI", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 }
 
-const _DAYS = ["dom.", "lun.", "mar.", "mié.", "jue.", "vie.", "sáb."];
-const _MONTHS = ["ene.", "feb.", "mar.", "abr.", "may.", "jun.", "jul.", "ago.", "sep.", "oct.", "nov.", "dic."];
-function fmtDate(dateStr: string, showYear = false) {
-  const d = new Date(dateStr + "T12:00:00");
-  const day = _DAYS[d.getDay()];
-  const num = String(d.getDate()).padStart(2, "0");
-  const month = _MONTHS[d.getMonth()];
-  return showYear ? `${day} ${num} ${month} ${d.getFullYear()}` : `${day} ${num} ${month}`;
-}
 
 const ALT_FINANCE_COLORS: Record<string, { row: string; badge: string }> = {
   A: { row: "border-l-4 border-l-orange-400 bg-orange-100 dark:bg-orange-900/25", badge: "bg-orange-200 text-orange-800 border-orange-300 dark:bg-orange-900/50 dark:text-orange-300 dark:border-orange-700" },
@@ -1429,7 +1421,7 @@ function PatientTransactionsModal({ patientId, patientName, onClose }: {
                 {txs.map((tx) => (
                   <tr key={tx.id} className="hover:bg-slate-50 dark:hover:bg-gray-700">
                     <td className="px-5 py-3 text-xs text-slate-500 dark:text-gray-400 whitespace-nowrap">
-                      {fmtDate(tx.transaction_date, true)}
+                      {fmtDate(tx.transaction_date)}
                     </td>
                     <td className="px-5 py-3 text-xs text-slate-600 dark:text-gray-400">
                       {ALL_CATEGORY_LABELS[tx.category] ?? tx.category}

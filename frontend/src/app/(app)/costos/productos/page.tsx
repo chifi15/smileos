@@ -27,6 +27,7 @@ import {
 } from "@/types/costos";
 import { fmtC, fmtUSD, fmt } from "@/lib/costos-utils";
 import { useClinicSettings } from "@/hooks/useSettings";
+import { fmtDate } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 
 const ALL_CATEGORIES: ProductCategory[] = [
@@ -395,7 +396,7 @@ function ProductUsageModal({ product, onClose }: { product: ApiProduct; onClose:
                       <p className="text-xs text-slate-400 dark:text-gray-500">{row.treatment_name}</p>
                     </td>
                     <td className="px-4 py-3 text-center text-slate-500 dark:text-gray-400 tabular-nums">
-                      {new Date(row.date + "T00:00:00").toLocaleDateString("es-NI", { day: "2-digit", month: "short", year: "numeric" })}
+                      {fmtDate(row.date, { showWeekday: false })}
                     </td>
                     <td className="px-5 py-3 text-right">
                       <p className="font-semibold text-slate-800 dark:text-white tabular-nums">
@@ -470,7 +471,7 @@ function SortableProductRow({ product, onEdit, onViewUsage, isDragDisabled, exch
           <div className="min-w-0">
             <p className="font-medium text-slate-800 dark:text-white">{product.name}</p>
             {product.supplier && <p className="text-xs text-slate-400 dark:text-gray-500">{product.supplier}</p>}
-            {product.purchase_date && <p className="text-xs text-slate-400 dark:text-gray-500">Comprado: {new Date(product.purchase_date + "T00:00:00").toLocaleDateString("es-NI", { day: "2-digit", month: "short", year: "numeric" })}</p>}
+            {product.purchase_date && <p className="text-xs text-slate-400 dark:text-gray-500">Comprado: {fmtDate(product.purchase_date, { showWeekday: false })}</p>}
             {product.notes && <p className="text-xs text-slate-300 dark:text-gray-600 italic truncate max-w-[160px]">{product.notes}</p>}
           </div>
         </div>

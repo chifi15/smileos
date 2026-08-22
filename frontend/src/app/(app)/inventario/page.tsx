@@ -17,6 +17,7 @@ import {
 } from "@/hooks/useCostos";
 import { categoryLabel, categoryColor, ProductCategory } from "@/types/costos";
 import { fmt, fmtC, fmtUSD } from "@/lib/costos-utils";
+import { fmtDate } from "@/lib/utils";
 import { useClinicSettings } from "@/hooks/useSettings";
 
 const ALL_CATEGORIES: ProductCategory[] = [
@@ -167,9 +168,7 @@ function AdjustModal({ product, onClose }: { product: ApiProduct; onClose: () =>
 // ─── Modal historial de lotes ──────────────────────────────────────────────────
 
 function formatDate(iso: string) {
-  return new Date(iso + (iso.includes("T") ? "" : "T00:00:00")).toLocaleDateString("es-NI", {
-    day: "2-digit", month: "short", year: "numeric",
-  });
+  return fmtDate(iso, { showWeekday: false });
 }
 
 function LotHistoryModal({ product, onClose }: { product: ApiProduct; onClose: () => void }) {
@@ -420,7 +419,7 @@ function InventoryRow({ product, onAdjust, onLots, exchangeRate }: { product: Ap
             {product.supplier && <p className="text-xs text-slate-400 dark:text-gray-500">{product.supplier}</p>}
             {product.purchase_date && (
               <p className="text-xs text-slate-400 dark:text-gray-500">
-                Comprado: {new Date(product.purchase_date + "T00:00:00").toLocaleDateString("es-NI", { day: "2-digit", month: "short", year: "numeric" })}
+                Comprado: {fmtDate(product.purchase_date, { showWeekday: false })}
               </p>
             )}
           </div>
