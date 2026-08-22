@@ -159,6 +159,7 @@ class FixedCostsIn(BaseModel):
 class FixedCostsOut(BaseModel):
     patients_per_month: int
     items: List[Any]
+    procedures_synced: int = 0
 
     class Config:
         from_attributes = True
@@ -530,7 +531,7 @@ async def update_fixed_costs(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
-    config = await svc.update_fixed_costs(
+    config, synced = await svc.update_fixed_costs(
         db,
         current_user.clinic_id,
         body.patients_per_month,
@@ -539,9 +540,9 @@ async def update_fixed_costs(
     await audit_service.log(
         db, clinic_id=current_user.clinic_id, user_id=current_user.id,
         action="fixed_costs.updated", resource_type="fixed_costs", resource_id=str(current_user.clinic_id),
-        description=f"Actualizó costos fijos ({len(body.items)} conceptos, {body.patients_per_month} pacientes/mes)",
+        description=f"Actualizó costos fijos ({len(body.items)} conceptos, {body.patients_per_month} pacientes/mes, {synced} procedimientos sincronizados)",
     )
-    return {"patients_per_month": config.patients_per_month, "items": config.items}
+    return {"patients_per_month": config.patients_per_month, "items": config.items, "procedures_synced": synced}
 
 
 # ─── Product Lots ──────────────────────────────────────────────────────────────

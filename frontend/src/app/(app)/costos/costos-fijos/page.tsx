@@ -6,6 +6,7 @@ import { ArrowLeft, Plus, Trash2, Check, X, Pencil, Info } from "lucide-react";
 import { useFixedCosts, useUpdateFixedCosts, ApiFixedCostItem } from "@/hooks/useCostos";
 import { fmtC, fmt } from "@/lib/costos-utils";
 import Button from "@/components/ui/Button";
+import { toast } from "sonner";
 
 // ─── Fila editable ────────────────────────────────────────────────────────────
 
@@ -150,7 +151,20 @@ export default function CostosFijosPage() {
 
   function save(newItems: ApiFixedCostItem[], newPatients?: number) {
     if (!config) return;
-    updateFixedCosts.mutate({ patients_per_month: newPatients ?? patientsPerMonth, items: newItems });
+    updateFixedCosts.mutate(
+      { patients_per_month: newPatients ?? patientsPerMonth, items: newItems },
+      {
+        onSuccess: (res) => {
+          const synced = res?.data?.procedures_synced ?? 0;
+          if (synced > 0) {
+            toast.success(`Costos fijos guardados. ${synced} procedimiento${synced !== 1 ? "s" : ""} actualizados en el catálogo.`);
+          } else {
+            toast.success("Costos fijos guardados.");
+          }
+        },
+        onError: () => toast.error("Error al guardar costos fijos."),
+      }
+    );
   }
 
   function handleUpdateItem(id: string, updates: Partial<ApiFixedCostItem>) {
@@ -278,7 +292,7 @@ export default function CostosFijosPage() {
           <div className="flex items-start gap-2.5 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 px-4 py-3">
             <Info size={15} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <p className="text-xs text-amber-700 dark:text-amber-400">
-              Este valor (<strong>{fmtC(perPaciente)}</strong>) se aplica automáticamente a todos los tratamientos en el cálculo de costos.
+              Este valor (<strong>{fmtC(perPaciente)}</strong>) se aplica automáticamente a todos los tratamientos en el cálculo de costos. Al guardar cualquier cambio, los <strong>costos operativos del catálogo de procedimientos</strong> vinculados a un tratamiento se actualizan automáticamente.
             </p>
           </div>
         </div>

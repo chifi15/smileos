@@ -333,7 +333,7 @@ export function useUpdateFixedCosts() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: ApiFixedCosts) =>
-      api.put("/api/v1/costos/fixed-costs", data).then((r) => r.data),
+      api.put<{ data: ApiFixedCosts & { procedures_synced: number } }>("/api/v1/costos/fixed-costs", data).then((r) => r.data),
     onMutate: async (data) => {
       await qc.cancelQueries({ queryKey: FIXED_COSTS_KEY });
       const prev = qc.getQueryData<ApiFixedCosts>(FIXED_COSTS_KEY);
@@ -341,7 +341,11 @@ export function useUpdateFixedCosts() {
       return { prev };
     },
     onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(FIXED_COSTS_KEY, ctx.prev); },
-    onSettled: () => qc.invalidateQueries({ queryKey: FIXED_COSTS_KEY }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: FIXED_COSTS_KEY });
+      qc.invalidateQueries({ queryKey: ["costos", "treatments"] });
+      qc.invalidateQueries({ queryKey: ["procedure-catalog"] });
+    },
   });
 }
 

@@ -726,12 +726,93 @@ async def get_fixed_costs(db: AsyncSession, clinic_id: uuid.UUID) -> FixedCostsC
     return config
 
 
-async def update_fixed_costs(db: AsyncSession, clinic_id: uuid.UUID, patients_per_month: int, items: list[dict]) -> FixedCostsConfig:
+async def update_fixed_costs(db: AsyncSession, clinic_id: uuid.UUID, patients_per_month: int, items: list[dict]) -> tuple[FixedCostsConfig, int]:
     config = await get_fixed_costs(db, clinic_id)
     config.patients_per_month = patients_per_month
     config.items = items
     await db.flush()
-    return config
+    updated = await _sync_operational_costs(db, clinic_id, patients_per_month, items)
+    return config, updated
+
+
+async def _sync_operational_costs(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    patients_per_month: int,
+    items: list[dict],
+) -> int:
+    """Recalculate ProcedureCatalog.operational_cost for all treatments linked to a procedure.
+    Also updates CostTreatment.fixed_costs to the new per-patient fixed cost.
+    Returns the number of procedures updated.
+    """
+    from app.models.treatment import ProcedureCatalog
+
+    per_patient = sum(float(i.get("amount", 0)) for i in items) / max(patients_per_month, 1)
+
+    # Load all linked treatments with their appointments
+    result = await db.execute(
+        select(CostTreatment)
+        .where(
+            CostTreatment.clinic_id == clinic_id,
+            CostTreatment.procedure_catalog_id.isnot(None),
+        )
+        .options(selectinload(CostTreatment.appointments))
+    )
+    treatments = list(result.scalars().all())
+    if not treatments:
+        return 0
+
+    # Collect all product IDs referenced in appointment materials
+    all_product_ids: set[uuid.UUID] = set()
+    for t in treatments:
+        for apt in t.appointments:
+            for mat in (apt.materials or []):
+                if pid := mat.get("productId"):
+                    try:
+                        all_product_ids.add(uuid.UUID(str(pid)))
+                    except ValueError:
+                        pass
+
+    product_prices: dict[str, float] = {}
+    if all_product_ids:
+        prod_result = await db.execute(
+            select(CostProduct.id, CostProduct.unit_price)
+            .where(CostProduct.clinic_id == clinic_id, CostProduct.id.in_(all_product_ids))
+        )
+        product_prices = {str(r.id): float(r.unit_price or 0.0) for r in prod_result}
+
+    # Load linked ProcedureCatalog rows
+    proc_ids = [t.procedure_catalog_id for t in treatments]
+    proc_result = await db.execute(
+        select(ProcedureCatalog).where(ProcedureCatalog.id.in_(proc_ids))
+    )
+    procedures: dict[uuid.UUID, ProcedureCatalog] = {p.id: p for p in proc_result.scalars().all()}
+
+    updated = 0
+    for treatment in treatments:
+        # Material cost across all appointments
+        material_cost = 0.0
+        for apt in treatment.appointments:
+            for mat in (apt.materials or []):
+                pid = mat.get("productId")
+                qty = float(mat.get("quantity", 0))
+                if pid and qty > 0:
+                    material_cost += qty * product_prices.get(str(pid), 0.0)
+
+        # Update treatment fixed_costs to the new per-patient value
+        treatment.fixed_costs = round(per_patient, 2)
+
+        # Recalculate operational cost
+        prof_fees = float(treatment.professional_fee_per_hour) * float(treatment.total_hours)
+        new_op_cost = round(material_cost + prof_fees + per_patient, 2)
+
+        proc = procedures.get(treatment.procedure_catalog_id)
+        if proc:
+            proc.operational_cost = new_op_cost
+            updated += 1
+
+    await db.flush()
+    return updated
 
 
 # ─── Product Lots ─────────────────────────────────────────────────────────────
