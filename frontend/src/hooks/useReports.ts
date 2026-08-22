@@ -84,11 +84,12 @@ export interface OpCostRow {
   total_op_cost: number;
 }
 
-export interface MaterialMonthTrend {
+export interface MaterialMonthGroup {
   month: number;
   mes: string;
   total_units: number;
   total_cost: number;
+  materials: TopMaterial[];
 }
 
 export interface TopMaterial {
@@ -191,12 +192,12 @@ export function useTopPatients(year: number, month: number | null) {
   });
 }
 
-export function useMaterialsMonthlyTrend(year: number) {
+export function useMaterialsByMonth(year: number) {
   return useQuery({
-    queryKey: ["report-materials-trend", year],
+    queryKey: ["report-materials-by-month", year],
     queryFn: async () => {
-      const { data } = await apiClient.get<{ data: MaterialMonthTrend[] }>(
-        `${base}/materials-monthly-trend?year=${year}`
+      const { data } = await apiClient.get<{ data: MaterialMonthGroup[] }>(
+        `${base}/materials-by-month?year=${year}`
       );
       return data.data;
     },

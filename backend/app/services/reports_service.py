@@ -257,14 +257,15 @@ async def get_full_summary(
     }
 
 
-async def get_materials_monthly_trend(
+async def get_materials_by_month(
     db: AsyncSession,
     clinic_id: uuid.UUID,
     year: int,
 ) -> list[dict]:
+    """Returns, for each month of the year, the list of materials used with units and cost."""
     from app.models.costos import CostTreatment, CostProduct
 
-    # Build procedure -> materials map (same logic as get_top_materials)
+    # Build procedure -> {productId -> qty_per_procedure} map
     result = await db.execute(
         select(CostTreatment)
         .where(
@@ -275,9 +276,7 @@ async def get_materials_monthly_trend(
     )
     treatments = list(result.scalars().all())
     if not treatments:
-        return [{
-            "month": m, "mes": MONTH_NAMES[m], "total_units": 0.0, "total_cost": 0.0
-        } for m in range(1, 13)]
+        return []
 
     proc_to_materials: dict[str, dict[str, float]] = {}
     for treatment in treatments:
@@ -296,11 +295,9 @@ async def get_materials_monthly_trend(
             proc_to_materials[proc_str] = existing
 
     if not proc_to_materials:
-        return [{
-            "month": m, "mes": MONTH_NAMES[m], "total_units": 0.0, "total_cost": 0.0
-        } for m in range(1, 13)]
+        return []
 
-    # Load unit prices
+    # Load product details (name, category, unit_price)
     all_product_ids = {pid for mats in proc_to_materials.values() for pid in mats}
     prod_result = await db.execute(
         select(CostProduct).where(
@@ -308,9 +305,9 @@ async def get_materials_monthly_trend(
             CostProduct.id.in_([uuid.UUID(p) for p in all_product_ids]),
         )
     )
-    unit_prices: dict[str, float] = {str(p.id): (p.unit_price or 0.0) for p in prod_result.scalars().all()}
+    products: dict[str, CostProduct] = {str(p.id): p for p in prod_result.scalars().all()}
 
-    # Get all transactions for the year grouped by month
+    # Load all relevant transactions for the year
     proc_ids = [uuid.UUID(p) for p in proc_to_materials.keys()]
     tx_result = await db.execute(
         select(
@@ -327,11 +324,9 @@ async def get_materials_monthly_trend(
     )
     transactions = tx_result.all()
 
-    # Aggregate by month
-    by_month: dict[int, dict] = {
-        m: {"month": m, "mes": MONTH_NAMES[m], "total_units": 0.0, "total_cost": 0.0}
-        for m in range(1, 13)
-    }
+    # Aggregate per month per product
+    # by_month[month_int][product_id] = total_units
+    by_month: dict[int, dict[str, float]] = {m: {} for m in range(1, 13)}
     for tx in transactions:
         m = int(tx.month)
         proc_str = str(tx.procedure_id)
@@ -339,15 +334,39 @@ async def get_materials_monthly_trend(
         proc_qty = tx.procedure_quantity or 1
         for pid, qty_per_proc in mats.items():
             units = qty_per_proc * proc_qty
-            cost = units * unit_prices.get(pid, 0.0)
-            by_month[m]["total_units"] += units
-            by_month[m]["total_cost"] += cost
+            by_month[m][pid] = by_month[m].get(pid, 0.0) + units
 
-    for row in by_month.values():
-        row["total_units"] = round(row["total_units"], 4)
-        row["total_cost"] = round(row["total_cost"], 2)
+    # Build result — only include months that have data
+    result_months = []
+    for m in range(1, 13):
+        month_mats = by_month[m]
+        if not month_mats:
+            continue
+        rows = []
+        for pid, total_units in month_mats.items():
+            product = products.get(pid)
+            if not product:
+                continue
+            total_units_r = round(total_units, 4)
+            total_cost = round(total_units_r * (product.unit_price or 0.0), 2)
+            rows.append({
+                "product_id": pid,
+                "name": product.name,
+                "category": product.category,
+                "unit_price": product.unit_price or 0.0,
+                "total_units": total_units_r,
+                "total_cost": total_cost,
+            })
+        rows.sort(key=lambda x: x["total_units"], reverse=True)
+        result_months.append({
+            "month": m,
+            "mes": MONTH_NAMES[m],
+            "materials": rows,
+            "total_units": round(sum(r["total_units"] for r in rows), 4),
+            "total_cost": round(sum(r["total_cost"] for r in rows), 2),
+        })
 
-    return list(by_month.values())
+    return result_months
 
 
 async def get_income_detail(

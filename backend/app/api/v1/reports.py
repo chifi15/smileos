@@ -86,13 +86,13 @@ async def top_patients(
     return {"success": True, "data": data[:10]}
 
 
-@router.get("/finances/materials-monthly-trend")
-async def materials_monthly_trend(
+@router.get("/finances/materials-by-month")
+async def materials_by_month(
     user: Annotated[object, require_permission("view_patients")],
     db: Annotated[AsyncSession, Depends(get_db)],
     year: int = Query(...),
 ):
-    data = await reports_service.get_materials_monthly_trend(db, user.clinic_id, year)
+    data = await reports_service.get_materials_by_month(db, user.clinic_id, year)
     return {"success": True, "data": data}
 
 

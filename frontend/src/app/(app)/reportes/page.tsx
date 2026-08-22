@@ -36,7 +36,7 @@ import {
   useIncomeDetail,
   useExpenseDetail,
   useOpCostsBreakdown,
-  useMaterialsMonthlyTrend,
+  useMaterialsByMonth,
 } from "@/hooks/useReports";
 
 const MONTHS = [
@@ -160,7 +160,7 @@ export default function ReportesPage() {
   const { data: incomeDetail } = useIncomeDetail(year, filterMonth);
   const { data: expenseDetail } = useExpenseDetail(year, filterMonth);
   const { data: opCosts } = useOpCostsBreakdown(year, filterMonth);
-  const { data: materialsTrend } = useMaterialsMonthlyTrend(year);
+  const { data: materialsByMonth } = useMaterialsByMonth(year);
 
   function prevMonth() {
     if (month === 1) { setMonth(12); setYear(y => y - 1); }
@@ -508,61 +508,75 @@ export default function ReportesPage() {
         </TableCard>
       </div>
 
-      {/* ── Consumo de materiales por mes ── */}
-      <TableCard title={`Consumo de materiales por mes — ${year}`} empty={!materialsTrend?.some(r => r.total_units > 0)}>
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
-              <th className="px-4 py-2 font-medium">Mes</th>
-              <th className="px-4 py-2 font-medium text-right">Unidades consumidas</th>
-              <th className="px-4 py-2 font-medium text-right">Costo en materiales</th>
-            </tr>
-          </thead>
-          <tbody>
-            {materialsTrend?.map((r) => (
-              <tr
-                key={r.month}
-                className={`border-b border-slate-50 dark:border-gray-700/50 transition-colors ${
-                  r.month === month
-                    ? "bg-amber-50 dark:bg-amber-900/10"
-                    : "hover:bg-slate-50 dark:hover:bg-gray-700/30"
-                }`}
-              >
-                <td className={`px-4 py-2.5 font-medium ${r.month === month ? "text-amber-700 dark:text-amber-400" : "text-slate-700 dark:text-gray-200"}`}>
-                  {r.mes}
-                  {r.month === month && (
-                    <span className="ml-2 text-[10px] font-normal text-amber-500 dark:text-amber-400">(seleccionado)</span>
-                  )}
-                </td>
-                <td className="px-4 py-2.5 text-right text-slate-600 dark:text-gray-300">
-                  {r.total_units > 0
-                    ? (r.total_units % 1 === 0 ? r.total_units.toFixed(0) : r.total_units.toFixed(2))
-                    : <span className="text-slate-300 dark:text-gray-600">—</span>}
-                </td>
-                <td className={`px-4 py-2.5 text-right font-semibold ${r.total_cost > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-300 dark:text-gray-600"}`}>
-                  {r.total_cost > 0 ? fmt(r.total_cost) : "—"}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-          {materialsTrend && materialsTrend.some(r => r.total_units > 0) && (
-            <tfoot>
-              <tr className="border-t-2 border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/40">
-                <td className="px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-gray-300">Total año</td>
-                <td className="px-4 py-2.5 text-right font-bold text-slate-700 dark:text-gray-200">
-                  {(() => {
-                    const t = materialsTrend.reduce((s, r) => s + r.total_units, 0);
-                    return t % 1 === 0 ? t.toFixed(0) : t.toFixed(2);
-                  })()}
-                </td>
-                <td className="px-4 py-2.5 text-right text-sm font-bold text-amber-600 dark:text-amber-400">
-                  {fmt(materialsTrend.reduce((s, r) => s + r.total_cost, 0))}
-                </td>
-              </tr>
-            </tfoot>
-          )}
-        </table>
-      </TableCard>
+      {/* ── Materiales por mes ── */}
+      {materialsByMonth && materialsByMonth.length > 0 ? (
+        <div className="space-y-3">
+          <SectionTitle>Materiales usados por mes — {year}</SectionTitle>
+          {materialsByMonth.map((group) => (
+            <div key={group.month} className="rounded-xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shadow-sm overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-gray-700 bg-amber-50/60 dark:bg-amber-900/10">
+                <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
+                  {group.mes} {year}
+                </p>
+                <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-gray-400">
+                  <span>{group.materials.length} material{group.materials.length !== 1 ? "es" : ""}</span>
+                  <span className="font-semibold text-amber-600 dark:text-amber-400">{fmt(group.total_cost)}</span>
+                </div>
+              </div>
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
+                    <th className="px-4 py-2 font-medium">#</th>
+                    <th className="px-4 py-2 font-medium">Material</th>
+                    <th className="px-4 py-2 font-medium text-right">Precio unit.</th>
+                    <th className="px-4 py-2 font-medium text-right">Unidades</th>
+                    <th className="px-4 py-2 font-medium text-right">Costo total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {group.materials.map((m, i) => (
+                    <tr key={m.product_id} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
+                      <td className="px-4 py-2.5 text-slate-400 dark:text-gray-500">{i + 1}</td>
+                      <td className="px-4 py-2.5">
+                        <div className="flex items-center gap-2 min-w-0">
+                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                            <Package size={12} />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="font-medium text-slate-700 dark:text-gray-200 truncate">{m.name}</p>
+                            <span className={`inline-block mt-0.5 rounded px-1 py-0.5 text-[10px] leading-none ${categoryColor(m.category)}`}>
+                              {categoryLabel(m.category)}
+                            </span>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2.5 text-right text-slate-400 dark:text-gray-500">{fmt(m.unit_price)}</td>
+                      <td className="px-4 py-2.5 text-right text-slate-600 dark:text-gray-300">
+                        {m.total_units % 1 === 0 ? m.total_units.toFixed(0) : m.total_units.toFixed(2)}
+                      </td>
+                      <td className="px-4 py-2.5 text-right font-semibold text-amber-600 dark:text-amber-400">{fmt(m.total_cost)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/40">
+                    <td colSpan={4} className="px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-gray-300">
+                      Total {group.mes}
+                    </td>
+                    <td className="px-4 py-2.5 text-right text-sm font-bold text-amber-600 dark:text-amber-400">
+                      {fmt(group.total_cost)}
+                    </td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shadow-sm p-8 text-center text-sm text-slate-400 dark:text-gray-500">
+          Sin datos de materiales para {year}
+        </div>
+      )}
 
       {/* ── Detalle: Facturación bruta ── */}
       <TableCard
