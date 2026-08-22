@@ -66,12 +66,12 @@ function KpiCard({
   positive?: boolean;
 }) {
   return (
-    <div className="rounded-xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shadow-sm p-5">
-      <div className="flex items-start justify-between">
+    <div className="rounded-xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shadow-sm p-4">
+      <div className="flex items-start justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <p className="text-sm text-slate-500 dark:text-gray-400">{label}</p>
+          <p className="text-xs text-slate-500 dark:text-gray-400 leading-tight">{label}</p>
           <p
-            className={`mt-1 text-2xl font-bold truncate ${
+            className={`mt-1 text-lg font-bold leading-tight break-words ${
               positive === true
                 ? "text-green-600 dark:text-green-400"
                 : positive === false
@@ -81,10 +81,10 @@ function KpiCard({
           >
             {value}
           </p>
-          {sub && <p className="mt-0.5 text-xs text-slate-400 dark:text-gray-500">{sub}</p>}
+          {sub && <p className="mt-0.5 text-[10px] text-slate-400 dark:text-gray-500 leading-tight">{sub}</p>}
         </div>
-        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${color}`}>
-          <Icon size={19} />
+        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${color}`}>
+          <Icon size={16} />
         </div>
       </div>
     </div>
@@ -191,7 +191,7 @@ export default function ReportesPage() {
       {loadingSummary ? (
         <div className="flex justify-center py-8"><Spinner /></div>
       ) : summary ? (
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-6">
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
           <KpiCard
             label="Facturación bruta"
             value={fmt(summary.ingresos_brutos)}
