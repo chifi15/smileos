@@ -710,7 +710,8 @@ export default function ReportesPage() {
                 <th className="px-4 py-2 font-medium">Mes</th>
                 <th className="px-4 py-2 font-medium text-right">Ingresos</th>
                 <th className="px-4 py-2 font-medium text-right">Egresos</th>
-                <th className="px-4 py-2 font-medium text-right">Utilidad</th>
+                <th className="px-4 py-2 font-medium text-right">Costos op.</th>
+                <th className="px-4 py-2 font-medium text-right">Utilidad real</th>
               </tr>
             </thead>
             <tbody>
@@ -719,6 +720,7 @@ export default function ReportesPage() {
                   <td className="px-4 py-2.5 text-slate-700 dark:text-gray-200 font-medium">{r.mes}</td>
                   <td className="px-4 py-2.5 text-right text-green-600 dark:text-green-400">{fmt(r.ingresos)}</td>
                   <td className="px-4 py-2.5 text-right text-red-500 dark:text-red-400">{fmt(r.egresos)}</td>
+                  <td className="px-4 py-2.5 text-right text-amber-600 dark:text-amber-400">{r.costos_op > 0 ? fmt(r.costos_op) : <span className="text-slate-300 dark:text-gray-600">—</span>}</td>
                   <td className={`px-4 py-2.5 text-right font-semibold ${r.utilidad >= 0 ? "text-blue-600 dark:text-blue-400" : "text-red-600 dark:text-red-400"}`}>
                     {fmt(r.utilidad)}
                   </td>
@@ -734,6 +736,9 @@ export default function ReportesPage() {
                   </td>
                   <td className="px-4 py-2.5 text-right font-bold text-red-500 dark:text-red-400">
                     {fmt(trend.reduce((s, r) => s + r.egresos, 0))}
+                  </td>
+                  <td className="px-4 py-2.5 text-right font-bold text-amber-600 dark:text-amber-400">
+                    {fmt(trend.reduce((s, r) => s + r.costos_op, 0))}
                   </td>
                   <td className="px-4 py-2.5 text-right text-sm font-bold text-blue-600 dark:text-blue-400">
                     {fmt(trend.reduce((s, r) => s + r.utilidad, 0))}

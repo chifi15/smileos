@@ -6,6 +6,7 @@ export interface MonthTrend {
   mes: string;
   ingresos: number;
   egresos: number;
+  costos_op: number;
   utilidad: number;
 }
 
