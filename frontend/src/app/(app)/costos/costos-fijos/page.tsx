@@ -6,7 +6,7 @@ import { ArrowLeft, Plus, Trash2, Check, X, Pencil, Info } from "lucide-react";
 import { useFixedCosts, useUpdateFixedCosts, ApiFixedCostItem } from "@/hooks/useCostos";
 import { fmtC, fmt } from "@/lib/costos-utils";
 import Button from "@/components/ui/Button";
-import { toast } from "sonner";
+import toast from "react-hot-toast";
 
 // ─── Fila editable ────────────────────────────────────────────────────────────
 
