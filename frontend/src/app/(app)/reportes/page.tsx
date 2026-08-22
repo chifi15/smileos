@@ -484,6 +484,18 @@ export default function ReportesPage() {
                 </tr>
               ))}
             </tbody>
+            {topMaterials && topMaterials.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/40">
+                  <td colSpan={3} className="px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-gray-300">
+                    Total gastado en materiales
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-sm font-bold text-amber-600 dark:text-amber-400">
+                    {fmt(topMaterials.reduce((sum, m) => sum + m.total_cost, 0))}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
           </table>
         </TableCard>
       </div>
