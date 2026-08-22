@@ -532,138 +532,139 @@ export default function ReportesPage() {
               </div>
             </div>
             {!group ? (
-              <p className="py-8 text-center text-sm text-slate-400 dark:text-gray-500">
+              <p className="py-6 text-center text-sm text-slate-400 dark:text-gray-500">
                 Sin datos de materiales para {MONTHS[materialMonth - 1]} {year}
               </p>
             ) : (
-              <table className="w-full text-xs">
-                <thead>
-                  <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
-                    <th className="px-3 py-1.5 font-medium">#</th>
-                    <th className="px-3 py-1.5 font-medium">Material</th>
-                    <th className="px-3 py-1.5 font-medium text-right">Precio unit.</th>
-                    <th className="px-3 py-1.5 font-medium text-right">Unidades</th>
-                    <th className="px-3 py-1.5 font-medium text-right">Costo total</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {group.materials.map((m, i) => (
-                    <tr key={m.product_id} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
-                      <td className="px-3 py-1 text-slate-400 dark:text-gray-500">{i + 1}</td>
-                      <td className="px-3 py-1">
-                        <div className="flex items-center gap-1.5 min-w-0">
-                          <Package size={11} className="shrink-0 text-amber-500 dark:text-amber-400" />
-                          <span className="font-medium text-slate-700 dark:text-gray-200 truncate">{m.name}</span>
-                          <span className={`shrink-0 rounded px-1 py-0.5 text-[10px] leading-none ${categoryColor(m.category)}`}>
-                            {categoryLabel(m.category)}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="px-3 py-1 text-right text-slate-400 dark:text-gray-500">{fmt(m.unit_price)}</td>
-                      <td className="px-3 py-1 text-right text-slate-600 dark:text-gray-300">
-                        {m.total_units % 1 === 0 ? m.total_units.toFixed(0) : m.total_units.toFixed(2)}
-                      </td>
-                      <td className="px-3 py-1 text-right font-semibold text-amber-600 dark:text-amber-400">{fmt(m.total_cost)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-                <tfoot>
-                  <tr className="border-t-2 border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/40">
-                    <td colSpan={4} className="px-3 py-1.5 font-semibold text-slate-600 dark:text-gray-300">
-                      Total {MONTHS[materialMonth - 1]}
-                    </td>
-                    <td className="px-3 py-1.5 text-right font-bold text-amber-600 dark:text-amber-400">
-                      {fmt(group.total_cost)}
-                    </td>
-                  </tr>
-                </tfoot>
-              </table>
+              <>
+                <div className="overflow-y-auto max-h-60">
+                  <table className="w-full text-xs">
+                    <thead className="sticky top-0 z-10 bg-white dark:bg-gray-800">
+                      <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
+                        <th className="px-3 py-1.5 font-medium">#</th>
+                        <th className="px-3 py-1.5 font-medium">Material</th>
+                        <th className="px-3 py-1.5 font-medium text-right">Precio unit.</th>
+                        <th className="px-3 py-1.5 font-medium text-right">Unidades</th>
+                        <th className="px-3 py-1.5 font-medium text-right">Costo total</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {group.materials.map((m, i) => (
+                        <tr key={m.product_id} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
+                          <td className="px-3 py-1 text-slate-400 dark:text-gray-500">{i + 1}</td>
+                          <td className="px-3 py-1">
+                            <div className="flex items-center gap-1.5 min-w-0">
+                              <Package size={11} className="shrink-0 text-amber-500 dark:text-amber-400" />
+                              <span className="font-medium text-slate-700 dark:text-gray-200 truncate">{m.name}</span>
+                              <span className={`shrink-0 rounded px-1 py-0.5 text-[10px] leading-none ${categoryColor(m.category)}`}>
+                                {categoryLabel(m.category)}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="px-3 py-1 text-right text-slate-400 dark:text-gray-500">{fmt(m.unit_price)}</td>
+                          <td className="px-3 py-1 text-right text-slate-600 dark:text-gray-300">
+                            {m.total_units % 1 === 0 ? m.total_units.toFixed(0) : m.total_units.toFixed(2)}
+                          </td>
+                          <td className="px-3 py-1 text-right font-semibold text-amber-600 dark:text-amber-400">{fmt(m.total_cost)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div className="border-t-2 border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/40 flex justify-between px-3 py-1.5 text-xs">
+                  <span className="font-semibold text-slate-600 dark:text-gray-300">Total {MONTHS[materialMonth - 1]}</span>
+                  <span className="font-bold text-amber-600 dark:text-amber-400">{fmt(group.total_cost)}</span>
+                </div>
+              </>
             )}
           </div>
         );
       })()}
 
-      {/* ── Detalle: Facturación bruta ── */}
-      <TableCard
-        title={`Detalle de ingresos${incomeDetail && incomeDetail.length === 100 ? " (últimos 100)" : ""}`}
-        empty={!incomeDetail?.length}
-      >
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
-              <th className="px-3 py-1.5 font-medium">Fecha</th>
-              <th className="px-3 py-1.5 font-medium">Paciente</th>
-              <th className="px-3 py-1.5 font-medium">Procedimiento</th>
-              <th className="px-3 py-1.5 font-medium">Doctor</th>
-              <th className="px-3 py-1.5 font-medium text-right">Monto</th>
-            </tr>
-          </thead>
-          <tbody>
-            {incomeDetail?.map((t) => (
-              <tr key={t.id} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
-                <td className="px-3 py-1 text-slate-500 dark:text-gray-400 whitespace-nowrap">{t.date}</td>
-                <td className="px-3 py-1 text-slate-700 dark:text-gray-200">{t.patient_name ?? "—"}</td>
-                <td className="px-3 py-1 text-slate-600 dark:text-gray-300">{t.procedure_name ?? t.description}</td>
-                <td className="px-3 py-1 text-slate-500 dark:text-gray-400">{t.doctor_name ?? "—"}</td>
-                <td className="px-3 py-1 text-right font-semibold text-green-600 dark:text-green-400">{fmt(t.amount)}</td>
-              </tr>
-            ))}
-          </tbody>
-          {incomeDetail && incomeDetail.length > 0 && (
-            <tfoot>
-              <tr className="border-t-2 border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/40">
-                <td colSpan={4} className="px-3 py-1.5 font-semibold text-slate-600 dark:text-gray-300">
-                  Total facturación bruta
-                </td>
-                <td className="px-3 py-1.5 text-right font-bold text-green-600 dark:text-green-400">
-                  {fmt(incomeDetail.reduce((s, t) => s + t.amount, 0))}
-                </td>
-              </tr>
-            </tfoot>
+      {/* ── Detalle: Ingresos + Egresos ── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        {/* Ingresos */}
+        <div className="rounded-xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-100 dark:border-gray-700">
+            <p className="text-sm font-semibold text-slate-700 dark:text-gray-200">
+              Detalle de ingresos{incomeDetail && incomeDetail.length === 100 ? " (últimos 100)" : ""}
+            </p>
+          </div>
+          {!incomeDetail?.length ? (
+            <p className="py-6 text-center text-sm text-slate-400 dark:text-gray-500">Sin datos</p>
+          ) : (
+            <>
+              <div className="overflow-y-auto max-h-60">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 z-10 bg-white dark:bg-gray-800">
+                    <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
+                      <th className="px-3 py-1.5 font-medium">Fecha</th>
+                      <th className="px-3 py-1.5 font-medium">Paciente</th>
+                      <th className="px-3 py-1.5 font-medium">Procedimiento</th>
+                      <th className="px-3 py-1.5 font-medium text-right">Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {incomeDetail.map((t) => (
+                      <tr key={t.id} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
+                        <td className="px-3 py-1 text-slate-500 dark:text-gray-400 whitespace-nowrap">{t.date}</td>
+                        <td className="px-3 py-1 text-slate-700 dark:text-gray-200 truncate max-w-[120px]">{t.patient_name ?? "—"}</td>
+                        <td className="px-3 py-1 text-slate-600 dark:text-gray-300 truncate max-w-[120px]">{t.procedure_name ?? t.description}</td>
+                        <td className="px-3 py-1 text-right font-semibold text-green-600 dark:text-green-400 whitespace-nowrap">{fmt(t.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="border-t-2 border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/40 flex justify-between px-3 py-1.5 text-xs">
+                <span className="font-semibold text-slate-600 dark:text-gray-300">Total facturación bruta</span>
+                <span className="font-bold text-green-600 dark:text-green-400">{fmt(incomeDetail.reduce((s, t) => s + t.amount, 0))}</span>
+              </div>
+            </>
           )}
-        </table>
-      </TableCard>
+        </div>
 
-      {/* ── Detalle: Egresos ── */}
-      <TableCard
-        title={`Detalle de egresos${expenseDetail && expenseDetail.length === 100 ? " (últimos 100)" : ""}`}
-        empty={!expenseDetail?.length}
-      >
-        <table className="w-full text-xs">
-          <thead>
-            <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
-              <th className="px-3 py-1.5 font-medium">Fecha</th>
-              <th className="px-3 py-1.5 font-medium">Categoría</th>
-              <th className="px-3 py-1.5 font-medium">Descripción</th>
-              <th className="px-3 py-1.5 font-medium">No. factura</th>
-              <th className="px-3 py-1.5 font-medium text-right">Monto</th>
-            </tr>
-          </thead>
-          <tbody>
-            {expenseDetail?.map((t) => (
-              <tr key={t.id} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
-                <td className="px-3 py-1 text-slate-500 dark:text-gray-400 whitespace-nowrap">{t.date}</td>
-                <td className="px-3 py-1 text-slate-600 dark:text-gray-300">{t.category_label}</td>
-                <td className="px-3 py-1 text-slate-700 dark:text-gray-200">{t.description}</td>
-                <td className="px-3 py-1 text-slate-400 dark:text-gray-500">{t.invoice_number ?? "—"}</td>
-                <td className="px-3 py-1 text-right font-semibold text-red-500 dark:text-red-400">{fmt(t.amount)}</td>
-              </tr>
-            ))}
-          </tbody>
-          {expenseDetail && expenseDetail.length > 0 && (
-            <tfoot>
-              <tr className="border-t-2 border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/40">
-                <td colSpan={4} className="px-3 py-1.5 font-semibold text-slate-600 dark:text-gray-300">
-                  Total egresos
-                </td>
-                <td className="px-3 py-1.5 text-right font-bold text-red-500 dark:text-red-400">
-                  {fmt(expenseDetail.reduce((s, t) => s + t.amount, 0))}
-                </td>
-              </tr>
-            </tfoot>
+        {/* Egresos */}
+        <div className="rounded-xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shadow-sm overflow-hidden">
+          <div className="px-4 py-3 border-b border-slate-100 dark:border-gray-700">
+            <p className="text-sm font-semibold text-slate-700 dark:text-gray-200">
+              Detalle de egresos{expenseDetail && expenseDetail.length === 100 ? " (últimos 100)" : ""}
+            </p>
+          </div>
+          {!expenseDetail?.length ? (
+            <p className="py-6 text-center text-sm text-slate-400 dark:text-gray-500">Sin datos</p>
+          ) : (
+            <>
+              <div className="overflow-y-auto max-h-60">
+                <table className="w-full text-xs">
+                  <thead className="sticky top-0 z-10 bg-white dark:bg-gray-800">
+                    <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
+                      <th className="px-3 py-1.5 font-medium">Fecha</th>
+                      <th className="px-3 py-1.5 font-medium">Categoría</th>
+                      <th className="px-3 py-1.5 font-medium">Descripción</th>
+                      <th className="px-3 py-1.5 font-medium text-right">Monto</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {expenseDetail.map((t) => (
+                      <tr key={t.id} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
+                        <td className="px-3 py-1 text-slate-500 dark:text-gray-400 whitespace-nowrap">{t.date}</td>
+                        <td className="px-3 py-1 text-slate-600 dark:text-gray-300 whitespace-nowrap">{t.category_label}</td>
+                        <td className="px-3 py-1 text-slate-700 dark:text-gray-200 truncate max-w-[140px]">{t.description}</td>
+                        <td className="px-3 py-1 text-right font-semibold text-red-500 dark:text-red-400 whitespace-nowrap">{fmt(t.amount)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+              <div className="border-t-2 border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/40 flex justify-between px-3 py-1.5 text-xs">
+                <span className="font-semibold text-slate-600 dark:text-gray-300">Total egresos</span>
+                <span className="font-bold text-red-500 dark:text-red-400">{fmt(expenseDetail.reduce((s, t) => s + t.amount, 0))}</span>
+              </div>
+            </>
           )}
-        </table>
-      </TableCard>
+        </div>
+      </div>
 
       {/* ── Detalle: Costos operativos + Utilidad mensual ── */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
