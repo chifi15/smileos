@@ -67,6 +67,16 @@ function fmt(n: number) {
   return new Intl.NumberFormat("es-NI", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 }
 
+const _DAYS = ["dom.", "lun.", "mar.", "mié.", "jue.", "vie.", "sáb."];
+const _MONTHS = ["ene.", "feb.", "mar.", "abr.", "may.", "jun.", "jul.", "ago.", "sep.", "oct.", "nov.", "dic."];
+function fmtDate(dateStr: string, showYear = false) {
+  const d = new Date(dateStr + "T12:00:00");
+  const day = _DAYS[d.getDay()];
+  const num = String(d.getDate()).padStart(2, "0");
+  const month = _MONTHS[d.getMonth()];
+  return showYear ? `${day} ${num} ${month} ${d.getFullYear()}` : `${day} ${num} ${month}`;
+}
+
 const ALT_FINANCE_COLORS: Record<string, { row: string; badge: string }> = {
   A: { row: "border-l-4 border-l-orange-400 bg-orange-100 dark:bg-orange-900/25", badge: "bg-orange-200 text-orange-800 border-orange-300 dark:bg-orange-900/50 dark:text-orange-300 dark:border-orange-700" },
   B: { row: "border-l-4 border-l-violet-400 bg-violet-100 dark:bg-violet-900/25", badge: "bg-violet-200 text-violet-800 border-violet-300 dark:bg-violet-900/50 dark:text-violet-300 dark:border-violet-700" },
@@ -1243,7 +1253,7 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                         />
                       </td>
                       <td className="px-4 py-3 whitespace-nowrap text-slate-600 dark:text-gray-400 text-xs">
-                        {new Date(tx.transaction_date + "T12:00:00").toLocaleDateString("es-NI", { weekday: "short", day: "2-digit", month: "short" })}
+                        {fmtDate(tx.transaction_date)}
                       </td>
                       <td className="px-4 py-3">
                         <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${
@@ -1419,7 +1429,7 @@ function PatientTransactionsModal({ patientId, patientName, onClose }: {
                 {txs.map((tx) => (
                   <tr key={tx.id} className="hover:bg-slate-50 dark:hover:bg-gray-700">
                     <td className="px-5 py-3 text-xs text-slate-500 dark:text-gray-400 whitespace-nowrap">
-                      {new Date(tx.transaction_date + "T12:00:00").toLocaleDateString("es-NI", { weekday: "short", day: "2-digit", month: "short", year: "numeric" })}
+                      {fmtDate(tx.transaction_date, true)}
                     </td>
                     <td className="px-5 py-3 text-xs text-slate-600 dark:text-gray-400">
                       {ALL_CATEGORY_LABELS[tx.category] ?? tx.category}
