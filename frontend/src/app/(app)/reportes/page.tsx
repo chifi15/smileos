@@ -33,6 +33,9 @@ import {
   useDoctorReport,
   useTopPatients,
   useTopMaterials,
+  useIncomeDetail,
+  useExpenseDetail,
+  useOpCostsBreakdown,
 } from "@/hooks/useReports";
 
 const MONTHS = [
@@ -153,6 +156,9 @@ export default function ReportesPage() {
   const { data: doctors } = useDoctorReport(year, filterMonth);
   const { data: topPatients } = useTopPatients(year, filterMonth);
   const { data: topMaterials } = useTopMaterials(year, filterMonth);
+  const { data: incomeDetail } = useIncomeDetail(year, filterMonth);
+  const { data: expenseDetail } = useExpenseDetail(year, filterMonth);
+  const { data: opCosts } = useOpCostsBreakdown(year, filterMonth);
 
   function prevMonth() {
     if (month === 1) { setMonth(12); setYear(y => y - 1); }
@@ -492,6 +498,167 @@ export default function ReportesPage() {
                   </td>
                   <td className="px-4 py-2.5 text-right text-sm font-bold text-amber-600 dark:text-amber-400">
                     {fmt(topMaterials.reduce((sum, m) => sum + m.total_cost, 0))}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </TableCard>
+      </div>
+
+      {/* ── Detalle: Facturación bruta ── */}
+      <TableCard
+        title={`Detalle de ingresos${incomeDetail && incomeDetail.length === 100 ? " (últimos 100)" : ""}`}
+        empty={!incomeDetail?.length}
+      >
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
+              <th className="px-4 py-2 font-medium">Fecha</th>
+              <th className="px-4 py-2 font-medium">Paciente</th>
+              <th className="px-4 py-2 font-medium">Procedimiento</th>
+              <th className="px-4 py-2 font-medium">Doctor</th>
+              <th className="px-4 py-2 font-medium text-right">Monto</th>
+            </tr>
+          </thead>
+          <tbody>
+            {incomeDetail?.map((t) => (
+              <tr key={t.id} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
+                <td className="px-4 py-2.5 text-slate-500 dark:text-gray-400 whitespace-nowrap">{t.date}</td>
+                <td className="px-4 py-2.5 text-slate-700 dark:text-gray-200">{t.patient_name ?? "—"}</td>
+                <td className="px-4 py-2.5 text-slate-600 dark:text-gray-300">{t.procedure_name ?? t.description}</td>
+                <td className="px-4 py-2.5 text-slate-500 dark:text-gray-400">{t.doctor_name ?? "—"}</td>
+                <td className="px-4 py-2.5 text-right font-semibold text-green-600 dark:text-green-400">{fmt(t.amount)}</td>
+              </tr>
+            ))}
+          </tbody>
+          {incomeDetail && incomeDetail.length > 0 && (
+            <tfoot>
+              <tr className="border-t-2 border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/40">
+                <td colSpan={4} className="px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-gray-300">
+                  Total facturación bruta
+                </td>
+                <td className="px-4 py-2.5 text-right text-sm font-bold text-green-600 dark:text-green-400">
+                  {fmt(incomeDetail.reduce((s, t) => s + t.amount, 0))}
+                </td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </TableCard>
+
+      {/* ── Detalle: Egresos ── */}
+      <TableCard
+        title={`Detalle de egresos${expenseDetail && expenseDetail.length === 100 ? " (últimos 100)" : ""}`}
+        empty={!expenseDetail?.length}
+      >
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
+              <th className="px-4 py-2 font-medium">Fecha</th>
+              <th className="px-4 py-2 font-medium">Categoría</th>
+              <th className="px-4 py-2 font-medium">Descripción</th>
+              <th className="px-4 py-2 font-medium">No. factura</th>
+              <th className="px-4 py-2 font-medium text-right">Monto</th>
+            </tr>
+          </thead>
+          <tbody>
+            {expenseDetail?.map((t) => (
+              <tr key={t.id} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
+                <td className="px-4 py-2.5 text-slate-500 dark:text-gray-400 whitespace-nowrap">{t.date}</td>
+                <td className="px-4 py-2.5 text-slate-600 dark:text-gray-300">{t.category_label}</td>
+                <td className="px-4 py-2.5 text-slate-700 dark:text-gray-200">{t.description}</td>
+                <td className="px-4 py-2.5 text-slate-400 dark:text-gray-500">{t.invoice_number ?? "—"}</td>
+                <td className="px-4 py-2.5 text-right font-semibold text-red-500 dark:text-red-400">{fmt(t.amount)}</td>
+              </tr>
+            ))}
+          </tbody>
+          {expenseDetail && expenseDetail.length > 0 && (
+            <tfoot>
+              <tr className="border-t-2 border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/40">
+                <td colSpan={4} className="px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-gray-300">
+                  Total egresos
+                </td>
+                <td className="px-4 py-2.5 text-right text-sm font-bold text-red-500 dark:text-red-400">
+                  {fmt(expenseDetail.reduce((s, t) => s + t.amount, 0))}
+                </td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </TableCard>
+
+      {/* ── Detalle: Costos operativos + Utilidad mensual ── */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+        <TableCard title="Costos operativos por procedimiento" empty={!opCosts?.length}>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
+                <th className="px-4 py-2 font-medium">Procedimiento</th>
+                <th className="px-4 py-2 font-medium text-right">Veces</th>
+                <th className="px-4 py-2 font-medium text-right">Prom. / vez</th>
+                <th className="px-4 py-2 font-medium text-right">Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {opCosts?.map((r) => (
+                <tr key={r.procedure_id ?? "none"} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
+                  <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-gray-200">{r.procedure_name}</td>
+                  <td className="px-4 py-2.5 text-right text-slate-600 dark:text-gray-300">{r.count}</td>
+                  <td className="px-4 py-2.5 text-right text-slate-500 dark:text-gray-400">{fmt(r.avg_op_cost)}</td>
+                  <td className="px-4 py-2.5 text-right font-semibold text-amber-600 dark:text-amber-400">{fmt(r.total_op_cost)}</td>
+                </tr>
+              ))}
+            </tbody>
+            {opCosts && opCosts.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/40">
+                  <td colSpan={3} className="px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-gray-300">
+                    Total costos operativos
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-sm font-bold text-amber-600 dark:text-amber-400">
+                    {fmt(opCosts.reduce((s, r) => s + r.total_op_cost, 0))}
+                  </td>
+                </tr>
+              </tfoot>
+            )}
+          </table>
+        </TableCard>
+
+        <TableCard title={`Utilidad mensual ${year}`} empty={!trend?.length}>
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
+                <th className="px-4 py-2 font-medium">Mes</th>
+                <th className="px-4 py-2 font-medium text-right">Ingresos</th>
+                <th className="px-4 py-2 font-medium text-right">Egresos</th>
+                <th className="px-4 py-2 font-medium text-right">Utilidad</th>
+              </tr>
+            </thead>
+            <tbody>
+              {trend?.map((r) => (
+                <tr key={r.month} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
+                  <td className="px-4 py-2.5 text-slate-700 dark:text-gray-200 font-medium">{r.mes}</td>
+                  <td className="px-4 py-2.5 text-right text-green-600 dark:text-green-400">{fmt(r.ingresos)}</td>
+                  <td className="px-4 py-2.5 text-right text-red-500 dark:text-red-400">{fmt(r.egresos)}</td>
+                  <td className={`px-4 py-2.5 text-right font-semibold ${r.utilidad >= 0 ? "text-blue-600 dark:text-blue-400" : "text-red-600 dark:text-red-400"}`}>
+                    {fmt(r.utilidad)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            {trend && trend.length > 0 && (
+              <tfoot>
+                <tr className="border-t-2 border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/40">
+                  <td className="px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-gray-300">Total año</td>
+                  <td className="px-4 py-2.5 text-right font-bold text-green-600 dark:text-green-400">
+                    {fmt(trend.reduce((s, r) => s + r.ingresos, 0))}
+                  </td>
+                  <td className="px-4 py-2.5 text-right font-bold text-red-500 dark:text-red-400">
+                    {fmt(trend.reduce((s, r) => s + r.egresos, 0))}
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-sm font-bold text-blue-600 dark:text-blue-400">
+                    {fmt(trend.reduce((s, r) => s + r.utilidad, 0))}
                   </td>
                 </tr>
               </tfoot>

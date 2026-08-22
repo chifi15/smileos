@@ -86,6 +86,39 @@ async def top_patients(
     return {"success": True, "data": data[:10]}
 
 
+@router.get("/finances/income-detail")
+async def income_detail(
+    user: Annotated[object, require_permission("view_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    year: int = Query(...),
+    month: int | None = Query(default=None),
+):
+    data = await reports_service.get_income_detail(db, user.clinic_id, year, month)
+    return {"success": True, "data": data}
+
+
+@router.get("/finances/expense-detail")
+async def expense_detail(
+    user: Annotated[object, require_permission("view_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    year: int = Query(...),
+    month: int | None = Query(default=None),
+):
+    data = await reports_service.get_expense_detail(db, user.clinic_id, year, month)
+    return {"success": True, "data": data}
+
+
+@router.get("/finances/op-costs-breakdown")
+async def op_costs_breakdown(
+    user: Annotated[object, require_permission("view_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    year: int = Query(...),
+    month: int | None = Query(default=None),
+):
+    data = await reports_service.get_op_costs_breakdown(db, user.clinic_id, year, month)
+    return {"success": True, "data": data}
+
+
 @router.get("/finances/top-materials")
 async def top_materials(
     user: Annotated[object, require_permission("view_patients")],

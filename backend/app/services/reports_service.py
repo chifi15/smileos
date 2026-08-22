@@ -257,6 +257,130 @@ async def get_full_summary(
     }
 
 
+async def get_income_detail(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    year: int,
+    month: int | None = None,
+) -> list[dict]:
+    filters = [
+        FinanceTransaction.clinic_id == clinic_id,
+        FinanceTransaction.type == "ingreso",
+        extract("year", FinanceTransaction.transaction_date) == year,
+    ]
+    if month:
+        filters.append(extract("month", FinanceTransaction.transaction_date) == month)
+
+    rows = await db.execute(
+        select(FinanceTransaction)
+        .where(*filters)
+        .options(
+            selectinload(FinanceTransaction.patient),
+            selectinload(FinanceTransaction.procedure),
+            selectinload(FinanceTransaction.doctor),
+        )
+        .order_by(FinanceTransaction.transaction_date.desc(), FinanceTransaction.created_at.desc())
+        .limit(100)
+    )
+    txs = list(rows.scalars().all())
+    return [
+        {
+            "id": str(t.id),
+            "date": t.transaction_date.isoformat(),
+            "patient_name": t.patient.full_name if t.patient else None,
+            "procedure_name": t.procedure.name if t.procedure else None,
+            "doctor_name": t.doctor.full_name if t.doctor else None,
+            "description": t.description,
+            "amount": float(t.amount_cordobas),
+        }
+        for t in txs
+    ]
+
+
+async def get_expense_detail(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    year: int,
+    month: int | None = None,
+) -> list[dict]:
+    from app.models.finance import ExpenseCategory
+
+    filters = [
+        FinanceTransaction.clinic_id == clinic_id,
+        FinanceTransaction.type == "egreso",
+        extract("year", FinanceTransaction.transaction_date) == year,
+    ]
+    if month:
+        filters.append(extract("month", FinanceTransaction.transaction_date) == month)
+
+    rows = await db.execute(
+        select(FinanceTransaction)
+        .where(*filters)
+        .order_by(FinanceTransaction.transaction_date.desc(), FinanceTransaction.created_at.desc())
+        .limit(100)
+    )
+    txs = list(rows.scalars().all())
+
+    cat_rows = await db.execute(
+        select(ExpenseCategory.key, ExpenseCategory.label)
+        .where(ExpenseCategory.clinic_id == clinic_id)
+    )
+    cat_labels: dict[str, str] = {r.key: r.label for r in cat_rows}
+
+    return [
+        {
+            "id": str(t.id),
+            "date": t.transaction_date.isoformat(),
+            "category": t.category,
+            "category_label": cat_labels.get(t.category, t.category),
+            "description": t.description,
+            "amount": float(t.amount_cordobas),
+            "invoice_number": t.invoice_number,
+        }
+        for t in txs
+    ]
+
+
+async def get_op_costs_breakdown(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    year: int,
+    month: int | None = None,
+) -> list[dict]:
+    filters = [
+        FinanceTransaction.clinic_id == clinic_id,
+        FinanceTransaction.type == "ingreso",
+        FinanceTransaction.operational_cost_snapshot.isnot(None),
+        extract("year", FinanceTransaction.transaction_date) == year,
+    ]
+    if month:
+        filters.append(extract("month", FinanceTransaction.transaction_date) == month)
+
+    rows = await db.execute(
+        select(
+            FinanceTransaction.procedure_id,
+            ProcedureCatalog.name.label("procedure_name"),
+            func.count(FinanceTransaction.id).label("count"),
+            func.sum(FinanceTransaction.operational_cost_snapshot).label("total"),
+            func.avg(FinanceTransaction.operational_cost_snapshot).label("avg"),
+        )
+        .outerjoin(ProcedureCatalog, ProcedureCatalog.id == FinanceTransaction.procedure_id)
+        .where(*filters)
+        .group_by(FinanceTransaction.procedure_id, ProcedureCatalog.name)
+        .order_by(func.sum(FinanceTransaction.operational_cost_snapshot).desc())
+    )
+    return [
+        {
+            "procedure_id": str(r.procedure_id) if r.procedure_id else None,
+            "procedure_name": r.procedure_name or "Sin procedimiento",
+            "count": int(r.count),
+            "avg_op_cost": round(float(r.avg or 0), 2),
+            "total_op_cost": round(float(r.total or 0), 2),
+        }
+        for r in rows
+    ]
+
+
 async def get_top_materials(
     db: AsyncSession,
     clinic_id: uuid.UUID,

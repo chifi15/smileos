@@ -56,6 +56,34 @@ export interface TopPatient {
   count: number;
 }
 
+export interface IncomeDetailRow {
+  id: string;
+  date: string;
+  patient_name: string | null;
+  procedure_name: string | null;
+  doctor_name: string | null;
+  description: string;
+  amount: number;
+}
+
+export interface ExpenseDetailRow {
+  id: string;
+  date: string;
+  category: string;
+  category_label: string;
+  description: string;
+  amount: number;
+  invoice_number: string | null;
+}
+
+export interface OpCostRow {
+  procedure_id: string | null;
+  procedure_name: string;
+  count: number;
+  avg_op_cost: number;
+  total_op_cost: number;
+}
+
 export interface TopMaterial {
   product_id: string;
   name: string;
@@ -150,6 +178,45 @@ export function useTopPatients(year: number, month: number | null) {
       const params = month ? `year=${year}&month=${month}` : `year=${year}`;
       const { data } = await apiClient.get<{ data: TopPatient[] }>(
         `${base}/top-patients?${params}`
+      );
+      return data.data;
+    },
+  });
+}
+
+export function useIncomeDetail(year: number, month: number | null) {
+  return useQuery({
+    queryKey: ["report-income-detail", year, month],
+    queryFn: async () => {
+      const params = month ? `year=${year}&month=${month}` : `year=${year}`;
+      const { data } = await apiClient.get<{ data: IncomeDetailRow[] }>(
+        `${base}/income-detail?${params}`
+      );
+      return data.data;
+    },
+  });
+}
+
+export function useExpenseDetail(year: number, month: number | null) {
+  return useQuery({
+    queryKey: ["report-expense-detail", year, month],
+    queryFn: async () => {
+      const params = month ? `year=${year}&month=${month}` : `year=${year}`;
+      const { data } = await apiClient.get<{ data: ExpenseDetailRow[] }>(
+        `${base}/expense-detail?${params}`
+      );
+      return data.data;
+    },
+  });
+}
+
+export function useOpCostsBreakdown(year: number, month: number | null) {
+  return useQuery({
+    queryKey: ["report-op-costs", year, month],
+    queryFn: async () => {
+      const params = month ? `year=${year}&month=${month}` : `year=${year}`;
+      const { data } = await apiClient.get<{ data: OpCostRow[] }>(
+        `${base}/op-costs-breakdown?${params}`
       );
       return data.data;
     },
