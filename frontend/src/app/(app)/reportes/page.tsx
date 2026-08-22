@@ -36,6 +36,7 @@ import {
   useIncomeDetail,
   useExpenseDetail,
   useOpCostsBreakdown,
+  useMaterialsMonthlyTrend,
 } from "@/hooks/useReports";
 
 const MONTHS = [
@@ -159,6 +160,7 @@ export default function ReportesPage() {
   const { data: incomeDetail } = useIncomeDetail(year, filterMonth);
   const { data: expenseDetail } = useExpenseDetail(year, filterMonth);
   const { data: opCosts } = useOpCostsBreakdown(year, filterMonth);
+  const { data: materialsTrend } = useMaterialsMonthlyTrend(year);
 
   function prevMonth() {
     if (month === 1) { setMonth(12); setYear(y => y - 1); }
@@ -505,6 +507,62 @@ export default function ReportesPage() {
           </table>
         </TableCard>
       </div>
+
+      {/* ── Consumo de materiales por mes ── */}
+      <TableCard title={`Consumo de materiales por mes — ${year}`} empty={!materialsTrend?.some(r => r.total_units > 0)}>
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
+              <th className="px-4 py-2 font-medium">Mes</th>
+              <th className="px-4 py-2 font-medium text-right">Unidades consumidas</th>
+              <th className="px-4 py-2 font-medium text-right">Costo en materiales</th>
+            </tr>
+          </thead>
+          <tbody>
+            {materialsTrend?.map((r) => (
+              <tr
+                key={r.month}
+                className={`border-b border-slate-50 dark:border-gray-700/50 transition-colors ${
+                  r.month === month
+                    ? "bg-amber-50 dark:bg-amber-900/10"
+                    : "hover:bg-slate-50 dark:hover:bg-gray-700/30"
+                }`}
+              >
+                <td className={`px-4 py-2.5 font-medium ${r.month === month ? "text-amber-700 dark:text-amber-400" : "text-slate-700 dark:text-gray-200"}`}>
+                  {r.mes}
+                  {r.month === month && (
+                    <span className="ml-2 text-[10px] font-normal text-amber-500 dark:text-amber-400">(seleccionado)</span>
+                  )}
+                </td>
+                <td className="px-4 py-2.5 text-right text-slate-600 dark:text-gray-300">
+                  {r.total_units > 0
+                    ? (r.total_units % 1 === 0 ? r.total_units.toFixed(0) : r.total_units.toFixed(2))
+                    : <span className="text-slate-300 dark:text-gray-600">—</span>}
+                </td>
+                <td className={`px-4 py-2.5 text-right font-semibold ${r.total_cost > 0 ? "text-amber-600 dark:text-amber-400" : "text-slate-300 dark:text-gray-600"}`}>
+                  {r.total_cost > 0 ? fmt(r.total_cost) : "—"}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+          {materialsTrend && materialsTrend.some(r => r.total_units > 0) && (
+            <tfoot>
+              <tr className="border-t-2 border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/40">
+                <td className="px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-gray-300">Total año</td>
+                <td className="px-4 py-2.5 text-right font-bold text-slate-700 dark:text-gray-200">
+                  {(() => {
+                    const t = materialsTrend.reduce((s, r) => s + r.total_units, 0);
+                    return t % 1 === 0 ? t.toFixed(0) : t.toFixed(2);
+                  })()}
+                </td>
+                <td className="px-4 py-2.5 text-right text-sm font-bold text-amber-600 dark:text-amber-400">
+                  {fmt(materialsTrend.reduce((s, r) => s + r.total_cost, 0))}
+                </td>
+              </tr>
+            </tfoot>
+          )}
+        </table>
+      </TableCard>
 
       {/* ── Detalle: Facturación bruta ── */}
       <TableCard

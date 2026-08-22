@@ -84,6 +84,13 @@ export interface OpCostRow {
   total_op_cost: number;
 }
 
+export interface MaterialMonthTrend {
+  month: number;
+  mes: string;
+  total_units: number;
+  total_cost: number;
+}
+
 export interface TopMaterial {
   product_id: string;
   name: string;
@@ -178,6 +185,18 @@ export function useTopPatients(year: number, month: number | null) {
       const params = month ? `year=${year}&month=${month}` : `year=${year}`;
       const { data } = await apiClient.get<{ data: TopPatient[] }>(
         `${base}/top-patients?${params}`
+      );
+      return data.data;
+    },
+  });
+}
+
+export function useMaterialsMonthlyTrend(year: number) {
+  return useQuery({
+    queryKey: ["report-materials-trend", year],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: MaterialMonthTrend[] }>(
+        `${base}/materials-monthly-trend?year=${year}`
       );
       return data.data;
     },

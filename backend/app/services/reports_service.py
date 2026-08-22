@@ -257,6 +257,99 @@ async def get_full_summary(
     }
 
 
+async def get_materials_monthly_trend(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    year: int,
+) -> list[dict]:
+    from app.models.costos import CostTreatment, CostProduct
+
+    # Build procedure -> materials map (same logic as get_top_materials)
+    result = await db.execute(
+        select(CostTreatment)
+        .where(
+            CostTreatment.clinic_id == clinic_id,
+            CostTreatment.procedure_catalog_id.isnot(None),
+        )
+        .options(selectinload(CostTreatment.appointments))
+    )
+    treatments = list(result.scalars().all())
+    if not treatments:
+        return [{
+            "month": m, "mes": MONTH_NAMES[m], "total_units": 0.0, "total_cost": 0.0
+        } for m in range(1, 13)]
+
+    proc_to_materials: dict[str, dict[str, float]] = {}
+    for treatment in treatments:
+        proc_str = str(treatment.procedure_catalog_id)
+        merged: dict[str, float] = {}
+        for apt in treatment.appointments:
+            for mat in (apt.materials or []):
+                pid = mat.get("productId")
+                qty = float(mat.get("quantity", 0))
+                if pid and qty > 0:
+                    merged[pid] = merged.get(pid, 0.0) + qty
+        if merged:
+            existing = proc_to_materials.get(proc_str, {})
+            for pid, qty in merged.items():
+                existing[pid] = existing.get(pid, 0.0) + qty
+            proc_to_materials[proc_str] = existing
+
+    if not proc_to_materials:
+        return [{
+            "month": m, "mes": MONTH_NAMES[m], "total_units": 0.0, "total_cost": 0.0
+        } for m in range(1, 13)]
+
+    # Load unit prices
+    all_product_ids = {pid for mats in proc_to_materials.values() for pid in mats}
+    prod_result = await db.execute(
+        select(CostProduct).where(
+            CostProduct.clinic_id == clinic_id,
+            CostProduct.id.in_([uuid.UUID(p) for p in all_product_ids]),
+        )
+    )
+    unit_prices: dict[str, float] = {str(p.id): (p.unit_price or 0.0) for p in prod_result.scalars().all()}
+
+    # Get all transactions for the year grouped by month
+    proc_ids = [uuid.UUID(p) for p in proc_to_materials.keys()]
+    tx_result = await db.execute(
+        select(
+            extract("month", FinanceTransaction.transaction_date).label("month"),
+            FinanceTransaction.procedure_id,
+            FinanceTransaction.procedure_quantity,
+        )
+        .where(
+            FinanceTransaction.clinic_id == clinic_id,
+            FinanceTransaction.type == "ingreso",
+            FinanceTransaction.procedure_id.in_(proc_ids),
+            extract("year", FinanceTransaction.transaction_date) == year,
+        )
+    )
+    transactions = tx_result.all()
+
+    # Aggregate by month
+    by_month: dict[int, dict] = {
+        m: {"month": m, "mes": MONTH_NAMES[m], "total_units": 0.0, "total_cost": 0.0}
+        for m in range(1, 13)
+    }
+    for tx in transactions:
+        m = int(tx.month)
+        proc_str = str(tx.procedure_id)
+        mats = proc_to_materials.get(proc_str, {})
+        proc_qty = tx.procedure_quantity or 1
+        for pid, qty_per_proc in mats.items():
+            units = qty_per_proc * proc_qty
+            cost = units * unit_prices.get(pid, 0.0)
+            by_month[m]["total_units"] += units
+            by_month[m]["total_cost"] += cost
+
+    for row in by_month.values():
+        row["total_units"] = round(row["total_units"], 4)
+        row["total_cost"] = round(row["total_cost"], 2)
+
+    return list(by_month.values())
+
+
 async def get_income_detail(
     db: AsyncSession,
     clinic_id: uuid.UUID,
