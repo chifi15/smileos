@@ -148,6 +148,7 @@ export default function ReportesPage() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [filterMonth, setFilterMonth] = useState<number | null>(now.getMonth() + 1);
+  const [materialMonth, setMaterialMonth] = useState<number>(now.getMonth() + 1);
 
   const { data: summary, isLoading: loadingSummary } = useReportSummary(year, month);
   const { data: trend, isLoading: loadingTrend } = useMonthlyTrend(year);
@@ -509,20 +510,32 @@ export default function ReportesPage() {
       </div>
 
       {/* ── Materiales por mes ── */}
-      {materialsByMonth && materialsByMonth.length > 0 ? (
-        <div className="space-y-3">
-          <SectionTitle>Materiales usados por mes — {year}</SectionTitle>
-          {materialsByMonth.map((group) => (
-            <div key={group.month} className="rounded-xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 dark:border-gray-700 bg-amber-50/60 dark:bg-amber-900/10">
-                <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">
-                  {group.mes} {year}
-                </p>
-                <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-gray-400">
-                  <span>{group.materials.length} material{group.materials.length !== 1 ? "es" : ""}</span>
-                  <span className="font-semibold text-amber-600 dark:text-amber-400">{fmt(group.total_cost)}</span>
-                </div>
+      {(() => {
+        const group = materialsByMonth?.find(g => g.month === materialMonth) ?? null;
+        return (
+          <div className="rounded-xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shadow-sm overflow-hidden">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 dark:border-gray-700">
+              <p className="text-sm font-semibold text-slate-700 dark:text-gray-200">Materiales usados por mes</p>
+              <div className="flex items-center gap-2">
+                <label className="text-xs text-slate-500 dark:text-gray-400">Mes:</label>
+                <select
+                  value={materialMonth}
+                  onChange={(e) => setMaterialMonth(Number(e.target.value))}
+                  className="rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 text-xs text-slate-700 dark:text-gray-200"
+                >
+                  {MONTHS.map((m, i) => (
+                    <option key={i + 1} value={i + 1}>
+                      {m} {year}{materialsByMonth?.find(g => g.month === i + 1) ? "" : " —"}
+                    </option>
+                  ))}
+                </select>
               </div>
+            </div>
+            {!group ? (
+              <p className="py-8 text-center text-sm text-slate-400 dark:text-gray-500">
+                Sin datos de materiales para {MONTHS[materialMonth - 1]} {year}
+              </p>
+            ) : (
               <table className="w-full text-xs">
                 <thead>
                   <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
@@ -561,7 +574,7 @@ export default function ReportesPage() {
                 <tfoot>
                   <tr className="border-t-2 border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/40">
                     <td colSpan={4} className="px-4 py-2.5 text-xs font-semibold text-slate-600 dark:text-gray-300">
-                      Total {group.mes}
+                      Total {MONTHS[materialMonth - 1]}
                     </td>
                     <td className="px-4 py-2.5 text-right text-sm font-bold text-amber-600 dark:text-amber-400">
                       {fmt(group.total_cost)}
@@ -569,14 +582,10 @@ export default function ReportesPage() {
                   </tr>
                 </tfoot>
               </table>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shadow-sm p-8 text-center text-sm text-slate-400 dark:text-gray-500">
-          Sin datos de materiales para {year}
-        </div>
-      )}
+            )}
+          </div>
+        );
+      })()}
 
       {/* ── Detalle: Facturación bruta ── */}
       <TableCard
