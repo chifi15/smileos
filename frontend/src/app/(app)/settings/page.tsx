@@ -12,7 +12,8 @@ import { getAccessToken } from "@/lib/api-client";
 import { useAllUsers, useCreateUser } from "@/hooks/useUsers";
 import { useProcedures, useUpdateProcedurePrice, useCreateProcedure, useDeleteProcedure, useReorderProcedures } from "@/hooks/useCatalog";
 import { ClinicUser, UserRole, Procedure } from "@/types";
-import { useCostTreatments, useLinkCostProcedure } from "@/hooks/useCostos";
+import { useCostTreatments, useCostProducts, useFixedCosts, useLinkCostProcedure } from "@/hooks/useCostos";
+import { calculateTreatmentCosts, apiTreatmentToTreatment, apiProductToProduct } from "@/lib/costos-utils";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
@@ -473,6 +474,12 @@ function PriceRow({ proc }: { proc: Procedure }) {
   const linkingRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const { data: treatments = [] } = useCostTreatments();
+  const { data: apiProducts = [] } = useCostProducts();
+  const { data: fixedCosts } = useFixedCosts();
+
+  const products = apiProducts.map(apiProductToProduct);
+  const totalFijo = (fixedCosts?.items ?? []).reduce((s, i) => s + i.amount, 0);
+  const perPaciente = (fixedCosts?.patients_per_month ?? 1) > 0 ? totalFijo / (fixedCosts?.patients_per_month ?? 1) : 0;
 
   useEffect(() => {
     if (!linkingOpen) return;
@@ -497,6 +504,10 @@ function PriceRow({ proc }: { proc: Procedure }) {
   }
   const linkProcedure = useLinkCostProcedure();
   const linkedTreatment = treatments.find((t) => t.procedure_catalog_id === proc.id);
+
+  const calculatedOpCost = linkedTreatment
+    ? calculateTreatmentCosts(apiTreatmentToTreatment(linkedTreatment), products, perPaciente).subtotal
+    : null;
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: proc.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
@@ -567,7 +578,7 @@ function PriceRow({ proc }: { proc: Procedure }) {
         />
         <EditableAmount
           label="Costo op.:"
-          value={proc.operational_cost ?? null}
+          value={calculatedOpCost ?? proc.operational_cost ?? null}
           onSave={(operational_cost) => update.mutate({ id: proc.id, operational_cost })}
           isPending={update.isPending}
         />

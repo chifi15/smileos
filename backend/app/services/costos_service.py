@@ -790,14 +790,32 @@ async def _sync_operational_costs(
 
     updated = 0
     for treatment in treatments:
-        # Material cost across all appointments
+        # Material cost across all appointments — mirrors frontend calculateTreatmentCosts():
+        # for alt groups only the item with the highest cost counts (others are excluded).
         material_cost = 0.0
         for apt in treatment.appointments:
+            raw: list[tuple[str | None, float, float]] = []  # (altGroup, qty, total)
             for mat in (apt.materials or []):
                 pid = mat.get("productId")
                 qty = float(mat.get("quantity", 0))
-                if pid and qty > 0:
-                    material_cost += qty * product_prices.get(str(pid), 0.0)
+                if not pid or qty <= 0:
+                    continue
+                total = qty * product_prices.get(str(pid), 0.0)
+                raw.append((mat.get("altGroup"), qty, total))
+
+            # Find max cost per alt group
+            group_max: dict[str, float] = {}
+            for alt_group, _, total in raw:
+                if alt_group:
+                    group_max[alt_group] = max(group_max.get(alt_group, 0.0), total)
+
+            group_counted: set[str] = set()
+            for alt_group, _, total in raw:
+                if not alt_group:
+                    material_cost += total
+                elif total == group_max[alt_group] and alt_group not in group_counted:
+                    group_counted.add(alt_group)
+                    material_cost += total
 
         # Update treatment fixed_costs to the new per-patient value
         treatment.fixed_costs = round(per_patient, 2)

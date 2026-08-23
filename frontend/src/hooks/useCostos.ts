@@ -345,6 +345,7 @@ export function useUpdateFixedCosts() {
       qc.invalidateQueries({ queryKey: FIXED_COSTS_KEY });
       qc.invalidateQueries({ queryKey: ["costos", "treatments"] });
       qc.invalidateQueries({ queryKey: ["procedure-catalog"] });
+      qc.invalidateQueries({ queryKey: ["catalog", "procedures"] });
     },
   });
 }
