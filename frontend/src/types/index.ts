@@ -689,10 +689,19 @@ export interface PatientEvolution {
 // ─── Audit Log ────────────────────────────────────────────────────────────────
 
 export interface AuditLogChanges {
+  // Costos fijos
   patients_per_month?: { from: number; to: number };
   items_changed?: Array<{ name: string; name_from?: string; amount_from?: number; amount_to?: number }>;
   items_added?: Array<{ name: string; amount: number }>;
   items_removed?: Array<{ name: string; amount: number }>;
+  // Catálogo de procedimientos
+  procedure_name?: string;
+  name_from?: string;
+  name_to?: string;
+  price_from?: number | null;
+  price_to?: number | null;
+  operational_cost_from?: number | null;
+  operational_cost_to?: number | null;
 }
 
 export interface AuditLog {

@@ -28,6 +28,7 @@ RESOURCE_TYPE_LABELS: dict[str, str] = {
     "cost_treatment": "Costos operativos",
     "cost_product_lot": "Lote de producto",
     "fixed_costs": "Costos fijos",
+    "procedure_catalog": "Precios de catálogo",
 }
 
 

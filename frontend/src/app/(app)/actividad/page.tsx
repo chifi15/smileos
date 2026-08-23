@@ -26,6 +26,7 @@ const RESOURCE_TYPE_OPTIONS = [
   { value: "cost_product", label: "Productos" },
   { value: "cost_product_lot", label: "Lotes" },
   { value: "fixed_costs", label: "Costos fijos" },
+  { value: "procedure_catalog", label: "Precios de catálogo" },
 ];
 
 const RESOURCE_COLORS: Record<string, string> = {
@@ -44,15 +45,17 @@ const RESOURCE_COLORS: Record<string, string> = {
   cost_product: "bg-rose-100 text-rose-700 dark:bg-rose-900/40 dark:text-rose-300",
   cost_product_lot: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/40 dark:text-yellow-300",
   fixed_costs: "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300",
+  procedure_catalog: "bg-sky-100 text-sky-700 dark:bg-sky-900/40 dark:text-sky-300",
 };
 
 function fmt(n: number) {
   return new Intl.NumberFormat("es-NI", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 }
 
-function FixedCostsDiff({ changes }: { changes: AuditLogChanges }) {
+function ChangesDiff({ changes }: { changes: AuditLogChanges }) {
   const lines: { label: string; type: "changed" | "added" | "removed" }[] = [];
 
+  // Costos fijos
   if (changes.patients_per_month) {
     lines.push({ label: `Pacientes/mes: ${changes.patients_per_month.from} → ${changes.patients_per_month.to}`, type: "changed" });
   }
@@ -70,6 +73,21 @@ function FixedCostsDiff({ changes }: { changes: AuditLogChanges }) {
   }
   for (const c of changes.items_removed ?? []) {
     lines.push({ label: `${c.name}: C$ ${fmt(c.amount)}`, type: "removed" });
+  }
+
+  // Catálogo de procedimientos
+  if (changes.name_from !== undefined && changes.name_to !== undefined) {
+    lines.push({ label: `Nombre: "${changes.name_from}" → "${changes.name_to}"`, type: "changed" });
+  }
+  if (changes.price_from !== undefined && changes.price_to !== undefined) {
+    const from = changes.price_from !== null ? `C$ ${fmt(changes.price_from)}` : "sin precio";
+    const to   = changes.price_to   !== null ? `C$ ${fmt(changes.price_to)}`   : "sin precio";
+    lines.push({ label: `Precio: ${from} → ${to}`, type: "changed" });
+  }
+  if (changes.operational_cost_from !== undefined && changes.operational_cost_to !== undefined) {
+    const from = changes.operational_cost_from !== null ? `C$ ${fmt(changes.operational_cost_from)}` : "sin costo";
+    const to   = changes.operational_cost_to   !== null ? `C$ ${fmt(changes.operational_cost_to)}`   : "sin costo";
+    lines.push({ label: `Costo op.: ${from} → ${to}`, type: "changed" });
   }
 
   if (lines.length === 0) return null;
@@ -92,6 +110,7 @@ function FixedCostsDiff({ changes }: { changes: AuditLogChanges }) {
   );
 }
 
+
 function AuditEntry({ entry }: { entry: AuditLog }) {
   const color = RESOURCE_COLORS[entry.resource_type] ?? "bg-slate-100 text-slate-600";
   const date = parseISO(entry.created_at);
@@ -105,7 +124,7 @@ function AuditEntry({ entry }: { entry: AuditLog }) {
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm text-slate-800 dark:text-white">{entry.description ?? entry.action}</p>
-        {entry.changes && <FixedCostsDiff changes={entry.changes} />}
+        {entry.changes && <ChangesDiff changes={entry.changes} />}
         <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400 dark:text-gray-500">
           {entry.user && <span>{entry.user.full_name}</span>}
           {entry.user && <span>·</span>}

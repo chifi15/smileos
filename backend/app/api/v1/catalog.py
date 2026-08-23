@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.database import get_db
 from app.core.dependencies import require_permission
 from app.schemas.treatment import ProcedureCreate, ProcedureUpdate
-from app.services import treatment_service
+from app.services import treatment_service, audit_service
 
 router = APIRouter(prefix="/catalog/procedures", tags=["Catálogo de Procedimientos"])
 
@@ -70,7 +70,51 @@ async def update_procedure(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     data = body.model_dump(exclude_none=True)
+
+    # Capture old values before update
+    old = await treatment_service.get_procedure(db, user.clinic_id, procedure_id)
+    old_name = old.name
+    old_price = float(old.default_price) if old.default_price is not None else None
+    old_op_cost = float(old.operational_cost) if old.operational_cost is not None else None
+
     proc = await treatment_service.update_procedure(db, user.clinic_id, procedure_id, data)
+
+    # Build diff — only log price/name changes (not duration, category, etc.)
+    changes: dict = {"procedure_name": proc.name}
+    parts: list[str] = []
+
+    if "name" in data and data["name"] != old_name:
+        changes["name_from"] = old_name
+        changes["name_to"] = proc.name
+        parts.append(f"renombrado '{old_name}' → '{proc.name}'")
+
+    new_price = float(proc.default_price) if proc.default_price is not None else None
+    if "default_price" in data and new_price != old_price:
+        changes["price_from"] = old_price
+        changes["price_to"] = new_price
+        old_str = f"C$ {old_price:,.2f}" if old_price is not None else "sin precio"
+        new_str = f"C$ {new_price:,.2f}" if new_price is not None else "sin precio"
+        parts.append(f"precio {old_str} → {new_str}")
+
+    new_op = float(proc.operational_cost) if proc.operational_cost is not None else None
+    if "operational_cost" in data and new_op != old_op_cost:
+        changes["operational_cost_from"] = old_op_cost
+        changes["operational_cost_to"] = new_op
+        old_str = f"C$ {old_op_cost:,.2f}" if old_op_cost is not None else "sin costo"
+        new_str = f"C$ {new_op:,.2f}" if new_op is not None else "sin costo"
+        parts.append(f"costo op. {old_str} → {new_str}")
+
+    if parts:
+        description = f"{proc.name}: {', '.join(parts)}"
+        await audit_service.log(
+            db, clinic_id=user.clinic_id, user_id=user.id,
+            action="procedure_catalog.updated",
+            resource_type="procedure_catalog",
+            resource_id=str(procedure_id),
+            description=description,
+            metadata=changes,
+        )
+
     return {"success": True, "data": _serialize(proc)}
 
 
