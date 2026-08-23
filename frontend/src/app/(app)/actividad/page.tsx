@@ -7,7 +7,7 @@ import { es } from "date-fns/locale";
 import { Activity, ChevronLeft, ChevronRight, Filter } from "lucide-react";
 import { useAuditFeed } from "@/hooks/useAudit";
 import Spinner from "@/components/ui/Spinner";
-import type { AuditLog } from "@/types";
+import type { AuditLog, AuditLogChanges } from "@/types";
 
 const RESOURCE_TYPE_OPTIONS = [
   { value: "", label: "Todos" },
@@ -46,6 +46,52 @@ const RESOURCE_COLORS: Record<string, string> = {
   fixed_costs: "bg-stone-100 text-stone-600 dark:bg-stone-800 dark:text-stone-300",
 };
 
+function fmt(n: number) {
+  return new Intl.NumberFormat("es-NI", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
+}
+
+function FixedCostsDiff({ changes }: { changes: AuditLogChanges }) {
+  const lines: { label: string; type: "changed" | "added" | "removed" }[] = [];
+
+  if (changes.patients_per_month) {
+    lines.push({ label: `Pacientes/mes: ${changes.patients_per_month.from} → ${changes.patients_per_month.to}`, type: "changed" });
+  }
+  for (const c of changes.items_changed ?? []) {
+    if (c.name_from && !("amount_from" in c)) {
+      lines.push({ label: `Renombrado "${c.name_from}" → "${c.name}"`, type: "changed" });
+    } else if (c.name_from && c.amount_from !== undefined && c.amount_to !== undefined) {
+      lines.push({ label: `${c.name} (antes "${c.name_from}"): C$ ${fmt(c.amount_from)} → C$ ${fmt(c.amount_to)}`, type: "changed" });
+    } else if (c.amount_from !== undefined && c.amount_to !== undefined) {
+      lines.push({ label: `${c.name}: C$ ${fmt(c.amount_from)} → C$ ${fmt(c.amount_to)}`, type: "changed" });
+    }
+  }
+  for (const c of changes.items_added ?? []) {
+    lines.push({ label: `${c.name}: C$ ${fmt(c.amount)}`, type: "added" });
+  }
+  for (const c of changes.items_removed ?? []) {
+    lines.push({ label: `${c.name}: C$ ${fmt(c.amount)}`, type: "removed" });
+  }
+
+  if (lines.length === 0) return null;
+
+  return (
+    <ul className="mt-1.5 space-y-0.5">
+      {lines.map((l, i) => (
+        <li key={i} className="flex items-center gap-1.5 text-xs">
+          {l.type === "changed" && <span className="text-amber-500 font-bold">~</span>}
+          {l.type === "added"   && <span className="text-green-600 font-bold">+</span>}
+          {l.type === "removed" && <span className="text-red-500 font-bold">−</span>}
+          <span className={
+            l.type === "changed" ? "text-slate-600 dark:text-gray-300" :
+            l.type === "added"   ? "text-green-700 dark:text-green-400" :
+                                   "text-red-600 dark:text-red-400"
+          }>{l.label}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function AuditEntry({ entry }: { entry: AuditLog }) {
   const color = RESOURCE_COLORS[entry.resource_type] ?? "bg-slate-100 text-slate-600";
   const date = parseISO(entry.created_at);
@@ -59,6 +105,7 @@ function AuditEntry({ entry }: { entry: AuditLog }) {
       </div>
       <div className="min-w-0 flex-1">
         <p className="text-sm text-slate-800 dark:text-white">{entry.description ?? entry.action}</p>
+        {entry.changes && <FixedCostsDiff changes={entry.changes} />}
         <div className="mt-0.5 flex items-center gap-2 text-xs text-slate-400 dark:text-gray-500">
           {entry.user && <span>{entry.user.full_name}</span>}
           {entry.user && <span>·</span>}

@@ -39,6 +39,7 @@ def _serialize(entry) -> dict:
         "resource_type_label": RESOURCE_TYPE_LABELS.get(entry.resource_type or "", entry.resource_type or ""),
         "resource_id": entry.resource_id,
         "description": entry.description,
+        "changes": entry.changes,
         "patient_id": str(entry.patient_id) if entry.patient_id else None,
         "user": {
             "id": str(entry.user.id),

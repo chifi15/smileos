@@ -688,6 +688,13 @@ export interface PatientEvolution {
 
 // ─── Audit Log ────────────────────────────────────────────────────────────────
 
+export interface AuditLogChanges {
+  patients_per_month?: { from: number; to: number };
+  items_changed?: Array<{ name: string; name_from?: string; amount_from?: number; amount_to?: number }>;
+  items_added?: Array<{ name: string; amount: number }>;
+  items_removed?: Array<{ name: string; amount: number }>;
+}
+
 export interface AuditLog {
   id: string;
   action: string;
@@ -695,6 +702,7 @@ export interface AuditLog {
   resource_type_label: string;
   resource_id: string | null;
   description: string | null;
+  changes: AuditLogChanges | null;
   patient_id: string | null;
   user: { id: string; full_name: string } | null;
   created_at: string;

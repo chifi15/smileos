@@ -531,16 +531,72 @@ async def update_fixed_costs(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
+    # Capture old values before update
+    old_cfg = await svc.get_fixed_costs(db, current_user.clinic_id)
+    old_patients = old_cfg.patients_per_month
+    old_by_id = {str(item["id"]): dict(item) for item in (old_cfg.items or [])}
+
     config, synced = await svc.update_fixed_costs(
         db,
         current_user.clinic_id,
         body.patients_per_month,
         [i.model_dump() for i in body.items],
     )
+
+    # Build diff
+    new_by_id = {str(i.id): i for i in body.items}
+    items_changed, items_added, items_removed = [], [], []
+
+    for item_id, new_item in new_by_id.items():
+        if item_id in old_by_id:
+            old = old_by_id[item_id]
+            change: dict = {}
+            if old["name"] != new_item.name:
+                change["name_from"] = old["name"]
+            if float(old["amount"]) != float(new_item.amount):
+                change["amount_from"] = float(old["amount"])
+                change["amount_to"] = float(new_item.amount)
+            if change:
+                change["name"] = new_item.name
+                items_changed.append(change)
+        else:
+            items_added.append({"name": new_item.name, "amount": float(new_item.amount)})
+
+    for item_id, old in old_by_id.items():
+        if item_id not in new_by_id:
+            items_removed.append({"name": old["name"], "amount": float(old["amount"])})
+
+    changes: dict = {}
+    if old_patients != body.patients_per_month:
+        changes["patients_per_month"] = {"from": old_patients, "to": body.patients_per_month}
+    if items_changed:
+        changes["items_changed"] = items_changed
+    if items_added:
+        changes["items_added"] = items_added
+    if items_removed:
+        changes["items_removed"] = items_removed
+
+    # Build human-readable description
+    parts = []
+    if "patients_per_month" in changes:
+        parts.append(f"Pacientes/mes: {old_patients} → {body.patients_per_month}")
+    for c in items_changed:
+        if "amount_from" in c:
+            parts.append(f"{c['name']}: C$ {c['amount_from']:.2f} → C$ {c['amount_to']:.2f}")
+        elif "name_from" in c:
+            parts.append(f"Renombrado '{c['name_from']}' → '{c['name']}'")
+    for c in items_added:
+        parts.append(f"Agregado '{c['name']}': C$ {c['amount']:.2f}")
+    for c in items_removed:
+        parts.append(f"Eliminado '{c['name']}': C$ {c['amount']:.2f}")
+
+    description = "Actualizó costos fijos" + (f": {'; '.join(parts)}" if parts else f" ({len(body.items)} conceptos, {body.patients_per_month} pacientes/mes)")
+
     await audit_service.log(
         db, clinic_id=current_user.clinic_id, user_id=current_user.id,
         action="fixed_costs.updated", resource_type="fixed_costs", resource_id=str(current_user.clinic_id),
-        description=f"Actualizó costos fijos ({len(body.items)} conceptos, {body.patients_per_month} pacientes/mes, {synced} procedimientos sincronizados)",
+        description=description,
+        metadata=changes or None,
     )
     return {"patients_per_month": config.patients_per_month, "items": config.items, "procedures_synced": synced}
 
