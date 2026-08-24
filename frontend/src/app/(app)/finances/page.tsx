@@ -64,6 +64,36 @@ const MONTHS_ES = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
+// ─── Date input DD/MM/AAAA ────────────────────────────────────────────────────
+
+function toDisplay(iso: string): string {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return "";
+  const [y, m, d] = iso.slice(0, 10).split("-");
+  return `${d}/${m}/${y}`;
+}
+
+function toISO(display: string): string {
+  const match = display.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return "";
+  const [, d, m, y] = match;
+  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+}
+
+function DateInput({ value, onChange, className }: { value: string; onChange: (iso: string) => void; className?: string }) {
+  const [raw, setRaw] = useState(() => toDisplay(value));
+  useEffect(() => { setRaw(toDisplay(value)); }, [value]);
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = e.target.value;
+    setRaw(v);
+    const iso = toISO(v);
+    if (iso) onChange(iso);
+  }
+  return (
+    <input type="text" value={raw} onChange={handleChange} placeholder="DD/MM/AAAA"
+      maxLength={10} className={className} />
+  );
+}
+
 function fmt(n: number) {
   return new Intl.NumberFormat("es-NI", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n);
 }
@@ -791,8 +821,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
             </div>
             <div>
               <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Fecha *</label>
-              <input type="date" value={form.transaction_date}
-                onChange={(e) => set("transaction_date", e.target.value)}
+              <DateInput value={form.transaction_date} onChange={(iso) => set("transaction_date", iso)}
                 className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
             </div>
           </div>
