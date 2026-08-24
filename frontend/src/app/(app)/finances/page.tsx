@@ -498,11 +498,15 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Materials actually used — initialized from the linked treatment template, editable by the user
-  type UsedMaterial = { productId: string; qty: number; altGroup?: string | null };
+  type UsedMaterial = { productId: string; qty: number; altGroup?: string | null; sharedBy?: number };
   const [usedMaterials, setUsedMaterials] = useState<UsedMaterial[] | null>(null);
   const [materialsOpen, setMaterialsOpen] = useState(false);
   const [addMatSearch, setAddMatSearch] = useState("");
   const [addMatOpen, setAddMatOpen] = useState(false);
+
+  // Extra procedures for multi-procedure visits
+  type ExtraProc = { procedure_id: string; appointment_id: string };
+  const [extraProcedures, setExtraProcedures] = useState<ExtraProc[]>([]);
 
   // En modo edición, inicializar materiales cuando cargan los tratamientos (para mostrarlos como referencia)
   useEffect(() => {
@@ -512,9 +516,14 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiTreatments.length, isEdit, form.procedure_id]);
 
-  function initMaterialsFromTreatment(procedureId: string) {
+  function getMaterialsForSpec(procedureId: string, appointmentId: string): { productId: string; qty: number; altGroup: string | null }[] {
     const treatment = apiTreatments.find((t) => t.procedure_catalog_id === procedureId);
-    if (!treatment) { setUsedMaterials(null); return; }
+    if (!treatment) return [];
+    if (appointmentId) {
+      const apt = treatment.appointments.find((a) => a.id === appointmentId);
+      if (!apt) return [];
+      return apt.materials.map((m) => ({ productId: m.productId, qty: m.quantity, altGroup: m.altGroup ?? null }));
+    }
     const totals = new Map<string, number>();
     const groups = new Map<string, string | null>();
     for (const apt of treatment.appointments) {
@@ -523,31 +532,66 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         if (!groups.has(m.productId)) groups.set(m.productId, m.altGroup ?? null);
       }
     }
+    return Array.from(totals.entries()).map(([productId, qty]) => ({ productId, qty, altGroup: groups.get(productId) ?? null }));
+  }
+
+  function mergeMaterialSpecs(specs: { procedure_id: string; appointment_id: string }[]): UsedMaterial[] {
+    const maxQty = new Map<string, number>();
+    const groups = new Map<string, string | null>();
+    const countByProduct = new Map<string, number>(); // how many procedures use this product
     const validIds = new Set(apiProducts.map((p) => p.id));
-    setUsedMaterials(
-      Array.from(totals.entries())
-        .filter(([productId]) => validIds.has(productId))
-        .map(([productId, qty]) => ({
-          productId,
-          qty,
-          altGroup: groups.get(productId) ?? null,
-        }))
-    );
+
+    for (const spec of specs) {
+      if (!spec.procedure_id) continue;
+      const mats = getMaterialsForSpec(spec.procedure_id, spec.appointment_id);
+      for (const m of mats) {
+        if (!validIds.has(m.productId)) continue;
+        maxQty.set(m.productId, Math.max(maxQty.get(m.productId) ?? 0, m.qty));
+        if (!groups.has(m.productId)) groups.set(m.productId, m.altGroup);
+        countByProduct.set(m.productId, (countByProduct.get(m.productId) ?? 0) + 1);
+      }
+    }
+
+    return Array.from(maxQty.entries()).map(([productId, qty]) => ({
+      productId,
+      qty,
+      altGroup: groups.get(productId) ?? null,
+      sharedBy: countByProduct.get(productId) ?? 1,
+    }));
+  }
+
+  function recomputeMerged(mainProcId: string, mainAptId: string, extras: ExtraProc[]) {
+    const allSpecs = [{ procedure_id: mainProcId, appointment_id: mainAptId }, ...extras];
+    const hasAnyProc = allSpecs.some((s) => !!s.procedure_id);
+    if (!hasAnyProc) { setUsedMaterials(null); return; }
+    const merged = mergeMaterialSpecs(allSpecs);
+    setUsedMaterials(merged.length > 0 ? merged : []);
     setMaterialsOpen(true);
   }
 
+  function initMaterialsFromTreatment(procedureId: string) {
+    if (!procedureId) { setUsedMaterials(null); return; }
+    recomputeMerged(procedureId, "", extraProcedures);
+  }
+
   function initMaterialsFromAppointment(procedureId: string, aptId: string) {
-    const treatment = apiTreatments.find((t) => t.procedure_catalog_id === procedureId);
-    if (!treatment) { setUsedMaterials(null); return; }
-    const apt = treatment.appointments.find((a) => a.id === aptId);
-    if (!apt) { setUsedMaterials(null); return; }
-    const validIds = new Set(apiProducts.map((p) => p.id));
-    setUsedMaterials(
-      apt.materials
-        .filter((m) => validIds.has(m.productId))
-        .map((m) => ({ productId: m.productId, qty: m.quantity, altGroup: m.altGroup ?? null }))
-    );
-    setMaterialsOpen(true);
+    recomputeMerged(procedureId, aptId, extraProcedures);
+  }
+
+  function addExtraProcedure() {
+    setExtraProcedures((prev) => [...prev, { procedure_id: "", appointment_id: "" }]);
+  }
+
+  function removeExtraProcedure(idx: number) {
+    const updated = extraProcedures.filter((_, i) => i !== idx);
+    setExtraProcedures(updated);
+    recomputeMerged(form.procedure_id, form.appointment_id, updated);
+  }
+
+  function updateExtraProc(idx: number, field: keyof ExtraProc, value: string) {
+    const updated = extraProcedures.map((ep, i) => i === idx ? { ...ep, [field]: value, ...(field === "procedure_id" ? { appointment_id: "" } : {}) } : ep);
+    setExtraProcedures(updated);
+    recomputeMerged(form.procedure_id, form.appointment_id, updated);
   }
 
   function calcMaterialsCost(materials: { productId: string; qty: number }[]): number {
@@ -575,8 +619,9 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
 
     const qty = Math.max(1, parseInt(form.quantity) || 1);
     const sessions = Math.max(1, parseInt(form.sessions) || 1);
-    // Si hay cita específica seleccionada y materiales cargados, calcular costo real de esa cita
-    const opCostOverride = form.appointment_id && usedMaterials
+    const isMultiProc = extraProcedures.some((ep) => !!ep.procedure_id);
+    // Con multi-procedimiento o cita específica, el costo real viene de los materiales fusionados
+    const opCostOverride = (isMultiProc || form.appointment_id) && usedMaterials
       ? calcMaterialsCost(usedMaterials)
       : null;
 
@@ -741,15 +786,29 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
             </div>
           )}
 
-          <div>
-            <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Procedimiento</label>
+          {/* ── Procedimiento(s) ── */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="block text-xs font-medium text-slate-600 dark:text-gray-400">Procedimiento</label>
+              {!isEdit && form.procedure_id && extraProcedures.length === 0 && (
+                <button
+                  type="button"
+                  onClick={addExtraProcedure}
+                  className="flex items-center gap-1 text-[11px] font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
+                >
+                  <Plus size={11} /> Agregar otro procedimiento
+                </button>
+              )}
+            </div>
+
+            {/* Procedimiento principal */}
             <select value={form.procedure_id}
               onChange={(e) => {
                 set("procedure_id", e.target.value);
                 set("appointment_id", "");
                 set("quantity", "1");
                 set("sessions", "1");
-                initMaterialsFromTreatment(e.target.value);
+                recomputeMerged(e.target.value, "", extraProcedures);
               }}
               className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">— Sin procedimiento —</option>
@@ -757,91 +816,155 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                 <option key={p.id} value={p.id}>{i + 1}. {p.name}</option>
               ))}
             </select>
+
+            {/* Selector de cita para el procedimiento principal (multi-sesión) */}
+            {form.procedure_id && !isEdit && (() => {
+              const treatment = apiTreatments.find((t) => t.procedure_catalog_id === form.procedure_id);
+              if (!treatment || treatment.appointments.length <= 1) return null;
+              return (
+                <select
+                  value={form.appointment_id}
+                  onChange={(e) => {
+                    const aptId = e.target.value;
+                    set("appointment_id", aptId);
+                    recomputeMerged(form.procedure_id, aptId, extraProcedures);
+                  }}
+                  className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                >
+                  <option value="">— Todas las citas —</option>
+                  {treatment.appointments
+                    .slice().sort((a, b) => a.number - b.number)
+                    .map((apt) => (
+                      <option key={apt.id} value={apt.id}>
+                        Cita {apt.number}{apt.name ? `: ${apt.name}` : ""} ({apt.materials.length} mat.)
+                      </option>
+                    ))}
+                </select>
+              );
+            })()}
+
+            {/* Procedimientos extra */}
+            {extraProcedures.map((ep, idx) => {
+              const extraTreatment = ep.procedure_id
+                ? apiTreatments.find((t) => t.procedure_catalog_id === ep.procedure_id)
+                : null;
+              const usedIds = new Set([form.procedure_id, ...extraProcedures.filter((_, i) => i !== idx).map((e) => e.procedure_id)]);
+              return (
+                <div key={idx} className="space-y-1.5 rounded-xl bg-blue-50/60 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">+ Procedimiento {idx + 2}</span>
+                    <button
+                      type="button"
+                      onClick={() => removeExtraProcedure(idx)}
+                      className="ml-auto text-slate-400 hover:text-red-500 transition-colors"
+                    >
+                      <X size={13} />
+                    </button>
+                  </div>
+                  <select
+                    value={ep.procedure_id}
+                    onChange={(e) => updateExtraProc(idx, "procedure_id", e.target.value)}
+                    className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  >
+                    <option value="">— Seleccionar —</option>
+                    {procedures
+                      .filter((p) => !usedIds.has(p.id))
+                      .map((p, i) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                  </select>
+                  {ep.procedure_id && extraTreatment && extraTreatment.appointments.length > 1 && (
+                    <select
+                      value={ep.appointment_id}
+                      onChange={(e) => updateExtraProc(idx, "appointment_id", e.target.value)}
+                      className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      <option value="">— Todas las citas —</option>
+                      {extraTreatment.appointments
+                        .slice().sort((a, b) => a.number - b.number)
+                        .map((apt) => (
+                          <option key={apt.id} value={apt.id}>
+                            Cita {apt.number}{apt.name ? `: ${apt.name}` : ""} ({apt.materials.length} mat.)
+                          </option>
+                        ))}
+                    </select>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Botón agregar más procedimientos (cuando ya hay al menos uno extra) */}
+            {!isEdit && form.procedure_id && extraProcedures.length > 0 &&
+              extraProcedures.every((ep) => !!ep.procedure_id) &&
+              (extraProcedures.length + 1) < procedures.length && (
+              <button
+                type="button"
+                onClick={addExtraProcedure}
+                className="flex w-full items-center justify-center gap-1.5 rounded-lg border border-dashed border-blue-200 dark:border-blue-700 py-2 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+              >
+                <Plus size={12} /> Agregar otro procedimiento
+              </button>
+            )}
           </div>
 
+          {/* ── Cantidad / Sesiones / Costo preview ── */}
           {form.procedure_id && (() => {
-            const treatment = apiTreatments.find((t) => t.procedure_catalog_id === form.procedure_id);
-            const multiSession = !isEdit && treatment && treatment.appointments.length > 1;
+            const isMultiProc = extraProcedures.some((ep) => !!ep.procedure_id);
             const proc = procedures.find((p) => p.id === form.procedure_id);
             const qty = Math.max(1, parseInt(form.quantity) || 1);
             const sess = Math.max(1, parseInt(form.sessions) || 1);
             const unitCost = proc?.operational_cost ?? 0;
-            // Si hay cita específica, el costo viene de los materiales reales de esa cita
-            const matCost = form.appointment_id && usedMaterials ? calcMaterialsCost(usedMaterials) : null;
-            const costPreview = matCost !== null ? matCost : (sess > 1 ? unitCost * qty / sess : unitCost * qty);
-            return (
-              <>
-                {/* Selector de cita para tratamientos multi-sesión con plantilla definida */}
-                {multiSession && (
-                  <div>
-                    <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">
-                      ¿Qué cita del tratamiento es esta?
-                    </label>
-                    <select
-                      value={form.appointment_id}
-                      onChange={(e) => {
-                        const aptId = e.target.value;
-                        set("appointment_id", aptId);
-                        if (aptId) {
-                          initMaterialsFromAppointment(form.procedure_id, aptId);
-                        } else {
-                          initMaterialsFromTreatment(form.procedure_id);
-                        }
-                      }}
-                      className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    >
-                      <option value="">— Todas las citas (tratamiento completo) —</option>
-                      {treatment.appointments
-                        .slice()
-                        .sort((a, b) => a.number - b.number)
-                        .map((apt) => (
-                          <option key={apt.id} value={apt.id}>
-                            Cita {apt.number}{apt.name ? `: ${apt.name}` : ""} ({apt.materials.length} material{apt.materials.length !== 1 ? "es" : ""})
-                          </option>
-                        ))}
-                    </select>
-                  </div>
-                )}
+            const matCost = usedMaterials ? calcMaterialsCost(usedMaterials) : null;
 
-                <div className="flex items-end gap-3">
-                  <div className="w-24 shrink-0">
-                    <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Cantidad</label>
-                    <input
-                      type="number"
-                      min="1"
-                      step="1"
-                      value={form.quantity}
-                      onChange={(e) => set("quantity", e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                  {/* Sesiones: solo mostrar cuando NO hay cita específica seleccionada */}
-                  {!form.appointment_id && (
+            let costPreview: number;
+            let costLabel: React.ReactNode;
+            if (isMultiProc && matCost !== null) {
+              costPreview = matCost;
+              const sharedCount = (usedMaterials ?? []).filter((m) => (m.sharedBy ?? 1) > 1).length;
+              costLabel = (
+                <>
+                  Costo op. combinado: <strong>C${fmt(costPreview)}</strong>
+                  {sharedCount > 0 && (
+                    <span className="opacity-70"> ({sharedCount} material{sharedCount > 1 ? "es" : ""} compartido{sharedCount > 1 ? "s" : ""})</span>
+                  )}
+                </>
+              );
+            } else if (form.appointment_id && matCost !== null) {
+              costPreview = matCost;
+              costLabel = <>Costo op. esta cita: <strong>C${fmt(costPreview)}</strong> <span className="opacity-70">(por materiales)</span></>;
+            } else if (sess > 1) {
+              costPreview = unitCost * qty / sess;
+              costLabel = <>Costo op.: C${fmt(unitCost)} ÷ {sess} ses. = <strong>C${fmt(costPreview)}</strong></>;
+            } else {
+              costPreview = unitCost * qty;
+              costLabel = <>Costo op.: C${fmt(unitCost)} × {qty} = <strong>C${fmt(costPreview)}</strong></>;
+            }
+
+            return (
+              <div className="flex items-end gap-3">
+                {!isMultiProc && (
+                  <>
                     <div className="w-24 shrink-0">
-                      <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Sesiones</label>
-                      <input
-                        type="number"
-                        min="1"
-                        step="1"
-                        value={form.sessions}
-                        onChange={(e) => set("sessions", e.target.value)}
-                        className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                        title="Número total de sesiones. El costo operativo se divide entre las sesiones."
-                      />
+                      <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Cantidad</label>
+                      <input type="number" min="1" step="1" value={form.quantity}
+                        onChange={(e) => set("quantity", e.target.value)}
+                        className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
-                  )}
-                  {(unitCost > 0 || matCost !== null) && (
-                    <p className="mb-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2 flex-1">
-                      {matCost !== null
-                        ? <>Costo op. esta cita: <strong>C${fmt(costPreview)}</strong> <span className="opacity-70">(por materiales)</span></>
-                        : sess > 1
-                          ? <>Costo op.: C${fmt(unitCost)} ÷ {sess} ses. = <strong>C${fmt(costPreview)}</strong></>
-                          : <>Costo op.: C${fmt(unitCost)} × {qty} = <strong>C${fmt(costPreview)}</strong></>
-                      }
-                    </p>
-                  )}
-                </div>
-              </>
+                    {!form.appointment_id && (
+                      <div className="w-24 shrink-0">
+                        <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Sesiones</label>
+                        <input type="number" min="1" step="1" value={form.sessions}
+                          onChange={(e) => set("sessions", e.target.value)}
+                          className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          title="El costo operativo se divide entre las sesiones." />
+                      </div>
+                    )}
+                  </>
+                )}
+                {(unitCost > 0 || matCost !== null) && (
+                  <p className="mb-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2 flex-1">
+                    {costLabel}
+                  </p>
+                )}
+              </div>
             );
           })()}
 
@@ -870,7 +993,11 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                 <div className="flex items-center gap-2">
                   <Package size={14} className="text-slate-400 dark:text-gray-500" />
                   <span className="text-xs font-semibold text-slate-700 dark:text-gray-300">
-                    {isEdit ? "Materiales del procedimiento" : "Materiales a descontar del inventario"}
+                    {isEdit
+                      ? "Materiales del procedimiento"
+                      : extraProcedures.some((ep) => !!ep.procedure_id)
+                        ? "Materiales fusionados a descontar"
+                        : "Materiales a descontar del inventario"}
                   </span>
                   <span className="rounded-full bg-slate-100 dark:bg-gray-700 px-2 py-0.5 text-[10px] font-medium text-slate-500 dark:text-gray-400">
                     {usedMaterials.length}
@@ -886,6 +1013,11 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
 
               {materialsOpen && (
                 <div className="border-t border-slate-100 dark:border-gray-700 divide-y divide-slate-50 dark:divide-gray-700">
+                  {extraProcedures.some((ep) => !!ep.procedure_id) && usedMaterials && usedMaterials.some((m) => (m.sharedBy ?? 1) > 1) && (
+                    <p className="px-4 py-2.5 text-[10px] text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/20 border-b border-violet-100 dark:border-violet-800/30">
+                      Los materiales marcados <strong>Compartido</strong> se usan en ambos procedimientos — se cobra una sola vez (el mayor de los dos).
+                    </p>
+                  )}
                   {usedMaterials.some((m) => m.altGroup) && (
                     <p className="px-4 py-2.5 text-[10px] text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-b border-orange-100 dark:border-orange-800/30">
                       Materiales con <strong>Alt</strong> son alternativos entre sí — elimina los que no usaste para descontar solo el correcto del inventario.
@@ -906,6 +1038,11 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                             {m.altGroup && (
                               <span className={`ml-1.5 inline-flex items-center rounded px-1 py-0.5 text-[9px] font-semibold border ${altFinanceColor(m.altGroup).badge}`}>
                                 Alt {m.altGroup}
+                              </span>
+                            )}
+                            {(m.sharedBy ?? 1) > 1 && (
+                              <span className="ml-1.5 inline-flex items-center rounded px-1 py-0.5 text-[9px] font-semibold bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-300 border border-violet-200 dark:border-violet-700">
+                                Compartido
                               </span>
                             )}
                           </span>
