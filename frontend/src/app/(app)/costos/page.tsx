@@ -21,6 +21,7 @@ import {
   ApiTreatment,
 } from "@/hooks/useCostos";
 import { calculateTreatmentCosts, fmtC, apiProductToProduct, apiTreatmentToTreatment } from "@/lib/costos-utils";
+import { useEscapeKey } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
 
@@ -60,6 +61,7 @@ function InlineNum({ value, onChange, suffix, step = "1", min = "0" }: {
 // ─── New Treatment Modal ──────────────────────────────────────────────────────
 
 function NewTreatmentModal({ onClose }: { onClose: () => void }) {
+  useEscapeKey(onClose);
   const createTreatment = useCreateCostTreatment();
   const { data: fixedCosts } = useFixedCosts();
   const [name, setName] = useState("");

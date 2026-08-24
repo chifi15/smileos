@@ -18,11 +18,12 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Spinner from "@/components/ui/Spinner";
 import Select from "@/components/ui/Select";
-import { cn } from "@/lib/utils";
+import { cn, useEscapeKey } from "@/lib/utils";
 
 interface PatientToDelete { id: string; name: string }
 
 function DeletePatientModal({ patient, onClose }: { patient: PatientToDelete; onClose: () => void }) {
+  useEscapeKey(onClose);
   const del = useDeletePatientPermanent();
 
   return (

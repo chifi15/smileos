@@ -27,7 +27,7 @@ import {
 } from "@/types/costos";
 import { fmtC, fmtUSD, fmt } from "@/lib/costos-utils";
 import { useClinicSettings } from "@/hooks/useSettings";
-import { fmtDate } from "@/lib/utils";
+import { fmtDate, useEscapeKey } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 
 const ALL_CATEGORIES: ProductCategory[] = [
@@ -105,6 +105,7 @@ function compressImage(file: File, maxSize = 400): Promise<string> {
 const CUSTOM_SENTINEL = "__custom__";
 
 function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?: ApiProduct; extraCategories: string[]; onSave: (data: Omit<ApiProduct, "id" | "sort_order" | "stock_qty" | "min_stock_qty">) => void; onClose: () => void }) {
+  useEscapeKey(onClose);
   const [form, setForm] = useState<ProductFormState>(initial ? productToForm(initial) : EMPTY_FORM);
   const f = (key: keyof ProductFormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((s) => ({ ...s, [key]: e.target.value }));
@@ -344,6 +345,7 @@ function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?:
 // ─── Modal de uso por paciente ────────────────────────────────────────────────
 
 function ProductUsageModal({ product, onClose }: { product: ApiProduct; onClose: () => void }) {
+  useEscapeKey(onClose);
   const { data: usage = [], isLoading } = useProductPatientUsage(product.id);
 
   return (

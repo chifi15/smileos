@@ -57,7 +57,7 @@ import {
   ALL_CATEGORY_LABELS,
   TransactionCreatePayload,
 } from "@/types";
-import { fmtDate } from "@/lib/utils";
+import { fmtDate, useEscapeKey } from "@/lib/utils";
 
 const MONTHS_ES = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -217,6 +217,7 @@ function AuthenticatedImage({ path, className }: { path: string; className?: str
 function ReceiptModal({ tx, year, month, onClose }: {
   tx: FinanceTransaction; year: number; month: number; onClose: () => void;
 }) {
+  useEscapeKey(onClose);
   const upload = useUploadReceipt(year, month);
   const del = useDeleteReceipt(year, month);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -322,6 +323,7 @@ function ReceiptModal({ tx, year, month, onClose }: {
 // ─── Expense Category Manager ─────────────────────────────────────────────────
 
 function ExpenseCategoryManager({ onClose }: { onClose: () => void }) {
+  useEscapeKey(onClose);
   const { data: cats = [], isLoading } = useExpenseCategories();
   const createCat = useCreateExpenseCategory();
   const updateCat = useUpdateExpenseCategory();
@@ -473,6 +475,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   type: FinanceType; year: number; month: number; exchangeRate: number;
   editTx?: FinanceTransaction; onClose: () => void;
 }) {
+  useEscapeKey(onClose);
   const isEdit = !!editTx;
   const [form, setForm] = useState<FormState>(isEdit ? formFromTx(editTx!) : emptyForm(type));
   const create = useCreateTransaction(year, month);
@@ -1242,6 +1245,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
 function DeleteModal({ tx, year, month, onClose }: {
   tx: FinanceTransaction; year: number; month: number; onClose: () => void;
 }) {
+  useEscapeKey(onClose);
   const del = useDeleteTransaction(year, month);
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
@@ -1546,6 +1550,7 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
 function PatientTransactionsModal({ patientId, patientName, onClose }: {
   patientId: string; patientName: string; onClose: () => void;
 }) {
+  useEscapeKey(onClose);
   const { data: txs = [], isLoading } = usePatientTransactions(patientId);
 
   const totalIngresos = txs.filter(t => t.type === "ingreso").reduce((s, t) => s + t.amount_cordobas, 0);

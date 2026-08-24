@@ -18,7 +18,7 @@ import {
 } from "@/hooks/useCostos";
 import { categoryLabel, categoryColor, ProductCategory } from "@/types/costos";
 import { fmt, fmtC, fmtUSD } from "@/lib/costos-utils";
-import { fmtDate } from "@/lib/utils";
+import { fmtDate, useEscapeKey } from "@/lib/utils";
 import { useClinicSettings } from "@/hooks/useSettings";
 
 const ALL_CATEGORIES: ProductCategory[] = [
@@ -94,6 +94,7 @@ function DateInput({ value, onChange, className }: { value: string; onChange: (i
 // ─── Modal ajuste de stock ────────────────────────────────────────────────────
 
 function AdjustModal({ product, onClose }: { product: ApiProduct; onClose: () => void }) {
+  useEscapeKey(onClose);
   const updateStock = useUpdateCostProductStock();
   const updateMinStock = useUpdateCostProductMinStock();
 
@@ -212,6 +213,7 @@ function formatDate(iso: string) {
 }
 
 function LotHistoryModal({ product, onClose }: { product: ApiProduct; onClose: () => void }) {
+  useEscapeKey(onClose);
   const today = new Date().toISOString().slice(0, 10);
   const { data: lots = [], isLoading } = useProductLots(product.id);
   const openLot = useOpenProductLot();
