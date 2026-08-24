@@ -569,6 +569,48 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     setMaterialsOpen(true);
   }
 
+  // Costo combinado correcto:
+  // Base = suma de operational_cost individuales
+  // Ahorro = materiales compartidos que antes se pagaban N veces, ahora 1
+  // Combinado = base − ahorro  (siempre ≥ costo del procedimiento más caro)
+  function calcCombinedOpCost(
+    mainProcId: string,
+    mainAptId: string,
+    extras: ExtraProc[],
+    merged: UsedMaterial[]
+  ): { total: number; savings: number; individualSum: number } {
+    const allSpecs = [{ procedure_id: mainProcId, appointment_id: mainAptId }, ...extras]
+      .filter((s) => !!s.procedure_id);
+
+    // Suma de costos operativos individuales (proc.operational_cost)
+    const individualSum = allSpecs.reduce((sum, s) => {
+      const p = procedures.find((p) => p.id === s.procedure_id);
+      return sum + (p?.operational_cost ?? 0);
+    }, 0);
+
+    // Costo de materiales de cada procedimiento por separado (sin compartir)
+    const individualMatCost = allSpecs.reduce((sum, s) => {
+      const mats = getMaterialsForSpec(s.procedure_id, s.appointment_id);
+      return sum + calcMaterialsCost(mats);
+    }, 0);
+
+    // Costo de materiales con fusión (máximo por producto compartido)
+    const mergedMatCost = calcMaterialsCost(merged);
+
+    // Ahorro = diferencia entre pagar materiales por separado vs compartidos
+    const savings = Math.max(0, individualMatCost - mergedMatCost);
+
+    // Costo combinado = suma individual − ahorro de materiales compartidos
+    // Nunca puede ser menor que el costo individual más alto
+    const maxIndividual = allSpecs.reduce((max, s) => {
+      const p = procedures.find((p) => p.id === s.procedure_id);
+      return Math.max(max, p?.operational_cost ?? 0);
+    }, 0);
+
+    const total = Math.max(individualSum - savings, maxIndividual);
+    return { total, savings, individualSum };
+  }
+
   function initMaterialsFromTreatment(procedureId: string) {
     if (!procedureId) { setUsedMaterials(null); return; }
     recomputeMerged(procedureId, "", extraProcedures);
@@ -620,10 +662,16 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     const qty = Math.max(1, parseInt(form.quantity) || 1);
     const sessions = Math.max(1, parseInt(form.sessions) || 1);
     const isMultiProc = extraProcedures.some((ep) => !!ep.procedure_id);
-    // Con multi-procedimiento o cita específica, el costo real viene de los materiales fusionados
-    const opCostOverride = (isMultiProc || form.appointment_id) && usedMaterials
-      ? calcMaterialsCost(usedMaterials)
-      : null;
+    // Costo operativo a registrar:
+    // - Multi-proc: suma de costos individuales menos ahorro por materiales compartidos
+    // - Cita específica: costo real de materiales de esa cita
+    // - Single proc normal: null (el backend usa operational_cost del procedimiento)
+    let opCostOverride: number | null = null;
+    if (isMultiProc && usedMaterials) {
+      opCostOverride = calcCombinedOpCost(form.procedure_id, form.appointment_id, extraProcedures, usedMaterials).total;
+    } else if (form.appointment_id && usedMaterials) {
+      opCostOverride = calcMaterialsCost(usedMaterials);
+    }
 
     if (isEdit) {
       const payload: Record<string, unknown> = {
@@ -912,20 +960,23 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
             const qty = Math.max(1, parseInt(form.quantity) || 1);
             const sess = Math.max(1, parseInt(form.sessions) || 1);
             const unitCost = proc?.operational_cost ?? 0;
-            const matCost = usedMaterials ? calcMaterialsCost(usedMaterials) : null;
+            const matCost = form.appointment_id && usedMaterials ? calcMaterialsCost(usedMaterials) : null;
 
             let costPreview: number;
             let costLabel: React.ReactNode;
-            if (isMultiProc && matCost !== null) {
-              costPreview = matCost;
-              const sharedCount = (usedMaterials ?? []).filter((m) => (m.sharedBy ?? 1) > 1).length;
-              costLabel = (
+            if (isMultiProc && usedMaterials) {
+              const { total, savings, individualSum } = calcCombinedOpCost(
+                form.procedure_id, form.appointment_id, extraProcedures, usedMaterials
+              );
+              costPreview = total;
+              costLabel = savings > 0 ? (
                 <>
-                  Costo op. combinado: <strong>C${fmt(costPreview)}</strong>
-                  {sharedCount > 0 && (
-                    <span className="opacity-70"> ({sharedCount} material{sharedCount > 1 ? "es" : ""} compartido{sharedCount > 1 ? "s" : ""})</span>
-                  )}
+                  Costo op. combinado: <strong>C${fmt(individualSum)}</strong>
+                  <span className="text-green-700 dark:text-green-400"> − C${fmt(savings)} compartidos</span>
+                  {" = "}<strong>C${fmt(costPreview)}</strong>
                 </>
+              ) : (
+                <>Costo op. combinado: <strong>C${fmt(costPreview)}</strong></>
               );
             } else if (form.appointment_id && matCost !== null) {
               costPreview = matCost;
