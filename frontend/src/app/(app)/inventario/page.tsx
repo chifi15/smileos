@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Package, Plus, Minus, Edit2, AlertTriangle, CheckCircle, XCircle, Search, Link2, History, X } from "lucide-react";
 import Link from "next/link";
 import {
@@ -50,6 +50,45 @@ function usosLabel(p: ApiProduct): string {
   if (p.stock_qty == null) return "—";
   if (!p.portion_qty) return `${fmt(p.stock_qty)} usos`;
   return `≈ ${fmt(p.stock_qty / p.portion_qty)} usos`;
+}
+
+// ─── Date input DD/MM/AAAA ────────────────────────────────────────────────────
+
+function toDisplay(iso: string): string {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return "";
+  const [y, m, d] = iso.slice(0, 10).split("-");
+  return `${d}/${m}/${y}`;
+}
+
+function toISO(display: string): string {
+  const match = display.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return "";
+  const [, d, m, y] = match;
+  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+}
+
+function DateInput({ value, onChange, className }: { value: string; onChange: (iso: string) => void; className?: string }) {
+  const [raw, setRaw] = useState(() => toDisplay(value));
+
+  useEffect(() => { setRaw(toDisplay(value)); }, [value]);
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = e.target.value;
+    setRaw(v);
+    const iso = toISO(v);
+    if (iso) onChange(iso);
+  }
+
+  return (
+    <input
+      type="text"
+      value={raw}
+      onChange={handleChange}
+      placeholder="DD/MM/AAAA"
+      maxLength={10}
+      className={className}
+    />
+  );
 }
 
 // ─── Modal ajuste de stock ────────────────────────────────────────────────────
@@ -276,8 +315,8 @@ function LotHistoryModal({ product, onClose }: { product: ApiProduct; onClose: (
                     <div className="grid grid-cols-2 gap-3">
                       <div>
                         <label className="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Fecha de apertura</label>
-                        <input
-                          type="date" lang="es-NI" value={editOpenedAt} onChange={(e) => setEditOpenedAt(e.target.value)}
+                        <DateInput
+                          value={editOpenedAt} onChange={setEditOpenedAt}
                           className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm"
                         />
                       </div>
@@ -352,8 +391,8 @@ function LotHistoryModal({ product, onClose }: { product: ApiProduct; onClose: (
 
                     {finishingId === activeLot.id ? (
                       <div className="flex items-center gap-2 pt-1">
-                        <input
-                          type="date" lang="es-NI" value={finishedAt} onChange={(e) => setFinishedAt(e.target.value)}
+                        <DateInput
+                          value={finishedAt} onChange={setFinishedAt}
                           className="flex-1 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-1.5 text-sm"
                         />
                         <button
@@ -386,8 +425,8 @@ function LotHistoryModal({ product, onClose }: { product: ApiProduct; onClose: (
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Fecha de apertura</label>
-                    <input
-                      type="date" lang="es-NI" value={openedAt} onChange={(e) => setOpenedAt(e.target.value)}
+                    <DateInput
+                      value={openedAt} onChange={setOpenedAt}
                       className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm"
                     />
                   </div>
@@ -439,8 +478,8 @@ function LotHistoryModal({ product, onClose }: { product: ApiProduct; onClose: (
                           <div className="grid grid-cols-2 gap-3">
                             <div>
                               <label className="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Fecha apertura</label>
-                              <input
-                                type="date" lang="es-NI" value={editOpenedAt} onChange={(e) => setEditOpenedAt(e.target.value)}
+                              <DateInput
+                                value={editOpenedAt} onChange={setEditOpenedAt}
                                 className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-1.5 text-xs"
                               />
                             </div>
