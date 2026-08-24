@@ -195,8 +195,8 @@ function LotHistoryModal({ product, onClose }: { product: ApiProduct; onClose: (
 
   function handleStartEdit(lot: ApiProductLot) {
     setEditingLotId(lot.id);
-    setEditOpenedAt(lot.opened_at);
-    setEditExpectedPortions(lot.expected_portions != null ? String(lot.expected_portions) : "");
+    setEditOpenedAt((lot.opened_at ?? "").slice(0, 10));
+    setEditExpectedPortions(lot.expected_portions != null && !isNaN(lot.expected_portions) ? String(lot.expected_portions) : "");
     setEditNotes(lot.notes ?? "");
     setFinishingId(null);
   }
@@ -277,7 +277,7 @@ function LotHistoryModal({ product, onClose }: { product: ApiProduct; onClose: (
                       <div>
                         <label className="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Fecha de apertura</label>
                         <input
-                          type="date" value={editOpenedAt} onChange={(e) => setEditOpenedAt(e.target.value)}
+                          type="date" lang="es-NI" value={editOpenedAt} onChange={(e) => setEditOpenedAt(e.target.value)}
                           className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm"
                         />
                       </div>
@@ -353,7 +353,7 @@ function LotHistoryModal({ product, onClose }: { product: ApiProduct; onClose: (
                     {finishingId === activeLot.id ? (
                       <div className="flex items-center gap-2 pt-1">
                         <input
-                          type="date" value={finishedAt} onChange={(e) => setFinishedAt(e.target.value)}
+                          type="date" lang="es-NI" value={finishedAt} onChange={(e) => setFinishedAt(e.target.value)}
                           className="flex-1 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-1.5 text-sm"
                         />
                         <button
@@ -387,7 +387,7 @@ function LotHistoryModal({ product, onClose }: { product: ApiProduct; onClose: (
                   <div>
                     <label className="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Fecha de apertura</label>
                     <input
-                      type="date" value={openedAt} onChange={(e) => setOpenedAt(e.target.value)}
+                      type="date" lang="es-NI" value={openedAt} onChange={(e) => setOpenedAt(e.target.value)}
                       className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm"
                     />
                   </div>
@@ -440,7 +440,7 @@ function LotHistoryModal({ product, onClose }: { product: ApiProduct; onClose: (
                             <div>
                               <label className="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Fecha apertura</label>
                               <input
-                                type="date" value={editOpenedAt} onChange={(e) => setEditOpenedAt(e.target.value)}
+                                type="date" lang="es-NI" value={editOpenedAt} onChange={(e) => setEditOpenedAt(e.target.value)}
                                 className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-1.5 text-xs"
                               />
                             </div>
