@@ -3,14 +3,14 @@
 import { useEffect, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { Building2, Users, Copy, CheckCircle2, UserPlus, Tag, Plus, Pencil, Check, X, Trash2, GripVertical, Link2, Unlink, Download, Shield } from "lucide-react";
+import { Building2, Users, Copy, CheckCircle2, UserPlus, Tag, Plus, Pencil, Check, X, Trash2, GripVertical, Link2, Unlink, Download, Shield, History } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useClinicSettings, useUpdateSettings } from "@/hooks/useSettings";
 import { getAccessToken } from "@/lib/api-client";
 import { useAllUsers, useCreateUser } from "@/hooks/useUsers";
-import { useProcedures, useUpdateProcedurePrice, useCreateProcedure, useDeleteProcedure, useReorderProcedures } from "@/hooks/useCatalog";
+import { useProcedures, useUpdateProcedurePrice, useCreateProcedure, useDeleteProcedure, useReorderProcedures, usePriceHistory, PriceHistoryEntry } from "@/hooks/useCatalog";
 import { ClinicUser, UserRole, Procedure } from "@/types";
 import { useCostTreatments, useCostProducts, useFixedCosts, useLinkCostProcedure } from "@/hooks/useCostos";
 import { calculateTreatmentCosts, apiTreatmentToTreatment, apiProductToProduct } from "@/lib/costos-utils";
@@ -405,6 +405,60 @@ export default function SettingsPage() {
 
 // ─── Catálogo de Precios ──────────────────────────────────────────────────────
 
+function PriceHistoryModal({ proc, onClose }: { proc: Procedure; onClose: () => void }) {
+  const { data: history = [], isLoading } = usePriceHistory(proc.id);
+
+  function fmt(v: number | null) {
+    if (v == null) return <span className="text-slate-400 dark:text-gray-500">sin precio</span>;
+    return <span>C$ {Number(v).toLocaleString("es-NI", { minimumFractionDigits: 0 })}</span>;
+  }
+
+  return (
+    <Modal open onClose={onClose} title={`Historial de precios — ${proc.name}`} size="md">
+      {isLoading ? (
+        <div className="flex justify-center py-8"><Spinner /></div>
+      ) : history.length === 0 ? (
+        <p className="text-sm text-slate-500 dark:text-gray-400 text-center py-8">
+          Sin cambios de precio registrados.
+        </p>
+      ) : (
+        <div className="space-y-0 divide-y divide-slate-100 dark:divide-gray-700">
+          {history.map((entry: PriceHistoryEntry, i: number) => (
+            <div key={entry.id} className="flex items-start gap-3 py-3">
+              <div className="mt-0.5 flex-shrink-0 w-7 h-7 rounded-full bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center text-blue-500 dark:text-blue-400 text-xs font-bold">
+                {i + 1}
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-sm font-medium text-slate-700 dark:text-gray-200">
+                    {fmt(entry.price_from)}
+                  </span>
+                  <span className="text-slate-400 dark:text-gray-500">→</span>
+                  <span className="text-sm font-semibold text-green-700 dark:text-green-400">
+                    {fmt(entry.price_to)}
+                  </span>
+                </div>
+                {(entry.operational_cost_from != null || entry.operational_cost_to != null) && (
+                  <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                    <span className="text-xs text-slate-400 dark:text-gray-500">Costo op.:</span>
+                    <span className="text-xs text-slate-500 dark:text-gray-400">{fmt(entry.operational_cost_from)}</span>
+                    <span className="text-slate-300 dark:text-gray-600">→</span>
+                    <span className="text-xs text-slate-600 dark:text-gray-300">{fmt(entry.operational_cost_to)}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-3 mt-1 text-xs text-slate-400 dark:text-gray-500">
+                  <span>{format(parseISO(entry.date), "d MMM yyyy, HH:mm", { locale: es })}</span>
+                  {entry.user && <span>· {entry.user}</span>}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Modal>
+  );
+}
+
 function EditableAmount({
   label,
   value,
@@ -469,6 +523,7 @@ function PriceRow({ proc }: { proc: Procedure }) {
   const deleteProcedure = useDeleteProcedure();
   const [editingName, setEditingName] = useState(false);
   const [nameInput, setNameInput] = useState(proc.name);
+  const [showHistory, setShowHistory] = useState(false);
   const [linkingOpen, setLinkingOpen] = useState(false);
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
   const linkingRef = useRef<HTMLDivElement>(null);
@@ -643,15 +698,24 @@ function PriceRow({ proc }: { proc: Procedure }) {
         </div>{/* close linkingRef div */}
 
           <button
+            onClick={() => setShowHistory(true)}
+            className="text-slate-300 hover:text-blue-500 transition-colors ml-auto"
+            title="Historial de precios"
+          >
+            <History size={14} />
+          </button>
+          <button
             onClick={handleDelete}
             disabled={deleteProcedure.isPending}
-            className="text-slate-300 hover:text-red-500 transition-colors disabled:opacity-50 ml-auto"
+            className="text-slate-300 hover:text-red-500 transition-colors disabled:opacity-50"
             title="Eliminar procedimiento"
           >
             <Trash2 size={14} />
           </button>
         </div>{/* close controls row */}
       </div>{/* close flex-1 */}
+
+      {showHistory && <PriceHistoryModal proc={proc} onClose={() => setShowHistory(false)} />}
     </div>
   );
 }

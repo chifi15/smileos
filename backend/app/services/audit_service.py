@@ -40,6 +40,7 @@ async def list_feed(
     db: AsyncSession,
     clinic_id: uuid.UUID,
     resource_type: str | None = None,
+    resource_id: str | None = None,
     patient_id: uuid.UUID | None = None,
     date_from: datetime | None = None,
     date_to: datetime | None = None,
@@ -54,6 +55,8 @@ async def list_feed(
 
     if resource_type:
         q = q.where(AuditLog.resource_type == resource_type)
+    if resource_id:
+        q = q.where(AuditLog.resource_id == resource_id)
     if patient_id:
         q = q.where(AuditLog.patient_id == patient_id)
     if date_from:
@@ -64,6 +67,8 @@ async def list_feed(
     count_q = select(func.count(AuditLog.id)).where(AuditLog.clinic_id == clinic_id)
     if resource_type:
         count_q = count_q.where(AuditLog.resource_type == resource_type)
+    if resource_id:
+        count_q = count_q.where(AuditLog.resource_id == resource_id)
     if patient_id:
         count_q = count_q.where(AuditLog.patient_id == patient_id)
     if date_from:

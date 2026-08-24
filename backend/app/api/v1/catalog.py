@@ -133,6 +133,36 @@ async def reorder_procedures(
     return {"success": True}
 
 
+@router.get("/{procedure_id}/price-history")
+async def get_price_history(
+    procedure_id: uuid.UUID,
+    user: Annotated[object, require_permission("view_catalog")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    entries, _ = await audit_service.list_feed(
+        db,
+        clinic_id=user.clinic_id,
+        resource_type="procedure_catalog",
+        resource_id=str(procedure_id),
+        per_page=100,
+    )
+    history = []
+    for e in entries:
+        ch = e.changes or {}
+        if "price_from" in ch or "price_to" in ch:
+            history.append({
+                "id": str(e.id),
+                "date": e.created_at.isoformat(),
+                "price_from": ch.get("price_from"),
+                "price_to": ch.get("price_to"),
+                "operational_cost_from": ch.get("operational_cost_from"),
+                "operational_cost_to": ch.get("operational_cost_to"),
+                "description": e.description,
+                "user": e.user.full_name if e.user else None,
+            })
+    return {"success": True, "data": history}
+
+
 @router.delete("/{procedure_id}")
 async def deactivate_procedure(
     procedure_id: uuid.UUID,

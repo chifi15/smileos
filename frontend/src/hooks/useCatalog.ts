@@ -60,6 +60,31 @@ export function useReorderProcedures() {
   });
 }
 
+export interface PriceHistoryEntry {
+  id: string;
+  date: string;
+  price_from: number | null;
+  price_to: number | null;
+  operational_cost_from: number | null;
+  operational_cost_to: number | null;
+  description: string;
+  user: string | null;
+}
+
+export function usePriceHistory(procedureId: string | null) {
+  return useQuery({
+    queryKey: ["catalog", "procedures", procedureId, "price-history"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: PriceHistoryEntry[] }>(
+        `/api/v1/catalog/procedures/${procedureId}/price-history`
+      );
+      return data.data;
+    },
+    enabled: !!procedureId,
+    staleTime: 0,
+  });
+}
+
 export function useCreateProcedure(onSuccess?: () => void) {
   const qc = useQueryClient();
   return useMutation({
