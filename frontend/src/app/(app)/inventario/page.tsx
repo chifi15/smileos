@@ -10,6 +10,7 @@ import {
   useUpdateCostProductMinStock,
   useProductLots,
   useOpenProductLot,
+  useUpdateProductLot,
   useFinishProductLot,
   useDeleteProductLot,
   ApiProduct,
@@ -178,12 +179,37 @@ function LotHistoryModal({ product, onClose }: { product: ApiProduct; onClose: (
   const finishLot = useFinishProductLot();
   const deleteLot = useDeleteProductLot();
 
+  const updateLot = useUpdateProductLot();
+
   const [showOpenForm, setShowOpenForm] = useState(false);
   const [openedAt, setOpenedAt] = useState(today);
   const [expectedPortions, setExpectedPortions] = useState("");
   const [notes, setNotes] = useState("");
   const [finishingId, setFinishingId] = useState<string | null>(null);
   const [finishedAt, setFinishedAt] = useState(today);
+
+  const [editingLotId, setEditingLotId] = useState<string | null>(null);
+  const [editOpenedAt, setEditOpenedAt] = useState("");
+  const [editExpectedPortions, setEditExpectedPortions] = useState("");
+  const [editNotes, setEditNotes] = useState("");
+
+  function handleStartEdit(lot: ApiProductLot) {
+    setEditingLotId(lot.id);
+    setEditOpenedAt(lot.opened_at);
+    setEditExpectedPortions(lot.expected_portions != null ? String(lot.expected_portions) : "");
+    setEditNotes(lot.notes ?? "");
+    setFinishingId(null);
+  }
+
+  function handleSaveEdit(lot: ApiProductLot) {
+    updateLot.mutate({
+      productId: product.id,
+      lotId: lot.id,
+      opened_at: editOpenedAt,
+      expected_portions: editExpectedPortions ? parseFloat(editExpectedPortions) : null,
+      notes: editNotes || null,
+    }, { onSuccess: () => setEditingLotId(null) });
+  }
 
   const activeLot = lots.find((l) => !l.finished_at);
   const pastLots = lots.filter((l) => l.finished_at);
@@ -244,54 +270,109 @@ function LotHistoryModal({ product, onClose }: { product: ApiProduct; onClose: (
               <p className="text-xs text-slate-400 dark:text-gray-500">Cargando...</p>
             ) : activeLot ? (
               <div className="rounded-xl border border-green-200 dark:border-green-800/30 bg-green-50/50 dark:bg-green-900/10 p-4 space-y-3">
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-sm font-medium text-slate-800 dark:text-gray-200">
-                      Abierto el {formatDate(activeLot.opened_at)}
-                    </p>
-                    {activeLot.notes && <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">{activeLot.notes}</p>}
-                  </div>
-                  <span className="rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">En uso</span>
-                </div>
-
-                <div className="space-y-1">
-                  <div className="flex justify-between text-xs text-slate-600 dark:text-gray-400">
-                    <span>Porciones usadas: <strong>{activeLot.used_portions.toFixed(1)}</strong></span>
-                    {activeLot.expected_portions && (
-                      <span>Esperadas: <strong>{activeLot.expected_portions}</strong></span>
-                    )}
-                  </div>
-                  {activeLot.expected_portions && (
-                    <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-gray-700 overflow-hidden">
-                      <div
-                        className="h-full rounded-full bg-green-500"
-                        style={{ width: `${Math.min(100, (activeLot.used_portions / activeLot.expected_portions) * 100).toFixed(0)}%` }}
+                {editingLotId === activeLot.id ? (
+                  <>
+                    <p className="text-sm font-semibold text-slate-700 dark:text-gray-300">Editar lote activo</p>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Fecha de apertura</label>
+                        <input
+                          type="date" value={editOpenedAt} onChange={(e) => setEditOpenedAt(e.target.value)}
+                          className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Porciones esperadas</label>
+                        <input
+                          type="number" min="0" step="any"
+                          value={editExpectedPortions} onChange={(e) => setEditExpectedPortions(e.target.value)}
+                          placeholder="Ej. 100"
+                          className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Notas (opcional)</label>
+                      <input
+                        type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)}
+                        placeholder="Ej. Marca X, lote 2024-01"
+                        className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm"
                       />
                     </div>
-                  )}
-                </div>
-
-                {finishingId === activeLot.id ? (
-                  <div className="flex items-center gap-2 pt-1">
-                    <input
-                      type="date" value={finishedAt} onChange={(e) => setFinishedAt(e.target.value)}
-                      className="flex-1 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-1.5 text-sm"
-                    />
-                    <button
-                      onClick={() => handleFinish(activeLot)}
-                      className="rounded-lg bg-slate-700 dark:bg-gray-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 dark:hover:bg-gray-500"
-                    >
-                      Confirmar
-                    </button>
-                    <button onClick={() => setFinishingId(null)} className="text-xs text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300">Cancelar</button>
-                  </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => handleSaveEdit(activeLot)}
+                        disabled={updateLot.isPending}
+                        className="flex-1 rounded-lg bg-blue-600 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-40"
+                      >
+                        Guardar cambios
+                      </button>
+                      <button onClick={() => setEditingLotId(null)} className="rounded-lg border border-slate-200 dark:border-gray-600 px-4 py-2 text-sm text-slate-600 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-700">
+                        Cancelar
+                      </button>
+                    </div>
+                  </>
                 ) : (
-                  <button
-                    onClick={() => setFinishingId(activeLot.id)}
-                    className="w-full rounded-lg border border-slate-300 dark:border-gray-600 py-1.5 text-xs font-medium text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700"
-                  >
-                    Marcar como agotado
-                  </button>
+                  <>
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="text-sm font-medium text-slate-800 dark:text-gray-200">
+                          Abierto el {formatDate(activeLot.opened_at)}
+                        </p>
+                        {activeLot.notes && <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">{activeLot.notes}</p>}
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleStartEdit(activeLot)}
+                          className="rounded p-1 text-slate-400 dark:text-gray-500 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                          title="Editar lote"
+                        >
+                          <Edit2 size={13} />
+                        </button>
+                        <span className="rounded-full bg-green-100 dark:bg-green-900/30 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-400">En uso</span>
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <div className="flex justify-between text-xs text-slate-600 dark:text-gray-400">
+                        <span>Porciones usadas: <strong>{activeLot.used_portions.toFixed(1)}</strong></span>
+                        {activeLot.expected_portions && (
+                          <span>Esperadas: <strong>{activeLot.expected_portions}</strong></span>
+                        )}
+                      </div>
+                      {activeLot.expected_portions && (
+                        <div className="h-2 w-full rounded-full bg-slate-200 dark:bg-gray-700 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-green-500"
+                            style={{ width: `${Math.min(100, (activeLot.used_portions / activeLot.expected_portions) * 100).toFixed(0)}%` }}
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {finishingId === activeLot.id ? (
+                      <div className="flex items-center gap-2 pt-1">
+                        <input
+                          type="date" value={finishedAt} onChange={(e) => setFinishedAt(e.target.value)}
+                          className="flex-1 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-1.5 text-sm"
+                        />
+                        <button
+                          onClick={() => handleFinish(activeLot)}
+                          className="rounded-lg bg-slate-700 dark:bg-gray-600 px-3 py-1.5 text-xs font-medium text-white hover:bg-slate-800 dark:hover:bg-gray-500"
+                        >
+                          Confirmar
+                        </button>
+                        <button onClick={() => setFinishingId(null)} className="text-xs text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300">Cancelar</button>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setFinishingId(activeLot.id)}
+                        className="w-full rounded-lg border border-slate-300 dark:border-gray-600 py-1.5 text-xs font-medium text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700"
+                      >
+                        Marcar como agotado
+                      </button>
+                    )}
+                  </>
                 )}
               </div>
             ) : !showOpenForm ? (
@@ -353,30 +434,82 @@ function LotHistoryModal({ product, onClose }: { product: ApiProduct; onClose: (
                   const eff = efficiency(lot);
                   return (
                     <div key={lot.id} className="rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50 p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-slate-700 dark:text-gray-300">
-                            {formatDate(lot.opened_at)} → {lot.finished_at ? formatDate(lot.finished_at) : "—"}
-                          </p>
-                          <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
-                            {lot.used_portions.toFixed(1)} porciones usadas
-                            {lot.expected_portions && <> · esperadas: {lot.expected_portions}</>}
-                          </p>
-                          {eff && (
-                            <p className={`text-xs font-medium mt-0.5 ${eff.startsWith("+") ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"}`}>
-                              {eff}
-                            </p>
-                          )}
-                          {lot.notes && <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5 truncate">{lot.notes}</p>}
+                      {editingLotId === lot.id ? (
+                        <div className="space-y-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Fecha apertura</label>
+                              <input
+                                type="date" value={editOpenedAt} onChange={(e) => setEditOpenedAt(e.target.value)}
+                                className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-1.5 text-xs"
+                              />
+                            </div>
+                            <div>
+                              <label className="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Porciones esperadas</label>
+                              <input
+                                type="number" min="0" step="any"
+                                value={editExpectedPortions} onChange={(e) => setEditExpectedPortions(e.target.value)}
+                                placeholder="Ej. 100"
+                                className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-1.5 text-xs"
+                              />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="text-xs text-slate-500 dark:text-gray-400 mb-1 block">Notas</label>
+                            <input
+                              type="text" value={editNotes} onChange={(e) => setEditNotes(e.target.value)}
+                              placeholder="Opcional"
+                              className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-1.5 text-xs"
+                            />
+                          </div>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => handleSaveEdit(lot)}
+                              disabled={updateLot.isPending}
+                              className="flex-1 rounded-lg bg-blue-600 py-1.5 text-xs font-medium text-white hover:bg-blue-700 disabled:opacity-40"
+                            >
+                              Guardar
+                            </button>
+                            <button onClick={() => setEditingLotId(null)} className="rounded-lg border border-slate-200 dark:border-gray-600 px-3 py-1.5 text-xs text-slate-600 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-gray-700">
+                              Cancelar
+                            </button>
+                          </div>
                         </div>
-                        <button
-                          onClick={() => deleteLot.mutate({ productId: product.id, lotId: lot.id })}
-                          className="shrink-0 rounded p-1 text-slate-300 dark:text-gray-600 hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
-                          title="Eliminar"
-                        >
-                          <X size={12} />
-                        </button>
-                      </div>
+                      ) : (
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-slate-700 dark:text-gray-300">
+                              {formatDate(lot.opened_at)} → {lot.finished_at ? formatDate(lot.finished_at) : "—"}
+                            </p>
+                            <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
+                              {lot.used_portions.toFixed(1)} porciones usadas
+                              {lot.expected_portions && <> · esperadas: {lot.expected_portions}</>}
+                            </p>
+                            {eff && (
+                              <p className={`text-xs font-medium mt-0.5 ${eff.startsWith("+") ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"}`}>
+                                {eff}
+                              </p>
+                            )}
+                            {lot.notes && <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5 truncate">{lot.notes}</p>}
+                          </div>
+                          <div className="flex items-center gap-0.5 shrink-0">
+                            <button
+                              onClick={() => handleStartEdit(lot)}
+                              className="rounded p-1 text-slate-300 dark:text-gray-600 hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                              title="Editar"
+                            >
+                              <Edit2 size={12} />
+                            </button>
+                            <button
+                              onClick={() => deleteLot.mutate({ productId: product.id, lotId: lot.id })}
+                              className="rounded p-1 text-slate-300 dark:text-gray-600 hover:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20"
+                              title="Eliminar"
+                            >
+                              <X size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   );
                 })}
