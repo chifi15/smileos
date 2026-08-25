@@ -107,6 +107,7 @@ async def create_google_event(
         "description": description,
         "start": {"dateTime": start_dt.isoformat(), "timeZone": "America/Managua"},
         "end": {"dateTime": end_dt.isoformat(), "timeZone": "America/Managua"},
+        "extendedProperties": {"private": {"smileos": "1"}},
     }
     async with httpx.AsyncClient() as client:
         resp = await client.post(

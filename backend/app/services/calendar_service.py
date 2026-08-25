@@ -172,17 +172,20 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
     )
 
     # Obtener el color por defecto del calendario (para eventos sin colorId)
+    # Se listan todos porque calendarList/{id} con "primary" no funciona
     calendar_default_color: str | None = None
     try:
         import httpx as _httpx
         async with _httpx.AsyncClient() as _client:
             _resp = await _client.get(
-                f"https://www.googleapis.com/calendar/v3/users/me/calendarList/{cal_id}",
+                "https://www.googleapis.com/calendar/v3/users/me/calendarList",
                 headers={"Authorization": f"Bearer {access_token}"},
             )
             if _resp.is_success:
-                _cal = _resp.json()
-                calendar_default_color = _cal.get("backgroundColor")
+                for _cal in _resp.json().get("items", []):
+                    if _cal.get("primary") or _cal.get("id") == cal_id:
+                        calendar_default_color = _cal.get("backgroundColor")
+                        break
     except Exception:
         pass
 
@@ -199,6 +202,9 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
 
     for item in gcal_items:
         if item.get("status") == "cancelled":
+            continue
+        # Saltar eventos creados por SmileOS (evita duplicados en la agenda)
+        if item.get("extendedProperties", {}).get("private", {}).get("smileos") == "1":
             continue
         event_id = item.get("id", "")
         summary = (item.get("summary") or "").strip()
