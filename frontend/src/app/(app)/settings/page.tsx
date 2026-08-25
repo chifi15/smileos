@@ -11,7 +11,7 @@ import { CSS } from "@dnd-kit/utilities";
 import toast from "react-hot-toast";
 import { useClinicSettings, useUpdateSettings } from "@/hooks/useSettings";
 import { useSyncCalendar, useCalendarStatus, useDisconnectGoogleOAuth } from "@/hooks/useCalendar";
-import { getAccessToken } from "@/lib/api-client";
+import apiClient, { getAccessToken } from "@/lib/api-client";
 import { useAllUsers, useCreateUser } from "@/hooks/useUsers";
 import { useProcedures, useUpdateProcedurePrice, useCreateProcedure, useDeleteProcedure, useReorderProcedures, usePriceHistory, PriceHistoryEntry } from "@/hooks/useCatalog";
 import { ClinicUser, UserRole, Procedure } from "@/types";
