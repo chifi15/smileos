@@ -164,6 +164,13 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
     except Exception as e:
         return {"error": f"Error leyendo Google Calendar API: {str(e)}"}
 
+    # Obtener definiciones de colores exactas desde la API de Google
+    event_colors: dict[str, str] = {}
+    try:
+        event_colors = await oauth.get_event_colors(access_token)
+    except Exception:
+        pass
+
     # Color por defecto del calendario (para eventos sin colorId)
     calendar_default_color: str | None = None
     try:
@@ -230,9 +237,9 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
         if any(abs((start_at - t).total_seconds()) < 600 for t in smileos_times):
             continue
 
-        # Color: colorId del evento o color del calendario
+        # Color: usar colores exactos de la API, luego fallback al color del calendario
         color_id = item.get("colorId")
-        hex_color = oauth.resolve_color_id(color_id) or calendar_default_color
+        hex_color = (event_colors.get(str(color_id)) if color_id else None) or calendar_default_color
         if hex_color:
             colors_found += 1
 

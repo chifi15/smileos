@@ -156,6 +156,19 @@ async def delete_google_event(
             resp.raise_for_status()
 
 
+async def get_event_colors(access_token: str) -> dict[str, str]:
+    """Devuelve el mapa colorId → hex exacto según la API de Google Calendar."""
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{GOOGLE_CALENDAR_API}/colors",
+            headers={"Authorization": f"Bearer {access_token}"},
+        )
+        if resp.is_success:
+            event_section = resp.json().get("event", {})
+            return {k: v.get("background", "") for k, v in event_section.items()}
+    return {}
+
+
 async def list_google_events(
     access_token: str,
     calendar_id: str,
