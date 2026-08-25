@@ -417,12 +417,22 @@ export default function SettingsPage() {
                 type="button"
                 variant="secondary"
                 size="sm"
+                loading={updateSettings.isPending}
+                onClick={() =>
+                  updateSettings.mutate({ ical_url: icalUrl.trim() || null })
+                }
+              >
+                Guardar URL
+              </Button>
+              <Button
+                type="button"
+                size="sm"
                 onClick={() => syncCalendar.mutate()}
                 loading={syncCalendar.isPending}
                 disabled={!calendarStatus?.configured && !icalUrl.trim()}
               >
                 <RefreshCw size={14} />
-                Sincronizar ahora
+                Sincronizar
               </Button>
             </div>
           </div>
