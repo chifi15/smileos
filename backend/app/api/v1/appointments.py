@@ -221,6 +221,16 @@ async def no_show(
     return {"success": True, "data": _serialize(appt)}
 
 
+@router.delete("/{appointment_id}")
+async def delete_appointment(
+    appointment_id: uuid.UUID,
+    user: Annotated[object, require_permission("manage_appointments")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    await appointment_service.delete_appointment(db, user.clinic_id, appointment_id)
+    return {"success": True}
+
+
 @router.post("/{appointment_id}/cancel")
 async def cancel(
     appointment_id: uuid.UUID,

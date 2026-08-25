@@ -27,6 +27,7 @@ import {
   useCompleteAppointment,
   useNoShowAppointment,
   useCancelAppointment,
+  useDeleteAppointment,
   useEditAppointment,
 } from "@/hooks/useAppointments";
 import { useClinicUsers } from "@/hooks/useUsers";
@@ -170,6 +171,7 @@ export default function AppointmentDetailModal({ appointment: appt, onClose }: P
   const complete = useCompleteAppointment(onClose);
   const noShow = useNoShowAppointment(onClose);
   const cancel = useCancelAppointment(onClose);
+  const deleteMutation = useDeleteAppointment(onClose);
 
   if (!appt) return null;
 
@@ -178,7 +180,8 @@ export default function AppointmentDetailModal({ appointment: appt, onClose }: P
     start.isPending ||
     complete.isPending ||
     noShow.isPending ||
-    cancel.isPending;
+    cancel.isPending ||
+    deleteMutation.isPending;
 
   function handleCancel() {
     cancel.mutate({ id: appt!.id, reason: cancelReason || undefined });
@@ -373,6 +376,18 @@ export default function AppointmentDetailModal({ appointment: appt, onClose }: P
                   </div>
                 </div>
               )}
+
+              <button
+                className="text-xs text-slate-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors"
+                onClick={() => {
+                  if (window.confirm("¿Eliminar esta cita permanentemente? Esta acción no se puede deshacer.")) {
+                    deleteMutation.mutate(appt.id);
+                  }
+                }}
+                disabled={isWorking}
+              >
+                Eliminar cita permanentemente
+              </button>
             </div>
           )}
         </>

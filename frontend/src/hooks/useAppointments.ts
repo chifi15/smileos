@@ -149,3 +149,19 @@ export function useCancelAppointment(onSuccess?: () => void) {
     },
   });
 }
+
+export function useDeleteAppointment(onSuccess?: () => void) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.delete(`/api/v1/appointments/${id}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+      qc.invalidateQueries({ queryKey: ["dashboard"] });
+      toast.success("Cita eliminada.");
+      onSuccess?.();
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.detail || "Error al eliminar la cita.");
+    },
+  });
+}

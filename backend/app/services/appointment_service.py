@@ -232,6 +232,22 @@ async def cancel_appointment(
     )
 
 
+async def delete_appointment(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    appointment_id: uuid.UUID,
+) -> None:
+    from sqlalchemy import delete as sql_delete
+    from app.models.appointment import Appointment as ApptModel
+    await db.execute(
+        sql_delete(ApptModel).where(
+            ApptModel.id == appointment_id,
+            ApptModel.clinic_id == clinic_id,
+        )
+    )
+    await db.commit()
+
+
 async def list_appointments(
     db: AsyncSession,
     clinic_id: uuid.UUID,
