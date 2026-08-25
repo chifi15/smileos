@@ -24,12 +24,12 @@ router = APIRouter(prefix="/calendar", tags=["Google Calendar"])
 async def oauth_authorize(
     user: Annotated[object, require_permission("manage_patients")],
 ):
-    """Redirige al usuario a la pantalla de consentimiento de Google."""
+    """Devuelve la URL de consentimiento de Google (el frontend redirige)."""
     if not get_settings().google_client_id:
         raise HTTPException(status_code=503, detail="Google OAuth no configurado en el servidor.")
     state = str(user.clinic_id)
     url = oauth.build_auth_url(state)
-    return RedirectResponse(url)
+    return {"success": True, "data": {"url": url}}
 
 
 @router.get("/oauth/callback")
