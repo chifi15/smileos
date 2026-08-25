@@ -259,7 +259,35 @@ async def delete_appointment(
     user: Annotated[object, require_permission("manage_appointments")],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    # Obtener el google_event_id antes de eliminar de la BD
+    from sqlalchemy import select as sa_select
+    from app.models.appointment import Appointment as ApptModel
+    row = await db.execute(
+        sa_select(ApptModel.google_event_id).where(
+            ApptModel.id == appointment_id,
+            ApptModel.clinic_id == user.clinic_id,
+        )
+    )
+    google_event_id = row.scalar_one_or_none()
+
     await appointment_service.delete_appointment(db, user.clinic_id, appointment_id)
+
+    # Eliminar también en Google Calendar (fallo silencioso)
+    if google_event_id:
+        try:
+            settings_row = await db.execute(
+                select(ClinicSettings.google_refresh_token, ClinicSettings.google_calendar_id)
+                .where(ClinicSettings.clinic_id == user.clinic_id)
+            )
+            cfg = settings_row.one_or_none()
+            if cfg and cfg.google_refresh_token:
+                from app.services import google_oauth_service as oauth
+                access_token = await oauth.refresh_access_token(cfg.google_refresh_token)
+                cal_id = cfg.google_calendar_id or "primary"
+                await oauth.delete_google_event(access_token, cal_id, google_event_id)
+        except Exception:
+            pass
+
     return {"success": True}
 
 
