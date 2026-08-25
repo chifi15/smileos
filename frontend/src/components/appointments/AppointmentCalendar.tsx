@@ -6,7 +6,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import type { EventClickArg, DatesSetArg, EventContentArg } from "@fullcalendar/core";
 import esLocale from "@fullcalendar/core/locales/es";
 import { AppointmentFull, AppointmentStatus } from "@/types";
-import { CalendarEvent } from "@/hooks/useCalendar";
+import { CalendarEvent, useGcalEventColors } from "@/hooks/useCalendar";
 
 const STATUS_BG: Record<AppointmentStatus, string> = {
   scheduled: "#94a3b8",
@@ -17,11 +17,6 @@ const STATUS_BG: Record<AppointmentStatus, string> = {
   no_show: "#f43f5e",
 };
 
-const GCAL_COLOR_HEX: Record<string, string> = {
-  "1": "#D50000", "2": "#E67C73", "3": "#F4511E", "4": "#F6BF26",
-  "5": "#33B679", "6": "#0B8043", "7": "#039BE5", "8": "#3F51B5",
-  "9": "#7986CB", "10": "#8E24AA", "11": "#616161",
-};
 
 function textColor(hex: string): string {
   const r = parseInt(hex.slice(1, 3), 16);
@@ -59,8 +54,10 @@ export default function AppointmentCalendar({
   onDateClick,
   onDatesSet,
 }: Props) {
+  const { data: gcalColorMap = {} } = useGcalEventColors();
+
   const smileosEvents = appointments.map((appt) => {
-    const bg = (appt.gcal_color_id && GCAL_COLOR_HEX[appt.gcal_color_id])
+    const bg = (appt.gcal_color_id && gcalColorMap[appt.gcal_color_id])
       ?? STATUS_BG[appt.status as AppointmentStatus]
       ?? "#94a3b8";
     return {

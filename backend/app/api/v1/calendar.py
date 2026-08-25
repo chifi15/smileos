@@ -117,6 +117,19 @@ async def get_status(
 
 # ─── Sync ──────────────────────────────────────────────────────────────────────
 
+@router.get("/event-colors")
+async def get_event_colors(
+    user: Annotated[object, require_permission("view_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Devuelve el mapa colorId→hex exacto desde la API de Google Calendar."""
+    access_token = await oauth.get_access_token(db, user.clinic_id)
+    if not access_token:
+        return {"success": True, "data": {}}
+    colors = await oauth.get_event_colors(access_token)
+    return {"success": True, "data": colors}
+
+
 @router.post("/sync")
 async def trigger_sync(
     user: Annotated[object, require_permission("manage_patients")],

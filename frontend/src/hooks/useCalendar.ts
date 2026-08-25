@@ -57,6 +57,24 @@ export function useDisconnectGoogleOAuth() {
   });
 }
 
+// Nombres en español para cada colorId de eventos de Google Calendar
+export const GCAL_COLOR_NAMES: Record<string, string> = {
+  "1": "Lavanda", "2": "Salvia", "3": "Uva", "4": "Flamingo",
+  "5": "Girasol", "6": "Mandarina", "7": "Pavo real", "8": "Grafito",
+  "9": "Arándano", "10": "Albahaca", "11": "Tomate",
+};
+
+export function useGcalEventColors() {
+  return useQuery({
+    queryKey: ["calendar", "event-colors"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: Record<string, string> }>("/api/v1/calendar/event-colors");
+      return data.data; // { "1": "#hex", ... }
+    },
+    staleTime: 24 * 60 * 60 * 1000,
+  });
+}
+
 export function useSyncCalendar() {
   const qc = useQueryClient();
   return useMutation({

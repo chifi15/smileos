@@ -12,6 +12,7 @@ import PatientSearch from "@/components/ui/PatientSearch";
 import { useCreateAppointment } from "@/hooks/useAppointments";
 import { useClinicUsers } from "@/hooks/useUsers";
 import { useAuthStore } from "@/stores/auth.store";
+import { useGcalEventColors, GCAL_COLOR_NAMES } from "@/hooks/useCalendar";
 import { APPOINTMENT_TYPE_LABELS, AppointmentType } from "@/types";
 
 interface Props {
@@ -39,19 +40,6 @@ const TYPE_OPTIONS = [
   })),
 ];
 
-const GCAL_COLORS = [
-  { id: "1",  hex: "#D50000", name: "Tomate" },
-  { id: "2",  hex: "#E67C73", name: "Flamingo" },
-  { id: "3",  hex: "#F4511E", name: "Mandarina" },
-  { id: "4",  hex: "#F6BF26", name: "Banana" },
-  { id: "5",  hex: "#33B679", name: "Salvia" },
-  { id: "6",  hex: "#0B8043", name: "Albahaca" },
-  { id: "7",  hex: "#039BE5", name: "Pavo real" },
-  { id: "8",  hex: "#3F51B5", name: "Arándano" },
-  { id: "9",  hex: "#7986CB", name: "Lavanda" },
-  { id: "10", hex: "#8E24AA", name: "Uva" },
-  { id: "11", hex: "#616161", name: "Grafito" },
-];
 
 export default function NewAppointmentModal({ dateStr, onClose, prefilledPatient }: Props) {
   const { user } = useAuthStore();
@@ -102,6 +90,7 @@ export default function NewAppointmentModal({ dateStr, onClose, prefilledPatient
     : "";
 
   const create = useCreateAppointment(onClose);
+  const { data: gcalColors = {} } = useGcalEventColors();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -197,35 +186,35 @@ export default function NewAppointmentModal({ dateStr, onClose, prefilledPatient
         />
 
         {/* Color Google Calendar */}
-        <div>
-          <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-gray-300">
-            Color en Google Calendar
-          </label>
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <button
-              type="button"
-              onClick={() => setColorId(null)}
-              title="Sin color (predeterminado)"
-              className={`w-6 h-6 rounded-full border-2 transition-transform ${
-                colorId === null
-                  ? "border-blue-500 scale-125"
-                  : "border-slate-300 dark:border-gray-600"
-              } bg-slate-200 dark:bg-gray-600`}
-            />
-            {GCAL_COLORS.map((c) => (
+        {Object.keys(gcalColors).length > 0 && (
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-gray-300">
+              Color en Google Calendar
+            </label>
+            <div className="flex items-center gap-1.5 flex-wrap">
               <button
-                key={c.id}
                 type="button"
-                onClick={() => setColorId(c.id)}
-                title={c.name}
+                onClick={() => setColorId(null)}
+                title="Predeterminado"
                 className={`w-6 h-6 rounded-full border-2 transition-transform ${
-                  colorId === c.id ? "border-blue-500 scale-125" : "border-transparent"
-                }`}
-                style={{ backgroundColor: c.hex }}
+                  colorId === null ? "border-blue-500 scale-125" : "border-slate-300 dark:border-gray-600"
+                } bg-slate-200 dark:bg-gray-600`}
               />
-            ))}
+              {Object.entries(gcalColors).map(([id, hex]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setColorId(id)}
+                  title={GCAL_COLOR_NAMES[id] ?? id}
+                  className={`w-6 h-6 rounded-full border-2 transition-transform ${
+                    colorId === id ? "border-blue-500 scale-125" : "border-transparent"
+                  }`}
+                  style={{ backgroundColor: hex }}
+                />
+              ))}
+            </div>
           </div>
-        </div>
+        )}
 
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>
