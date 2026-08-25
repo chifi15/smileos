@@ -252,9 +252,11 @@ async def sync_calendar(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
     settings.calendar_last_synced_at = now
     await db.commit()
 
+    colors_found = sum(1 for r in rows if r.get("gcal_color"))
     return {
         "total_events": total,
         "matched_patients": matched,
+        "colors_found": colors_found,
         "synced_at": now.isoformat(),
     }
 

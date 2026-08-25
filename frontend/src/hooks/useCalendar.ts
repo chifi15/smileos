@@ -51,8 +51,9 @@ export function useSyncCalendar() {
       if (d.error) {
         toast.error(d.error);
       } else {
+        const colorMsg = d.colors_found > 0 ? `, ${d.colors_found} con color` : ", sin colores (Google no los exporta)";
         toast.success(
-          `Sincronizado: ${d.total_events} eventos, ${d.matched_patients} vinculados a un paciente.`
+          `Sincronizado: ${d.total_events} eventos, ${d.matched_patients} vinculados a un paciente${colorMsg}.`
         );
         qc.invalidateQueries({ queryKey: ["calendar"] });
         qc.invalidateQueries({ queryKey: ["patients", "segments"] });
