@@ -85,7 +85,12 @@ def _extract_name(summary: str) -> str:
     return summary.strip()
 
 
-def _match_patient(name: str, patients: list[Patient]) -> tuple[uuid.UUID | None, float]:
+def _match_patient(name: str, patients: list) -> tuple[uuid.UUID | None, float]:
+    return _match_patient_rows(name, patients)
+
+
+def _match_patient_rows(name: str, patients: list) -> tuple[uuid.UUID | None, float]:
+    """Recibe rows con atributos id, first_name, last_name."""
     norm_name = _normalize(name)
     if not norm_name:
         return None, 0.0
@@ -94,9 +99,8 @@ def _match_patient(name: str, patients: list[Patient]) -> tuple[uuid.UUID | None
     best_score = 0.0
 
     for p in patients:
-        full = _normalize(p.full_name)
+        full = _normalize(f"{p.first_name} {p.last_name}")
         score = SequenceMatcher(None, norm_name, full).ratio()
-        # También comparar solo con primer nombre + primer apellido
         parts = full.split()
         if len(parts) >= 2:
             short = f"{parts[0]} {parts[-1]}"
@@ -131,8 +135,10 @@ async def get_sync_status(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
 
 async def sync_calendar(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
     """
-    Descarga y procesa el iCal. Retorna estadísticas del sync.
+    Descarga y procesa el iCal. Usa bulk upsert para manejar miles de eventos sin timeout.
     """
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
     # Obtener URL configurada
     result = await db.execute(
         select(ClinicSettings).where(ClinicSettings.clinic_id == clinic_id)
@@ -143,7 +149,7 @@ async def sync_calendar(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
 
     # Fetch iCal
     try:
-        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+        async with httpx.AsyncClient(timeout=30.0, follow_redirects=True) as client:
             resp = await client.get(settings.ical_url)
             resp.raise_for_status()
             raw = resp.text
@@ -153,26 +159,24 @@ async def sync_calendar(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
     # Parse
     ical_events = _parse_ical(raw)
 
-    # Cargar todos los pacientes activos para matching (solo id, first_name, last_name)
+    # Cargar pacientes activos para matching (un solo query)
     patients_result = await db.execute(
-        select(Patient).where(Patient.clinic_id == clinic_id, Patient.is_active == True)  # noqa
+        select(Patient.id, Patient.first_name, Patient.last_name)
+        .where(Patient.clinic_id == clinic_id, Patient.is_active == True)  # noqa
     )
-    patients = list(patients_result.scalars().all())
+    patients = list(patients_result.fetchall())
 
-    # Procesar eventos y hacer upsert
+    # Construir lista de dicts para bulk upsert (procesado en memoria)
     now = datetime.now(timezone.utc)
-    created = 0
-    updated = 0
+    rows = []
     matched = 0
 
     for ev in ical_events:
         uid = ev.get("UID", "")
         summary = ev.get("SUMMARY", "").strip()
-        status = ev.get("STATUS", "").upper()
         if not uid or not summary:
             continue
-        # Ignorar eventos cancelados
-        if status == "CANCELLED":
+        if ev.get("STATUS", "").upper() == "CANCELLED":
             continue
 
         start_at = _parse_dt(ev.get("DTSTART", ""))
@@ -182,51 +186,48 @@ async def sync_calendar(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
         if not end_at:
             end_at = start_at + timedelta(hours=1)
 
-        # Match paciente
+        # Match paciente (en memoria, sin queries adicionales)
         patient_name = _extract_name(summary)
-        patient_id, confidence = _match_patient(patient_name, patients)
+        patient_id, confidence = _match_patient_rows(patient_name, patients)
         if patient_id:
             matched += 1
 
-        # Upsert por (clinic_id, ical_uid)
-        existing = await db.execute(
-            select(CalendarEvent).where(
-                CalendarEvent.clinic_id == clinic_id,
-                CalendarEvent.ical_uid == uid,
-            )
+        rows.append({
+            "id": uuid.uuid4(),
+            "clinic_id": clinic_id,
+            "ical_uid": uid,
+            "title": summary,
+            "start_at": start_at,
+            "end_at": end_at,
+            "patient_id": patient_id,
+            "match_confidence": confidence if patient_id else None,
+            "created_at": now,
+            "updated_at": now,
+        })
+
+    total = len(rows)
+
+    if rows:
+        # Bulk upsert: INSERT ... ON CONFLICT DO UPDATE (un solo statement SQL)
+        stmt = pg_insert(CalendarEvent).values(rows)
+        stmt = stmt.on_conflict_do_update(
+            constraint="uq_calendar_events_clinic_ical_uid",
+            set_={
+                "title": stmt.excluded.title,
+                "start_at": stmt.excluded.start_at,
+                "end_at": stmt.excluded.end_at,
+                "patient_id": stmt.excluded.patient_id,
+                "match_confidence": stmt.excluded.match_confidence,
+                "updated_at": stmt.excluded.updated_at,
+            },
         )
-        event = existing.scalar_one_or_none()
+        await db.execute(stmt)
 
-        if event:
-            event.title = summary
-            event.start_at = start_at
-            event.end_at = end_at
-            event.patient_id = patient_id
-            event.match_confidence = confidence if patient_id else None
-            event.updated_at = now
-            updated += 1
-        else:
-            db.add(CalendarEvent(
-                clinic_id=clinic_id,
-                ical_uid=uid,
-                title=summary,
-                start_at=start_at,
-                end_at=end_at,
-                patient_id=patient_id,
-                match_confidence=confidence if patient_id else None,
-                created_at=now,
-                updated_at=now,
-            ))
-            created += 1
-
-    # Actualizar timestamp de sync
     settings.calendar_last_synced_at = now
     await db.commit()
 
     return {
-        "total_events": len(ical_events),
-        "created": created,
-        "updated": updated,
+        "total_events": total,
         "matched_patients": matched,
         "synced_at": now.isoformat(),
     }
