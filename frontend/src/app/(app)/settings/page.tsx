@@ -265,7 +265,6 @@ export default function SettingsPage() {
   const [currency, setCurrency] = useState("NIO");
   const [duration, setDuration] = useState("30");
   const [exchangeRate, setExchangeRate] = useState("37");
-  const [icalUrl, setIcalUrl] = useState("");
 
   useEffect(() => {
     if (!settings) return;
@@ -277,7 +276,6 @@ export default function SettingsPage() {
     setCurrency(settings.currency_code ?? "NIO");
     setDuration(String(settings.default_appointment_duration_minutes ?? 30));
     setExchangeRate(String(settings.usd_exchange_rate ?? 37));
-    setIcalUrl(settings.ical_url ?? "");
   }, [settings]);
 
   function handleSaveSettings(e: React.FormEvent) {
@@ -291,7 +289,6 @@ export default function SettingsPage() {
       currency_code: currency,
       default_appointment_duration_minutes: Number(duration),
       usd_exchange_rate: Number(exchangeRate) || 37,
-      ical_url: icalUrl.trim() || null,
     });
   }
 
@@ -393,10 +390,6 @@ export default function SettingsPage() {
             <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 font-medium">
               OAuth conectado
             </span>
-          ) : calendarStatus?.configured ? (
-            <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-medium">
-              iCal conectado
-            </span>
           ) : null}
         </div>
         <div className="p-6 space-y-5">
@@ -465,60 +458,6 @@ export default function SettingsPage() {
             </div>
           )}
 
-          {/* iCal fallback section */}
-          <div className="rounded-xl border border-slate-200 dark:border-gray-700 p-4 space-y-3">
-            <div>
-              <p className="text-sm font-medium text-slate-700 dark:text-gray-300">
-                Solo lectura via iCal
-              </p>
-              <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">
-                Alternativa sin OAuth. Los eventos de Google aparecen en la agenda pero no se crean desde SmileOS.
-              </p>
-            </div>
-            <div className="space-y-1">
-              <label className="block text-xs font-medium text-slate-600 dark:text-gray-400">
-                URL privada iCal (.ics)
-              </label>
-              <input
-                type="url"
-                value={icalUrl}
-                onChange={(e) => setIcalUrl(e.target.value)}
-                placeholder="https://calendar.google.com/calendar/ical/..."
-                className="w-full rounded-lg border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-              <p className="text-xs text-slate-400 dark:text-gray-500">
-                Google Calendar → Configuración → tu calendario → "Dirección secreta en formato iCal"
-              </p>
-            </div>
-            <div className="flex items-center justify-between">
-              <div className="text-xs text-slate-400 dark:text-gray-500">
-                {calendarStatus?.last_synced_at
-                  ? `Última sync: ${new Date(calendarStatus.last_synced_at).toLocaleString("es-NI")}`
-                  : "Nunca sincronizado"}
-              </div>
-              <div className="flex gap-2">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="sm"
-                  loading={updateSettings.isPending}
-                  onClick={() => updateSettings.mutate({ ical_url: icalUrl.trim() || null })}
-                >
-                  Guardar URL
-                </Button>
-                <Button
-                  type="button"
-                  size="sm"
-                  onClick={() => syncCalendar.mutate()}
-                  loading={syncCalendar.isPending}
-                  disabled={!icalUrl.trim() && !calendarStatus?.configured}
-                >
-                  <RefreshCw size={14} />
-                  Sincronizar
-                </Button>
-              </div>
-            </div>
-          </div>
         </div>
       </section>
 
