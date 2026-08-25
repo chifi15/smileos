@@ -163,6 +163,14 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
     except Exception as e:
         return {"error": f"Error leyendo Google Calendar API: {str(e)}"}
 
+    # Borrar eventos sincronizados vía iCal (sin google_event_id) para evitar duplicados
+    await db.execute(
+        delete(CalendarEvent).where(
+            CalendarEvent.clinic_id == clinic_id,
+            CalendarEvent.google_event_id.is_(None),
+        )
+    )
+
     # Cargar pacientes para matching
     patients_result = await db.execute(
         select(Patient.id, Patient.first_name, Patient.last_name)
@@ -206,7 +214,7 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
         rows.append({
             "id": uuid.uuid4(),
             "clinic_id": clinic_id,
-            "ical_uid": event_id,
+            "ical_uid": item.get("iCalUID", event_id),
             "google_event_id": event_id,
             "title": summary,
             "start_at": start_at,
