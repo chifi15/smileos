@@ -16,7 +16,7 @@ from app.core.config import get_settings
 GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth"
 GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token"
 GOOGLE_CALENDAR_API = "https://www.googleapis.com/calendar/v3"
-SCOPES = "https://www.googleapis.com/auth/calendar.events"
+SCOPES = "https://www.googleapis.com/auth/calendar"
 
 
 def _settings():
@@ -175,7 +175,12 @@ async def list_google_events(
             headers={"Authorization": f"Bearer {access_token}"},
             params=params,
         )
-        resp.raise_for_status()
+        if not resp.is_success:
+            raise httpx.HTTPStatusError(
+                f"{resp.status_code} {resp.reason_phrase}: {resp.text}",
+                request=resp.request,
+                response=resp,
+            )
         return resp.json().get("items", [])
 
 
