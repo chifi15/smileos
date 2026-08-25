@@ -9,6 +9,7 @@ from app.models.photo import PatientPhoto
 from app.models.audit import AuditLog
 from app.models.evolution import PatientEvolution
 from app.models.costos import CostProduct, CostTreatment, CostAppointment, FixedCostsConfig, CostProductLot
+from app.models.calendar import CalendarEvent
 
 __all__ = [
     "Clinic",
@@ -34,4 +35,5 @@ __all__ = [
     "CostAppointment",
     "FixedCostsConfig",
     "CostProductLot",
+    "CalendarEvent",
 ]
