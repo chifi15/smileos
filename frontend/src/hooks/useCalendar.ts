@@ -51,7 +51,7 @@ export function useSyncCalendar() {
         toast.error(d.error);
       } else {
         toast.success(
-          `Sincronizado: ${d.total_events} eventos, ${d.matched_patients} pacientes identificados.`
+          `Sincronizado: ${d.total_events} eventos, ${d.matched_patients} vinculados a un paciente.`
         );
         qc.invalidateQueries({ queryKey: ["calendar"] });
         qc.invalidateQueries({ queryKey: ["patients", "segments"] });
