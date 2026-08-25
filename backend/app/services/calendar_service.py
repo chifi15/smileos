@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.calendar import CalendarEvent
 from app.models.patient import Patient
 from app.models.clinic import ClinicSettings
+from app.models.appointment import Appointment
 
 
 # ─── iCal parser ──────────────────────────────────────────────────────────────
@@ -163,16 +164,7 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
     except Exception as e:
         return {"error": f"Error leyendo Google Calendar API: {str(e)}"}
 
-    # Borrar eventos sincronizados vía iCal (sin google_event_id) para evitar duplicados
-    await db.execute(
-        delete(CalendarEvent).where(
-            CalendarEvent.clinic_id == clinic_id,
-            CalendarEvent.google_event_id.is_(None),
-        )
-    )
-
-    # Obtener el color por defecto del calendario (para eventos sin colorId)
-    # Se listan todos porque calendarList/{id} con "primary" no funciona
+    # Color por defecto del calendario (para eventos sin colorId)
     calendar_default_color: str | None = None
     try:
         import httpx as _httpx
@@ -189,6 +181,19 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
     except Exception:
         pass
 
+    # Cargar horarios de citas SmileOS para excluirlos del sync (evita duplicados)
+    appts_result = await db.execute(
+        select(Appointment.scheduled_at).where(
+            Appointment.clinic_id == clinic_id,
+            Appointment.cancelled_at.is_(None),
+        )
+    )
+    smileos_times = {
+        row.scheduled_at.replace(tzinfo=timezone.utc) if row.scheduled_at.tzinfo is None
+        else row.scheduled_at.astimezone(timezone.utc)
+        for row in appts_result.fetchall()
+    }
+
     # Cargar pacientes para matching
     patients_result = await db.execute(
         select(Patient.id, Patient.first_name, Patient.last_name)
@@ -203,9 +208,10 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
     for item in gcal_items:
         if item.get("status") == "cancelled":
             continue
-        # Saltar eventos creados por SmileOS (evita duplicados en la agenda)
+        # Saltar eventos creados por SmileOS (tienen tag extendedProperties)
         if item.get("extendedProperties", {}).get("private", {}).get("smileos") == "1":
             continue
+
         event_id = item.get("id", "")
         summary = (item.get("summary") or "").strip()
         if not event_id or not summary:
@@ -220,7 +226,11 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
         if not end_at:
             end_at = start_at + timedelta(hours=1)
 
-        # Color: colorId del evento o del calendario (1-11)
+        # Saltar si coincide con cita de SmileOS (±10 min) → evita duplicado visual
+        if any(abs((start_at - t).total_seconds()) < 600 for t in smileos_times):
+            continue
+
+        # Color: colorId del evento o color del calendario
         color_id = item.get("colorId")
         hex_color = oauth.resolve_color_id(color_id) or calendar_default_color
         if hex_color:
@@ -247,22 +257,10 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
             "updated_at": now,
         })
 
+    # Delete completo + insert limpio (elimina datos viejos de iCal con colores incorrectos)
+    await db.execute(delete(CalendarEvent).where(CalendarEvent.clinic_id == clinic_id))
     if rows:
-        stmt = pg_insert(CalendarEvent).values(rows)
-        stmt = stmt.on_conflict_do_update(
-            constraint="uq_calendar_events_clinic_ical_uid",
-            set_={
-                "title": stmt.excluded.title,
-                "start_at": stmt.excluded.start_at,
-                "end_at": stmt.excluded.end_at,
-                "patient_id": stmt.excluded.patient_id,
-                "match_confidence": stmt.excluded.match_confidence,
-                "gcal_color": stmt.excluded.gcal_color,
-                "google_event_id": stmt.excluded.google_event_id,
-                "updated_at": stmt.excluded.updated_at,
-            },
-        )
-        await db.execute(stmt)
+        await db.execute(pg_insert(CalendarEvent).values(rows))
 
     settings.calendar_last_synced_at = now
     await db.commit()

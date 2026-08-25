@@ -58,15 +58,7 @@ export default function AppointmentCalendar({
     };
   });
 
-  const gcalEvents = calendarEvents
-    .filter((ev) => {
-      const evStart = new Date(ev.start_at).getTime();
-      // Saltar si coincide con el horario de una cita de SmileOS (±5 min)
-      return !appointments.some(
-        (appt) => Math.abs(evStart - new Date(appt.scheduled_at).getTime()) < 5 * 60 * 1000
-      );
-    })
-    .map((ev) => {
+  const gcalEvents = calendarEvents.map((ev) => {
       const color = ev.gcal_color ?? "#94a3b8";
       return {
         id: `gcal-${ev.id}`,
