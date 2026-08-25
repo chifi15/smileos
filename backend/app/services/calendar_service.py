@@ -65,7 +65,7 @@ def _parse_ical(raw: str) -> list[dict]:
             # Key puede incluir parámetros: DTSTART;TZID=America/Managua:20260815T100000
             raw_key, _, val = line.partition(":")
             key = raw_key.split(";")[0].upper()
-            if key in ("UID", "SUMMARY", "DTSTART", "DTEND", "STATUS"):
+            if key in ("UID", "SUMMARY", "DTSTART", "DTEND", "STATUS", "COLOR"):
                 current[key] = val.strip()
 
     return events
@@ -112,6 +112,30 @@ def _match_patient_rows(name: str, patients: list) -> tuple[uuid.UUID | None, fl
     if best_score >= 0.75:
         return best_id, best_score
     return None, 0.0
+
+
+# ─── Google Calendar color names → hex ────────────────────────────────────────
+
+GCAL_COLORS: dict[str, str] = {
+    "tomato":    "#D50000",
+    "flamingo":  "#E67C73",
+    "tangerine": "#F4511E",
+    "banana":    "#F6BF26",
+    "sage":      "#33B679",
+    "basil":     "#0B8043",
+    "peacock":   "#039BE5",
+    "blueberry": "#3F51B5",
+    "lavender":  "#7986CB",
+    "grape":     "#8E24AA",
+    "graphite":  "#616161",
+}
+
+
+def _resolve_color(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    raw = raw.strip().lower()
+    return GCAL_COLORS.get(raw, raw if raw.startswith("#") else None)
 
 
 # ─── Sync logic ───────────────────────────────────────────────────────────────
@@ -201,6 +225,7 @@ async def sync_calendar(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
             "end_at": end_at,
             "patient_id": patient_id,
             "match_confidence": confidence if patient_id else None,
+            "gcal_color": _resolve_color(ev.get("COLOR")),
             "created_at": now,
             "updated_at": now,
         })
@@ -218,6 +243,7 @@ async def sync_calendar(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
                 "end_at": stmt.excluded.end_at,
                 "patient_id": stmt.excluded.patient_id,
                 "match_confidence": stmt.excluded.match_confidence,
+                "gcal_color": stmt.excluded.gcal_color,
                 "updated_at": stmt.excluded.updated_at,
             },
         )
@@ -285,6 +311,7 @@ async def get_events(
             "end_at": e.end_at.isoformat(),
             "patient_id": str(e.patient_id) if e.patient_id else None,
             "match_confidence": e.match_confidence,
+            "gcal_color": e.gcal_color,
         }
         for e in events
     ]

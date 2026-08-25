@@ -10,6 +10,7 @@ export interface CalendarEvent {
   end_at: string;
   patient_id: string | null;
   match_confidence: number | null;
+  gcal_color: string | null;
 }
 
 export interface CalendarStatus {

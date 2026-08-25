@@ -58,16 +58,18 @@ export default function AppointmentCalendar({
     };
   });
 
-  const gcalEvents = calendarEvents.map((ev) => ({
-    id: `gcal-${ev.id}`,
-    title: ev.title,
-    start: ev.start_at,
-    end: ev.end_at,
-    backgroundColor: "#8b5cf6",
-    borderColor: "#7c3aed",
-    opacity: 0.85,
-    extendedProps: { _source: "gcal", ...ev },
-  }));
+  const gcalEvents = calendarEvents.map((ev) => {
+    const color = ev.gcal_color ?? "#8b5cf6";
+    return {
+      id: `gcal-${ev.id}`,
+      title: ev.title,
+      start: ev.start_at,
+      end: ev.end_at,
+      backgroundColor: color,
+      borderColor: color,
+      extendedProps: { _source: "gcal", ...ev },
+    };
+  });
 
   const events = [...smileosEvents, ...gcalEvents];
 
