@@ -50,6 +50,7 @@ export function useCreateAppointment(onSuccess?: () => void) {
       appointment_type: string;
       reason: string | null;
       notes: string | null;
+      gcal_color_id?: string | null;
     }) => {
       const { data } = await apiClient.post<{ data: AppointmentFull }>(
         "/api/v1/appointments",
