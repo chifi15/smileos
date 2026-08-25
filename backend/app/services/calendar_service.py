@@ -171,6 +171,21 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
         )
     )
 
+    # Obtener el color por defecto del calendario (para eventos sin colorId)
+    calendar_default_color: str | None = None
+    try:
+        import httpx as _httpx
+        async with _httpx.AsyncClient() as _client:
+            _resp = await _client.get(
+                f"https://www.googleapis.com/calendar/v3/users/me/calendarList/{cal_id}",
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+            if _resp.is_success:
+                _cal = _resp.json()
+                calendar_default_color = _cal.get("backgroundColor")
+    except Exception:
+        pass
+
     # Cargar pacientes para matching
     patients_result = await db.execute(
         select(Patient.id, Patient.first_name, Patient.last_name)
@@ -201,7 +216,7 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
 
         # Color: colorId del evento o del calendario (1-11)
         color_id = item.get("colorId")
-        hex_color = oauth.resolve_color_id(color_id)
+        hex_color = oauth.resolve_color_id(color_id) or calendar_default_color
         if hex_color:
             colors_found += 1
 

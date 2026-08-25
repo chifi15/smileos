@@ -59,7 +59,7 @@ export default function AppointmentCalendar({
   });
 
   const gcalEvents = calendarEvents.map((ev) => {
-    const color = ev.gcal_color ?? "#8b5cf6";
+    const color = ev.gcal_color ?? "#94a3b8";
     return {
       id: `gcal-${ev.id}`,
       title: ev.title,
