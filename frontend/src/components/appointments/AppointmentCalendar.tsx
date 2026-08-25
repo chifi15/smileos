@@ -92,7 +92,17 @@ export default function AppointmentCalendar({
         height="calc(100vh - 200px)"
         events={events}
         eventClick={(arg: EventClickArg) => {
-          if (arg.event.extendedProps._source === "gcal") return;
+          if (arg.event.extendedProps._source === "gcal") {
+            const start = new Date(arg.event.startStr);
+            const y = start.getFullYear();
+            const m = start.getMonth() + 1;
+            const d = start.getDate();
+            window.open(
+              `https://calendar.google.com/calendar/r/day/${y}/${m}/${d}`,
+              "_blank"
+            );
+            return;
+          }
           onEventClick(arg.event.extendedProps as AppointmentFull);
         }}
         dateClick={(arg) => {
