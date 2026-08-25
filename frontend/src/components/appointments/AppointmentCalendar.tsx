@@ -17,6 +17,14 @@ const STATUS_BG: Record<AppointmentStatus, string> = {
   no_show: "#f43f5e",
 };
 
+function textColor(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  return luminance > 0.55 ? "#1e293b" : "#ffffff";
+}
+
 interface Props {
   appointments: AppointmentFull[];
   calendarEvents?: CalendarEvent[];
@@ -54,22 +62,24 @@ export default function AppointmentCalendar({
       end: appt.end_at,
       backgroundColor: bg,
       borderColor: bg,
+      textColor: textColor(bg),
       extendedProps: appt,
     };
   });
 
   const gcalEvents = calendarEvents.map((ev) => {
-      const color = ev.gcal_color ?? "#94a3b8";
-      return {
-        id: `gcal-${ev.id}`,
-        title: ev.title,
-        start: ev.start_at,
-        end: ev.end_at,
-        backgroundColor: color,
-        borderColor: color,
-        extendedProps: { _source: "gcal", ...ev },
-      };
-    });
+    const color = ev.gcal_color ?? "#94a3b8";
+    return {
+      id: `gcal-${ev.id}`,
+      title: ev.title,
+      start: ev.start_at,
+      end: ev.end_at,
+      backgroundColor: color,
+      borderColor: color,
+      textColor: textColor(color),
+      extendedProps: { _source: "gcal", ...ev },
+    };
+  });
 
   const events = [...smileosEvents, ...gcalEvents];
 
