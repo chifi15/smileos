@@ -171,6 +171,33 @@ export function useDeletePatientPermanent() {
   });
 }
 
+export interface PatientSegmentItem {
+  id: string;
+  full_name: string;
+  phone: string | null;
+  patient_number: number | null;
+  last_visit: string | null;
+  first_visit_date: string | null;
+}
+
+export interface PatientSegments {
+  incomplete_treatment: { count: number; patients: PatientSegmentItem[] };
+  pending_review: { count: number; patients: PatientSegmentItem[] };
+  dormant: { count: number; patients: PatientSegmentItem[] };
+}
+
+export function usePatientSegments() {
+  return useQuery({
+    queryKey: ["patients", "segments"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: PatientSegments }>(
+        "/api/v1/patients/segments"
+      );
+      return data.data;
+    },
+  });
+}
+
 export function useSetReferral(patientId: string, onSuccess?: () => void) {
   const qc = useQueryClient();
   return useMutation({

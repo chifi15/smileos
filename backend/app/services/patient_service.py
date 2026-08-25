@@ -247,6 +247,88 @@ async def delete_patient_permanent(
     # engine.begin() hace commit automático al salir del bloque (o rollback si hay error)
 
 
+async def get_patient_segments(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
+    """Segmenta pacientes activos en 3 categorías de reactivación."""
+    from datetime import timedelta
+
+    now = datetime.now(timezone.utc)
+    six_months_ago = now - timedelta(days=182)
+    twelve_months_ago = now - timedelta(days=365)
+
+    sql = text("""
+        WITH last_visit AS (
+            SELECT patient_id, MAX(completed_at) AS last_completed
+            FROM appointments
+            WHERE clinic_id = :cid AND status = 'completed'
+            GROUP BY patient_id
+        ),
+        incomplete_tx AS (
+            SELECT DISTINCT tp.patient_id
+            FROM treatment_plans tp
+            JOIN treatment_plan_items tpi ON tpi.treatment_plan_id = tp.id
+            WHERE tp.clinic_id = :cid
+              AND tp.status IN ('active', 'on_hold')
+              AND tpi.status NOT IN ('completed', 'cancelled')
+        )
+        SELECT
+            p.id,
+            p.first_name,
+            p.last_name,
+            p.phone,
+            p.patient_number,
+            p.first_visit_date,
+            lv.last_completed AS last_visit,
+            CASE WHEN itx.patient_id IS NOT NULL THEN true ELSE false END AS has_incomplete_treatment
+        FROM patients p
+        LEFT JOIN last_visit lv ON lv.patient_id = p.id
+        LEFT JOIN incomplete_tx itx ON itx.patient_id = p.id
+        WHERE p.clinic_id = :cid AND p.is_active = true
+        ORDER BY p.patient_number ASC NULLS LAST
+    """)
+
+    result = await db.execute(sql, {"cid": str(clinic_id)})
+    rows = result.fetchall()
+
+    incomplete_treatment: list[dict] = []
+    pending_review: list[dict] = []
+    dormant: list[dict] = []
+
+    for row in rows:
+        patient_data = {
+            "id": str(row.id),
+            "full_name": f"{row.first_name} {row.last_name}",
+            "phone": row.phone,
+            "patient_number": row.patient_number,
+            "last_visit": row.last_visit.isoformat() if row.last_visit else None,
+            "first_visit_date": row.first_visit_date.isoformat() if row.first_visit_date else None,
+        }
+
+        if row.has_incomplete_treatment:
+            incomplete_treatment.append(patient_data)
+            continue
+
+        last_known = row.last_visit
+        if last_known is None and row.first_visit_date:
+            from datetime import date as _date
+            last_known = datetime(
+                row.first_visit_date.year,
+                row.first_visit_date.month,
+                row.first_visit_date.day,
+                tzinfo=timezone.utc,
+            )
+
+        if last_known is None or last_known < twelve_months_ago:
+            dormant.append(patient_data)
+        elif last_known < six_months_ago:
+            pending_review.append(patient_data)
+
+    return {
+        "incomplete_treatment": {"count": len(incomplete_treatment), "patients": incomplete_treatment},
+        "pending_review": {"count": len(pending_review), "patients": pending_review},
+        "dormant": {"count": len(dormant), "patients": dormant},
+    }
+
+
 async def search_patients_simple(
     db: AsyncSession, clinic_id: uuid.UUID, q: str, limit: int = 10
 ) -> list[Patient]:

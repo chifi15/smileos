@@ -181,6 +181,15 @@ async def _get_referrer_name(db, referred_by_patient_id) -> str | None:
     return f"{row.first_name} {row.last_name}" if row else None
 
 
+@router.get("/segments")
+async def get_patient_segments(
+    user: Annotated[object, require_permission("view_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    data = await patient_service.get_patient_segments(db, user.clinic_id)
+    return {"success": True, "data": data}
+
+
 @router.get("/{patient_id}")
 async def get_patient(
     patient_id: uuid.UUID,

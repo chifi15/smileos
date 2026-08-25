@@ -6,7 +6,7 @@ import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { differenceInYears, parseISO } from "date-fns";
 import {
   UserPlus, Search, ChevronLeft, ChevronRight, Users,
-  Trash2, X, UserCheck, UserX,
+  Trash2, X, UserCheck, UserX, BarChart2,
 } from "lucide-react";
 import { usePatientList, useDeletePatientPermanent, useReactivatePatient } from "@/hooks/usePatients";
 import {
@@ -159,12 +159,20 @@ export default function PatientsPage() {
             </button>
           </div>
           {!showInactive && (
-            <Link href="/patients/new">
-              <Button>
-                <UserPlus size={16} />
-                Nuevo paciente
-              </Button>
-            </Link>
+            <>
+              <Link href="/patients/segments">
+                <Button variant="secondary">
+                  <BarChart2 size={16} />
+                  Segmentación
+                </Button>
+              </Link>
+              <Link href="/patients/new">
+                <Button>
+                  <UserPlus size={16} />
+                  Nuevo paciente
+                </Button>
+              </Link>
+            </>
           )}
         </div>
       </div>
