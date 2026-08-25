@@ -417,14 +417,16 @@ export default function SettingsPage() {
                   </p>
                 </div>
                 {calendarStatus?.oauth_connected ? (
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-green-600 dark:text-green-400 font-medium">
-                      {calendarStatus.calendar_id
-                        ? calendarStatus.calendar_id.length > 30
-                          ? calendarStatus.calendar_id.slice(0, 30) + "…"
-                          : calendarStatus.calendar_id
-                        : "Conectado"}
-                    </span>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Button
+                      type="button"
+                      size="sm"
+                      onClick={() => syncCalendar.mutate()}
+                      loading={syncCalendar.isPending}
+                    >
+                      <RefreshCw size={14} />
+                      Sincronizar
+                    </Button>
                     <Button
                       type="button"
                       variant="secondary"
