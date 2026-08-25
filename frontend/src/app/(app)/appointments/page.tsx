@@ -3,9 +3,10 @@
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { format } from "date-fns";
-import { CalendarPlus } from "lucide-react";
+import { CalendarPlus, RefreshCw } from "lucide-react";
 import { useAppointments } from "@/hooks/useAppointments";
 import { useClinicUsers } from "@/hooks/useUsers";
+import { useCalendarEvents, useSyncCalendar, useCalendarStatus } from "@/hooks/useCalendar";
 import { AppointmentFull } from "@/types";
 import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
@@ -46,6 +47,9 @@ export default function AppointmentsPage() {
 
   const { data: appointments = [] } = useAppointments(range.from, range.to);
   const { data: users = [] } = useClinicUsers();
+  const { data: calendarStatus } = useCalendarStatus();
+  const { data: gcalEvents = [] } = useCalendarEvents(range.from, range.to, calendarStatus?.configured ?? false);
+  const syncCalendar = useSyncCalendar();
 
   const filteredAppointments =
     dentistFilter === "all"
@@ -88,6 +92,17 @@ export default function AppointmentsPage() {
               className="w-52 text-sm"
             />
           )}
+          {calendarStatus?.configured && (
+            <Button
+              variant="secondary"
+              onClick={() => syncCalendar.mutate()}
+              loading={syncCalendar.isPending}
+              title="Sincronizar Google Calendar"
+            >
+              <RefreshCw size={15} />
+              Google Calendar
+            </Button>
+          )}
           <Button onClick={() => setNewApptDateStr(format(new Date(), "yyyy-MM-dd") + "T09:00:00")}>
             <CalendarPlus size={16} />
             Nueva cita
@@ -103,6 +118,7 @@ export default function AppointmentsPage() {
           { color: "bg-amber-400", label: "En progreso" },
           { color: "bg-green-500", label: "Completada" },
           { color: "bg-rose-500", label: "No asistió" },
+          ...(calendarStatus?.configured ? [{ color: "bg-violet-500", label: "Google Calendar" }] : []),
         ].map(({ color, label }) => (
           <div key={label} className="flex items-center gap-1.5">
             <div className={`h-2.5 w-2.5 rounded-full ${color}`} />
@@ -115,6 +131,7 @@ export default function AppointmentsPage() {
       <div className="flex-1 overflow-auto p-6">
         <AppointmentCalendar
           appointments={filteredAppointments}
+          calendarEvents={gcalEvents}
           onEventClick={setSelectedAppt}
           onDateClick={setNewApptDateStr}
           onDatesSet={(from, to) => setRange({ from, to })}

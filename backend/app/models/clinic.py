@@ -1,7 +1,7 @@
 import uuid
-from datetime import time
+from datetime import time, datetime
 from decimal import Decimal
-from sqlalchemy import String, Boolean, Integer, SmallInteger, Time, Date, ForeignKey, UniqueConstraint, Numeric
+from sqlalchemy import String, Boolean, Integer, SmallInteger, Time, Date, DateTime, ForeignKey, UniqueConstraint, Numeric, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.core.database import Base
@@ -54,6 +54,10 @@ class ClinicSettings(UUIDMixin, TimestampMixin, Base):
 
     # v0.2
     whatsapp_reminder_hours_before: Mapped[int | None] = mapped_column(Integer, default=24)
+
+    # Google Calendar iCal sync
+    ical_url: Mapped[str | None] = mapped_column(Text, nullable=True)
+    calendar_last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     clinic: Mapped["Clinic"] = relationship(back_populates="settings")
 

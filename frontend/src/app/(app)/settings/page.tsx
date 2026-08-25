@@ -3,11 +3,12 @@
 import { useEffect, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { Building2, Users, Copy, CheckCircle2, UserPlus, Tag, Plus, Pencil, Check, X, Trash2, GripVertical, Link2, Unlink, Download, Shield, History } from "lucide-react";
+import { Building2, Users, Copy, CheckCircle2, UserPlus, Tag, Plus, Pencil, Check, X, Trash2, GripVertical, Link2, Unlink, Download, Shield, History, CalendarDays, RefreshCw, ExternalLink } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { useClinicSettings, useUpdateSettings } from "@/hooks/useSettings";
+import { useSyncCalendar, useCalendarStatus } from "@/hooks/useCalendar";
 import { getAccessToken } from "@/lib/api-client";
 import { useAllUsers, useCreateUser } from "@/hooks/useUsers";
 import { useProcedures, useUpdateProcedurePrice, useCreateProcedure, useDeleteProcedure, useReorderProcedures, usePriceHistory, PriceHistoryEntry } from "@/hooks/useCatalog";
@@ -234,6 +235,8 @@ export default function SettingsPage() {
   const { data: settings, isLoading: loadingSettings } = useClinicSettings();
   const { data: users = [], isLoading: loadingUsers } = useAllUsers();
   const updateSettings = useUpdateSettings();
+  const syncCalendar = useSyncCalendar();
+  const { data: calendarStatus } = useCalendarStatus();
   const [showCreateUser, setShowCreateUser] = useState(false);
 
   // Clinic form state
@@ -245,6 +248,7 @@ export default function SettingsPage() {
   const [currency, setCurrency] = useState("NIO");
   const [duration, setDuration] = useState("30");
   const [exchangeRate, setExchangeRate] = useState("37");
+  const [icalUrl, setIcalUrl] = useState("");
 
   useEffect(() => {
     if (!settings) return;
@@ -256,6 +260,7 @@ export default function SettingsPage() {
     setCurrency(settings.currency_code ?? "NIO");
     setDuration(String(settings.default_appointment_duration_minutes ?? 30));
     setExchangeRate(String(settings.usd_exchange_rate ?? 37));
+    setIcalUrl(settings.ical_url ?? "");
   }, [settings]);
 
   function handleSaveSettings(e: React.FormEvent) {
@@ -269,6 +274,7 @@ export default function SettingsPage() {
       currency_code: currency,
       default_appointment_duration_minutes: Number(duration),
       usd_exchange_rate: Number(exchangeRate) || 37,
+      ical_url: icalUrl.trim() || null,
     });
   }
 
@@ -359,6 +365,68 @@ export default function SettingsPage() {
             </div>
           </form>
         )}
+      </section>
+
+      {/* Google Calendar */}
+      <section className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+        <div className="flex items-center gap-2 border-b border-slate-100 dark:border-gray-700 px-6 py-4">
+          <CalendarDays size={16} className="text-slate-400 dark:text-gray-500" />
+          <h2 className="font-semibold text-slate-800 dark:text-white">Google Calendar</h2>
+          {calendarStatus?.configured && (
+            <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 font-medium">
+              Conectado
+            </span>
+          )}
+        </div>
+        <div className="p-6 space-y-4">
+          <p className="text-sm text-slate-500 dark:text-gray-400">
+            Conecta tu Google Calendar para que SmileOS sincronice tus citas automáticamente y las use en la segmentación de pacientes.
+          </p>
+          <a
+            href="https://calendar.google.com/calendar/r/settings"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline"
+          >
+            <ExternalLink size={12} />
+            Cómo obtener la URL: Google Calendar → Configuración → tu calendario → "Dirección secreta en formato iCal"
+          </a>
+          <div className="space-y-1">
+            <label className="block text-xs font-medium text-slate-700 dark:text-gray-300">
+              URL privada iCal (.ics)
+            </label>
+            <input
+              type="url"
+              value={icalUrl}
+              onChange={(e) => setIcalUrl(e.target.value)}
+              placeholder="https://calendar.google.com/calendar/ical/..."
+              className="w-full rounded-lg border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            <p className="text-xs text-slate-400 dark:text-gray-500">
+              Esta URL es privada. No la compartas con nadie. Se guarda en tu configuración de clínica.
+            </p>
+          </div>
+          <div className="flex items-center justify-between pt-1">
+            <div className="text-xs text-slate-400 dark:text-gray-500">
+              {calendarStatus?.last_synced_at
+                ? `Última sync: ${new Date(calendarStatus.last_synced_at).toLocaleString("es-NI")}`
+                : "Nunca sincronizado"}
+            </div>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onClick={() => syncCalendar.mutate()}
+                loading={syncCalendar.isPending}
+                disabled={!calendarStatus?.configured && !icalUrl.trim()}
+              >
+                <RefreshCw size={14} />
+                Sincronizar ahora
+              </Button>
+            </div>
+          </div>
+        </div>
       </section>
 
       {/* Users */}

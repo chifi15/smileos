@@ -256,10 +256,25 @@ async def get_patient_segments(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
     twelve_months_ago = now - timedelta(days=365)
 
     sql = text("""
-        WITH last_visit AS (
+        WITH last_appt_visit AS (
             SELECT patient_id, MAX(completed_at) AS last_completed
             FROM appointments
             WHERE clinic_id = :cid AND status = 'completed'
+            GROUP BY patient_id
+        ),
+        last_cal_visit AS (
+            SELECT patient_id, MAX(end_at) AS last_completed
+            FROM calendar_events
+            WHERE clinic_id = :cid AND patient_id IS NOT NULL AND end_at < NOW()
+            GROUP BY patient_id
+        ),
+        last_visit AS (
+            SELECT patient_id, MAX(last_completed) AS last_completed
+            FROM (
+                SELECT patient_id, last_completed FROM last_appt_visit
+                UNION ALL
+                SELECT patient_id, last_completed FROM last_cal_visit
+            ) combined
             GROUP BY patient_id
         ),
         incomplete_tx AS (

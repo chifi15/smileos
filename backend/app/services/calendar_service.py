@@ -1,0 +1,289 @@
+"""
+Sincronización de Google Calendar via iCal (URL privada).
+No requiere OAuth — solo la URL secreta .ics de Google Calendar.
+"""
+import re
+import uuid
+import unicodedata
+from datetime import datetime, timezone, timedelta
+from difflib import SequenceMatcher
+
+import httpx
+from sqlalchemy import select, delete
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.calendar import CalendarEvent
+from app.models.patient import Patient
+from app.models.clinic import ClinicSettings
+
+
+# ─── iCal parser ──────────────────────────────────────────────────────────────
+
+def _unfold(text: str) -> str:
+    """Desdobla líneas continuadas (RFC 5545 §3.1)."""
+    return re.sub(r"\r?\n[ \t]", "", text)
+
+
+def _parse_dt(value: str) -> datetime | None:
+    """Parsea DTSTART/DTEND de iCal a datetime UTC."""
+    value = value.strip()
+    try:
+        if len(value) == 8:
+            # DATE only: 20260815
+            return datetime(int(value[:4]), int(value[4:6]), int(value[6:8]), tzinfo=timezone.utc)
+        # Remove trailing Z
+        utc = value.endswith("Z")
+        clean = value.rstrip("Z").replace("T", "")
+        dt = datetime(
+            int(clean[0:4]), int(clean[4:6]), int(clean[6:8]),
+            int(clean[8:10]) if len(clean) > 8 else 0,
+            int(clean[10:12]) if len(clean) > 10 else 0,
+            int(clean[12:14]) if len(clean) > 12 else 0,
+        )
+        if utc:
+            return dt.replace(tzinfo=timezone.utc)
+        # Sin zona horaria → asumimos UTC (suficiente para calcular antigüedad)
+        return dt.replace(tzinfo=timezone.utc)
+    except (ValueError, IndexError):
+        return None
+
+
+def _parse_ical(raw: str) -> list[dict]:
+    """Extrae VEVENTs de un texto iCal y retorna lista de dicts."""
+    text = _unfold(raw)
+    events = []
+    current: dict | None = None
+
+    for line in text.splitlines():
+        if line == "BEGIN:VEVENT":
+            current = {}
+        elif line == "END:VEVENT":
+            if current:
+                events.append(current)
+            current = None
+        elif current is not None and ":" in line:
+            # Key puede incluir parámetros: DTSTART;TZID=America/Managua:20260815T100000
+            raw_key, _, val = line.partition(":")
+            key = raw_key.split(";")[0].upper()
+            if key in ("UID", "SUMMARY", "DTSTART", "DTEND", "STATUS"):
+                current[key] = val.strip()
+
+    return events
+
+
+# ─── Patient matching ──────────────────────────────────────────────────────────
+
+def _normalize(text: str) -> str:
+    return unicodedata.normalize("NFD", text).encode("ascii", "ignore").decode("ascii").lower().strip()
+
+
+def _extract_name(summary: str) -> str:
+    """Extrae el nombre del paciente del título del evento."""
+    for sep in (" - ", " – ", " | ", " / ", ": "):
+        if sep in summary:
+            return summary.split(sep)[0].strip()
+    return summary.strip()
+
+
+def _match_patient(name: str, patients: list[Patient]) -> tuple[uuid.UUID | None, float]:
+    norm_name = _normalize(name)
+    if not norm_name:
+        return None, 0.0
+
+    best_id: uuid.UUID | None = None
+    best_score = 0.0
+
+    for p in patients:
+        full = _normalize(p.full_name)
+        score = SequenceMatcher(None, norm_name, full).ratio()
+        # También comparar solo con primer nombre + primer apellido
+        parts = full.split()
+        if len(parts) >= 2:
+            short = f"{parts[0]} {parts[-1]}"
+            score = max(score, SequenceMatcher(None, norm_name, short).ratio())
+        if score > best_score:
+            best_score = score
+            best_id = p.id
+
+    if best_score >= 0.75:
+        return best_id, best_score
+    return None, 0.0
+
+
+# ─── Sync logic ───────────────────────────────────────────────────────────────
+
+SYNC_COOLDOWN_MINUTES = 15
+
+
+async def get_sync_status(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
+    result = await db.execute(
+        select(ClinicSettings.ical_url, ClinicSettings.calendar_last_synced_at)
+        .where(ClinicSettings.clinic_id == clinic_id)
+    )
+    row = result.one_or_none()
+    if not row:
+        return {"configured": False, "last_synced_at": None}
+    return {
+        "configured": bool(row.ical_url),
+        "last_synced_at": row.calendar_last_synced_at.isoformat() if row.calendar_last_synced_at else None,
+    }
+
+
+async def sync_calendar(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
+    """
+    Descarga y procesa el iCal. Retorna estadísticas del sync.
+    """
+    # Obtener URL configurada
+    result = await db.execute(
+        select(ClinicSettings).where(ClinicSettings.clinic_id == clinic_id)
+    )
+    settings = result.scalar_one_or_none()
+    if not settings or not settings.ical_url:
+        return {"error": "No hay URL de iCal configurada."}
+
+    # Fetch iCal
+    try:
+        async with httpx.AsyncClient(timeout=20.0, follow_redirects=True) as client:
+            resp = await client.get(settings.ical_url)
+            resp.raise_for_status()
+            raw = resp.text
+    except httpx.HTTPError as e:
+        return {"error": f"No se pudo descargar el calendario: {str(e)}"}
+
+    # Parse
+    ical_events = _parse_ical(raw)
+
+    # Cargar todos los pacientes activos para matching (solo id, first_name, last_name)
+    patients_result = await db.execute(
+        select(Patient).where(Patient.clinic_id == clinic_id, Patient.is_active == True)  # noqa
+    )
+    patients = list(patients_result.scalars().all())
+
+    # Procesar eventos y hacer upsert
+    now = datetime.now(timezone.utc)
+    created = 0
+    updated = 0
+    matched = 0
+
+    for ev in ical_events:
+        uid = ev.get("UID", "")
+        summary = ev.get("SUMMARY", "").strip()
+        status = ev.get("STATUS", "").upper()
+        if not uid or not summary:
+            continue
+        # Ignorar eventos cancelados
+        if status == "CANCELLED":
+            continue
+
+        start_at = _parse_dt(ev.get("DTSTART", ""))
+        end_at = _parse_dt(ev.get("DTEND", ev.get("DTSTART", "")))
+        if not start_at:
+            continue
+        if not end_at:
+            end_at = start_at + timedelta(hours=1)
+
+        # Match paciente
+        patient_name = _extract_name(summary)
+        patient_id, confidence = _match_patient(patient_name, patients)
+        if patient_id:
+            matched += 1
+
+        # Upsert por (clinic_id, ical_uid)
+        existing = await db.execute(
+            select(CalendarEvent).where(
+                CalendarEvent.clinic_id == clinic_id,
+                CalendarEvent.ical_uid == uid,
+            )
+        )
+        event = existing.scalar_one_or_none()
+
+        if event:
+            event.title = summary
+            event.start_at = start_at
+            event.end_at = end_at
+            event.patient_id = patient_id
+            event.match_confidence = confidence if patient_id else None
+            event.updated_at = now
+            updated += 1
+        else:
+            db.add(CalendarEvent(
+                clinic_id=clinic_id,
+                ical_uid=uid,
+                title=summary,
+                start_at=start_at,
+                end_at=end_at,
+                patient_id=patient_id,
+                match_confidence=confidence if patient_id else None,
+                created_at=now,
+                updated_at=now,
+            ))
+            created += 1
+
+    # Actualizar timestamp de sync
+    settings.calendar_last_synced_at = now
+    await db.commit()
+
+    return {
+        "total_events": len(ical_events),
+        "created": created,
+        "updated": updated,
+        "matched_patients": matched,
+        "synced_at": now.isoformat(),
+    }
+
+
+async def get_events(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    date_from: str,
+    date_to: str,
+    auto_sync: bool = True,
+) -> list[dict]:
+    """Retorna eventos en el rango, disparando sync automático si toca."""
+    if auto_sync:
+        result = await db.execute(
+            select(ClinicSettings.calendar_last_synced_at, ClinicSettings.ical_url)
+            .where(ClinicSettings.clinic_id == clinic_id)
+        )
+        row = result.one_or_none()
+        if row and row.ical_url:
+            stale = (
+                row.calendar_last_synced_at is None
+                or (datetime.now(timezone.utc) - row.calendar_last_synced_at)
+                > timedelta(minutes=SYNC_COOLDOWN_MINUTES)
+            )
+            if stale:
+                await sync_calendar(db, clinic_id)
+
+    from sqlalchemy import and_
+    from datetime import date as _date
+
+    try:
+        start = datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc)
+        end = datetime.fromisoformat(date_to).replace(hour=23, minute=59, second=59, tzinfo=timezone.utc)
+    except ValueError:
+        return []
+
+    result = await db.execute(
+        select(CalendarEvent)
+        .where(
+            CalendarEvent.clinic_id == clinic_id,
+            CalendarEvent.start_at >= start,
+            CalendarEvent.start_at <= end,
+        )
+        .order_by(CalendarEvent.start_at)
+    )
+    events = list(result.scalars().all())
+
+    return [
+        {
+            "id": str(e.id),
+            "ical_uid": e.ical_uid,
+            "title": e.title,
+            "start_at": e.start_at.isoformat(),
+            "end_at": e.end_at.isoformat(),
+            "patient_id": str(e.patient_id) if e.patient_id else None,
+            "match_confidence": e.match_confidence,
+        }
+        for e in events
+    ]

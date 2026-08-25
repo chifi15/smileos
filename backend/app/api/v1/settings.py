@@ -39,6 +39,8 @@ def _serialize_settings(s) -> dict:
         "currency_code": s.currency_code,
         "currency_symbol": s.currency_symbol,
         "usd_exchange_rate": float(s.usd_exchange_rate) if s.usd_exchange_rate is not None else 37.0,
+        "ical_url": s.ical_url,
+        "calendar_last_synced_at": s.calendar_last_synced_at.isoformat() if s.calendar_last_synced_at else None,
         "updated_at": s.updated_at.isoformat() if s.updated_at else None,
     }
 

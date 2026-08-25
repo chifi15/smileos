@@ -480,6 +480,8 @@ export interface ClinicSettings {
   currency_code: string;
   default_appointment_duration_minutes: number;
   usd_exchange_rate: number;
+  ical_url: string | null;
+  calendar_last_synced_at: string | null;
   updated_at: string | null;
 }
 

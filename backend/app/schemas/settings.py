@@ -19,6 +19,7 @@ class ClinicSettingsUpdate(BaseModel):
     currency_code: str | None = None
     currency_symbol: str | None = None
     usd_exchange_rate: float | None = None
+    ical_url: str | None = None
 
 
 class WorkingHoursEntry(BaseModel):

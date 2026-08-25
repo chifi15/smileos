@@ -6,6 +6,7 @@ import interactionPlugin from "@fullcalendar/interaction";
 import type { EventClickArg, DatesSetArg, EventContentArg } from "@fullcalendar/core";
 import esLocale from "@fullcalendar/core/locales/es";
 import { AppointmentFull, AppointmentStatus } from "@/types";
+import { CalendarEvent } from "@/hooks/useCalendar";
 
 const STATUS_BG: Record<AppointmentStatus, string> = {
   scheduled: "#94a3b8",
@@ -18,18 +19,20 @@ const STATUS_BG: Record<AppointmentStatus, string> = {
 
 interface Props {
   appointments: AppointmentFull[];
+  calendarEvents?: CalendarEvent[];
   onEventClick: (appt: AppointmentFull) => void;
   onDateClick: (dateStr: string) => void;
   onDatesSet: (dateFrom: string, dateTo: string) => void;
 }
 
 function EventContent({ arg }: { arg: EventContentArg }) {
-  const appt = arg.event.extendedProps as AppointmentFull;
+  const isGcal = arg.event.extendedProps._source === "gcal";
+  const title = isGcal ? arg.event.title : (arg.event.extendedProps as AppointmentFull).patient_name;
   return (
     <div className="h-full overflow-hidden px-1.5 py-1 leading-tight">
-      <p className="truncate text-xs font-semibold">{appt.patient_name}</p>
+      <p className="truncate text-xs font-semibold">{title}</p>
       <p className="truncate text-[10px] opacity-80">
-        {arg.timeText}
+        {isGcal ? "📅 Google" : arg.timeText}
       </p>
     </div>
   );
@@ -37,11 +40,12 @@ function EventContent({ arg }: { arg: EventContentArg }) {
 
 export default function AppointmentCalendar({
   appointments,
+  calendarEvents = [],
   onEventClick,
   onDateClick,
   onDatesSet,
 }: Props) {
-  const events = appointments.map((appt) => {
+  const smileosEvents = appointments.map((appt) => {
     const bg = STATUS_BG[appt.status as AppointmentStatus] ?? "#94a3b8";
     return {
       id: appt.id,
@@ -53,6 +57,19 @@ export default function AppointmentCalendar({
       extendedProps: appt,
     };
   });
+
+  const gcalEvents = calendarEvents.map((ev) => ({
+    id: `gcal-${ev.id}`,
+    title: ev.title,
+    start: ev.start_at,
+    end: ev.end_at,
+    backgroundColor: "#8b5cf6",
+    borderColor: "#7c3aed",
+    opacity: 0.85,
+    extendedProps: { _source: "gcal", ...ev },
+  }));
+
+  const events = [...smileosEvents, ...gcalEvents];
 
   return (
     <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden [&_.fc-toolbar-title]:text-base [&_.fc-toolbar-title]:font-semibold [&_.fc-button]:text-sm [&_.fc-button]:capitalize [&_.fc-button-primary]:bg-blue-600 [&_.fc-button-primary]:border-blue-600 [&_.fc-button-primary:not(.fc-button-active)]:bg-white [&_.fc-button-primary:not(.fc-button-active)]:text-slate-700 [&_.fc-button-primary:not(.fc-button-active)]:border-slate-300 [&_.fc-today-button]:bg-white [&_.fc-today-button]:text-slate-700 [&_.fc-today-button]:border-slate-300 [&_.fc-event]:cursor-pointer [&_.fc-event]:rounded-md">
@@ -75,6 +92,7 @@ export default function AppointmentCalendar({
         height="calc(100vh - 200px)"
         events={events}
         eventClick={(arg: EventClickArg) => {
+          if (arg.event.extendedProps._source === "gcal") return;
           onEventClick(arg.event.extendedProps as AppointmentFull);
         }}
         dateClick={(arg) => {
