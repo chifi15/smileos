@@ -77,9 +77,9 @@ async def create_appointment(
             from app.services import google_oauth_service as oauth
             access_token = await oauth.refresh_access_token(cfg.google_refresh_token)
             cal_id = cfg.google_calendar_id or "primary"
-            patient_name = appt.patient.full_name if appt.patient else ""
+            patient_name = appt.patient.full_name if appt.patient else (appt.guest_name or "")
             end_at = appt.scheduled_at + timedelta(minutes=appt.duration_minutes)
-            await oauth.create_google_event(
+            gcal_event = await oauth.create_google_event(
                 access_token, cal_id,
                 summary=patient_name,
                 start_dt=appt.scheduled_at,
@@ -87,6 +87,9 @@ async def create_appointment(
                 description=appt.reason or "",
                 color_id=appt.gcal_color_id,
             )
+            # Guardar el ID del evento de GCal para poder actualizarlo luego
+            appt.google_event_id = gcal_event.get("id")
+            await db.flush()
     except Exception:
         pass  # Google Calendar no disponible; la cita igual está en SmileOS
 
@@ -149,6 +152,7 @@ async def update_appointment(
     user: Annotated[object, require_permission("manage_appointments")],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    update_fields = body.model_dump(exclude_unset=True)
     appt = await appointment_service.update_appointment(db, user.clinic_id, appointment_id, body)
     await audit_service.log(
         db, clinic_id=user.clinic_id, user_id=user.id,
@@ -156,6 +160,32 @@ async def update_appointment(
         description=f"Editó cita de {appt.patient.full_name if appt.patient else ''}",
         patient_id=appt.patient_id,
     )
+
+    # Sincronizar con Google Calendar si la cita tiene evento vinculado
+    if appt.google_event_id and update_fields:
+        try:
+            settings_row = await db.execute(
+                select(ClinicSettings.google_refresh_token, ClinicSettings.google_calendar_id)
+                .where(ClinicSettings.clinic_id == user.clinic_id)
+            )
+            cfg = settings_row.one_or_none()
+            if cfg and cfg.google_refresh_token:
+                from app.services import google_oauth_service as oauth
+                access_token = await oauth.refresh_access_token(cfg.google_refresh_token)
+                cal_id = cfg.google_calendar_id or "primary"
+                patient_name = appt.patient.full_name if appt.patient else (appt.guest_name or "")
+                end_at = appt.scheduled_at + timedelta(minutes=appt.duration_minutes)
+                await oauth.update_google_event(
+                    access_token, cal_id, appt.google_event_id,
+                    summary=patient_name,
+                    start_dt=appt.scheduled_at,
+                    end_dt=end_at,
+                    color_id=appt.gcal_color_id,
+                    update_color="gcal_color_id" in update_fields,
+                )
+        except Exception:
+            pass
+
     return {"success": True, "data": _serialize(appt)}
 
 

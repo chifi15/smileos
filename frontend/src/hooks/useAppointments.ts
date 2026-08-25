@@ -113,6 +113,7 @@ export function useEditAppointment(onSuccess?: () => void) {
         dentist_id?: string;
         reason?: string | null;
         notes?: string | null;
+        gcal_color_id?: string | null;
       };
     }) => {
       const { data } = await apiClient.patch<{ data: AppointmentFull }>(

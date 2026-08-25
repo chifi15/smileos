@@ -38,6 +38,7 @@ class AppointmentUpdate(BaseModel):
     dentist_id: uuid.UUID | None = None
     reason: str | None = None
     notes: str | None = None
+    gcal_color_id: str | None = None
 
 
 class CancelRequest(BaseModel):

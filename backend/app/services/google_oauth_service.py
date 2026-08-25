@@ -129,12 +129,16 @@ async def update_google_event(
     summary: str,
     start_dt: datetime,
     end_dt: datetime,
+    color_id: str | None = None,
+    update_color: bool = False,
 ) -> dict:
     body = {
         "summary": summary,
         "start": {"dateTime": start_dt.isoformat(), "timeZone": "America/Managua"},
         "end": {"dateTime": end_dt.isoformat(), "timeZone": "America/Managua"},
     }
+    if update_color:
+        body["colorId"] = color_id if color_id else ""
     async with httpx.AsyncClient() as client:
         resp = await client.patch(
             f"{GOOGLE_CALENDAR_API}/calendars/{calendar_id}/events/{google_event_id}",

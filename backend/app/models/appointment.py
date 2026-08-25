@@ -52,6 +52,7 @@ class Appointment(UUIDMixin, TimestampMixin, Base):
     status: Mapped[str] = mapped_column(String(20), default="scheduled", nullable=False)
 
     guest_name: Mapped[str | None] = mapped_column(String(200))
+    google_event_id: Mapped[str | None] = mapped_column(String(100))
     reason: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text)
     gcal_color_id: Mapped[str | None] = mapped_column(String(2))

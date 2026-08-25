@@ -31,6 +31,7 @@ import {
   useEditAppointment,
 } from "@/hooks/useAppointments";
 import { useClinicUsers } from "@/hooks/useUsers";
+import { useGcalEventColors, GCAL_COLOR_NAMES } from "@/hooks/useCalendar";
 
 const durationOptions = [
   { value: "15", label: "15 min" },
@@ -75,8 +76,10 @@ function EditForm({ appt, onCancel, onSuccess }: EditFormProps) {
   const [dentistId, setDentistId] = useState(appt.dentist_id);
   const [reason, setReason] = useState(appt.reason ?? "");
   const [notes, setNotes] = useState(appt.notes ?? "");
+  const [colorId, setColorId] = useState<string | null>(appt.gcal_color_id ?? null);
 
   const { data: users = [] } = useClinicUsers();
+  const { data: gcalColors = {} } = useGcalEventColors();
   const edit = useEditAppointment(onSuccess);
 
   const dentistOptions = users.map((u) => ({ value: u.id, label: u.full_name }));
@@ -92,6 +95,7 @@ function EditForm({ appt, onCancel, onSuccess }: EditFormProps) {
         dentist_id: dentistId,
         reason: reason.trim() || null,
         notes: notes.trim() || null,
+        gcal_color_id: colorId,
       },
     });
   }
@@ -149,6 +153,38 @@ function EditForm({ appt, onCancel, onSuccess }: EditFormProps) {
         rows={2}
         placeholder="Observaciones..."
       />
+
+      {/* Color Google Calendar */}
+      {Object.keys(gcalColors).length > 0 && (
+        <div>
+          <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-gray-300">
+            Color en Google Calendar
+          </label>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <button
+              type="button"
+              onClick={() => setColorId(null)}
+              title="Predeterminado"
+              className={`w-6 h-6 rounded-full border-2 transition-transform ${
+                colorId === null ? "border-blue-500 scale-125" : "border-slate-300 dark:border-gray-600"
+              } bg-slate-200 dark:bg-gray-600`}
+            />
+            {Object.entries(gcalColors).map(([id, hex]) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setColorId(id)}
+                title={GCAL_COLOR_NAMES[id] ?? id}
+                className={`w-6 h-6 rounded-full border-2 transition-transform ${
+                  colorId === id ? "border-blue-500 scale-125" : "border-transparent"
+                }`}
+                style={{ backgroundColor: hex as string }}
+              />
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex justify-end gap-2 pt-1">
         <Button type="button" variant="secondary" onClick={onCancel}>
           Cancelar
