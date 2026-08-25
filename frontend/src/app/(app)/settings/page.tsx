@@ -1,14 +1,16 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { Building2, Users, Copy, CheckCircle2, UserPlus, Tag, Plus, Pencil, Check, X, Trash2, GripVertical, Link2, Unlink, Download, Shield, History, CalendarDays, RefreshCw, ExternalLink } from "lucide-react";
+import { Building2, Users, Copy, CheckCircle2, UserPlus, Tag, Plus, Pencil, Check, X, Trash2, GripVertical, Link2, Unlink, Download, Shield, History, CalendarDays, RefreshCw, ExternalLink, Unplug } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import toast from "react-hot-toast";
 import { useClinicSettings, useUpdateSettings } from "@/hooks/useSettings";
-import { useSyncCalendar, useCalendarStatus } from "@/hooks/useCalendar";
+import { useSyncCalendar, useCalendarStatus, useDisconnectGoogleOAuth } from "@/hooks/useCalendar";
 import { getAccessToken } from "@/lib/api-client";
 import { useAllUsers, useCreateUser } from "@/hooks/useUsers";
 import { useProcedures, useUpdateProcedurePrice, useCreateProcedure, useDeleteProcedure, useReorderProcedures, usePriceHistory, PriceHistoryEntry } from "@/hooks/useCatalog";
@@ -236,8 +238,23 @@ export default function SettingsPage() {
   const { data: users = [], isLoading: loadingUsers } = useAllUsers();
   const updateSettings = useUpdateSettings();
   const syncCalendar = useSyncCalendar();
-  const { data: calendarStatus } = useCalendarStatus();
+  const disconnectOAuth = useDisconnectGoogleOAuth();
+  const { data: calendarStatus, refetch: refetchStatus } = useCalendarStatus();
   const [showCreateUser, setShowCreateUser] = useState(false);
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const google = searchParams.get("google");
+    if (google === "connected") {
+      toast.success("Google Calendar conectado correctamente.");
+      refetchStatus();
+      // Limpiar param de URL sin recargar
+      window.history.replaceState({}, "", "/settings");
+    } else if (google === "error") {
+      toast.error("No se pudo conectar con Google Calendar. Intenta de nuevo.");
+      window.history.replaceState({}, "", "/settings");
+    }
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Clinic form state
   const [displayName, setDisplayName] = useState("");
@@ -372,68 +389,125 @@ export default function SettingsPage() {
         <div className="flex items-center gap-2 border-b border-slate-100 dark:border-gray-700 px-6 py-4">
           <CalendarDays size={16} className="text-slate-400 dark:text-gray-500" />
           <h2 className="font-semibold text-slate-800 dark:text-white">Google Calendar</h2>
-          {calendarStatus?.configured && (
+          {calendarStatus?.oauth_connected ? (
             <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 font-medium">
-              Conectado
+              OAuth conectado
             </span>
-          )}
+          ) : calendarStatus?.configured ? (
+            <span className="ml-auto text-xs px-2 py-0.5 rounded-full bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300 font-medium">
+              iCal conectado
+            </span>
+          ) : null}
         </div>
-        <div className="p-6 space-y-4">
+        <div className="p-6 space-y-5">
           <p className="text-sm text-slate-500 dark:text-gray-400">
-            Conecta tu Google Calendar para que SmileOS sincronice tus citas automáticamente y las use en la segmentación de pacientes.
+            Conecta tu Google Calendar para sincronizar citas en ambas direcciones: las citas que crees en SmileOS aparecerán en Google Calendar, y las que tienes en Google Calendar se mostrarán en la agenda de SmileOS con sus colores.
           </p>
-          <a
-            href="https://calendar.google.com/calendar/r/settings"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-xs text-blue-600 dark:text-blue-400 hover:underline"
-          >
-            <ExternalLink size={12} />
-            Cómo obtener la URL: Google Calendar → Configuración → tu calendario → "Dirección secreta en formato iCal"
-          </a>
-          <div className="space-y-1">
-            <label className="block text-xs font-medium text-slate-700 dark:text-gray-300">
-              URL privada iCal (.ics)
-            </label>
-            <input
-              type="url"
-              value={icalUrl}
-              onChange={(e) => setIcalUrl(e.target.value)}
-              placeholder="https://calendar.google.com/calendar/ical/..."
-              className="w-full rounded-lg border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            />
-            <p className="text-xs text-slate-400 dark:text-gray-500">
-              Esta URL es privada. No la compartas con nadie. Se guarda en tu configuración de clínica.
-            </p>
-          </div>
-          <div className="flex items-center justify-between pt-1">
-            <div className="text-xs text-slate-400 dark:text-gray-500">
-              {calendarStatus?.last_synced_at
-                ? `Última sync: ${new Date(calendarStatus.last_synced_at).toLocaleString("es-NI")}`
-                : "Nunca sincronizado"}
+
+          {/* OAuth section */}
+          {calendarStatus?.oauth_available !== false && (
+            <div className="rounded-xl border border-slate-200 dark:border-gray-700 p-4 space-y-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-gray-300">
+                    Sincronización bidireccional (recomendado)
+                  </p>
+                  <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">
+                    SmileOS crea citas en Google Calendar y lee los colores de cada evento.
+                  </p>
+                </div>
+                {calendarStatus?.oauth_connected ? (
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                      {calendarStatus.calendar_id
+                        ? calendarStatus.calendar_id.length > 30
+                          ? calendarStatus.calendar_id.slice(0, 30) + "…"
+                          : calendarStatus.calendar_id
+                        : "Conectado"}
+                    </span>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      loading={disconnectOAuth.isPending}
+                      onClick={() => {
+                        if (window.confirm("¿Desconectar Google Calendar?")) disconnectOAuth.mutate();
+                      }}
+                    >
+                      <Unplug size={13} />
+                      Desconectar
+                    </Button>
+                  </div>
+                ) : (
+                  <a
+                    href={`${process.env.NEXT_PUBLIC_API_URL ?? "https://smileos.onrender.com"}/api/v1/calendar/oauth/authorize`}
+                    className="inline-flex items-center gap-2 rounded-lg bg-blue-600 hover:bg-blue-700 px-3 py-1.5 text-sm font-medium text-white transition-colors"
+                  >
+                    <svg viewBox="0 0 24 24" className="w-4 h-4" fill="currentColor">
+                      <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                      <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                      <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                      <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                    Conectar con Google
+                  </a>
+                )}
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                loading={updateSettings.isPending}
-                onClick={() =>
-                  updateSettings.mutate({ ical_url: icalUrl.trim() || null })
-                }
-              >
-                Guardar URL
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                onClick={() => syncCalendar.mutate()}
-                loading={syncCalendar.isPending}
-                disabled={!calendarStatus?.configured && !icalUrl.trim()}
-              >
-                <RefreshCw size={14} />
-                Sincronizar
-              </Button>
+          )}
+
+          {/* iCal fallback section */}
+          <div className="rounded-xl border border-slate-200 dark:border-gray-700 p-4 space-y-3">
+            <div>
+              <p className="text-sm font-medium text-slate-700 dark:text-gray-300">
+                Solo lectura via iCal
+              </p>
+              <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">
+                Alternativa sin OAuth. Los eventos de Google aparecen en la agenda pero no se crean desde SmileOS.
+              </p>
+            </div>
+            <div className="space-y-1">
+              <label className="block text-xs font-medium text-slate-600 dark:text-gray-400">
+                URL privada iCal (.ics)
+              </label>
+              <input
+                type="url"
+                value={icalUrl}
+                onChange={(e) => setIcalUrl(e.target.value)}
+                placeholder="https://calendar.google.com/calendar/ical/..."
+                className="w-full rounded-lg border border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              />
+              <p className="text-xs text-slate-400 dark:text-gray-500">
+                Google Calendar → Configuración → tu calendario → "Dirección secreta en formato iCal"
+              </p>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="text-xs text-slate-400 dark:text-gray-500">
+                {calendarStatus?.last_synced_at
+                  ? `Última sync: ${new Date(calendarStatus.last_synced_at).toLocaleString("es-NI")}`
+                  : "Nunca sincronizado"}
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  variant="secondary"
+                  size="sm"
+                  loading={updateSettings.isPending}
+                  onClick={() => updateSettings.mutate({ ical_url: icalUrl.trim() || null })}
+                >
+                  Guardar URL
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={() => syncCalendar.mutate()}
+                  loading={syncCalendar.isPending}
+                  disabled={!icalUrl.trim() && !calendarStatus?.configured}
+                >
+                  <RefreshCw size={14} />
+                  Sincronizar
+                </Button>
+              </div>
             </div>
           </div>
         </div>

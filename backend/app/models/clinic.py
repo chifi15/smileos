@@ -59,6 +59,10 @@ class ClinicSettings(UUIDMixin, TimestampMixin, Base):
     ical_url: Mapped[str | None] = mapped_column(Text, nullable=True)
     calendar_last_synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
+    # Google Calendar OAuth
+    google_refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)
+    google_calendar_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     clinic: Mapped["Clinic"] = relationship(back_populates="settings")
 
 

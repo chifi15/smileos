@@ -143,6 +143,129 @@ def _resolve_color(raw: str | None) -> str | None:
 SYNC_COOLDOWN_MINUTES = 15
 
 
+async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, pg_insert) -> dict:
+    """Sincroniza desde Google Calendar API. Obtiene colorId por evento."""
+    from app.services import google_oauth_service as oauth
+
+    try:
+        access_token = await oauth.refresh_access_token(settings.google_refresh_token)
+    except Exception as e:
+        return {"error": f"No se pudo obtener access_token: {str(e)}"}
+
+    cal_id = settings.google_calendar_id or "primary"
+
+    now = datetime.now(timezone.utc)
+    time_min = now - timedelta(days=365)  # último año
+    time_max = now + timedelta(days=180)  # próximos 6 meses
+
+    try:
+        gcal_items = await oauth.list_google_events(access_token, cal_id, time_min, time_max)
+    except Exception as e:
+        return {"error": f"Error leyendo Google Calendar API: {str(e)}"}
+
+    # Cargar pacientes para matching
+    patients_result = await db.execute(
+        select(Patient.id, Patient.first_name, Patient.last_name)
+        .where(Patient.clinic_id == clinic_id, Patient.is_active == True)  # noqa
+    )
+    patients = list(patients_result.fetchall())
+
+    rows = []
+    matched = 0
+    colors_found = 0
+
+    for item in gcal_items:
+        if item.get("status") == "cancelled":
+            continue
+        event_id = item.get("id", "")
+        summary = (item.get("summary") or "").strip()
+        if not event_id or not summary:
+            continue
+
+        start_raw = item.get("start", {})
+        end_raw = item.get("end", {})
+        start_at = _parse_gcal_dt(start_raw)
+        end_at = _parse_gcal_dt(end_raw)
+        if not start_at:
+            continue
+        if not end_at:
+            end_at = start_at + timedelta(hours=1)
+
+        # Color: colorId del evento o del calendario (1-11)
+        color_id = item.get("colorId")
+        hex_color = oauth.resolve_color_id(color_id)
+        if hex_color:
+            colors_found += 1
+
+        # Match paciente
+        patient_name = _extract_name(summary)
+        patient_id, confidence = _match_patient_rows(patient_name, patients)
+        if patient_id:
+            matched += 1
+
+        rows.append({
+            "id": uuid.uuid4(),
+            "clinic_id": clinic_id,
+            "ical_uid": event_id,
+            "google_event_id": event_id,
+            "title": summary,
+            "start_at": start_at,
+            "end_at": end_at,
+            "patient_id": patient_id,
+            "match_confidence": confidence if patient_id else None,
+            "gcal_color": hex_color,
+            "created_at": now,
+            "updated_at": now,
+        })
+
+    if rows:
+        stmt = pg_insert(CalendarEvent).values(rows)
+        stmt = stmt.on_conflict_do_update(
+            constraint="uq_calendar_events_clinic_ical_uid",
+            set_={
+                "title": stmt.excluded.title,
+                "start_at": stmt.excluded.start_at,
+                "end_at": stmt.excluded.end_at,
+                "patient_id": stmt.excluded.patient_id,
+                "match_confidence": stmt.excluded.match_confidence,
+                "gcal_color": stmt.excluded.gcal_color,
+                "google_event_id": stmt.excluded.google_event_id,
+                "updated_at": stmt.excluded.updated_at,
+            },
+        )
+        await db.execute(stmt)
+
+    settings.calendar_last_synced_at = now
+    await db.commit()
+
+    return {
+        "total_events": len(rows),
+        "matched_patients": matched,
+        "colors_found": colors_found,
+        "source": "google_api",
+        "synced_at": now.isoformat(),
+    }
+
+
+def _parse_gcal_dt(dt_obj: dict) -> datetime | None:
+    """Parsea el objeto start/end de Google Calendar API."""
+    if not dt_obj:
+        return None
+    dt_str = dt_obj.get("dateTime") or dt_obj.get("date")
+    if not dt_str:
+        return None
+    try:
+        if "T" in dt_str:
+            # dateTime: "2026-08-15T10:00:00-06:00"
+            return datetime.fromisoformat(dt_str).astimezone(timezone.utc).replace(tzinfo=timezone.utc)
+        else:
+            # date only: "2026-08-15"
+            d = datetime.fromisoformat(dt_str)
+            return d.replace(tzinfo=timezone.utc)
+    except (ValueError, TypeError):
+        return None
+
+
 async def get_sync_status(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
     result = await db.execute(
         select(ClinicSettings.ical_url, ClinicSettings.calendar_last_synced_at)
@@ -159,16 +282,25 @@ async def get_sync_status(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
 
 async def sync_calendar(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
     """
-    Descarga y procesa el iCal. Usa bulk upsert para manejar miles de eventos sin timeout.
+    Sincroniza desde Google Calendar API (si hay OAuth) o desde iCal.
+    Usa bulk upsert para manejar miles de eventos sin timeout.
     """
     from sqlalchemy.dialects.postgresql import insert as pg_insert
+    from app.services import google_oauth_service as oauth
 
-    # Obtener URL configurada
+    # Obtener configuración
     result = await db.execute(
         select(ClinicSettings).where(ClinicSettings.clinic_id == clinic_id)
     )
     settings = result.scalar_one_or_none()
-    if not settings or not settings.ical_url:
+    if not settings:
+        return {"error": "Clínica no encontrada."}
+
+    # Si hay OAuth conectado, sincronizar desde la API de Google Calendar (con colores)
+    if settings.google_refresh_token:
+        return await _sync_from_gcal_api(db, settings, clinic_id, pg_insert)
+
+    if not settings.ical_url:
         return {"error": "No hay URL de iCal configurada."}
 
     # Fetch iCal
@@ -271,11 +403,16 @@ async def get_events(
     """Retorna eventos en el rango, disparando sync automático si toca."""
     if auto_sync:
         result = await db.execute(
-            select(ClinicSettings.calendar_last_synced_at, ClinicSettings.ical_url)
+            select(
+                ClinicSettings.calendar_last_synced_at,
+                ClinicSettings.ical_url,
+                ClinicSettings.google_refresh_token,
+            )
             .where(ClinicSettings.clinic_id == clinic_id)
         )
         row = result.one_or_none()
-        if row and row.ical_url:
+        has_source = row and (row.ical_url or row.google_refresh_token)
+        if has_source:
             stale = (
                 row.calendar_last_synced_at is None
                 or (datetime.now(timezone.utc) - row.calendar_last_synced_at)

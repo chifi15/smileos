@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     # OpenAI (v1.0)
     openai_api_key: str = ""
 
+    # Google OAuth
+    google_client_id: str = ""
+    google_client_secret: str = ""
+    frontend_url: str = "https://smileos-six.vercel.app"
+
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.allowed_origins.split(",")]

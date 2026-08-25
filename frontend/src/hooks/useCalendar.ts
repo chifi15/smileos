@@ -15,6 +15,9 @@ export interface CalendarEvent {
 
 export interface CalendarStatus {
   configured: boolean;
+  oauth_connected: boolean;
+  oauth_available: boolean;
+  calendar_id: string | null;
   last_synced_at: string | null;
 }
 
@@ -39,6 +42,18 @@ export function useCalendarEvents(dateFrom: string, dateTo: string, enabled = tr
     },
     enabled: enabled && !!dateFrom && !!dateTo,
     staleTime: 1000 * 60 * 15, // 15 min
+  });
+}
+
+export function useDisconnectGoogleOAuth() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => apiClient.delete("/api/v1/calendar/oauth/disconnect"),
+    onSuccess: () => {
+      toast.success("Google Calendar desconectado.");
+      qc.invalidateQueries({ queryKey: ["calendar"] });
+    },
+    onError: () => toast.error("Error al desconectar."),
   });
 }
 

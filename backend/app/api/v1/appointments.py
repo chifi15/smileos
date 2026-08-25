@@ -3,12 +3,14 @@ from datetime import date, timedelta
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentUser, require_permission
 from app.schemas.appointment import AppointmentCreate, AppointmentUpdate, CancelRequest
 from app.services import appointment_service, audit_service
+from app.models.clinic import ClinicSettings
 
 router = APIRouter(prefix="/appointments", tags=["Agenda"])
 
@@ -62,6 +64,30 @@ async def create_appointment(
         description=f"Programó cita para {appt.patient.full_name if appt.patient else ''}",
         patient_id=appt.patient_id,
     )
+
+    # Crear en Google Calendar si hay OAuth conectado (fallo silencioso)
+    try:
+        settings_row = await db.execute(
+            select(ClinicSettings.google_refresh_token, ClinicSettings.google_calendar_id)
+            .where(ClinicSettings.clinic_id == user.clinic_id)
+        )
+        cfg = settings_row.one_or_none()
+        if cfg and cfg.google_refresh_token:
+            from app.services import google_oauth_service as oauth
+            access_token = await oauth.refresh_access_token(cfg.google_refresh_token)
+            cal_id = cfg.google_calendar_id or "primary"
+            patient_name = appt.patient.full_name if appt.patient else ""
+            end_at = appt.scheduled_at + timedelta(minutes=appt.duration_minutes)
+            await oauth.create_google_event(
+                access_token, cal_id,
+                summary=patient_name,
+                start_dt=appt.scheduled_at,
+                end_dt=end_at,
+                description=appt.reason or "",
+            )
+    except Exception:
+        pass  # Google Calendar no disponible; la cita igual está en SmileOS
+
     return {"success": True, "data": _serialize(appt)}
 
 
