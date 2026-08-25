@@ -121,6 +121,7 @@ async def create_appointment(
         status="scheduled",
         reason=data.reason,
         notes=data.notes,
+        gcal_color_id=data.gcal_color_id,
     )
     db.add(appt)
     await db.flush()

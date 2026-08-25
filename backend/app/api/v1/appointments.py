@@ -45,6 +45,7 @@ def _serialize(appt) -> dict:
         "completed_at": _iso(appt.completed_at),
         "cancelled_at": _iso(appt.cancelled_at),
         "cancellation_reason": appt.cancellation_reason,
+        "gcal_color_id": appt.gcal_color_id,
         "created_at": _iso(appt.created_at),
     }
 
@@ -84,6 +85,7 @@ async def create_appointment(
                 start_dt=appt.scheduled_at,
                 end_dt=end_at,
                 description=appt.reason or "",
+                color_id=appt.gcal_color_id,
             )
     except Exception:
         pass  # Google Calendar no disponible; la cita igual está en SmileOS

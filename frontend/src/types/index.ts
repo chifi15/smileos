@@ -416,6 +416,7 @@ export interface AppointmentFull {
   completed_at: string | null;
   cancelled_at: string | null;
   cancellation_reason: string | null;
+  gcal_color_id: string | null;
   created_at: string;
 }
 

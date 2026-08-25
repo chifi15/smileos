@@ -53,6 +53,7 @@ class Appointment(UUIDMixin, TimestampMixin, Base):
 
     reason: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text)
+    gcal_color_id: Mapped[str | None] = mapped_column(String(2))
 
     # Timestamps de transiciones de estado
     confirmed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

@@ -20,6 +20,7 @@ class AppointmentCreate(BaseModel):
     appointment_type: AppointmentType
     reason: str | None = None
     notes: str | None = None
+    gcal_color_id: str | None = None
 
     @field_validator("duration_minutes")
     @classmethod

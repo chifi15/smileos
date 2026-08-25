@@ -100,6 +100,7 @@ async def create_google_event(
     start_dt: datetime,
     end_dt: datetime,
     description: str = "",
+    color_id: str | None = None,
 ) -> dict:
     """Crea un evento en Google Calendar y retorna el evento creado."""
     body = {
@@ -109,6 +110,8 @@ async def create_google_event(
         "end": {"dateTime": end_dt.isoformat(), "timeZone": "America/Managua"},
         "extendedProperties": {"private": {"smileos": "1"}},
     }
+    if color_id:
+        body["colorId"] = color_id
     async with httpx.AsyncClient() as client:
         resp = await client.post(
             f"{GOOGLE_CALENDAR_API}/calendars/{calendar_id}/events",
