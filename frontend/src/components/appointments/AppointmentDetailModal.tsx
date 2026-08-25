@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { Clock, User, Stethoscope, Pencil } from "lucide-react";
+import { Clock, User, Stethoscope, Pencil, Trash2 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -377,19 +377,24 @@ export default function AppointmentDetailModal({ appointment: appt, onClose }: P
                 </div>
               )}
 
-              <button
-                className="text-xs text-slate-400 hover:text-red-500 dark:text-gray-500 dark:hover:text-red-400 transition-colors"
-                onClick={() => {
-                  if (window.confirm("¿Eliminar esta cita permanentemente? Esta acción no se puede deshacer.")) {
-                    deleteMutation.mutate(appt.id);
-                  }
-                }}
-                disabled={isWorking}
-              >
-                Eliminar cita permanentemente
-              </button>
             </div>
           )}
+
+          {/* Delete — always visible, right-aligned */}
+          <div className="mt-5 flex justify-end">
+            <button
+              className="inline-flex items-center gap-1.5 rounded-lg border border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-900/20 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors disabled:opacity-40"
+              onClick={() => {
+                if (window.confirm("¿Eliminar esta cita permanentemente? Esta acción no se puede deshacer.")) {
+                  deleteMutation.mutate(appt.id);
+                }
+              }}
+              disabled={isWorking}
+            >
+              <Trash2 size={13} />
+              Eliminar cita
+            </button>
+          </div>
         </>
       )}
     </Modal>

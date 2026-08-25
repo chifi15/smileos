@@ -13,7 +13,8 @@ AppointmentStatus = Literal[
 
 
 class AppointmentCreate(BaseModel):
-    patient_id: uuid.UUID
+    patient_id: uuid.UUID | None = None
+    guest_name: str | None = None
     dentist_id: uuid.UUID
     scheduled_at: datetime
     duration_minutes: int = 30

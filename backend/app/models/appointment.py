@@ -36,8 +36,8 @@ class Appointment(UUIDMixin, TimestampMixin, Base):
     clinic_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False
     )
-    patient_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False
+    patient_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("patients.id"), nullable=True
     )
     dentist_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=False
@@ -51,6 +51,7 @@ class Appointment(UUIDMixin, TimestampMixin, Base):
     appointment_type: Mapped[str] = mapped_column(String(30), nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="scheduled", nullable=False)
 
+    guest_name: Mapped[str | None] = mapped_column(String(200))
     reason: Mapped[str | None] = mapped_column(Text)
     notes: Mapped[str | None] = mapped_column(Text)
     gcal_color_id: Mapped[str | None] = mapped_column(String(2))

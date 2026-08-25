@@ -16,21 +16,10 @@ import { useGcalEventColors, GCAL_COLOR_NAMES } from "@/hooks/useCalendar";
 import { APPOINTMENT_TYPE_LABELS, AppointmentType } from "@/types";
 
 interface Props {
-  dateStr: string | null; // e.g. "2026-07-19T10:00:00" or "2026-07-19"
+  dateStr: string | null;
   onClose: () => void;
   prefilledPatient?: { id: string; name: string };
 }
-
-const DURATION_OPTIONS = [
-  { value: "15", label: "15 min" },
-  { value: "20", label: "20 min" },
-  { value: "30", label: "30 min" },
-  { value: "45", label: "45 min" },
-  { value: "60", label: "1 hora" },
-  { value: "75", label: "1h 15min" },
-  { value: "90", label: "1h 30min" },
-  { value: "120", label: "2 horas" },
-];
 
 const TYPE_OPTIONS = [
   { value: "", label: "Seleccionar tipo..." },
@@ -40,38 +29,49 @@ const TYPE_OPTIONS = [
   })),
 ];
 
+function timeDiffMinutes(start: string, end: string): number {
+  const [sh, sm] = start.split(":").map(Number);
+  const [eh, em] = end.split(":").map(Number);
+  return (eh * 60 + em) - (sh * 60 + sm);
+}
+
+function addMinutes(time: string, mins: number): string {
+  const [h, m] = time.split(":").map(Number);
+  const total = h * 60 + m + mins;
+  return `${String(Math.floor(total / 60) % 24).padStart(2, "0")}:${String(total % 60).padStart(2, "0")}`;
+}
 
 export default function NewAppointmentModal({ dateStr, onClose, prefilledPatient }: Props) {
   const { user } = useAuthStore();
   const { data: users = [] } = useClinicUsers();
+  const { data: gcalColors = {} } = useGcalEventColors();
 
   const [patient, setPatient] = useState<{ id: string; name: string } | null>(
     prefilledPatient ?? null
   );
-
-  // Reset prefilled patient every time the modal opens
-  useEffect(() => {
-    if (dateStr && prefilledPatient) setPatient(prefilledPatient);
-    if (!dateStr) setPatient(prefilledPatient ?? null);
-  }, [dateStr]);
+  const [guestName, setGuestName] = useState("");
   const [dentistId, setDentistId] = useState("");
   const [date, setDate] = useState("");
-  const [time, setTime] = useState("09:00");
-  const [duration, setDuration] = useState("30");
+  const [startTime, setStartTime] = useState("09:00");
+  const [endTime, setEndTime] = useState("09:30");
   const [type, setType] = useState("");
   const [reason, setReason] = useState("");
   const [notes, setNotes] = useState("");
   const [colorId, setColorId] = useState<string | null>(null);
 
-  // Pre-fill date/time when the modal opens from a calendar click
+  useEffect(() => {
+    if (dateStr && prefilledPatient) setPatient(prefilledPatient);
+    if (!dateStr) setPatient(prefilledPatient ?? null);
+  }, [dateStr]);
+
   useEffect(() => {
     if (!dateStr) return;
     setDate(dateStr.slice(0, 10));
     const timePart = dateStr.length > 10 ? dateStr.slice(11, 16) : "09:00";
-    setTime(timePart);
+    setStartTime(timePart);
+    setEndTime(addMinutes(timePart, 30));
   }, [dateStr]);
 
-  // Pre-fill dentist with current user
   useEffect(() => {
     if (user && !dentistId) setDentistId(user.id);
   }, [user, dentistId]);
@@ -89,20 +89,24 @@ export default function NewAppointmentModal({ dateStr, onClose, prefilledPatient
     ? format(new Date(date + "T12:00:00"), "EEEE, d 'de' MMMM 'de' yyyy", { locale: es })
     : "";
 
+  const durationMinutes = timeDiffMinutes(startTime, endTime);
+  const durationValid = durationMinutes >= 15;
+
   const create = useCreateAppointment(onClose);
-  const { data: gcalColors = {} } = useGcalEventColors();
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!patient || !dentistId || !date || !time || !type) return;
+    if (!dentistId || !date || !startTime || !endTime || !type || !durationValid) return;
+    if (!patient && !guestName.trim()) return;
 
-    const scheduled_at = new Date(`${date}T${time}:00`).toISOString();
+    const scheduled_at = new Date(`${date}T${startTime}:00`).toISOString();
 
     create.mutate({
-      patient_id: patient.id,
+      patient_id: patient?.id ?? null,
+      guest_name: patient ? null : guestName.trim(),
       dentist_id: dentistId,
       scheduled_at,
-      duration_minutes: parseInt(duration),
+      duration_minutes: durationMinutes,
       appointment_type: type,
       reason: reason || null,
       notes: notes || null,
@@ -110,7 +114,8 @@ export default function NewAppointmentModal({ dateStr, onClose, prefilledPatient
     });
   }
 
-  const isValid = !!patient && !!dentistId && !!date && !!time && !!type;
+  const isValid = !!dentistId && !!date && !!startTime && !!endTime && !!type
+    && durationValid && (!!patient || !!guestName.trim());
 
   return (
     <Modal open={!!dateStr} onClose={onClose} title="Nueva cita" size="md">
@@ -118,49 +123,71 @@ export default function NewAppointmentModal({ dateStr, onClose, prefilledPatient
         {/* Patient */}
         <div>
           <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-gray-300">
-            Paciente *
+            Paciente <span className="text-slate-400 dark:text-gray-500 font-normal">(opcional)</span>
           </label>
           <PatientSearch value={patient} onChange={setPatient} />
         </div>
 
-        {/* Date & Time */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <Input
-              label="Fecha *"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              required
-            />
-            {dateLabel && (
-              <p className="mt-1 text-xs capitalize text-slate-400 dark:text-gray-500">{dateLabel}</p>
-            )}
-          </div>
+        {/* Guest name when no patient selected */}
+        {!patient && (
           <Input
-            label="Hora *"
-            type="time"
-            value={time}
-            onChange={(e) => setTime(e.target.value)}
+            label="Nombre del paciente"
+            value={guestName}
+            onChange={(e) => setGuestName(e.target.value)}
+            placeholder="Paciente nuevo sin registrar..."
             required
           />
+        )}
+
+        {/* Date */}
+        <div>
+          <Input
+            label="Fecha *"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            required
+          />
+          {dateLabel && (
+            <p className="mt-1 text-xs capitalize text-slate-400 dark:text-gray-500">{dateLabel}</p>
+          )}
         </div>
 
-        {/* Dentist & Duration */}
+        {/* Start / End time */}
         <div className="grid grid-cols-2 gap-3">
-          <Select
-            label="Dentista *"
-            value={dentistId}
-            onChange={(e) => setDentistId(e.target.value)}
-            options={dentistOptions}
+          <Input
+            label="Hora inicio *"
+            type="time"
+            value={startTime}
+            onChange={(e) => {
+              setStartTime(e.target.value);
+              setEndTime(addMinutes(e.target.value, Math.max(durationMinutes, 30)));
+            }}
+            required
           />
-          <Select
-            label="Duración *"
-            value={duration}
-            onChange={(e) => setDuration(e.target.value)}
-            options={DURATION_OPTIONS}
-          />
+          <div>
+            <Input
+              label="Hora fin *"
+              type="time"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              required
+            />
+            {durationMinutes > 0 && (
+              <p className={`mt-1 text-xs ${durationValid ? "text-slate-400 dark:text-gray-500" : "text-red-500"}`}>
+                {durationValid ? `${durationMinutes} min` : "Mínimo 15 min"}
+              </p>
+            )}
+          </div>
         </div>
+
+        {/* Dentist */}
+        <Select
+          label="Dentista *"
+          value={dentistId}
+          onChange={(e) => setDentistId(e.target.value)}
+          options={dentistOptions}
+        />
 
         {/* Type */}
         <Select

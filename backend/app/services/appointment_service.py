@@ -113,6 +113,7 @@ async def create_appointment(
     appt = Appointment(
         clinic_id=clinic_id,
         patient_id=data.patient_id,
+        guest_name=data.guest_name,
         dentist_id=data.dentist_id,
         created_by_id=created_by_id,
         scheduled_at=scheduled_at,

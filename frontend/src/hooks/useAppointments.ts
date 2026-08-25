@@ -43,7 +43,8 @@ export function useCreateAppointment(onSuccess?: () => void) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: {
-      patient_id: string;
+      patient_id?: string | null;
+      guest_name?: string | null;
       dentist_id: string;
       scheduled_at: string;
       duration_minutes: number;
