@@ -100,7 +100,7 @@ export default function AppointmentCalendar({
             const m = start.getMonth() + 1;
             const d = start.getDate();
             window.open(
-              `https://calendar.google.com/calendar/r/day/${y}/${m}/${d}`,
+              `https://calendar.google.com/calendar/u/1/r/day/${y}/${m}/${d}`,
               "_blank"
             );
             return;
