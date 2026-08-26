@@ -210,7 +210,7 @@ export default function ReportesPage() {
             value={fmt(summary.ingresos_brutos)}
             sub={`${summary.count_ingresos} transacciones`}
             icon={DollarSign}
-            color="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
+            color="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
           />
           <KpiCard
             label="Total egresos"
@@ -240,7 +240,7 @@ export default function ReportesPage() {
             value={fmt(summary.utilidad_neta)}
             sub="− costos operativos"
             icon={TrendingUp}
-            color="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
+            color="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
             positive={summary.utilidad_neta >= 0}
           />
           <KpiCard
@@ -284,9 +284,9 @@ export default function ReportesPage() {
               <YAxis tick={{ fontSize: 11 }} tickFormatter={(v) => `C$${(v / 1000).toFixed(0)}k`} />
               <Tooltip content={<CustomTooltip />} />
               <Legend wrapperStyle={{ fontSize: 12 }} />
-              <Bar dataKey="ingresos" name="Ingresos" fill="#3b82f6" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="ingresos" name="Ingresos" fill="#22c55e" radius={[3, 3, 0, 0]} />
               <Bar dataKey="egresos" name="Egresos" fill="#ef4444" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="utilidad" name="Utilidad" fill="#22c55e" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="utilidad" name="Utilidad" fill="#3b82f6" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : null}
