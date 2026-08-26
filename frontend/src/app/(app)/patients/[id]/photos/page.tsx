@@ -18,6 +18,7 @@ import {
   Check,
 } from "lucide-react";
 import { useDropzone } from "react-dropzone";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   DndContext,
   DragEndEvent,
@@ -33,10 +34,11 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import apiClient from "@/lib/api-client";
+import toast from "react-hot-toast";
 import { usePatient } from "@/hooks/usePatients";
 import {
   usePatientPhotos,
-  useUploadPhoto,
   useDeletePhoto,
   useReorderPhotos,
 } from "@/hooks/usePhotos";
@@ -73,98 +75,153 @@ interface UploadModalProps {
   patientId: string;
 }
 
+interface FileEntry {
+  file: File;
+  previewUrl: string;
+}
+
 function UploadModal({ open, onClose, patientId }: UploadModalProps) {
-  const [file, setFile] = useState<File | null>(null);
-  const [preview, setPreview] = useState<string | null>(null);
+  const qc = useQueryClient();
+  const [entries, setEntries] = useState<FileEntry[]>([]);
   const [photoType, setPhotoType] = useState<PhotoType>("intraoral_frontal");
   const [caption, setCaption] = useState("");
   const [takenAt, setTakenAt] = useState(format(new Date(), "yyyy-MM-dd"));
-
-  const upload = useUploadPhoto(patientId, () => {
-    resetForm();
-    onClose();
-  });
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   function resetForm() {
-    setFile(null);
-    setPreview(null);
+    entries.forEach((e) => URL.revokeObjectURL(e.previewUrl));
+    setEntries([]);
     setCaption("");
     setPhotoType("intraoral_frontal");
     setTakenAt(format(new Date(), "yyyy-MM-dd"));
+    setUploading(false);
+    setProgress(0);
+  }
+
+  function handleClose() {
+    if (uploading) return;
+    resetForm();
+    onClose();
   }
 
   const onDrop = useCallback((accepted: File[]) => {
-    const f = accepted[0];
-    if (!f) return;
-    setFile(f);
-    const url = URL.createObjectURL(f);
-    setPreview(url);
+    const newEntries = accepted.map((f) => ({ file: f, previewUrl: URL.createObjectURL(f) }));
+    setEntries((prev) => [...prev, ...newEntries]);
   }, []);
 
-  useEffect(() => {
-    return () => {
-      if (preview) URL.revokeObjectURL(preview);
-    };
-  }, [preview]);
+  function removeEntry(index: number) {
+    setEntries((prev) => {
+      URL.revokeObjectURL(prev[index].previewUrl);
+      return prev.filter((_, i) => i !== index);
+    });
+  }
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
     onDrop,
     accept: { "image/*": [".jpg", ".jpeg", ".png", ".webp"] },
-    maxFiles: 1,
-    multiple: false,
+    multiple: true,
   });
 
-  function handleSubmit() {
-    if (!file) return;
-    const fd = new FormData();
-    fd.append("file", file);
-    fd.append("photo_type", photoType);
-    if (caption.trim()) fd.append("caption", caption.trim());
-    fd.append("taken_at", takenAt);
-    upload.mutate(fd);
-  }
-
-  function handleClose() {
+  async function handleSubmit() {
+    if (entries.length === 0 || uploading) return;
+    setUploading(true);
+    setProgress(0);
+    let errors = 0;
+    for (let i = 0; i < entries.length; i++) {
+      try {
+        const fd = new FormData();
+        fd.append("file", entries[i].file);
+        fd.append("photo_type", photoType);
+        if (caption.trim()) fd.append("caption", caption.trim());
+        fd.append("taken_at", takenAt);
+        await apiClient.post(`/api/v1/patients/${patientId}/photos`, fd);
+      } catch {
+        errors++;
+      }
+      setProgress(i + 1);
+    }
+    await qc.invalidateQueries({ queryKey: ["photos", patientId] });
+    const total = entries.length;
+    if (errors === 0) {
+      toast.success(`${total} foto${total !== 1 ? "s" : ""} subida${total !== 1 ? "s" : ""} correctamente.`);
+    } else {
+      toast.error(`${errors} foto${errors !== 1 ? "s" : ""} no se pudieron subir.`);
+    }
     resetForm();
     onClose();
   }
 
   return (
-    <Modal open={open} onClose={handleClose} title="Subir fotografía" size="md">
+    <Modal open={open} onClose={handleClose} title="Subir fotografías" size="md">
       <div className="space-y-4">
-        {!file ? (
-          <div
-            {...getRootProps()}
-            className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-10 cursor-pointer transition-colors ${
-              isDragActive
-                ? "border-blue-400 bg-blue-50"
-                : "border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/50 hover:border-blue-300 hover:bg-blue-50"
-            }`}
-          >
-            <input {...getInputProps()} />
-            <Camera size={32} className="text-slate-300" />
-            <div className="text-center">
-              <p className="text-sm font-medium text-slate-600 dark:text-gray-400">
-                {isDragActive
-                  ? "Suelta la imagen aquí"
-                  : "Arrastra una imagen o haz clic para seleccionar"}
-              </p>
-              <p className="mt-1 text-xs text-slate-400 dark:text-gray-500">JPG, PNG o WebP</p>
-            </div>
+        {/* Dropzone */}
+        <div
+          {...getRootProps()}
+          className={`flex flex-col items-center justify-center gap-3 rounded-xl border-2 border-dashed px-6 py-8 cursor-pointer transition-colors ${
+            isDragActive
+              ? "border-blue-400 bg-blue-50 dark:bg-blue-900/20"
+              : "border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/50 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/10"
+          }`}
+        >
+          <input {...getInputProps()} />
+          <Camera size={28} className="text-slate-300 dark:text-gray-600" />
+          <div className="text-center">
+            <p className="text-sm font-medium text-slate-600 dark:text-gray-400">
+              {isDragActive ? "Suelta las imágenes aquí" : "Arrastra fotos o haz clic para seleccionar"}
+            </p>
+            <p className="mt-1 text-xs text-slate-400 dark:text-gray-500">
+              Puedes seleccionar varias fotos a la vez (Shift+clic) · JPG, PNG o WebP
+            </p>
           </div>
-        ) : (
-          <div className="relative">
-            <img
-              src={preview ?? ""}
-              alt="Vista previa"
-              className="w-full max-h-48 object-contain rounded-lg bg-slate-100"
-            />
-            <button
-              onClick={resetForm}
-              className="absolute top-2 right-2 rounded-full bg-white p-1 shadow-md hover:bg-red-50 text-slate-400 hover:text-red-500 transition-colors"
-            >
-              <X size={14} />
-            </button>
+        </div>
+
+        {/* Preview grid */}
+        {entries.length > 0 && (
+          <div>
+            <p className="mb-2 text-xs font-medium text-slate-500 dark:text-gray-400">
+              {entries.length} foto{entries.length !== 1 ? "s" : ""} seleccionada{entries.length !== 1 ? "s" : ""}
+            </p>
+            <div className="grid grid-cols-4 gap-2 max-h-40 overflow-y-auto pr-1">
+              {entries.map((entry, i) => (
+                <div key={i} className="relative group">
+                  <img
+                    src={entry.previewUrl}
+                    alt=""
+                    className="aspect-square w-full rounded-lg object-cover bg-slate-100 dark:bg-gray-700"
+                  />
+                  {!uploading && (
+                    <button
+                      type="button"
+                      onClick={() => removeEntry(i)}
+                      className="absolute -top-1 -right-1 rounded-full bg-red-500 p-0.5 text-white opacity-0 group-hover:opacity-100 transition-opacity shadow"
+                    >
+                      <X size={10} />
+                    </button>
+                  )}
+                  {uploading && i < progress && (
+                    <div className="absolute inset-0 rounded-lg bg-black/40 flex items-center justify-center">
+                      <Check size={16} className="text-white" />
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+            {/* Progress bar */}
+            {uploading && (
+              <div className="mt-3">
+                <div className="flex justify-between text-xs text-slate-500 dark:text-gray-400 mb-1">
+                  <span>Subiendo…</span>
+                  <span>{progress} de {entries.length}</span>
+                </div>
+                <div className="h-1.5 w-full rounded-full bg-slate-100 dark:bg-gray-700 overflow-hidden">
+                  <div
+                    className="h-full bg-blue-500 rounded-full transition-all duration-300"
+                    style={{ width: `${(progress / entries.length) * 100}%` }}
+                  />
+                </div>
+              </div>
+            )}
           </div>
         )}
 
@@ -189,11 +246,13 @@ function UploadModal({ open, onClose, patientId }: UploadModalProps) {
       </div>
 
       <div className="mt-5 flex justify-end gap-3">
-        <Button variant="secondary" onClick={handleClose}>
+        <Button variant="secondary" onClick={handleClose} disabled={uploading}>
           Cancelar
         </Button>
-        <Button onClick={handleSubmit} disabled={!file} loading={upload.isPending}>
-          Subir
+        <Button onClick={handleSubmit} disabled={entries.length === 0 || uploading} loading={uploading}>
+          {uploading
+            ? `Subiendo ${progress} de ${entries.length}…`
+            : `Subir ${entries.length > 1 ? `${entries.length} fotos` : "foto"}`}
         </Button>
       </div>
     </Modal>
