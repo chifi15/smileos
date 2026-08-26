@@ -82,16 +82,30 @@ function toISO(display: string): string {
 
 function DateInput({ value, onChange, className }: { value: string; onChange: (iso: string) => void; className?: string }) {
   const [raw, setRaw] = useState(() => toDisplay(value));
-  useEffect(() => { setRaw(toDisplay(value)); }, [value]);
+  const focused = useRef(false);
+
+  useEffect(() => {
+    if (!focused.current) setRaw(toDisplay(value));
+  }, [value]);
+
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     const v = e.target.value;
     setRaw(v);
     const iso = toISO(v);
     if (iso) onChange(iso);
   }
+
   return (
-    <input type="text" value={raw} onChange={handleChange} placeholder="DD/MM/AAAA"
-      maxLength={10} className={className} />
+    <input
+      type="text"
+      value={raw}
+      onChange={handleChange}
+      onFocus={() => { focused.current = true; }}
+      onBlur={() => { focused.current = false; setRaw(toDisplay(value)); }}
+      placeholder="DD/MM/AAAA"
+      maxLength={10}
+      className={className}
+    />
   );
 }
 
