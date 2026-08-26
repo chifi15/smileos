@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useCostTreatments, useCostProducts, useUpdateCostProductStock } from "@/hooks/useCostos";
 import {
   TrendingUp,
@@ -20,6 +20,7 @@ import {
   ChevronDown,
   ChevronUp,
   Settings2,
+  Search,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import apiClient from "@/lib/api-client";
@@ -1352,6 +1353,7 @@ function ExchangeRateEditor({ rate }: { rate: number }) {
 
 function TransactionsTab({ year, month }: { year: number; month: number }) {
   const [tab, setTab] = useState<"all" | "ingreso" | "egreso">("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const { data: txs = [], isLoading } = useTransactions(year, month, tab === "all" ? undefined : tab);
   const { data: exchangeRate = 37 } = useExchangeRate();
   const { data: expenseCats = [] } = useExpenseCategories();
@@ -1363,14 +1365,36 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
   const [confirmBulk, setConfirmBulk] = useState(false);
   const bulkDelete = useBulkDeleteTransactions(year, month);
 
-  const allSelected = txs.length > 0 && txs.every((tx) => selectedIds.has(tx.id));
+  // Clear selection when tab changes
+  const prevTab = useRef(tab);
+  if (prevTab.current !== tab) {
+    prevTab.current = tab;
+    setSelectedIds(new Set());
+  }
+
+  const filteredTxs = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return txs;
+    return txs.filter((tx) => {
+      return (
+        tx.patient?.full_name?.toLowerCase().includes(q) ||
+        tx.description?.toLowerCase().includes(q) ||
+        tx.invoice_number?.toLowerCase().includes(q) ||
+        tx.procedure?.name?.toLowerCase().includes(q) ||
+        tx.notes?.toLowerCase().includes(q) ||
+        (ALL_CATEGORY_LABELS[tx.category] ?? dynamicCategoryLabels[tx.category] ?? tx.category)?.toLowerCase().includes(q)
+      );
+    });
+  }, [txs, searchQuery, dynamicCategoryLabels]);
+
+  const allSelected = filteredTxs.length > 0 && filteredTxs.every((tx) => selectedIds.has(tx.id));
   const someSelected = selectedIds.size > 0;
 
   function toggleAll() {
     if (allSelected) {
       setSelectedIds(new Set());
     } else {
-      setSelectedIds(new Set(txs.map((tx) => tx.id)));
+      setSelectedIds(new Set(filteredTxs.map((tx) => tx.id)));
     }
   }
 
@@ -1389,13 +1413,6 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
         setConfirmBulk(false);
       },
     });
-  }
-
-  // Clear selection when tab changes
-  const prevTab = useRef(tab);
-  if (prevTab.current !== tab) {
-    prevTab.current = tab;
-    setSelectedIds(new Set());
   }
 
   return (
@@ -1433,13 +1450,50 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
           )}
         </div>
 
+        {/* Search bar */}
+        <div className="px-4 py-2.5 border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-800/60">
+          <div className="relative max-w-sm">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar por paciente, descripción, factura…"
+              className="w-full pl-8 pr-8 py-1.5 text-sm rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery("")}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-gray-300"
+              >
+                <X size={13} />
+              </button>
+            )}
+          </div>
+          {searchQuery.trim() && (
+            <p className="mt-1 text-xs text-slate-400 dark:text-gray-500">
+              {filteredTxs.length} resultado{filteredTxs.length !== 1 ? "s" : ""} de {txs.length}
+            </p>
+          )}
+        </div>
+
         {isLoading ? (
           <div className="p-8 text-center text-slate-400 dark:text-gray-500 text-sm">Cargando transacciones…</div>
-        ) : txs.length === 0 ? (
+        ) : filteredTxs.length === 0 ? (
           <div className="p-12 text-center text-slate-400 dark:text-gray-500">
-            <TrendingUp size={40} className="mx-auto mb-3 opacity-30" />
-            <p className="font-medium">Sin transacciones este mes</p>
-            <p className="text-sm mt-1">Usa los botones de arriba para registrar ingresos o egresos.</p>
+            {searchQuery.trim() ? (
+              <>
+                <Search size={40} className="mx-auto mb-3 opacity-30" />
+                <p className="font-medium">Sin resultados</p>
+                <p className="text-sm mt-1">No hay transacciones que coincidan con &ldquo;{searchQuery}&rdquo;.</p>
+              </>
+            ) : (
+              <>
+                <TrendingUp size={40} className="mx-auto mb-3 opacity-30" />
+                <p className="font-medium">Sin transacciones este mes</p>
+                <p className="text-sm mt-1">Usa los botones de arriba para registrar ingresos o egresos.</p>
+              </>
+            )}
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -1468,7 +1522,7 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
-                {txs.map((tx, i) => {
+                {filteredTxs.map((tx, i) => {
                   const isSelected = selectedIds.has(tx.id);
                   return (
                     <tr key={tx.id} className={`transition-colors ${isSelected ? "bg-blue-50 dark:bg-blue-900/20" : i % 2 !== 0 ? "bg-slate-50/40 dark:bg-gray-700/20 hover:bg-slate-50 dark:hover:bg-gray-700" : "hover:bg-slate-50 dark:hover:bg-gray-700"}`}>
