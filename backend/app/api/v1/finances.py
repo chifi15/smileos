@@ -256,14 +256,18 @@ async def get_receipt_file(
     user: Annotated[object, require_permission("view_patients")],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    import logging, os
+    log = logging.getLogger(__name__)
     tx = await _get_tx(db, user.clinic_id, tx_id)
     if not tx.receipt_path:
         raise NotFoundError("Comprobante")
+    log.warning("RECEIPT DEBUG: path=%s use_s3=%s endpoint=%s", tx.receipt_path, bool(os.environ.get("S3_ENDPOINT_URL")), os.environ.get("S3_ENDPOINT_URL","NONE")[:30])
     ext = tx.receipt_path.rsplit(".", 1)[-1].lower()
     mime = {"jpg": "image/jpeg", "png": "image/png", "webp": "image/webp", "pdf": "application/pdf"}.get(ext, "application/octet-stream")
     try:
         data = storage.read_file(tx.receipt_path)
-    except (FileNotFoundError, OSError, Exception):
+    except Exception as e:
+        log.error("RECEIPT ERROR: %s: %s", type(e).__name__, e)
         raise NotFoundError("Archivo de comprobante")
     return StreamingResponse(iter([data]), media_type=mime)
 
