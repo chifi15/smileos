@@ -335,14 +335,14 @@ export default function ReportesPage() {
           </table>
         </TableCard>
 
-        <TableCard title="Tratamientos más cotizados en planes" empty={!topQuoted?.length}>
+        <TableCard title="Tratamientos más frecuentes" empty={!topQuoted?.length}>
           <table className="w-full text-xs">
             <thead>
               <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
                 <th className="px-4 py-2 font-medium">#</th>
                 <th className="px-4 py-2 font-medium">Tratamiento</th>
-                <th className="px-4 py-2 font-medium text-right">Cotizado</th>
-                <th className="px-4 py-2 font-medium text-right">Total cotizado</th>
+                <th className="px-4 py-2 font-medium text-right">Veces</th>
+                <th className="px-4 py-2 font-medium text-right">Total cobrado</th>
               </tr>
             </thead>
             <tbody>

@@ -4,7 +4,7 @@ from sqlalchemy import select, func, extract, case
 from sqlalchemy.orm import selectinload
 from app.models.finance import FinanceTransaction
 from app.models.patient import Patient
-from app.models.treatment import ProcedureCatalog, TreatmentPlanItem
+from app.models.treatment import ProcedureCatalog
 from app.models.user import User
 
 MONTH_NAMES = [
@@ -101,18 +101,27 @@ async def get_top_procedures_quoted(
     year: int,
     month: int | None = None,
 ) -> list[dict]:
-    """Procedimientos más cotizados en planes de tratamiento."""
+    """Procedimientos más frecuentes en transacciones de finanzas."""
+    filters = [
+        FinanceTransaction.clinic_id == clinic_id,
+        FinanceTransaction.type == "ingreso",
+        FinanceTransaction.procedure_id.isnot(None),
+        extract("year", FinanceTransaction.transaction_date) == year,
+    ]
+    if month:
+        filters.append(extract("month", FinanceTransaction.transaction_date) == month)
+
     rows = await db.execute(
         select(
-            TreatmentPlanItem.procedure_id,
+            FinanceTransaction.procedure_id,
             ProcedureCatalog.name.label("procedure_name"),
-            func.count(TreatmentPlanItem.id).label("quoted"),
-            func.sum(TreatmentPlanItem.quoted_price).label("total_cotizado"),
+            func.count(FinanceTransaction.id).label("quoted"),
+            func.sum(FinanceTransaction.amount_cordobas).label("total_cotizado"),
         )
-        .join(ProcedureCatalog, ProcedureCatalog.id == TreatmentPlanItem.procedure_id)
-        .where(TreatmentPlanItem.clinic_id == clinic_id)
-        .group_by(TreatmentPlanItem.procedure_id, ProcedureCatalog.name)
-        .order_by(func.count(TreatmentPlanItem.id).desc())
+        .join(ProcedureCatalog, ProcedureCatalog.id == FinanceTransaction.procedure_id)
+        .where(*filters)
+        .group_by(FinanceTransaction.procedure_id, ProcedureCatalog.name)
+        .order_by(func.count(FinanceTransaction.id).desc())
         .limit(10)
     )
     return [
