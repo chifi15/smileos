@@ -259,11 +259,12 @@ async def get_receipt_file(
     tx = await _get_tx(db, user.clinic_id, tx_id)
     if not tx.receipt_path:
         raise NotFoundError("Comprobante")
-    if not storage.file_exists(tx.receipt_path):
-        raise NotFoundError("Archivo de comprobante")
     ext = tx.receipt_path.rsplit(".", 1)[-1].lower()
     mime = {"jpg": "image/jpeg", "png": "image/png", "webp": "image/webp", "pdf": "application/pdf"}.get(ext, "application/octet-stream")
-    data = storage.read_file(tx.receipt_path)
+    try:
+        data = storage.read_file(tx.receipt_path)
+    except (FileNotFoundError, OSError, Exception):
+        raise NotFoundError("Archivo de comprobante")
     return StreamingResponse(iter([data]), media_type=mime)
 
 
