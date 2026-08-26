@@ -490,7 +490,7 @@ function formFromTx(tx: FinanceTransaction): FormState {
     original_currency: (tx.original_currency as "NIO" | "USD") ?? "NIO",
     patient: tx.patient ? { id: tx.patient.id, name: tx.patient.full_name } : null,
     procedure_id: tx.procedure?.id ?? "",
-    appointment_id: "",
+    appointment_id: tx.cost_appointment_id ?? "",
     quantity: String(tx.procedure_quantity ?? 1),
     sessions: "1",
     doctor_id: tx.doctor?.id ?? "",
@@ -541,10 +541,14 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   type ExtraProc = { procedure_id: string; appointment_id: string };
   const [extraProcedures, setExtraProcedures] = useState<ExtraProc[]>([]);
 
-  // En modo edición, inicializar materiales cuando cargan los tratamientos (para mostrarlos como referencia)
+  // En modo edición, inicializar materiales cuando cargan los tratamientos
   useEffect(() => {
     if (isEdit && form.procedure_id && apiTreatments.length > 0 && usedMaterials === null) {
-      initMaterialsFromTreatment(form.procedure_id);
+      if (form.appointment_id) {
+        initMaterialsFromAppointment(form.procedure_id, form.appointment_id);
+      } else {
+        initMaterialsFromTreatment(form.procedure_id);
+      }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiTreatments.length, isEdit, form.procedure_id]);
@@ -715,6 +719,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         transaction_date: form.transaction_date,
         patient_id: form.patient?.id ?? null,
         procedure_id: form.procedure_id || null,
+        cost_appointment_id: form.appointment_id || null,
         quantity: qty,
         sessions,
         doctor_id: form.doctor_id || null,
@@ -739,6 +744,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     if (form.patient?.id) payload.patient_id = form.patient.id;
     if (form.procedure_id) {
       payload.procedure_id = form.procedure_id;
+      if (form.appointment_id) payload.cost_appointment_id = form.appointment_id;
       payload.quantity = qty;
       if (sessions > 1) payload.sessions = sessions;
       if (opCostOverride !== null) payload.operational_cost_override = opCostOverride;
@@ -898,7 +904,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
             </select>
 
             {/* Selector de cita para el procedimiento principal (multi-sesión) */}
-            {form.procedure_id && !isEdit && (() => {
+            {form.procedure_id && (() => {
               const treatment = apiTreatments.find((t) => t.procedure_catalog_id === form.procedure_id);
               if (!treatment || treatment.appointments.length <= 1) return null;
               return (

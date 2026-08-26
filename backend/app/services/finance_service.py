@@ -129,6 +129,7 @@ async def create_transaction(
         exchange_rate_used=exchange_rate,
         patient_id=uuid.UUID(str(data["patient_id"])) if data.get("patient_id") else None,
         procedure_id=uuid.UUID(str(proc_id)) if proc_id else None,
+        cost_appointment_id=data.get("cost_appointment_id") or None,
         procedure_quantity=quantity,
         operational_cost_snapshot=op_cost,
         doctor_id=uuid.UUID(str(data["doctor_id"])) if data.get("doctor_id") else None,
@@ -340,6 +341,9 @@ async def update_transaction(
     upd_quantity = max(1, int(data["quantity"])) if data.get("quantity") else None
     upd_sessions = max(1, int(data["sessions"])) if data.get("sessions") else 1
     upd_cost_override = data.get("operational_cost_override")
+
+    if "cost_appointment_id" in data:
+        tx.cost_appointment_id = data["cost_appointment_id"] or None
 
     if "procedure_id" in data:
         proc_id = data["procedure_id"]

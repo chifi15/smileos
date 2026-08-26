@@ -636,6 +636,7 @@ export interface FinanceTransaction {
   patient: { id: string; full_name: string } | null;
   procedure: { id: string; name: string } | null;
   procedure_quantity: number;
+  cost_appointment_id: string | null;
   operational_cost_snapshot: number | null;
   doctor: { id: string; full_name: string } | null;
   invoice_number: string | null;
@@ -664,6 +665,7 @@ export interface TransactionCreatePayload {
   original_currency: "NIO" | "USD";
   patient_id?: string;
   procedure_id?: string;
+  cost_appointment_id?: string;
   quantity?: number;
   sessions?: number;
   operational_cost_override?: number;
