@@ -701,13 +701,22 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     const isMultiProc = extraProcedures.some((ep) => !!ep.procedure_id);
     // Costo operativo a registrar:
     // - Multi-proc: suma de costos individuales menos ahorro por materiales compartidos
-    // - Cita específica: costo real de materiales de esa cita
+    // - Cita específica: materiales de esa cita + (honorarios + costos_fijos) / total de citas
     // - Single proc normal: null (el backend usa operational_cost del procedimiento)
     let opCostOverride: number | null = null;
     if (isMultiProc && usedMaterials) {
       opCostOverride = calcCombinedOpCost(form.procedure_id, form.appointment_id, extraProcedures, usedMaterials).total;
     } else if (form.appointment_id && usedMaterials) {
-      opCostOverride = calcMaterialsCost(usedMaterials);
+      const apptTreatment = apiTreatments.find((t) => t.procedure_catalog_id === form.procedure_id);
+      const materialCost = calcMaterialsCost(usedMaterials);
+      if (apptTreatment) {
+        const profFees = (apptTreatment.professional_fee_per_hour || 0) * (apptTreatment.total_hours || 0);
+        const fixedCosts = apptTreatment.fixed_costs || 0;
+        const totalApts = apptTreatment.appointments.length || 1;
+        opCostOverride = Math.round((materialCost + (profFees + fixedCosts) / totalApts) * 100) / 100;
+      } else {
+        opCostOverride = materialCost;
+      }
     }
 
     if (isEdit) {
