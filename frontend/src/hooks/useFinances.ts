@@ -118,6 +118,18 @@ export function useCreateTransaction(year: number, month: number) {
   });
 }
 
+export function useTransaction(txId: string | null) {
+  return useQuery({
+    queryKey: ["finance-tx", txId],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: FinanceTransaction }>(`/api/v1/finances/${txId}`);
+      return data.data;
+    },
+    enabled: !!txId,
+    retry: false,
+  });
+}
+
 export function usePatientTransactions(patientId: string | null) {
   return useQuery({
     queryKey: ["finances-patient-txs", patientId],

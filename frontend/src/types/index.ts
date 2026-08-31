@@ -709,6 +709,8 @@ export interface AuditLogChanges {
   price_to?: number | null;
   operational_cost_from?: number | null;
   operational_cost_to?: number | null;
+  // Snapshot de transacción de finanzas
+  snapshot?: FinanceTransaction;
 }
 
 export interface AuditLog {

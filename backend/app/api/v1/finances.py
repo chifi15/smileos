@@ -212,6 +212,7 @@ async def create_transaction(
         action="finance.created", resource_type="finance", resource_id=str(tx.id),
         description=f"Registró {tipo}: {tx.description} (C${float(tx.amount_cordobas):,.2f})",
         patient_id=tx.patient_id,
+        metadata={"snapshot": _serialize(tx)},
     )
     return {"success": True, "data": _serialize(tx)}
 
@@ -303,7 +304,27 @@ async def update_transaction(
         action="finance.updated", resource_type="finance", resource_id=str(tx.id),
         description=f"Editó transacción: {tx.description}",
         patient_id=tx.patient_id,
+        metadata={"snapshot": _serialize(tx)},
     )
+    return {"success": True, "data": _serialize(tx)}
+
+
+@router.get("/{tx_id}")
+async def get_transaction(
+    tx_id: uuid.UUID,
+    user: Annotated[object, require_permission("view_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from app.services.finance_service import _LOAD
+    from sqlalchemy import select as sa_select
+    result = await db.execute(
+        sa_select(FinanceTransaction)
+        .where(FinanceTransaction.id == tx_id, FinanceTransaction.clinic_id == user.clinic_id)
+        .options(*_LOAD)
+    )
+    tx = result.scalar_one_or_none()
+    if not tx:
+        raise NotFoundError("Transacción")
     return {"success": True, "data": _serialize(tx)}
 
 
@@ -313,7 +334,17 @@ async def delete_transaction(
     user: Annotated[object, require_permission("manage_patients")],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    tx = await _get_tx(db, user.clinic_id, tx_id)
+    from app.services.finance_service import _LOAD
+    from sqlalchemy import select as sa_select
+    result = await db.execute(
+        sa_select(FinanceTransaction)
+        .where(FinanceTransaction.id == tx_id, FinanceTransaction.clinic_id == user.clinic_id)
+        .options(*_LOAD)
+    )
+    tx = result.scalar_one_or_none()
+    if not tx:
+        raise NotFoundError("Transacción")
+    tx_snapshot = _serialize(tx)
     tx_desc = tx.description
     patient_id = tx.patient_id
     await finance_service.delete_transaction(db, user.clinic_id, tx_id)
@@ -322,6 +353,7 @@ async def delete_transaction(
         action="finance.deleted", resource_type="finance", resource_id=str(tx_id),
         description=f"Eliminó transacción: {tx_desc}",
         patient_id=patient_id,
+        changes={"snapshot": tx_snapshot},
     )
     return {"success": True}
 
