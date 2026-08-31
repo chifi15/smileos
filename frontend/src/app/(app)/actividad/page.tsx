@@ -9,6 +9,7 @@ import { useAuditFeed } from "@/hooks/useAudit";
 import { useTransaction, useCreateTransaction } from "@/hooks/useFinances";
 import { useCostProducts } from "@/hooks/useCostos";
 import Spinner from "@/components/ui/Spinner";
+import type { ReactNode } from "react";
 import type { AuditLog, AuditLogChanges, FinanceTransaction } from "@/types";
 
 const RESOURCE_TYPE_OPTIONS = [
@@ -306,7 +307,7 @@ function FinanceDetailModal({ entry, onClose }: { entry: AuditLog; onClose: () =
   );
 }
 
-function Row({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function Row({ icon, label, value }: { icon: ReactNode; label: string; value: string }) {
   return (
     <div className="flex items-start gap-2.5">
       <span className="mt-0.5 text-slate-400 dark:text-gray-500 shrink-0">{icon}</span>
