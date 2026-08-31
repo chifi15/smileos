@@ -353,7 +353,7 @@ async def delete_transaction(
         action="finance.deleted", resource_type="finance", resource_id=str(tx_id),
         description=f"Eliminó transacción: {tx_desc}",
         patient_id=patient_id,
-        changes={"snapshot": tx_snapshot},
+        metadata={"snapshot": tx_snapshot},
     )
     return {"success": True}
 
