@@ -644,8 +644,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     const hasAnyProc = allSpecs.some((s) => !!s.procedure_id);
     if (!hasAnyProc) { setUsedMaterials(null); return; }
     const merged = mergeMaterialSpecs(allSpecs);
-    const resolved = autoSelectAltGroups(merged);
-    setUsedMaterials(resolved.length > 0 ? resolved : []);
+    setUsedMaterials(merged.length > 0 ? merged : []);
     setMaterialsOpen(true);
   }
 
@@ -763,6 +762,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     }
 
     if (isEdit) {
+      const resolvedMaterials = usedMaterials ? autoSelectAltGroups(usedMaterials) : null;
       const payload: Record<string, unknown> = {
         category: form.category,
         description: form.description.trim(),
@@ -777,7 +777,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         doctor_id: form.doctor_id || null,
         invoice_number: form.invoice_number.trim() || null,
         notes: form.notes.trim() || null,
-        deducted_materials: usedMaterials ? usedMaterials.map((m) => ({ productId: m.productId, qty: m.qty, altGroup: m.altGroup ?? null })) : null,
+        deducted_materials: resolvedMaterials ? resolvedMaterials.map((m) => ({ productId: m.productId, qty: m.qty, altGroup: m.altGroup ?? null })) : null,
       };
       if (opCostOverride !== null) payload.operational_cost_override = opCostOverride;
       update.mutate({ txId: editTx!.id, payload }, { onSuccess: onClose });
@@ -804,7 +804,10 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     }
     if (form.invoice_number.trim()) payload.invoice_number = form.invoice_number.trim();
     if (form.notes.trim()) payload.notes = form.notes.trim();
-    if (usedMaterials !== null) payload.deducted_materials = usedMaterials.map((m) => ({ productId: m.productId, qty: m.qty, altGroup: m.altGroup ?? null }));
+    if (usedMaterials !== null) {
+      const resolvedMaterials = autoSelectAltGroups(usedMaterials);
+      payload.deducted_materials = resolvedMaterials.map((m) => ({ productId: m.productId, qty: m.qty, altGroup: m.altGroup ?? null }));
+    }
 
     create.mutate(payload, {
       onSuccess: async (tx: FinanceTransaction) => {
@@ -1163,7 +1166,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                   )}
                   {usedMaterials.some((m) => m.altGroup) && (
                     <p className="px-4 py-2.5 text-[10px] text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-b border-orange-100 dark:border-orange-800/30">
-                      Materiales con <strong>Alt</strong> son alternativos — se seleccionó automáticamente el más caro. Puedes cambiarlo manualmente.
+                      Materiales con <strong>Alt</strong> son alternativos entre sí — elimina los que no usaste. Si dejas todos, se descuenta automáticamente el más caro del grupo.
                     </p>
                   )}
                   {usedMaterials.length === 0 ? (
