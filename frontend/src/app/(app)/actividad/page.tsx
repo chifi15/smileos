@@ -289,6 +289,9 @@ function FinanceDetailModal({ entry, onClose }: { entry: AuditLog; onClose: () =
             </div>
           )}
         {/* Footer: botón restablecer para transacciones eliminadas */}
+        </div>
+
+        {/* Footer: botón restablecer para transacciones eliminadas */}
         {isDeleted && tx && (
           <div className="px-5 py-4 border-t border-slate-100 dark:border-gray-700 flex justify-end">
             <button
