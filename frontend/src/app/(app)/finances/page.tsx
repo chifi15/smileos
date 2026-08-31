@@ -559,7 +559,11 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   // En modo edición, inicializar materiales cuando cargan los tratamientos
   useEffect(() => {
     if (isEdit && form.procedure_id && apiTreatments.length > 0 && usedMaterials === null) {
-      if (form.appointment_id) {
+      // Si la transacción ya tiene un snapshot guardado, usarlo en vez del template
+      if (editTx?.deducted_materials && editTx.deducted_materials.length >= 0) {
+        setUsedMaterials(editTx.deducted_materials.map((m) => ({ productId: m.productId, qty: m.qty, altGroup: null })));
+        setMaterialsOpen(true);
+      } else if (form.appointment_id) {
         initMaterialsFromAppointment(form.procedure_id, form.appointment_id);
       } else {
         initMaterialsFromTreatment(form.procedure_id);
@@ -749,6 +753,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         doctor_id: form.doctor_id || null,
         invoice_number: form.invoice_number.trim() || null,
         notes: form.notes.trim() || null,
+        deducted_materials: usedMaterials ? usedMaterials.map((m) => ({ productId: m.productId, qty: m.qty })) : null,
       };
       if (opCostOverride !== null) payload.operational_cost_override = opCostOverride;
       update.mutate({ txId: editTx!.id, payload }, { onSuccess: onClose });
@@ -775,6 +780,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     }
     if (form.invoice_number.trim()) payload.invoice_number = form.invoice_number.trim();
     if (form.notes.trim()) payload.notes = form.notes.trim();
+    if (usedMaterials !== null) payload.deducted_materials = usedMaterials.map((m) => ({ productId: m.productId, qty: m.qty }));
 
     create.mutate(payload, {
       onSuccess: async (tx: FinanceTransaction) => {

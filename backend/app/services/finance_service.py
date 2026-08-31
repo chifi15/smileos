@@ -137,6 +137,7 @@ async def create_transaction(
         transaction_date=data["transaction_date"],
         notes=data.get("notes"),
         created_by_id=user_id,
+        deducted_materials=data.get("deducted_materials"),
     )
     db.add(tx)
     await db.flush()
@@ -377,6 +378,9 @@ async def update_transaction(
 
     if upd_quantity is not None:
         tx.procedure_quantity = upd_quantity
+
+    if "deducted_materials" in data:
+        tx.deducted_materials = data["deducted_materials"]
 
     if "original_amount" in data or "original_currency" in data:
         currency = data.get("original_currency", tx.original_currency or "NIO")
