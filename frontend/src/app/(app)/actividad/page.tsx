@@ -4,9 +4,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { Activity, ChevronLeft, ChevronRight, Filter, X, Receipt, TrendingUp, TrendingDown, User, Calendar, FileText, Stethoscope, DollarSign, Package } from "lucide-react";
+import { Activity, ChevronLeft, ChevronRight, Filter, X, Receipt, TrendingUp, TrendingDown, User, Calendar, FileText, Stethoscope, DollarSign, Package, RotateCcw } from "lucide-react";
 import { useAuditFeed } from "@/hooks/useAudit";
-import { useTransaction } from "@/hooks/useFinances";
+import { useTransaction, useCreateTransaction } from "@/hooks/useFinances";
 import { useCostProducts } from "@/hooks/useCostos";
 import Spinner from "@/components/ui/Spinner";
 import type { AuditLog, AuditLogChanges, FinanceTransaction } from "@/types";
@@ -139,6 +139,34 @@ function FinanceDetailModal({ entry, onClose }: { entry: AuditLog; onClose: () =
 
   const tx: FinanceTransaction | null = liveTx ?? snapshotTx;
 
+  // Derive year/month from tx date for cache invalidation
+  const txDate = tx ? parseISO(tx.transaction_date) : null;
+  const txYear  = txDate ? txDate.getFullYear() : new Date().getFullYear();
+  const txMonth = txDate ? txDate.getMonth() + 1 : new Date().getMonth() + 1;
+  const restore = useCreateTransaction(txYear, txMonth);
+
+  function handleRestore() {
+    if (!tx) return;
+    const payload = {
+      type: tx.type as "ingreso" | "egreso",
+      category: tx.category,
+      description: tx.description,
+      original_amount: tx.original_amount ?? tx.amount_cordobas,
+      original_currency: (tx.original_currency ?? "NIO") as "NIO" | "USD",
+      transaction_date: tx.transaction_date,
+      patient_id: tx.patient?.id,
+      procedure_id: tx.procedure?.id,
+      cost_appointment_id: tx.cost_appointment_id ?? undefined,
+      quantity: tx.procedure_quantity ?? 1,
+      operational_cost_override: tx.operational_cost_snapshot ?? undefined,
+      doctor_id: tx.doctor?.id ?? null,
+      invoice_number: tx.invoice_number ?? undefined,
+      notes: tx.notes ?? undefined,
+      deducted_materials: tx.deducted_materials ?? undefined,
+    };
+    restore.mutate(payload, { onSuccess: onClose });
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={onClose}>
       <div
@@ -259,7 +287,20 @@ function FinanceDetailModal({ entry, onClose }: { entry: AuditLog; onClose: () =
               </div>
             </div>
           )}
-        </div>
+        {/* Footer: botón restablecer para transacciones eliminadas */}
+        {isDeleted && tx && (
+          <div className="px-5 py-4 border-t border-slate-100 dark:border-gray-700 flex justify-end">
+            <button
+              type="button"
+              onClick={handleRestore}
+              disabled={restore.isPending}
+              className="flex items-center gap-2 rounded-lg bg-green-600 hover:bg-green-700 disabled:opacity-60 px-4 py-2 text-sm font-medium text-white transition-colors"
+            >
+              <RotateCcw size={14} className={restore.isPending ? "animate-spin" : ""} />
+              {restore.isPending ? "Restableciendo…" : "Restablecer transacción"}
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );
