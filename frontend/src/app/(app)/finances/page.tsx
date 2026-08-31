@@ -616,12 +616,36 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     }));
   }
 
+  function autoSelectAltGroups(materials: UsedMaterial[]): UsedMaterial[] {
+    // Determinar el ganador de cada altGroup (el más caro; si empatan, el primero)
+    const winners = new Map<string, UsedMaterial>();
+    for (const m of materials) {
+      if (!m.altGroup) continue;
+      const existing = winners.get(m.altGroup);
+      const price = apiProducts.find((p) => p.id === m.productId)?.unit_price ?? 0;
+      const existingPrice = existing ? (apiProducts.find((p) => p.id === existing.productId)?.unit_price ?? 0) : -1;
+      if (!existing || price > existingPrice) winners.set(m.altGroup, m);
+    }
+    // Recorrer en orden original: incluir no-alt siempre, y alt solo si es el ganador (una vez)
+    const seenGroups = new Set<string>();
+    return materials.filter((m) => {
+      if (!m.altGroup) return true;
+      if (seenGroups.has(m.altGroup)) return false;
+      if (winners.get(m.altGroup)?.productId === m.productId) {
+        seenGroups.add(m.altGroup);
+        return true;
+      }
+      return false;
+    });
+  }
+
   function recomputeMerged(mainProcId: string, mainAptId: string, extras: ExtraProc[]) {
     const allSpecs = [{ procedure_id: mainProcId, appointment_id: mainAptId }, ...extras];
     const hasAnyProc = allSpecs.some((s) => !!s.procedure_id);
     if (!hasAnyProc) { setUsedMaterials(null); return; }
     const merged = mergeMaterialSpecs(allSpecs);
-    setUsedMaterials(merged.length > 0 ? merged : []);
+    const resolved = autoSelectAltGroups(merged);
+    setUsedMaterials(resolved.length > 0 ? resolved : []);
     setMaterialsOpen(true);
   }
 
@@ -1139,7 +1163,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                   )}
                   {usedMaterials.some((m) => m.altGroup) && (
                     <p className="px-4 py-2.5 text-[10px] text-orange-600 dark:text-orange-400 bg-orange-50 dark:bg-orange-900/20 border-b border-orange-100 dark:border-orange-800/30">
-                      Materiales con <strong>Alt</strong> son alternativos entre sí — elimina los que no usaste para descontar solo el correcto del inventario.
+                      Materiales con <strong>Alt</strong> son alternativos — se seleccionó automáticamente el más caro. Puedes cambiarlo manualmente.
                     </p>
                   )}
                   {usedMaterials.length === 0 ? (
