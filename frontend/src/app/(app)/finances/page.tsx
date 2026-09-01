@@ -813,41 +813,44 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
 
     create.mutate(payload, {
       onSuccess: async (tx: FinanceTransaction) => {
-        // Descontar materiales del inventario usando los materiales resueltos (alternativos ya filtrados)
-        const materialsToDeduct = resolvedMaterials ?? (() => {
-          if (!tx.procedure?.id) return [];
-          const treatment = apiTreatments.find((t) => t.procedure_catalog_id === tx.procedure!.id);
-          if (!treatment) return [];
-          const totals = new Map<string, number>();
-          for (const apt of treatment.appointments) {
-            for (const m of apt.materials) {
-              totals.set(m.productId, (totals.get(m.productId) ?? 0) + m.quantity);
+        try {
+          // Descontar materiales del inventario usando los materiales resueltos (alternativos ya filtrados)
+          const materialsToDeduct = resolvedMaterials ?? (() => {
+            if (!tx.procedure?.id) return [];
+            const treatment = apiTreatments.find((t) => t.procedure_catalog_id === tx.procedure!.id);
+            if (!treatment) return [];
+            const totals = new Map<string, number>();
+            for (const apt of treatment.appointments) {
+              for (const m of apt.materials) {
+                totals.set(m.productId, (totals.get(m.productId) ?? 0) + m.quantity);
+              }
+            }
+            return Array.from(totals.entries()).map(([productId, qty]) => ({ productId, qty }));
+          })();
+          const procedureQty = tx.procedure_quantity ?? 1;
+          for (const { productId, qty: usedPortions } of materialsToDeduct) {
+            const product = apiProducts.find((p) => p.id === productId);
+            if (!product) continue;
+            const deductQty = product.portion_qty
+              ? usedPortions * product.portion_qty * procedureQty
+              : usedPortions * procedureQty;
+            updateStock.mutate({ id: productId, qty: -deductQty, operation: "add" });
+          }
+          if (form.receiptFile) {
+            try {
+              await new Promise<void>((resolve, reject) => {
+                uploadReceipt.mutate(
+                  { txId: tx.id, file: form.receiptFile! },
+                  { onSuccess: () => resolve(), onError: reject }
+                );
+              });
+            } catch {
+              toast.error("La transacción fue guardada pero el comprobante no se pudo subir.");
             }
           }
-          return Array.from(totals.entries()).map(([productId, qty]) => ({ productId, qty }));
-        })();
-        const procedureQty = tx.procedure_quantity ?? 1;
-        for (const { productId, qty: usedPortions } of materialsToDeduct) {
-          const product = apiProducts.find((p) => p.id === productId);
-          if (!product) continue;
-          const deductQty = product.portion_qty
-            ? usedPortions * product.portion_qty * procedureQty
-            : usedPortions * procedureQty;
-          updateStock.mutate({ id: productId, qty: -deductQty, operation: "add" });
+        } finally {
+          onClose();
         }
-        if (form.receiptFile) {
-          try {
-            await new Promise<void>((resolve, reject) => {
-              uploadReceipt.mutate(
-                { txId: tx.id, file: form.receiptFile! },
-                { onSuccess: () => resolve(), onError: reject }
-              );
-            });
-          } catch {
-            toast.error("La transacción fue guardada pero el comprobante no se pudo subir.");
-          }
-        }
-        onClose();
       },
     });
   }
@@ -1466,7 +1469,7 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
 
   return (
     <>
-      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-slate-200 dark:border-gray-700 overflow-hidden">
+      <div className="bg-white dark:bg-gray-800 rounded-2xl border border-slate-200 dark:border-gray-700 overflow-clip">
         <div className="flex items-center justify-between border-b border-slate-200 dark:border-gray-700 pr-3">
           <div className="flex">
             {(["all", "ingreso", "egreso"] as const).map((t) => (
