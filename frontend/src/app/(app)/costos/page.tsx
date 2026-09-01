@@ -195,23 +195,25 @@ function TreatmentCard({ treatment, globalFixedCost }: { treatment: ApiTreatment
           <p className="text-xs text-slate-500 dark:text-gray-400 mb-0.5">Costo operativo</p>
           <p className="text-sm font-semibold text-slate-800 dark:text-gray-200">{fmtC(breakdown.totalMaterialsCost)}</p>
         </div>
-        <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 px-3 py-2.5">
-          <p className="text-xs text-blue-600 dark:text-blue-400 mb-0.5">Precio paciente</p>
-          <p className="text-sm font-bold text-blue-700 dark:text-blue-400">{fmtC(breakdown.finalPrice)}</p>
-        </div>
         <div className="rounded-lg bg-slate-50 dark:bg-gray-700/50 px-3 py-2.5">
           <p className="text-xs text-slate-500 dark:text-gray-400 mb-0.5">Subtotal real</p>
           <p className="text-sm font-semibold text-slate-700 dark:text-gray-300">{fmtC(breakdown.subtotal)}</p>
         </div>
-        <div className="rounded-lg bg-green-50 dark:bg-green-900/20 px-3 py-2.5">
-          <p className="text-xs text-green-600 dark:text-green-400 mb-0.5">Utilidad estimada</p>
-          <div className="flex items-center gap-1.5">
-            <TrendingUp size={12} className="text-green-600 dark:text-green-400" />
-            <p className="text-sm font-semibold text-green-700 dark:text-green-400">
-              {fmtC(breakdown.finalPrice - breakdown.subtotal)}{" "}
-              <span className="text-xs font-normal">({marginPct.toFixed(0)}%)</span>
-            </p>
-          </div>
+      </div>
+
+      <div className="rounded-xl bg-blue-600 dark:bg-blue-700 px-4 py-3 flex items-center justify-between">
+        <div>
+          <p className="text-xs font-medium text-blue-100 mb-0.5">
+            Total <span className="opacity-75">(margen {Math.round(treatment.clinic_margin_pct * 100)}% incluido)</span>
+          </p>
+          <p className="text-lg font-bold text-white">{fmtC(breakdown.finalPrice)}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs text-blue-200 mb-0.5">Utilidad</p>
+          <p className="text-sm font-semibold text-green-300 flex items-center gap-1">
+            <TrendingUp size={12} />
+            {fmtC(breakdown.finalPrice - breakdown.subtotal)}
+          </p>
         </div>
       </div>
 
