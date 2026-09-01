@@ -541,6 +541,7 @@ async def update_treatment(db: AsyncSession, clinic_id: uuid.UUID, treatment_id:
     for k, v in data.items():
         setattr(obj, k, v)
     await db.flush()
+    await _sync_one_treatment_op_cost(db, clinic_id, obj)
     return obj
 
 
@@ -621,6 +622,76 @@ async def duplicate_appointment(db: AsyncSession, clinic_id: uuid.UUID, treatmen
     return result2.scalar_one()
 
 
+async def _sync_one_treatment_op_cost(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    treatment: CostTreatment,
+) -> None:
+    """Recalculate ProcedureCatalog.operational_cost for a single treatment.
+
+    Mirrors the per-treatment logic in _sync_operational_costs.
+    Uses treatment.fixed_costs as the per-patient overhead (kept in sync by update_fixed_costs).
+    No-op when the treatment has no linked procedure.
+    """
+    if not treatment.procedure_catalog_id:
+        return
+
+    from app.models.treatment import ProcedureCatalog
+
+    all_product_ids: set[uuid.UUID] = set()
+    for apt in treatment.appointments:
+        for mat in (apt.materials or []):
+            if pid := mat.get("productId"):
+                try:
+                    all_product_ids.add(uuid.UUID(str(pid)))
+                except ValueError:
+                    pass
+
+    product_prices: dict[str, float] = {}
+    if all_product_ids:
+        prod_result = await db.execute(
+            select(CostProduct.id, CostProduct.unit_price)
+            .where(CostProduct.clinic_id == clinic_id, CostProduct.id.in_(all_product_ids))
+        )
+        product_prices = {str(r.id): float(r.unit_price or 0.0) for r in prod_result}
+
+    material_cost = 0.0
+    for apt in treatment.appointments:
+        raw: list[tuple[str | None, float, float]] = []
+        for mat in (apt.materials or []):
+            pid = mat.get("productId")
+            qty = float(mat.get("quantity", 0))
+            if not pid or qty <= 0:
+                continue
+            total = qty * product_prices.get(str(pid), 0.0)
+            raw.append((mat.get("altGroup"), qty, total))
+
+        group_max: dict[str, float] = {}
+        for alt_group, _, total in raw:
+            if alt_group:
+                group_max[alt_group] = max(group_max.get(alt_group, 0.0), total)
+
+        group_counted: set[str] = set()
+        for alt_group, _, total in raw:
+            if not alt_group:
+                material_cost += total
+            elif total == group_max[alt_group] and alt_group not in group_counted:
+                group_counted.add(alt_group)
+                material_cost += total
+
+    proc_result = await db.execute(
+        select(ProcedureCatalog).where(ProcedureCatalog.id == treatment.procedure_catalog_id)
+    )
+    proc = proc_result.scalar_one_or_none()
+    if not proc:
+        return
+
+    per_patient = float(treatment.fixed_costs or 0.0)
+    prof_fees = float(treatment.professional_fee_per_hour) * float(treatment.total_hours)
+    proc.operational_cost = round(material_cost + prof_fees + per_patient, 2)
+    await db.flush()
+
+
 async def update_appointment(db: AsyncSession, clinic_id: uuid.UUID, treatment_id: uuid.UUID, apt_id: uuid.UUID, data: dict) -> Optional[CostTreatment]:
     result = await db.execute(
         select(CostAppointment)
@@ -638,7 +709,9 @@ async def update_appointment(db: AsyncSession, clinic_id: uuid.UUID, treatment_i
         .where(CostTreatment.id == treatment_id)
         .options(selectinload(CostTreatment.appointments))
     )
-    return result2.scalar_one()
+    treatment = result2.scalar_one()
+    await _sync_one_treatment_op_cost(db, clinic_id, treatment)
+    return treatment
 
 
 async def delete_appointment(db: AsyncSession, clinic_id: uuid.UUID, treatment_id: uuid.UUID, apt_id: uuid.UUID) -> Optional[CostTreatment]:
@@ -662,6 +735,7 @@ async def delete_appointment(db: AsyncSession, clinic_id: uuid.UUID, treatment_i
         a.number = i + 1
         a.sort_order = i
     await db.flush()
+    await _sync_one_treatment_op_cost(db, clinic_id, treatment)
     return treatment
 
 
@@ -700,6 +774,7 @@ async def merge_appointments(db: AsyncSession, clinic_id: uuid.UUID, treatment_i
         a.number = i + 1
         a.sort_order = i
     await db.flush()
+    await _sync_one_treatment_op_cost(db, clinic_id, treatment)
     return treatment
 
 
