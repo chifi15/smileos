@@ -711,6 +711,8 @@ export interface AuditLogChanges {
   operational_cost_to?: number | null;
   // Snapshot de transacción de finanzas
   snapshot?: FinanceTransaction;
+  // Cambios de inventario al editar transacción
+  inventory_changes?: string[];
 }
 
 export interface AuditLog {

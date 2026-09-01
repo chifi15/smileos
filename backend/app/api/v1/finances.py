@@ -296,15 +296,59 @@ async def update_transaction(
     user: Annotated[object, require_permission("manage_patients")],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    tx = await finance_service.update_transaction(
-        db, user.clinic_id, tx_id, body.model_dump(exclude_unset=True)
+    from app.services.finance_service import _LOAD
+    from app.services import costos_service
+    from sqlalchemy import select as sa_select
+
+    # Snapshot de materiales ANTES de editar
+    old_result = await db.execute(
+        sa_select(FinanceTransaction)
+        .where(FinanceTransaction.id == tx_id, FinanceTransaction.clinic_id == user.clinic_id)
+        .options(*_LOAD)
     )
+    old_tx = old_result.scalar_one_or_none()
+    old_materials: dict[str, float] = {}
+    if old_tx and old_tx.deducted_materials:
+        for m in old_tx.deducted_materials:
+            old_materials[m["productId"]] = old_materials.get(m["productId"], 0) + m["qty"]
+
+    data = body.model_dump(exclude_unset=True)
+    tx = await finance_service.update_transaction(db, user.clinic_id, tx_id, data)
+
+    # Reconciliar inventario si cambiaron los materiales deducidos
+    inventory_changes = []
+    if "deducted_materials" in data:
+        new_materials: dict[str, float] = {}
+        if tx.deducted_materials:
+            for m in tx.deducted_materials:
+                new_materials[m["productId"]] = new_materials.get(m["productId"], 0) + m["qty"]
+
+        all_product_ids = set(old_materials.keys()) | set(new_materials.keys())
+        for product_id in all_product_ids:
+            old_qty = old_materials.get(product_id, 0.0)
+            new_qty = new_materials.get(product_id, 0.0)
+            diff = new_qty - old_qty
+            if abs(diff) < 0.0001:
+                continue
+            from app.models.costos import CostProduct
+            product = await db.scalar(
+                sa_select(CostProduct).where(CostProduct.id == uuid.UUID(product_id), CostProduct.clinic_id == user.clinic_id)
+            )
+            if not product:
+                continue
+            # diff > 0 → más material deducido → restar del stock
+            # diff < 0 → menos material deducido → devolver al stock
+            stock_delta = -diff * (product.portion_qty or 1)
+            await costos_service.update_product_stock(db, user.clinic_id, uuid.UUID(product_id), stock_delta, "add")
+            action = "devuelto al" if stock_delta > 0 else "deducido del"
+            inventory_changes.append(f"{product.name}: {abs(diff):.2f} porciones {action} inventario")
+
     await audit_service.log(
         db, clinic_id=user.clinic_id, user_id=user.id,
         action="finance.updated", resource_type="finance", resource_id=str(tx.id),
         description=f"Editó transacción: {tx.description}",
         patient_id=tx.patient_id,
-        metadata={"snapshot": _serialize(tx)},
+        metadata={"snapshot": _serialize(tx), "inventory_changes": inventory_changes},
     )
     return {"success": True, "data": _serialize(tx)}
 

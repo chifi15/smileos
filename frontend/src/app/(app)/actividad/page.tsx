@@ -297,6 +297,20 @@ function FinanceDetailModal({ entry, onClose }: { entry: AuditLog; onClose: () =
                 </div>
               )}
 
+              {/* Cambios de inventario (al editar con materiales modificados) */}
+              {entry.changes?.inventory_changes && entry.changes.inventory_changes.length > 0 && (
+                <div>
+                  <p className="text-xs font-medium text-slate-500 dark:text-gray-400 mb-1.5 flex items-center gap-1.5">
+                    <Package size={13} /> Ajustes de inventario
+                  </p>
+                  <div className="rounded-lg border border-amber-100 dark:border-amber-800 bg-amber-50 dark:bg-amber-900/20 divide-y divide-amber-100 dark:divide-amber-800 overflow-hidden">
+                    {(entry.changes.inventory_changes as string[]).map((line, i) => (
+                      <p key={i} className="px-3 py-2 text-xs text-amber-800 dark:text-amber-300">{line}</p>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Auditoría */}
               <div className="rounded-lg bg-slate-50 dark:bg-gray-700/50 px-3 py-2.5 text-xs text-slate-400 dark:text-gray-500 space-y-0.5">
                 <p>Evento: <span className="font-medium text-slate-600 dark:text-gray-300">{entry.description}</span></p>
