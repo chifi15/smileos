@@ -1357,24 +1357,10 @@ function DeleteModal({ tx, year, month, onClose }: {
 }) {
   useEscapeKey(onClose);
   const del = useDeleteTransaction(year, month);
-  const { data: apiProducts = [] } = useCostProducts();
-  const updateStock = useUpdateCostProductStock();
 
   function handleConfirm() {
     del.mutate(tx.id, {
       onSuccess: () => {
-        // Restore inventory for deducted materials
-        if (tx.deducted_materials && tx.deducted_materials.length > 0) {
-          const procedureQty = tx.procedure_quantity ?? 1;
-          for (const { productId, qty: usedPortions } of tx.deducted_materials) {
-            const product = apiProducts.find((p) => p.id === productId);
-            if (!product) continue;
-            const restoreQty = product.portion_qty
-              ? usedPortions * product.portion_qty * procedureQty
-              : usedPortions * procedureQty;
-            updateStock.mutate({ id: productId, qty: restoreQty, operation: "add" });
-          }
-        }
         onClose();
       },
     });

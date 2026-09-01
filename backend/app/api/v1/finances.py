@@ -340,6 +340,12 @@ async def update_transaction(
                     qty = float(m.get("quantity") or m.get("qty") or 0)
                     if pid and qty > 0:
                         new_materials[pid] = new_materials.get(pid, 0) + qty
+                # Guardar en deducted_materials para que DELETE pueda restaurar
+                if new_materials:
+                    tx.deducted_materials = [
+                        {"productId": pid, "qty": qty}
+                        for pid, qty in new_materials.items()
+                    ]
 
         all_product_ids = set(old_materials.keys()) | set(new_materials.keys())
         for product_id in all_product_ids:
@@ -390,13 +396,39 @@ async def delete_transaction(
     tx_snapshot = _serialize(tx)
     tx_desc = tx.description
     patient_id = tx.patient_id
+
+    # Restaurar inventario antes de eliminar
+    inventory_changes: list[str] = []
+    if tx.deducted_materials:
+        from app.services import costos_service
+        from app.models.costos import CostProduct
+        procedure_qty = tx.procedure_quantity or 1
+        aggregated: dict[str, float] = {}
+        for m in tx.deducted_materials:
+            pid = m.get("productId")
+            qty = float(m.get("qty") or 0)
+            if pid and qty > 0:
+                aggregated[pid] = aggregated.get(pid, 0) + qty
+        for product_id, used_portions in aggregated.items():
+            product = await db.scalar(
+                sa_select(CostProduct).where(
+                    CostProduct.id == uuid.UUID(product_id),
+                    CostProduct.clinic_id == user.clinic_id,
+                )
+            )
+            if not product:
+                continue
+            restore_qty = used_portions * (product.portion_qty or 1) * procedure_qty
+            await costos_service.update_product_stock(db, user.clinic_id, uuid.UUID(product_id), restore_qty, "add")
+            inventory_changes.append(f"{product.name}: {used_portions:.2f} porciones devueltas al inventario")
+
     await finance_service.delete_transaction(db, user.clinic_id, tx_id)
     await audit_service.log(
         db, clinic_id=user.clinic_id, user_id=user.id,
         action="finance.deleted", resource_type="finance", resource_id=str(tx_id),
         description=f"Eliminó transacción: {tx_desc}",
         patient_id=patient_id,
-        metadata={"snapshot": tx_snapshot},
+        metadata={"snapshot": tx_snapshot, "inventory_changes": inventory_changes},
     )
     return {"success": True}
 
