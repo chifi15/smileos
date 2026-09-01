@@ -1567,7 +1567,7 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                   <th className="px-4 py-3 text-right">Monto C$</th>
                   <th className="px-4 py-3 text-right">Costo Op.</th>
                   <th className="px-4 py-3 text-center">Foto</th>
-                  <th className="px-4 py-3" />
+                  <th className="sticky right-0 bg-white dark:bg-gray-800 px-4 py-3 w-16" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
@@ -1629,7 +1629,7 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                           <Camera size={14} />
                         </button>
                       </td>
-                      <td className="px-4 py-3">
+                      <td className={`sticky right-0 px-4 py-3 ${isSelected ? "bg-blue-50 dark:bg-blue-900/20" : i % 2 !== 0 ? "bg-slate-50/40 dark:bg-gray-700/20" : "bg-white dark:bg-gray-800"}`}>
                         <div className="flex items-center gap-1">
                           <button onClick={() => setEditTx(tx)}
                             className="text-slate-300 hover:text-blue-500 transition-colors" title="Editar">
