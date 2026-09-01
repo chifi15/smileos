@@ -50,7 +50,7 @@ export default function CostSummaryBar({ breakdown, compact }: Props) {
         <SummaryCell label="Costos fijos" value={fixedCosts} />
         <SummaryCell label="Subtotal" value={subtotal} highlight />
       </div>
-      <div className="grid grid-cols-2 divide-x divide-slate-100 dark:divide-gray-700 border-t border-slate-100 dark:border-gray-700">
+      <div className="grid grid-cols-3 divide-x divide-slate-100 dark:divide-gray-700 border-t border-slate-100 dark:border-gray-700">
         <div className="px-5 py-4">
           <p className="text-xs font-medium text-slate-500 dark:text-gray-400 mb-1">
             Ganancia clínica ({marginPct}%)
@@ -60,10 +60,13 @@ export default function CostSummaryBar({ breakdown, compact }: Props) {
         <div className="px-5 py-4 bg-blue-50 dark:bg-blue-900/20">
           <p className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Total</p>
           <p className="text-base font-bold text-blue-700 dark:text-blue-400">{fmtC(calculatedPrice)}</p>
-          {finalPrice !== calculatedPrice && (
-            <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
-              Precio manual: {fmtC(finalPrice)}
-            </p>
+        </div>
+        <div className="px-5 py-4 bg-amber-50 dark:bg-amber-900/20">
+          <p className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-1">Precio manual</p>
+          {finalPrice !== calculatedPrice ? (
+            <p className="text-base font-bold text-amber-700 dark:text-amber-400">{fmtC(finalPrice)}</p>
+          ) : (
+            <p className="text-base font-medium text-slate-400 dark:text-gray-500">—</p>
           )}
         </div>
       </div>
