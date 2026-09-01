@@ -459,7 +459,7 @@ export default function ReportesPage() {
           </table>
         </TableCard>
 
-        <TableCard title="Materiales más usados" empty={!topMaterials?.length}>
+        <TableCard title="Materiales principales" empty={!topMaterials?.length}>
           <table className="w-full text-xs">
             <thead>
               <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
@@ -515,7 +515,7 @@ export default function ReportesPage() {
         return (
           <div className="rounded-xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shadow-sm overflow-hidden">
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 dark:border-gray-700">
-              <p className="text-sm font-semibold text-slate-700 dark:text-gray-200">Materiales usados por mes</p>
+              <p className="text-sm font-semibold text-slate-700 dark:text-gray-200">Consumo mensual de materiales</p>
               <div className="flex items-center gap-2">
                 <label className="text-xs text-slate-500 dark:text-gray-400">Mes:</label>
                 <select
