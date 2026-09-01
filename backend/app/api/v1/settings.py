@@ -117,6 +117,37 @@ async def update_settings(
     return {"success": True, "data": _serialize_settings(settings)}
 
 
+@settings_router.get("/ui-preferences")
+async def get_ui_preferences(
+    user: Annotated[object, require_permission("view_settings")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from sqlalchemy import select as sa_select
+    from app.models.clinic import ClinicSettings
+    settings = await db.scalar(sa_select(ClinicSettings).where(ClinicSettings.clinic_id == user.clinic_id))
+    return {"success": True, "data": settings.ui_preferences or {} if settings else {}}
+
+
+@settings_router.patch("/ui-preferences")
+async def update_ui_preferences(
+    body: dict,
+    user: Annotated[object, require_permission("manage_settings")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from sqlalchemy import select as sa_select
+    from app.models.clinic import ClinicSettings
+    settings = await db.scalar(sa_select(ClinicSettings).where(ClinicSettings.clinic_id == user.clinic_id))
+    if not settings:
+        from app.core.exceptions import NotFoundError
+        raise NotFoundError("Configuración de clínica")
+    current = settings.ui_preferences or {}
+    current.update(body)
+    settings.ui_preferences = current
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(settings, "ui_preferences")
+    return {"success": True, "data": settings.ui_preferences}
+
+
 @settings_router.put("/working-hours")
 async def update_working_hours(
     body: WorkingHoursBulkUpdate,

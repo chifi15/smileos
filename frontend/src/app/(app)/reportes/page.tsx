@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import {
   BarChart,
   Bar,
@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { categoryLabel, categoryColor } from "@/types/costos";
 import Spinner from "@/components/ui/Spinner";
+import { useUiPreferences, useUpdateUiPreference } from "@/hooks/useSettings";
 import {
   useReportSummary,
   useMonthlyTrend,
@@ -108,37 +109,39 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
-function EditableTitle({ storageKey, defaultValue, className }: {
-  storageKey: string;
+function EditableTitle({ prefKey, defaultValue, className }: {
+  prefKey: string;
   defaultValue: string;
   className?: string;
 }) {
+  const { data: prefs } = useUiPreferences();
+  const update = useUpdateUiPreference();
+  const saved = prefs?.[prefKey];
   const [editing, setEditing] = useState(false);
-  const [value, setValue] = useState(() =>
-    typeof window !== "undefined" ? (localStorage.getItem(storageKey) ?? defaultValue) : defaultValue
-  );
+  const [draft, setDraft] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+  useEffect(() => { if (editing) { setDraft(saved ?? defaultValue); inputRef.current?.focus(); } }, [editing]);
 
-  function save() {
-    const trimmed = value.trim() || defaultValue;
-    setValue(trimmed);
-    localStorage.setItem(storageKey, trimmed);
+  const save = useCallback(() => {
+    const trimmed = draft.trim() || defaultValue;
+    update.mutate({ [prefKey]: trimmed });
     setEditing(false);
-  }
+  }, [draft, defaultValue, prefKey]);
+
+  const displayed = saved ?? defaultValue;
 
   if (editing) {
     return (
       <div className="flex items-center gap-1 min-w-0">
         <input
           ref={inputRef}
-          value={value}
-          onChange={(e) => setValue(e.target.value)}
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
           onBlur={save}
           onKeyDown={(e) => {
             if (e.key === "Enter") save();
-            if (e.key === "Escape") { setValue(localStorage.getItem(storageKey) ?? defaultValue); setEditing(false); }
+            if (e.key === "Escape") setEditing(false);
           }}
           className={`${className} border-b border-blue-400 outline-none bg-transparent w-full`}
         />
@@ -151,7 +154,7 @@ function EditableTitle({ storageKey, defaultValue, className }: {
 
   return (
     <span className={`flex items-center gap-1.5 group ${className}`}>
-      {value}
+      {displayed}
       <button
         onClick={() => setEditing(true)}
         className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-gray-300"
@@ -165,20 +168,20 @@ function EditableTitle({ storageKey, defaultValue, className }: {
 
 function TableCard({
   title,
-  storageKey,
+  prefKey,
   children,
   empty,
 }: {
   title: string;
-  storageKey?: string;
+  prefKey?: string;
   children: React.ReactNode;
   empty?: boolean;
 }) {
   return (
     <div className="rounded-xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shadow-sm overflow-hidden">
       <div className="px-4 py-3 border-b border-slate-100 dark:border-gray-700">
-        {storageKey ? (
-          <EditableTitle storageKey={storageKey} defaultValue={title} className="text-sm font-semibold text-slate-700 dark:text-gray-200" />
+        {prefKey ? (
+          <EditableTitle prefKey={prefKey} defaultValue={title} className="text-sm font-semibold text-slate-700 dark:text-gray-200" />
         ) : (
           <p className="text-sm font-semibold text-slate-700 dark:text-gray-200">{title}</p>
         )}
@@ -522,7 +525,7 @@ export default function ReportesPage() {
           </table>
         </TableCard>
 
-        <TableCard title="Materiales principales" storageKey="report-title-top-materials" empty={!topMaterials?.length}>
+        <TableCard title="Materiales principales" prefKey="report-title-top-materials" empty={!topMaterials?.length}>
           <table className="w-full text-xs">
             <thead>
               <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
@@ -578,7 +581,7 @@ export default function ReportesPage() {
         return (
           <div className="rounded-xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shadow-sm overflow-hidden">
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 dark:border-gray-700">
-              <EditableTitle storageKey="report-title-materials-by-month" defaultValue="Consumo mensual de materiales" className="text-sm font-semibold text-slate-700 dark:text-gray-200" />
+              <EditableTitle prefKey="report-title-materials-by-month" defaultValue="Consumo mensual de materiales" className="text-sm font-semibold text-slate-700 dark:text-gray-200" />
               <div className="flex items-center gap-2">
                 <label className="text-xs text-slate-500 dark:text-gray-400">Mes:</label>
                 <select

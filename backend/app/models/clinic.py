@@ -2,6 +2,7 @@ import uuid
 from datetime import time, datetime
 from decimal import Decimal
 from sqlalchemy import String, Boolean, Integer, SmallInteger, Time, Date, DateTime, ForeignKey, UniqueConstraint, Numeric, Text
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.core.database import Base
@@ -62,6 +63,8 @@ class ClinicSettings(UUIDMixin, TimestampMixin, Base):
     # Google Calendar OAuth
     google_refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     google_calendar_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    ui_preferences: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     clinic: Mapped["Clinic"] = relationship(back_populates="settings")
 
