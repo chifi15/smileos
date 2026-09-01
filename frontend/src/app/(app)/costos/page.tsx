@@ -144,7 +144,8 @@ function TreatmentCard({ treatment, globalFixedCost }: { treatment: ApiTreatment
     updateTreatment.mutate({ id: treatment.id, [key]: val });
   }
 
-  const marginPct = breakdown.subtotal > 0 ? ((breakdown.finalPrice - breakdown.subtotal) / breakdown.subtotal) * 100 : 0;
+  const utilidad = breakdown.finalPrice - breakdown.calculatedPrice;
+  const marginPct = breakdown.calculatedPrice > 0 ? (utilidad / breakdown.calculatedPrice) * 100 : 0;
 
   return (
     <div ref={setNodeRef} style={style} className="group relative rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm hover:shadow-md transition-shadow">
@@ -203,12 +204,12 @@ function TreatmentCard({ treatment, globalFixedCost }: { treatment: ApiTreatment
           <p className="text-xs text-slate-500 dark:text-gray-400 mb-0.5">Subtotal real</p>
           <p className="text-sm font-semibold text-slate-700 dark:text-gray-300">{fmtC(breakdown.subtotal)}</p>
         </div>
-        <div className="rounded-lg bg-green-50 dark:bg-green-900/20 px-3 py-2.5">
-          <p className="text-xs text-green-600 dark:text-green-400 mb-0.5">Utilidad estimada</p>
+        <div className={`rounded-lg px-3 py-2.5 ${utilidad >= 0 ? "bg-green-50 dark:bg-green-900/20" : "bg-red-50 dark:bg-red-900/20"}`}>
+          <p className={`text-xs mb-0.5 ${utilidad >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>Utilidad estimada</p>
           <div className="flex items-center gap-1.5">
-            <TrendingUp size={12} className="text-green-600 dark:text-green-400" />
-            <p className="text-sm font-semibold text-green-700 dark:text-green-400">
-              {fmtC(breakdown.finalPrice - breakdown.subtotal)}{" "}
+            <TrendingUp size={12} className={utilidad >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"} />
+            <p className={`text-sm font-semibold ${utilidad >= 0 ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
+              {fmtC(utilidad)}{" "}
               <span className="text-xs font-normal">({marginPct.toFixed(0)}%)</span>
             </p>
           </div>
