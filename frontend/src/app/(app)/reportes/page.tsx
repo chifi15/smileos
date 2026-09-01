@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import {
   BarChart,
   Bar,
@@ -21,6 +21,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Package,
+  Pencil,
+  Check,
 } from "lucide-react";
 import { categoryLabel, categoryColor } from "@/types/costos";
 import Spinner from "@/components/ui/Spinner";
@@ -106,19 +108,80 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   );
 }
 
+function EditableTitle({ storageKey, defaultValue, className }: {
+  storageKey: string;
+  defaultValue: string;
+  className?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(() =>
+    typeof window !== "undefined" ? (localStorage.getItem(storageKey) ?? defaultValue) : defaultValue
+  );
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => { if (editing) inputRef.current?.focus(); }, [editing]);
+
+  function save() {
+    const trimmed = value.trim() || defaultValue;
+    setValue(trimmed);
+    localStorage.setItem(storageKey, trimmed);
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1 min-w-0">
+        <input
+          ref={inputRef}
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+          onBlur={save}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") save();
+            if (e.key === "Escape") { setValue(localStorage.getItem(storageKey) ?? defaultValue); setEditing(false); }
+          }}
+          className={`${className} border-b border-blue-400 outline-none bg-transparent w-full`}
+        />
+        <button onClick={save} className="shrink-0 text-blue-500 hover:text-blue-700">
+          <Check size={14} />
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <span className={`flex items-center gap-1.5 group ${className}`}>
+      {value}
+      <button
+        onClick={() => setEditing(true)}
+        className="opacity-0 group-hover:opacity-100 transition-opacity text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-gray-300"
+        title="Editar nombre"
+      >
+        <Pencil size={12} />
+      </button>
+    </span>
+  );
+}
+
 function TableCard({
   title,
+  storageKey,
   children,
   empty,
 }: {
   title: string;
+  storageKey?: string;
   children: React.ReactNode;
   empty?: boolean;
 }) {
   return (
     <div className="rounded-xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shadow-sm overflow-hidden">
       <div className="px-4 py-3 border-b border-slate-100 dark:border-gray-700">
-        <p className="text-sm font-semibold text-slate-700 dark:text-gray-200">{title}</p>
+        {storageKey ? (
+          <EditableTitle storageKey={storageKey} defaultValue={title} className="text-sm font-semibold text-slate-700 dark:text-gray-200" />
+        ) : (
+          <p className="text-sm font-semibold text-slate-700 dark:text-gray-200">{title}</p>
+        )}
       </div>
       {empty ? (
         <p className="py-8 text-center text-sm text-slate-400 dark:text-gray-500">Sin datos</p>
@@ -459,7 +522,7 @@ export default function ReportesPage() {
           </table>
         </TableCard>
 
-        <TableCard title="Materiales principales" empty={!topMaterials?.length}>
+        <TableCard title="Materiales principales" storageKey="report-title-top-materials" empty={!topMaterials?.length}>
           <table className="w-full text-xs">
             <thead>
               <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
@@ -515,7 +578,7 @@ export default function ReportesPage() {
         return (
           <div className="rounded-xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shadow-sm overflow-hidden">
             <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 border-b border-slate-100 dark:border-gray-700">
-              <p className="text-sm font-semibold text-slate-700 dark:text-gray-200">Consumo mensual de materiales</p>
+              <EditableTitle storageKey="report-title-materials-by-month" defaultValue="Consumo mensual de materiales" className="text-sm font-semibold text-slate-700 dark:text-gray-200" />
               <div className="flex items-center gap-2">
                 <label className="text-xs text-slate-500 dark:text-gray-400">Mes:</label>
                 <select
