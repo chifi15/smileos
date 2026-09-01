@@ -661,7 +661,7 @@ function PriceRow({ proc }: { proc: Procedure }) {
   const linkedTreatment = treatments.find((t) => t.procedure_catalog_id === proc.id);
 
   const calculatedOpCost = linkedTreatment
-    ? calculateTreatmentCosts(apiTreatmentToTreatment(linkedTreatment), products, perPaciente).subtotal
+    ? calculateTreatmentCosts(apiTreatmentToTreatment(linkedTreatment), products, perPaciente).calculatedPrice
     : null;
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: proc.id });
