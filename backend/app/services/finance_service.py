@@ -90,7 +90,8 @@ async def create_transaction(
 ) -> FinanceTransaction:
     # Si viene en USD, convertir
     currency = data.get("original_currency", "NIO")
-    original_amount = Decimal(str(data.get("original_amount") or data["amount_cordobas"]))
+    _raw_amount = data.get("original_amount")
+    original_amount = Decimal(str(_raw_amount if _raw_amount is not None else data["amount_cordobas"]))
     exchange_rate = None
 
     if currency == "USD":
@@ -393,7 +394,8 @@ async def update_transaction(
 
     if "original_amount" in data or "original_currency" in data:
         currency = data.get("original_currency", tx.original_currency or "NIO")
-        original_amount = Decimal(str(data.get("original_amount", tx.original_amount or tx.amount_cordobas)))
+        _raw_edit = data.get("original_amount")
+        original_amount = Decimal(str(_raw_edit if _raw_edit is not None else (tx.original_amount if tx.original_amount is not None else tx.amount_cordobas)))
         if currency == "USD":
             exchange_rate = await get_exchange_rate(db, clinic_id)
             tx.amount_cordobas = round(original_amount * exchange_rate, 2)

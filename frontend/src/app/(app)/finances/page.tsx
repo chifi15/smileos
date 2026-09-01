@@ -733,7 +733,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!form.original_amount || !form.description.trim()) {
+    if (form.original_amount.trim() === "" || !form.description.trim()) {
       toast.error("Completa los campos obligatorios.");
       return;
     }
