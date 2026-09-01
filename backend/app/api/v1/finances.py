@@ -309,25 +309,6 @@ async def update_transaction(
     return {"success": True, "data": _serialize(tx)}
 
 
-@router.get("/{tx_id}")
-async def get_transaction(
-    tx_id: uuid.UUID,
-    user: Annotated[object, require_permission("view_patients")],
-    db: Annotated[AsyncSession, Depends(get_db)],
-):
-    from app.services.finance_service import _LOAD
-    from sqlalchemy import select as sa_select
-    result = await db.execute(
-        sa_select(FinanceTransaction)
-        .where(FinanceTransaction.id == tx_id, FinanceTransaction.clinic_id == user.clinic_id)
-        .options(*_LOAD)
-    )
-    tx = result.scalar_one_or_none()
-    if not tx:
-        raise NotFoundError("Transacción")
-    return {"success": True, "data": _serialize(tx)}
-
-
 @router.delete("/{tx_id}")
 async def delete_transaction(
     tx_id: uuid.UUID,
@@ -536,3 +517,24 @@ async def delete_expense_category(
     if not ok:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Categoría no encontrada")
+
+
+# ─── Must be last: wildcard single-segment route ───────────────────────────────
+
+@router.get("/{tx_id}")
+async def get_transaction(
+    tx_id: uuid.UUID,
+    user: Annotated[object, require_permission("view_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from app.services.finance_service import _LOAD
+    from sqlalchemy import select as sa_select
+    result = await db.execute(
+        sa_select(FinanceTransaction)
+        .where(FinanceTransaction.id == tx_id, FinanceTransaction.clinic_id == user.clinic_id)
+        .options(*_LOAD)
+    )
+    tx = result.scalar_one_or_none()
+    if not tx:
+        raise NotFoundError("Transacción")
+    return {"success": True, "data": _serialize(tx)}
