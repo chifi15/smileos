@@ -315,7 +315,7 @@ export default function CostosPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl p-6">
+    <div className="mx-auto max-w-7xl p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-800 dark:text-white">Costos Operativos</h1>
@@ -352,7 +352,7 @@ export default function CostosPage() {
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={treatments.map((t) => t.id)} strategy={rectSortingStrategy}>
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
               {treatments.map((t) => <TreatmentCard key={t.id} treatment={t} globalFixedCost={perPaciente} />)}
             </div>
           </SortableContext>
