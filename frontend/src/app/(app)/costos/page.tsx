@@ -191,23 +191,31 @@ function TreatmentCard({ treatment, globalFixedCost }: { treatment: ApiTreatment
         ))}
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-2">
         <div className="rounded-lg bg-slate-50 dark:bg-gray-700/50 px-3 py-2.5">
-          <p className="text-xs text-slate-500 dark:text-gray-400 mb-0.5">Costo operativo</p>
+          <p className="text-xs text-slate-500 dark:text-gray-400 mb-0.5">Materiales</p>
           <p className="text-sm font-semibold text-slate-800 dark:text-gray-200">{fmtC(breakdown.totalMaterialsCost)}</p>
+        </div>
+        <div className="rounded-lg bg-slate-50 dark:bg-gray-700/50 px-3 py-2.5">
+          <p className="text-xs text-slate-500 dark:text-gray-400 mb-0.5">Honorarios</p>
+          <p className="text-sm font-semibold text-slate-800 dark:text-gray-200">{fmtC(breakdown.professionalFees)}</p>
+        </div>
+        <div className="rounded-lg bg-purple-50 dark:bg-purple-900/20 px-3 py-2.5">
+          <p className="text-xs text-purple-600 dark:text-purple-400 mb-0.5">Ganancia clínica</p>
+          <p className="text-sm font-semibold text-purple-700 dark:text-purple-400">{fmtC(breakdown.margin)}</p>
         </div>
         <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 px-3 py-2.5">
           <p className="text-xs text-blue-600 dark:text-blue-400 mb-0.5">Precio paciente</p>
           <p className="text-sm font-bold text-blue-700 dark:text-blue-400">{fmtC(breakdown.finalPrice)}</p>
         </div>
         <div className="rounded-lg bg-slate-50 dark:bg-gray-700/50 px-3 py-2.5">
-          <p className="text-xs text-slate-500 dark:text-gray-400 mb-0.5">Total</p>
+          <p className="text-xs text-slate-500 dark:text-gray-400 mb-0.5">Total calculado</p>
           <p className="text-sm font-semibold text-slate-700 dark:text-gray-300">{fmtC(breakdown.calculatedPrice)}</p>
         </div>
         <div className={`rounded-lg px-3 py-2.5 ${utilidad >= 0 ? "bg-green-50 dark:bg-green-900/20" : "bg-red-50 dark:bg-red-900/20"}`}>
-          <p className={`text-xs mb-0.5 ${utilidad >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>Utilidad estimada</p>
-          <div className="flex items-center gap-1.5">
-            <TrendingUp size={12} className={utilidad >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"} />
+          <p className={`text-xs mb-0.5 ${utilidad >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>Utilidad</p>
+          <div className="flex items-center gap-1">
+            <TrendingUp size={11} className={utilidad >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"} />
             <p className={`text-sm font-semibold ${utilidad >= 0 ? "text-green-700 dark:text-green-400" : "text-red-700 dark:text-red-400"}`}>
               {fmtC(utilidad)}{" "}
               <span className="text-xs font-normal">({marginPct.toFixed(0)}%)</span>
