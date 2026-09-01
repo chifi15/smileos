@@ -59,7 +59,7 @@ export default function CostSummaryBar({ breakdown, compact }: Props) {
         </div>
         <div className="px-5 py-4 bg-blue-50 dark:bg-blue-900/20">
           <p className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Total</p>
-          <p className="text-base font-bold text-blue-700 dark:text-blue-400">{fmtC(finalPrice)}</p>
+          <p className="text-base font-bold text-blue-700 dark:text-blue-400">{fmtC(calculatedPrice)}</p>
         </div>
         <div className="px-5 py-4 bg-amber-50 dark:bg-amber-900/20">
           <p className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-1">Precio manual</p>
