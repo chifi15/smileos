@@ -90,7 +90,7 @@ export interface Treatment {
   totalHours: number;
   fixedCosts: number;
   clinicMarginPct: number;
-  suggestedPrice?: number;
+  suggestedPrice?: number | null;
   procedureCatalogId?: string; // vincula con procedure_catalog del backend
 }
 
