@@ -323,19 +323,6 @@ async def update_transaction(
             for m in tx.deducted_materials:
                 new_materials[m["productId"]] = new_materials.get(m["productId"], 0) + m["qty"]
 
-        # Si new_materials quedó vacío pero hay un cost_appointment vinculado,
-        # cargar los materiales del appointment del costos para no perder la deducción
-        if not new_materials and tx.cost_appointment_id:
-            from app.models.costos import CostAppointment
-            apt = await db.scalar(
-                sa_select(CostAppointment).where(CostAppointment.id == tx.cost_appointment_id)
-            )
-            if apt and apt.materials:
-                for m in apt.materials:
-                    pid = m.get("productId")
-                    qty = float(m.get("quantity") or m.get("qty") or 0)
-                    if pid and qty > 0:
-                        new_materials[pid] = new_materials.get(pid, 0) + qty
 
         all_product_ids = set(old_materials.keys()) | set(new_materials.keys())
         for product_id in all_product_ids:

@@ -978,7 +978,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                   onChange={(e) => {
                     const aptId = e.target.value;
                     set("appointment_id", aptId);
-                    recomputeMerged(form.procedure_id, aptId, extraProcedures);
+                    if (!isEdit) recomputeMerged(form.procedure_id, aptId, extraProcedures);
                   }}
                   className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
