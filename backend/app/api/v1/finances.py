@@ -317,12 +317,29 @@ async def update_transaction(
 
     # Reconciliar inventario si cambiaron los materiales deducidos
     inventory_changes = []
+    old_apt_id = old_tx.cost_appointment_id if old_tx else None
+    new_apt_id = tx.cost_appointment_id
+    apt_changed = old_apt_id != new_apt_id
+
     if "deducted_materials" in data:
         new_materials: dict[str, float] = {}
         if tx.deducted_materials:
             for m in tx.deducted_materials:
                 new_materials[m["productId"]] = new_materials.get(m["productId"], 0) + m["qty"]
 
+        # Si el frontend mandó materiales vacíos pero la cita cambió,
+        # cargar los materiales de la nueva cita desde costos como fallback
+        if not new_materials and apt_changed and new_apt_id:
+            from app.models.costos import CostAppointment
+            apt = await db.scalar(
+                sa_select(CostAppointment).where(CostAppointment.id == new_apt_id)
+            )
+            if apt and apt.materials:
+                for m in apt.materials:
+                    pid = m.get("productId")
+                    qty = float(m.get("quantity") or m.get("qty") or 0)
+                    if pid and qty > 0:
+                        new_materials[pid] = new_materials.get(pid, 0) + qty
 
         all_product_ids = set(old_materials.keys()) | set(new_materials.keys())
         for product_id in all_product_ids:
