@@ -1345,6 +1345,29 @@ function DeleteModal({ tx, year, month, onClose }: {
 }) {
   useEscapeKey(onClose);
   const del = useDeleteTransaction(year, month);
+  const { data: apiProducts = [] } = useCostProducts();
+  const updateStock = useUpdateCostProductStock();
+
+  function handleConfirm() {
+    del.mutate(tx.id, {
+      onSuccess: () => {
+        // Restore inventory for deducted materials
+        if (tx.deducted_materials && tx.deducted_materials.length > 0) {
+          const procedureQty = tx.procedure_quantity ?? 1;
+          for (const { productId, qty: usedPortions } of tx.deducted_materials) {
+            const product = apiProducts.find((p) => p.id === productId);
+            if (!product) continue;
+            const restoreQty = product.portion_qty
+              ? usedPortions * product.portion_qty * procedureQty
+              : usedPortions * procedureQty;
+            updateStock.mutate({ id: productId, qty: restoreQty, operation: "add" });
+          }
+        }
+        onClose();
+      },
+    });
+  }
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-800 p-6 shadow-2xl">
@@ -1358,7 +1381,7 @@ function DeleteModal({ tx, year, month, onClose }: {
             className="flex-1 rounded-lg border border-slate-200 dark:border-gray-600 py-2 text-sm font-medium text-slate-600 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-700">
             Cancelar
           </button>
-          <button onClick={() => del.mutate(tx.id, { onSuccess: onClose })} disabled={del.isPending}
+          <button onClick={handleConfirm} disabled={del.isPending}
             className="flex-1 rounded-lg bg-red-600 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-60">
             {del.isPending ? "Eliminando…" : "Eliminar"}
           </button>

@@ -7,7 +7,7 @@ import { es } from "date-fns/locale";
 import { Activity, ChevronLeft, ChevronRight, Filter, X, Receipt, TrendingUp, TrendingDown, User, Calendar, FileText, Stethoscope, DollarSign, Package, RotateCcw } from "lucide-react";
 import { useAuditFeed } from "@/hooks/useAudit";
 import { useTransaction, useCreateTransaction } from "@/hooks/useFinances";
-import { useCostProducts } from "@/hooks/useCostos";
+import { useCostProducts, useUpdateCostProductStock } from "@/hooks/useCostos";
 import Spinner from "@/components/ui/Spinner";
 import type { ReactNode } from "react";
 import type { AuditLog, AuditLogChanges, FinanceTransaction } from "@/types";
@@ -137,6 +137,7 @@ function FinanceDetailModal({ entry, onClose }: { entry: AuditLog; onClose: () =
     !isDeleted && entry.resource_id ? entry.resource_id : null
   );
   const { data: products = [] } = useCostProducts();
+  const updateStock = useUpdateCostProductStock();
 
   const tx: FinanceTransaction | null = liveTx ?? snapshotTx;
 
@@ -165,7 +166,23 @@ function FinanceDetailModal({ entry, onClose }: { entry: AuditLog; onClose: () =
       notes: tx.notes ?? undefined,
       deducted_materials: tx.deducted_materials ?? undefined,
     };
-    restore.mutate(payload, { onSuccess: onClose });
+    restore.mutate(payload, {
+      onSuccess: () => {
+        // Re-deduct inventory for restored materials
+        if (tx.deducted_materials && tx.deducted_materials.length > 0) {
+          const procedureQty = tx.procedure_quantity ?? 1;
+          for (const { productId, qty: usedPortions } of tx.deducted_materials) {
+            const product = products.find((p) => p.id === productId);
+            if (!product) continue;
+            const deductQty = product.portion_qty
+              ? usedPortions * product.portion_qty * procedureQty
+              : usedPortions * procedureQty;
+            updateStock.mutate({ id: productId, qty: -deductQty, operation: "add" });
+          }
+        }
+        onClose();
+      },
+    });
   }
 
   return (
