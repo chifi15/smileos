@@ -40,6 +40,8 @@ export default function CostSummaryBar({ breakdown, compact }: Props) {
     );
   }
 
+  const marginPct = subtotal > 0 ? Math.round((margin / subtotal) * 100) : 0;
+
   return (
     <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800">
       <div className="grid grid-cols-2 divide-x divide-slate-100 dark:divide-gray-700 sm:grid-cols-4">
@@ -48,9 +50,22 @@ export default function CostSummaryBar({ breakdown, compact }: Props) {
         <SummaryCell label="Costos fijos" value={fixedCosts} />
         <SummaryCell label="Subtotal" value={subtotal} highlight />
       </div>
-      <div className="flex items-center justify-between border-t border-slate-100 dark:border-gray-700 px-5 py-4 bg-blue-50 dark:bg-blue-900/20">
-        <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Total</p>
-        <p className="text-lg font-bold text-blue-700 dark:text-blue-400">{fmtC(finalPrice)}</p>
+      <div className="grid grid-cols-2 divide-x divide-slate-100 dark:divide-gray-700 border-t border-slate-100 dark:border-gray-700">
+        <div className="px-5 py-4">
+          <p className="text-xs font-medium text-slate-500 dark:text-gray-400 mb-1">
+            Ganancia clínica ({marginPct}%)
+          </p>
+          <p className="text-base font-semibold text-green-700 dark:text-green-400">{fmtC(margin)}</p>
+        </div>
+        <div className="px-5 py-4 bg-blue-50 dark:bg-blue-900/20">
+          <p className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Total</p>
+          <p className="text-base font-bold text-blue-700 dark:text-blue-400">{fmtC(calculatedPrice)}</p>
+          {finalPrice !== calculatedPrice && (
+            <p className="text-[10px] text-amber-600 dark:text-amber-400 mt-0.5">
+              Precio manual: {fmtC(finalPrice)}
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
