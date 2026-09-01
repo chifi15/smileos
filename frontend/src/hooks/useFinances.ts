@@ -99,6 +99,15 @@ export function useTransactions(
   });
 }
 
+function invalidateFinanceRelated(qc: ReturnType<typeof useQueryClient>, year: number, month: number) {
+  qc.invalidateQueries({ queryKey: ["finances", year, month] });
+  qc.invalidateQueries({ queryKey: keys.summary(year, month) });
+  qc.invalidateQueries({ queryKey: keys.honorarios(year, month) });
+  qc.invalidateQueries({ queryKey: ["costos", "products"] });
+  // Invalidar todos los reportes
+  qc.invalidateQueries({ predicate: (q) => typeof q.queryKey[0] === "string" && (q.queryKey[0] as string).startsWith("report") });
+}
+
 export function useCreateTransaction(year: number, month: number) {
   const qc = useQueryClient();
   return useMutation({
@@ -110,9 +119,7 @@ export function useCreateTransaction(year: number, month: number) {
       return data.data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["finances", year, month] });
-      qc.invalidateQueries({ queryKey: keys.summary(year, month) });
-      qc.invalidateQueries({ queryKey: ["costos", "products"] });
+      invalidateFinanceRelated(qc, year, month);
       toast.success("Transacción registrada.");
     },
     onError: () => toast.error("Error al registrar la transacción."),
@@ -199,10 +206,8 @@ export function useUpdateTransaction(year: number, month: number) {
       return data.data;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["finances", year, month] });
-      qc.invalidateQueries({ queryKey: ["finances-summary", year, month] });
+      invalidateFinanceRelated(qc, year, month);
       qc.invalidateQueries({ queryKey: ["finances-by-patient"] });
-      qc.invalidateQueries({ queryKey: ["costos", "products"] });
       toast.success("Transacción actualizada.");
     },
     onError: () => toast.error("Error al actualizar la transacción."),
@@ -216,9 +221,7 @@ export function useDeleteTransaction(year: number, month: number) {
       await apiClient.delete(`/api/v1/finances/${txId}`);
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["finances", year, month] });
-      qc.invalidateQueries({ queryKey: keys.summary(year, month) });
-      qc.invalidateQueries({ queryKey: ["costos", "products"] });
+      invalidateFinanceRelated(qc, year, month);
       toast.success("Transacción eliminada.");
     },
     onError: () => toast.error("Error al eliminar la transacción."),
@@ -232,9 +235,7 @@ export function useBulkDeleteTransactions(year: number, month: number) {
       await Promise.all(ids.map((id) => apiClient.delete(`/api/v1/finances/${id}`)));
     },
     onSuccess: (_data, ids) => {
-      qc.invalidateQueries({ queryKey: ["finances", year, month] });
-      qc.invalidateQueries({ queryKey: keys.summary(year, month) });
-      qc.invalidateQueries({ queryKey: ["costos", "products"] });
+      invalidateFinanceRelated(qc, year, month);
       toast.success(`${ids.length} ${ids.length === 1 ? "transacción eliminada" : "transacciones eliminadas"}.`);
     },
     onError: () => toast.error("Error al eliminar las transacciones."),
