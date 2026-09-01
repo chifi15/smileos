@@ -320,11 +320,7 @@ async def get_materials_by_month(
     # Load all relevant transactions for the year
     proc_ids = [uuid.UUID(p) for p in proc_to_materials.keys()]
     tx_result = await db.execute(
-        select(
-            extract("month", FinanceTransaction.transaction_date).label("month"),
-            FinanceTransaction.procedure_id,
-            FinanceTransaction.procedure_quantity,
-        )
+        select(FinanceTransaction)
         .where(
             FinanceTransaction.clinic_id == clinic_id,
             FinanceTransaction.type == "ingreso",
@@ -332,19 +328,26 @@ async def get_materials_by_month(
             extract("year", FinanceTransaction.transaction_date) == year,
         )
     )
-    transactions = tx_result.all()
+    transactions = list(tx_result.scalars().all())
 
     # Aggregate per month per product
     # by_month[month_int][product_id] = total_units
     by_month: dict[int, dict[str, float]] = {m: {} for m in range(1, 13)}
     for tx in transactions:
-        m = int(tx.month)
-        proc_str = str(tx.procedure_id)
-        mats = proc_to_materials.get(proc_str, {})
+        m = int(tx.transaction_date.month)
         proc_qty = tx.procedure_quantity or 1
-        for pid, qty_per_proc in mats.items():
-            units = qty_per_proc * proc_qty
-            by_month[m][pid] = by_month[m].get(pid, 0.0) + units
+        if tx.deducted_materials:
+            # Usar exactamente los materiales deducidos (ya son per-cita)
+            for mat in tx.deducted_materials:
+                pid = mat.get("productId")
+                qty = float(mat.get("qty") or 0)
+                if pid and qty > 0:
+                    by_month[m][pid] = by_month[m].get(pid, 0.0) + qty * proc_qty
+        else:
+            proc_str = str(tx.procedure_id)
+            mats = proc_to_materials.get(proc_str, {})
+            for pid, qty_per_proc in mats.items():
+                by_month[m][pid] = by_month[m].get(pid, 0.0) + qty_per_proc * proc_qty
 
     # Build result — only include months that have data
     result_months = []
@@ -564,11 +567,19 @@ async def get_top_materials(
     # 4. Aggregate units per product
     material_units: dict[str, float] = {}
     for tx in transactions:
-        proc_str = str(tx.procedure_id)
-        mats = proc_to_materials.get(proc_str, {})
         proc_qty = tx.procedure_quantity or 1
-        for pid, qty_per_proc in mats.items():
-            material_units[pid] = material_units.get(pid, 0.0) + qty_per_proc * proc_qty
+        if tx.deducted_materials:
+            # Usar exactamente los materiales deducidos (ya son per-cita)
+            for mat in tx.deducted_materials:
+                pid = mat.get("productId")
+                qty = float(mat.get("qty") or 0)
+                if pid and qty > 0:
+                    material_units[pid] = material_units.get(pid, 0.0) + qty * proc_qty
+        else:
+            proc_str = str(tx.procedure_id)
+            mats = proc_to_materials.get(proc_str, {})
+            for pid, qty_per_proc in mats.items():
+                material_units[pid] = material_units.get(pid, 0.0) + qty_per_proc * proc_qty
 
     # 5. Load product details
     product_ids = [uuid.UUID(pid) for pid in material_units.keys()]

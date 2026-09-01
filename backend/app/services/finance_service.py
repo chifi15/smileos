@@ -200,8 +200,11 @@ async def get_honorarios_by_procedure(
 
     rows = await list_transactions(db, clinic_id, year, month, tx_type="ingreso")
 
+    from sqlalchemy.orm import selectinload as _sil
     cost_treatments = await db.execute(
-        select(CostTreatment).where(CostTreatment.clinic_id == clinic_id)
+        select(CostTreatment)
+        .where(CostTreatment.clinic_id == clinic_id)
+        .options(_sil(CostTreatment.appointments))
     )
     cost_map = {
         str(ct.procedure_catalog_id): ct
@@ -220,7 +223,13 @@ async def get_honorarios_by_procedure(
         ct = cost_map.get(str(tx.procedure_id))
         if not ct:
             continue
-        fee_per_unit = ct.professional_fee_per_hour * ct.total_hours
+        total_fee = ct.professional_fee_per_hour * ct.total_hours
+        # Si la transacción es por una cita específica, prorratear entre el total de citas
+        if tx.cost_appointment_id and ct.appointments:
+            n_apts = len(ct.appointments)
+            fee_per_unit = total_fee / max(n_apts, 1)
+        else:
+            fee_per_unit = total_fee
         qty = tx.procedure_quantity or 1
         fee = fee_per_unit * qty
         proc_id = str(tx.procedure_id)
