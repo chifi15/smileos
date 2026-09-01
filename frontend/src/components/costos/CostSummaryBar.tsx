@@ -48,20 +48,9 @@ export default function CostSummaryBar({ breakdown, compact }: Props) {
         <SummaryCell label="Costos fijos" value={fixedCosts} />
         <SummaryCell label="Subtotal" value={subtotal} highlight />
       </div>
-      <div className="grid grid-cols-2 divide-x divide-slate-100 dark:divide-gray-700 border-t border-slate-100 dark:border-gray-700">
-        <div className="px-5 py-4">
-          <p className="text-xs font-medium text-slate-500 dark:text-gray-400 mb-1">
-            Precio calculado
-            <span className="ml-1 text-slate-400 dark:text-gray-500">
-              (+{(breakdown.calculatedPrice > 0 ? (margin / (subtotal || 1)) * 100 : 0).toFixed(0)}% margen)
-            </span>
-          </p>
-          <p className="text-base font-semibold text-slate-700 dark:text-gray-300">{fmtC(calculatedPrice)}</p>
-        </div>
-        <div className="px-5 py-4 bg-blue-50 dark:bg-blue-900/20">
-          <p className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Total</p>
-          <p className="text-base font-bold text-blue-700 dark:text-blue-400">{fmtC(finalPrice)}</p>
-        </div>
+      <div className="flex items-center justify-between border-t border-slate-100 dark:border-gray-700 px-5 py-4 bg-blue-50 dark:bg-blue-900/20">
+        <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Total</p>
+        <p className="text-lg font-bold text-blue-700 dark:text-blue-400">{fmtC(finalPrice)}</p>
       </div>
     </div>
   );
