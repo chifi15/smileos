@@ -85,10 +85,12 @@ function altGroupColor(g: string) {
 function TreatmentSettings({
   treatment,
   globalFixedCost,
+  calculatedPrice,
   onUpdate,
 }: {
   treatment: ApiTreatment;
   globalFixedCost?: number;
+  calculatedPrice: number;
   onUpdate: (data: Partial<Omit<ApiTreatment, "id" | "appointments">>) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -173,7 +175,7 @@ function TreatmentSettings({
             <input
               type="number"
               className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              defaultValue={treatment.suggested_price ?? ""}
+              defaultValue={treatment.suggested_price ?? Math.round(calculatedPrice)}
               placeholder="(usar precio calculado automáticamente)"
               onBlur={(e) =>
                 onUpdate({ suggested_price: e.target.value ? parseFloat(e.target.value) : null })
@@ -1243,6 +1245,7 @@ export default function TreatmentDetailPage({
       <TreatmentSettings
         treatment={treatment}
         globalFixedCost={globalFixedCost}
+        calculatedPrice={breakdown.calculatedPrice}
         onUpdate={(data) => updateTreatment.mutate({ id, ...data })}
       />
 
