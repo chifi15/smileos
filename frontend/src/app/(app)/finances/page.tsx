@@ -476,7 +476,8 @@ interface FormState {
   receiptFile: File | null;
 }
 
-const today = new Date().toISOString().split("T")[0];
+const _now = new Date();
+const today = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}-${String(_now.getDate()).padStart(2, "0")}`;
 
 function emptyForm(type: FinanceType): FormState {
   return {
