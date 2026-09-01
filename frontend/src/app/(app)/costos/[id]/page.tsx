@@ -176,7 +176,7 @@ function TreatmentSettings({
               defaultValue={treatment.suggested_price ?? ""}
               placeholder="(usar precio calculado automáticamente)"
               onBlur={(e) =>
-                onUpdate({ suggested_price: e.target.value ? parseFloat(e.target.value) : undefined })
+                onUpdate({ suggested_price: e.target.value ? parseFloat(e.target.value) : null })
               }
             />
           </div>

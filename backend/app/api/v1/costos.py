@@ -360,7 +360,7 @@ async def update_treatment(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
-    updates = {k: v for k, v in body.model_dump().items() if v is not None}
+    updates = body.model_dump(exclude_unset=True)
     obj = await svc.update_treatment(db, current_user.clinic_id, treatment_id, updates)
     if not obj:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Tratamiento no encontrado"})

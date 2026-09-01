@@ -45,7 +45,7 @@ export interface ApiTreatment {
   total_hours: number;
   fixed_costs: number;
   clinic_margin_pct: number;
-  suggested_price?: number;
+  suggested_price?: number | null;
   procedure_catalog_id?: string;
   sort_order: number;
   appointments: ApiAppointment[];
@@ -198,7 +198,7 @@ export function useCreateCostTreatment() {
       total_hours: number;
       fixed_costs: number;
       clinic_margin_pct: number;
-      suggested_price?: number;
+      suggested_price?: number | null;
       appointments: { number: number; name: string; materials: ApiMaterial[] }[];
     }) => api.post("/api/v1/costos/treatments", data).then((r) => r.data),
     onSuccess: () => qc.invalidateQueries({ queryKey: TREATMENTS_KEY }),
