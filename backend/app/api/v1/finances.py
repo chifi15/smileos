@@ -207,12 +207,39 @@ async def create_transaction(
         db, user.clinic_id, user.id, body.model_dump()
     )
     tipo = "ingreso" if tx.type == "ingreso" else "egreso"
+
+    # Deducir inventario por materiales usados
+    inventory_changes: list[str] = []
+    if tx.deducted_materials:
+        from app.services import costos_service
+        from app.models.costos import CostProduct
+        from sqlalchemy import select as sa_select
+        procedure_qty = tx.procedure_quantity or 1
+        aggregated: dict[str, float] = {}
+        for m in tx.deducted_materials:
+            pid = m.get("productId")
+            qty = float(m.get("qty") or 0)
+            if pid and qty > 0:
+                aggregated[pid] = aggregated.get(pid, 0) + qty
+        for product_id, used_portions in aggregated.items():
+            product = await db.scalar(
+                sa_select(CostProduct).where(
+                    CostProduct.id == uuid.UUID(product_id),
+                    CostProduct.clinic_id == user.clinic_id,
+                )
+            )
+            if not product:
+                continue
+            deduct_qty = used_portions * (product.portion_qty or 1) * procedure_qty
+            await costos_service.update_product_stock(db, user.clinic_id, uuid.UUID(product_id), -deduct_qty, "add")
+            inventory_changes.append(f"{product.name}: {used_portions:.2f} porciones deducidas del inventario")
+
     await audit_service.log(
         db, clinic_id=user.clinic_id, user_id=user.id,
         action="finance.created", resource_type="finance", resource_id=str(tx.id),
         description=f"Registró {tipo}: {tx.description} (C${float(tx.amount_cordobas):,.2f})",
         patient_id=tx.patient_id,
-        metadata={"snapshot": _serialize(tx)},
+        metadata={"snapshot": _serialize(tx), "inventory_changes": inventory_changes},
     )
     return {"success": True, "data": _serialize(tx)}
 

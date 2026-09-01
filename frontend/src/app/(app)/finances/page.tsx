@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { useCostTreatments, useCostProducts, useUpdateCostProductStock } from "@/hooks/useCostos";
+import { useCostTreatments, useCostProducts } from "@/hooks/useCostos";
 import {
   TrendingUp,
   TrendingDown,
@@ -530,7 +530,6 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   const { data: procedures = [] } = useProcedures();
   const { data: apiTreatments = [] } = useCostTreatments();
   const { data: apiProducts = [] } = useCostProducts();
-  const updateStock = useUpdateCostProductStock();
   const isIngreso = type === "ingreso";
   const { data: expenseCats = [] } = useExpenseCategories();
   const { data: doctors = [] } = useDoctors();
@@ -817,28 +816,6 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     create.mutate(payload, {
       onSuccess: async (tx: FinanceTransaction) => {
         try {
-          // Descontar materiales del inventario usando los materiales resueltos (alternativos ya filtrados)
-          const materialsToDeduct = resolvedMaterials ?? (() => {
-            if (!tx.procedure?.id) return [];
-            const treatment = apiTreatments.find((t) => t.procedure_catalog_id === tx.procedure!.id);
-            if (!treatment) return [];
-            const totals = new Map<string, number>();
-            for (const apt of treatment.appointments) {
-              for (const m of apt.materials) {
-                totals.set(m.productId, (totals.get(m.productId) ?? 0) + m.quantity);
-              }
-            }
-            return Array.from(totals.entries()).map(([productId, qty]) => ({ productId, qty }));
-          })();
-          const procedureQty = tx.procedure_quantity ?? 1;
-          for (const { productId, qty: usedPortions } of materialsToDeduct) {
-            const product = apiProducts.find((p) => p.id === productId);
-            if (!product) continue;
-            const deductQty = product.portion_qty
-              ? usedPortions * product.portion_qty * procedureQty
-              : usedPortions * procedureQty;
-            updateStock.mutate({ id: productId, qty: -deductQty, operation: "add" });
-          }
           if (form.receiptFile) {
             try {
               await new Promise<void>((resolve, reject) => {
