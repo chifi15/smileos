@@ -201,8 +201,8 @@ function TreatmentCard({ treatment, globalFixedCost }: { treatment: ApiTreatment
           <p className="text-sm font-bold text-blue-700 dark:text-blue-400">{fmtC(breakdown.finalPrice)}</p>
         </div>
         <div className="rounded-lg bg-slate-50 dark:bg-gray-700/50 px-3 py-2.5">
-          <p className="text-xs text-slate-500 dark:text-gray-400 mb-0.5">Subtotal real</p>
-          <p className="text-sm font-semibold text-slate-700 dark:text-gray-300">{fmtC(breakdown.subtotal)}</p>
+          <p className="text-xs text-slate-500 dark:text-gray-400 mb-0.5">Total</p>
+          <p className="text-sm font-semibold text-slate-700 dark:text-gray-300">{fmtC(breakdown.calculatedPrice)}</p>
         </div>
         <div className={`rounded-lg px-3 py-2.5 ${utilidad >= 0 ? "bg-green-50 dark:bg-green-900/20" : "bg-red-50 dark:bg-red-900/20"}`}>
           <p className={`text-xs mb-0.5 ${utilidad >= 0 ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>Utilidad estimada</p>
