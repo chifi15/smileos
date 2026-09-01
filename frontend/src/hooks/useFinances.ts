@@ -112,6 +112,7 @@ export function useCreateTransaction(year: number, month: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["finances", year, month] });
       qc.invalidateQueries({ queryKey: keys.summary(year, month) });
+      qc.invalidateQueries({ queryKey: ["costos", "products"] });
       toast.success("Transacción registrada.");
     },
     onError: () => toast.error("Error al registrar la transacción."),
@@ -201,6 +202,7 @@ export function useUpdateTransaction(year: number, month: number) {
       qc.invalidateQueries({ queryKey: ["finances", year, month] });
       qc.invalidateQueries({ queryKey: ["finances-summary", year, month] });
       qc.invalidateQueries({ queryKey: ["finances-by-patient"] });
+      qc.invalidateQueries({ queryKey: ["costos", "products"] });
       toast.success("Transacción actualizada.");
     },
     onError: () => toast.error("Error al actualizar la transacción."),
@@ -216,6 +218,7 @@ export function useDeleteTransaction(year: number, month: number) {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["finances", year, month] });
       qc.invalidateQueries({ queryKey: keys.summary(year, month) });
+      qc.invalidateQueries({ queryKey: ["costos", "products"] });
       toast.success("Transacción eliminada.");
     },
     onError: () => toast.error("Error al eliminar la transacción."),
@@ -231,6 +234,7 @@ export function useBulkDeleteTransactions(year: number, month: number) {
     onSuccess: (_data, ids) => {
       qc.invalidateQueries({ queryKey: ["finances", year, month] });
       qc.invalidateQueries({ queryKey: keys.summary(year, month) });
+      qc.invalidateQueries({ queryKey: ["costos", "products"] });
       toast.success(`${ids.length} ${ids.length === 1 ? "transacción eliminada" : "transacciones eliminadas"}.`);
     },
     onError: () => toast.error("Error al eliminar las transacciones."),
