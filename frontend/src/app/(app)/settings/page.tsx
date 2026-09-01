@@ -660,9 +660,11 @@ function PriceRow({ proc }: { proc: Procedure }) {
   const linkProcedure = useLinkCostProcedure();
   const linkedTreatment = treatments.find((t) => t.procedure_catalog_id === proc.id);
 
-  const calculatedOpCost = linkedTreatment
-    ? calculateTreatmentCosts(apiTreatmentToTreatment(linkedTreatment), products, perPaciente).calculatedPrice
+  const linkedBreakdown = linkedTreatment
+    ? calculateTreatmentCosts(apiTreatmentToTreatment(linkedTreatment), products, perPaciente)
     : null;
+  const calculatedOpCost = linkedBreakdown?.calculatedPrice ?? null;
+  const linkedFinalPrice = linkedBreakdown?.finalPrice ?? null;
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: proc.id });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 };
@@ -727,7 +729,7 @@ function PriceRow({ proc }: { proc: Procedure }) {
         <div className="flex items-center gap-4 flex-wrap">
         <EditableAmount
           label="Precio:"
-          value={proc.default_price}
+          value={linkedFinalPrice ?? proc.default_price}
           onSave={(price) => update.mutate({ id: proc.id, price })}
           isPending={update.isPending}
         />
