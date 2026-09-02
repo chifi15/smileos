@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import {
   Calculator, Package, ChevronRight, ChevronDown,
-  TrendingUp, Plus, Calendar, Trash2, X, GripVertical, Pencil, Check, Copy,
+  TrendingUp, Plus, Calendar, Trash2, X, GripVertical, Pencil, Check, Copy, BadgeDollarSign,
 } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from "@dnd-kit/sortable";
@@ -13,6 +13,7 @@ import {
   useCostProducts,
   useCostTreatments,
   useFixedCosts,
+  useHonorariosConfig,
   useCreateCostTreatment,
   useDeleteCostTreatment,
   useDuplicateCostTreatment,
@@ -64,9 +65,11 @@ function NewTreatmentModal({ onClose }: { onClose: () => void }) {
   useEscapeKey(onClose);
   const createTreatment = useCreateCostTreatment();
   const { data: fixedCosts } = useFixedCosts();
+  const { data: honorariosConfig } = useHonorariosConfig();
+  const globalFeePerHour = honorariosConfig?.fee_per_hour ?? 192;
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [hourlyFee, setHourlyFee] = useState("192");
+  const [hourlyFee, setHourlyFee] = useState(String(globalFeePerHour));
   const [hours, setHours] = useState("1");
   const [margin, setMargin] = useState("15");
   const [numCitas, setNumCitas] = useState("1");
@@ -290,12 +293,14 @@ function TreatmentCard({ treatment, globalFixedCost }: { treatment: ApiTreatment
 export default function CostosPage() {
   const { data: treatments = [], isLoading } = useCostTreatments();
   const { data: fixedCosts } = useFixedCosts();
+  const { data: honorariosConfig } = useHonorariosConfig();
   const reorderTreatments = useReorderCostTreatments();
   const [showModal, setShowModal] = useState(false);
 
   const totalFijo = (fixedCosts?.items ?? []).reduce((s, i) => s + i.amount, 0);
   const patientsPerMonth = fixedCosts?.patients_per_month ?? 1;
   const perPaciente = patientsPerMonth > 0 ? totalFijo / patientsPerMonth : 0;
+  const feePerHour = honorariosConfig?.fee_per_hour ?? 192;
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -322,6 +327,9 @@ export default function CostosPage() {
           <p className="text-sm text-slate-500 dark:text-gray-400 mt-0.5">Calcula y compara el costo por tratamiento dividido por citas</p>
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/costos/honorarios">
+            <Button variant="secondary" size="sm"><BadgeDollarSign size={15} /> Honorarios</Button>
+          </Link>
           <Link href="/costos/costos-fijos">
             <Button variant="secondary" size="sm"><Package size={15} /> Costos fijos</Button>
           </Link>
@@ -332,15 +340,24 @@ export default function CostosPage() {
         </div>
       </div>
 
-      {perPaciente > 0 && (
-        <div className="mb-5 flex items-center justify-between rounded-xl border border-blue-100 dark:border-blue-800/30 bg-blue-50 dark:bg-blue-900/20 px-4 py-3 text-sm">
-          <span className="text-blue-700 dark:text-blue-400">
-            Costo fijo por paciente: <strong>{fmtC(perPaciente)}</strong>
-            <span className="text-blue-500 dark:text-blue-500 ml-1">({fmtC(totalFijo)}/mes ÷ {patientsPerMonth} pacientes)</span>
+      <div className="mb-5 flex flex-col sm:flex-row gap-2">
+        {perPaciente > 0 && (
+          <div className="flex-1 flex items-center justify-between rounded-xl border border-blue-100 dark:border-blue-800/30 bg-blue-50 dark:bg-blue-900/20 px-4 py-3 text-sm">
+            <span className="text-blue-700 dark:text-blue-400">
+              Costo fijo por paciente: <strong>{fmtC(perPaciente)}</strong>
+              <span className="text-blue-500 dark:text-blue-500 ml-1">({fmtC(totalFijo)}/mes ÷ {patientsPerMonth} pacientes)</span>
+            </span>
+            <Link href="/costos/costos-fijos" className="text-blue-600 font-medium hover:underline text-xs shrink-0 ml-3">Editar →</Link>
+          </div>
+        )}
+        <div className="flex-1 flex items-center justify-between rounded-xl border border-amber-100 dark:border-amber-800/30 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-sm">
+          <span className="text-amber-700 dark:text-amber-400">
+            Honorarios: <strong>{fmtC(feePerHour)}/hora</strong>
+            <span className="text-amber-600 dark:text-amber-500 ml-1">(tarifa profesional global)</span>
           </span>
-          <Link href="/costos/costos-fijos" className="text-blue-600 font-medium hover:underline text-xs">Editar →</Link>
+          <Link href="/costos/honorarios" className="text-amber-600 font-medium hover:underline text-xs shrink-0 ml-3">Editar →</Link>
         </div>
-      )}
+      </div>
 
       {treatments.length === 0 ? (
         <div className="flex h-64 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 dark:border-gray-700 text-center">

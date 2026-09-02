@@ -350,6 +350,44 @@ export function useUpdateFixedCosts() {
   });
 }
 
+// ─── Honorarios ───────────────────────────────────────────────────────────
+
+export interface ApiHonorarios {
+  fee_per_hour: number;
+  procedures_synced?: number;
+}
+
+const HONORARIOS_KEY = ["costos", "honorarios"];
+
+export function useHonorariosConfig() {
+  return useQuery<ApiHonorarios>({
+    queryKey: HONORARIOS_KEY,
+    queryFn: () => api.get("/api/v1/costos/honorarios").then((r) => r.data),
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+export function useUpdateHonorariosConfig() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: { fee_per_hour: number }) =>
+      api.put<ApiHonorarios>("/api/v1/costos/honorarios", data).then((r) => r.data),
+    onMutate: async (data) => {
+      await qc.cancelQueries({ queryKey: HONORARIOS_KEY });
+      const prev = qc.getQueryData<ApiHonorarios>(HONORARIOS_KEY);
+      qc.setQueryData<ApiHonorarios>(HONORARIOS_KEY, (old) => ({ ...old!, ...data }));
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => { if (ctx?.prev) qc.setQueryData(HONORARIOS_KEY, ctx.prev); },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: HONORARIOS_KEY });
+      qc.invalidateQueries({ queryKey: ["costos", "treatments"] });
+      qc.invalidateQueries({ queryKey: ["procedure-catalog"] });
+      qc.invalidateQueries({ queryKey: ["catalog", "procedures"] });
+    },
+  });
+}
+
 // ─── Product Lots ──────────────────────────────────────────────────────────
 
 export interface ProductUsageRecord {

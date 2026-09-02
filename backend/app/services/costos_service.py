@@ -908,6 +908,31 @@ async def _sync_operational_costs(
     return updated
 
 
+# ─── Honorarios Config ────────────────────────────────────────────────────────
+
+async def get_honorarios(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
+    config = await get_fixed_costs(db, clinic_id)
+    return {"fee_per_hour": config.fee_per_hour}
+
+
+async def update_honorarios(db: AsyncSession, clinic_id: uuid.UUID, fee_per_hour: float) -> tuple[float, int]:
+    config = await get_fixed_costs(db, clinic_id)
+    config.fee_per_hour = fee_per_hour
+    await db.flush()
+
+    result = await db.execute(
+        select(CostTreatment).where(CostTreatment.clinic_id == clinic_id)
+        .options(selectinload(CostTreatment.appointments))
+    )
+    treatments = list(result.scalars().all())
+    for t in treatments:
+        t.professional_fee_per_hour = fee_per_hour
+    await db.flush()
+
+    synced = await _sync_operational_costs(db, clinic_id, config.patients_per_month, config.items or [])
+    return fee_per_hour, synced
+
+
 # ─── Product Lots ─────────────────────────────────────────────────────────────
 
 async def get_lots(db: AsyncSession, clinic_id: uuid.UUID, product_id: uuid.UUID) -> list[CostProductLot]:

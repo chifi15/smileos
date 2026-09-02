@@ -101,4 +101,5 @@ class FixedCostsConfig(Base):
     clinic_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("clinics.id", ondelete="CASCADE"), nullable=False, unique=True)
     patients_per_month: Mapped[int] = mapped_column(Integer, nullable=False, default=40)
     items: Mapped[List[Any]] = mapped_column(JSONB, nullable=False, default=list)
+    fee_per_hour: Mapped[float] = mapped_column(Float, nullable=False, default=192.0)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

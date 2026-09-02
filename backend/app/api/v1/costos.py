@@ -601,6 +601,42 @@ async def update_fixed_costs(
     return {"patients_per_month": config.patients_per_month, "items": config.items, "procedures_synced": synced}
 
 
+# ─── Honorarios ───────────────────────────────────────────────────────────────
+
+class HonorariosIn(BaseModel):
+    fee_per_hour: float
+
+
+class HonorariosOut(BaseModel):
+    fee_per_hour: float
+    procedures_synced: int = 0
+
+
+@router.get("/honorarios", response_model=HonorariosOut)
+async def get_honorarios(
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    data = await svc.get_honorarios(db, current_user.clinic_id)
+    return {"fee_per_hour": data["fee_per_hour"], "procedures_synced": 0}
+
+
+@router.put("/honorarios", response_model=HonorariosOut)
+async def update_honorarios(
+    body: HonorariosIn,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    fee, synced = await svc.update_honorarios(db, current_user.clinic_id, body.fee_per_hour)
+    await audit_service.log(
+        db, clinic_id=current_user.clinic_id, user_id=current_user.id,
+        action="honorarios.updated", resource_type="honorarios", resource_id=str(current_user.clinic_id),
+        description=f"Actualizó tarifa de honorarios a C$ {fee:.2f}/hora",
+        metadata={"fee_per_hour": fee},
+    )
+    return {"fee_per_hour": fee, "procedures_synced": synced}
+
+
 # ─── Product Lots ──────────────────────────────────────────────────────────────
 
 @router.get("/products/{product_id}/lots", response_model=List[LotOut])
