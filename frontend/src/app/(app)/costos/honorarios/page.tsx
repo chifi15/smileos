@@ -73,8 +73,11 @@ export default function HonorariosPage() {
 
   const [diasSemana, setDiasSemana] = useState(5);
   const [horasDia, setHorasDia] = useState(8);
+  const [horasSabado, setHorasSabado] = useState(4);
+  const [sabadoActivo, setSabadoActivo] = useState(false);
 
-  const horasMes = Math.round(diasSemana * horasDia * SEMANAS_POR_MES * 10) / 10;
+  const horasSemanales = diasSemana * horasDia + (sabadoActivo ? horasSabado : 0);
+  const horasMes = Math.round(horasSemanales * SEMANAS_POR_MES * 10) / 10;
   const derivedRate = horasMes > 0 && metaMensual > 0 ? metaMensual / horasMes : 0;
 
   function saveFee() {
@@ -267,13 +270,41 @@ export default function HonorariosPage() {
               />
             </div>
 
+            {/* Sábado */}
+            <div className="flex items-center justify-between gap-4 px-4 py-3 border-b border-slate-100 dark:border-gray-600">
+              <div className="flex items-center gap-2.5">
+                <button
+                  onClick={() => setSabadoActivo(!sabadoActivo)}
+                  className={`w-9 h-5 rounded-full transition-colors shrink-0 ${sabadoActivo ? "bg-blue-500" : "bg-slate-200 dark:bg-gray-600"}`}
+                >
+                  <span className={`block w-4 h-4 mx-0.5 rounded-full bg-white shadow transition-transform ${sabadoActivo ? "translate-x-4" : "translate-x-0"}`} />
+                </button>
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-gray-300">Sábado</p>
+                  <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">Jornada más corta</p>
+                </div>
+              </div>
+              {sabadoActivo ? (
+                <EditableNumber
+                  value={horasSabado}
+                  onSave={setHorasSabado}
+                  suffix=" h"
+                  min={0.5}
+                  step={0.5}
+                  width="w-16"
+                />
+              ) : (
+                <span className="text-xs text-slate-400 dark:text-gray-500 shrink-0">No trabaja</span>
+              )}
+            </div>
+
             {/* Resultado: horas/mes */}
             <div className="px-4 py-3 bg-white dark:bg-gray-800">
               <div className="flex items-center justify-between text-sm">
                 <div>
                   <p className="font-medium text-slate-700 dark:text-gray-300">Horas de trabajo por mes</p>
                   <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">
-                    {diasSemana} días × {horasDia} h/día × 4.33 semanas/mes
+                    ({diasSemana} días × {horasDia} h{sabadoActivo ? ` + sáb ${horasSabado} h` : ""}) × 4.33 sem/mes
                   </p>
                 </div>
                 <span className="text-base font-bold text-slate-800 dark:text-white tabular-nums shrink-0">{horasMes} h</span>
