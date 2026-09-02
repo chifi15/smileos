@@ -4,8 +4,56 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Info, Pencil, Check, X } from "lucide-react";
 import { useHonorariosConfig, useUpdateHonorariosConfig } from "@/hooks/useCostos";
-import { fmtC, fmt } from "@/lib/costos-utils";
+import { fmtC } from "@/lib/costos-utils";
 import toast from "react-hot-toast";
+
+const SEMANAS_POR_MES = 365 / 12 / 7; // ≈ 4.33
+
+function EditableNumber({
+  value, onSave, suffix, prefix, min = 0.5, step = 1, width = "w-20",
+}: {
+  value: number; onSave: (v: number) => void;
+  suffix?: string; prefix?: string; min?: number; step?: number; width?: string;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState("");
+
+  function commit() {
+    const v = parseFloat(draft);
+    if (!isNaN(v) && v >= min) onSave(v);
+    setEditing(false);
+  }
+
+  if (editing) {
+    return (
+      <div className="flex items-center gap-1.5 shrink-0">
+        {prefix && <span className="text-xs text-slate-400 dark:text-gray-500">{prefix}</span>}
+        <input
+          autoFocus type="number" min={min} step={step} value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") commit(); if (e.key === "Escape") setEditing(false); }}
+          onBlur={commit}
+          className={`${width} rounded-lg border border-blue-400 dark:border-blue-500 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500`}
+        />
+        {suffix && <span className="text-xs text-slate-400 dark:text-gray-500">{suffix}</span>}
+        <button onClick={commit} className="text-green-600 dark:text-green-400"><Check size={13} /></button>
+        <button onClick={() => setEditing(false)} className="text-slate-400"><X size={13} /></button>
+      </div>
+    );
+  }
+
+  return (
+    <button
+      onClick={() => { setDraft(String(value)); setEditing(true); }}
+      className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-gray-600 px-4 py-2 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors group/e shrink-0"
+    >
+      <span className="text-sm font-semibold text-slate-800 dark:text-white tabular-nums">
+        {prefix}{value}{suffix}
+      </span>
+      <Pencil size={12} className="text-slate-300 dark:text-gray-600 group-hover/e:text-blue-500" />
+    </button>
+  );
+}
 
 export default function HonorariosPage() {
   const { data: config, isLoading } = useHonorariosConfig();
@@ -18,14 +66,16 @@ export default function HonorariosPage() {
   const [editingFee, setEditingFee] = useState(false);
   const [feeDraft, setFeeDraft] = useState("");
 
-  // Derivar tarifa desde meta mensual
+  // Calcular tarifa desde horario + meta
+  const [metaMensual, setMetaMensual] = useState(0);
   const [editingMeta, setEditingMeta] = useState(false);
   const [metaDraft, setMetaDraft] = useState("");
-  const [editingHoras, setEditingHoras] = useState(false);
-  const [horasDraft, setHorasDraft] = useState("");
-  const [metaMensual, setMetaMensual] = useState(0);
-  const [horasMes, setHorasMes] = useState(0);
-  const derivedRate = horasMes > 0 ? metaMensual / horasMes : 0;
+
+  const [diasSemana, setDiasSemana] = useState(5);
+  const [horasDia, setHorasDia] = useState(8);
+
+  const horasMes = Math.round(diasSemana * horasDia * SEMANAS_POR_MES * 10) / 10;
+  const derivedRate = horasMes > 0 && metaMensual > 0 ? metaMensual / horasMes : 0;
 
   function saveFee() {
     const v = parseFloat(feeDraft);
@@ -35,11 +85,9 @@ export default function HonorariosPage() {
       {
         onSuccess: (res) => {
           const synced = res?.procedures_synced ?? 0;
-          if (synced > 0) {
-            toast.success(`Tarifa guardada. ${synced} procedimiento${synced !== 1 ? "s" : ""} actualizados.`);
-          } else {
-            toast.success("Tarifa de honorarios guardada.");
-          }
+          toast.success(synced > 0
+            ? `Tarifa guardada. ${synced} procedimiento${synced !== 1 ? "s" : ""} actualizados.`
+            : "Tarifa de honorarios guardada.");
         },
         onError: () => toast.error("Error al guardar la tarifa."),
       }
@@ -49,16 +97,15 @@ export default function HonorariosPage() {
 
   function applyDerived() {
     if (derivedRate <= 0) return;
+    const rounded = Math.round(derivedRate * 100) / 100;
     updateHonorarios.mutate(
-      { fee_per_hour: Math.round(derivedRate * 100) / 100 },
+      { fee_per_hour: rounded },
       {
         onSuccess: (res) => {
           const synced = res?.procedures_synced ?? 0;
-          if (synced > 0) {
-            toast.success(`Tarifa calculada aplicada. ${synced} procedimiento${synced !== 1 ? "s" : ""} actualizados.`);
-          } else {
-            toast.success("Tarifa calculada aplicada.");
-          }
+          toast.success(synced > 0
+            ? `Tarifa aplicada. ${synced} procedimiento${synced !== 1 ? "s" : ""} actualizados.`
+            : "Tarifa calculada aplicada.");
         },
         onError: () => toast.error("Error al guardar la tarifa."),
       }
@@ -97,18 +144,14 @@ export default function HonorariosPage() {
               <div className="flex items-center gap-1.5 shrink-0">
                 <span className="text-xs text-slate-400 dark:text-gray-500">C$</span>
                 <input
-                  autoFocus
-                  type="number"
-                  min="1"
-                  step="0.5"
-                  value={feeDraft}
+                  autoFocus type="number" min="1" step="0.5" value={feeDraft}
                   onChange={(e) => setFeeDraft(e.target.value)}
                   onKeyDown={(e) => { if (e.key === "Enter") saveFee(); if (e.key === "Escape") setEditingFee(false); }}
                   onBlur={saveFee}
                   className="w-24 rounded-lg border border-blue-400 dark:border-blue-500 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 <span className="text-xs text-slate-400 dark:text-gray-500">/hora</span>
-                <button onClick={saveFee} className="text-green-600 dark:text-green-400 hover:text-green-700"><Check size={14} /></button>
+                <button onClick={saveFee} className="text-green-600 dark:text-green-400"><Check size={14} /></button>
                 <button onClick={() => setEditingFee(false)} className="text-slate-400"><X size={14} /></button>
               </div>
             ) : (
@@ -147,13 +190,15 @@ export default function HonorariosPage() {
         </div>
       </div>
 
-      {/* Derivar tarifa */}
+      {/* Calcular tarifa */}
       <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-sm overflow-hidden">
         <div className="px-5 py-4 border-b border-slate-100 dark:border-gray-700">
           <h2 className="font-semibold text-slate-800 dark:text-white">Calcular tarifa desde meta mensual</h2>
-          <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">Opcional — define cuánto quieres ganar al mes y cuántas horas trabajas</p>
+          <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">Define tu horario y cuánto quieres ganar — la tarifa se calcula sola</p>
         </div>
-        <div className="px-5 py-5 space-y-4">
+        <div className="px-5 py-5 space-y-5">
+
+          {/* Meta mensual */}
           <div className="flex items-center justify-between gap-4">
             <div>
               <p className="text-sm font-medium text-slate-700 dark:text-gray-300">Meta de honorarios mensual</p>
@@ -161,10 +206,9 @@ export default function HonorariosPage() {
             </div>
             {editingMeta ? (
               <div className="flex items-center gap-1.5 shrink-0">
-                <span className="text-xs text-slate-400">C$</span>
+                <span className="text-xs text-slate-400 dark:text-gray-500">C$</span>
                 <input
-                  autoFocus type="number" min="0" step="100"
-                  value={metaDraft}
+                  autoFocus type="number" min="0" step="100" value={metaDraft}
                   onChange={(e) => setMetaDraft(e.target.value)}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") { setMetaMensual(parseFloat(metaDraft) || 0); setEditingMeta(false); }
@@ -173,50 +217,71 @@ export default function HonorariosPage() {
                   onBlur={() => { setMetaMensual(parseFloat(metaDraft) || 0); setEditingMeta(false); }}
                   className="w-28 rounded-lg border border-blue-400 dark:border-blue-500 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <button onClick={() => { setMetaMensual(parseFloat(metaDraft) || 0); setEditingMeta(false); }} className="text-green-600"><Check size={13} /></button>
+                <button onClick={() => { setMetaMensual(parseFloat(metaDraft) || 0); setEditingMeta(false); }} className="text-green-600 dark:text-green-400"><Check size={13} /></button>
                 <button onClick={() => setEditingMeta(false)} className="text-slate-400"><X size={13} /></button>
               </div>
             ) : (
               <button onClick={() => { setMetaDraft(String(metaMensual)); setEditingMeta(true); }}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-gray-600 px-4 py-2 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors group/m">
+                className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-gray-600 px-4 py-2 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors group/m shrink-0">
                 <span className="text-sm font-semibold text-slate-800 dark:text-white">{metaMensual > 0 ? fmtC(metaMensual) : "— Ingresar —"}</span>
                 <Pencil size={12} className="text-slate-300 dark:text-gray-600 group-hover/m:text-blue-500" />
               </button>
             )}
           </div>
 
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <p className="text-sm font-medium text-slate-700 dark:text-gray-300">Horas de trabajo por mes</p>
-              <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">Horas clínicas disponibles al mes</p>
+          {/* Horario de trabajo */}
+          <div className="rounded-xl bg-slate-50 dark:bg-gray-700/50 border border-slate-100 dark:border-gray-700 overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-slate-100 dark:border-gray-600">
+              <p className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Horario de trabajo</p>
             </div>
-            {editingHoras ? (
-              <div className="flex items-center gap-1.5 shrink-0">
-                <input
-                  autoFocus type="number" min="1" step="1"
-                  value={horasDraft}
-                  onChange={(e) => setHorasDraft(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") { setHorasMes(parseFloat(horasDraft) || 0); setEditingHoras(false); }
-                    if (e.key === "Escape") setEditingHoras(false);
-                  }}
-                  onBlur={() => { setHorasMes(parseFloat(horasDraft) || 0); setEditingHoras(false); }}
-                  className="w-20 rounded-lg border border-blue-400 dark:border-blue-500 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                <span className="text-xs text-slate-400">horas</span>
-                <button onClick={() => { setHorasMes(parseFloat(horasDraft) || 0); setEditingHoras(false); }} className="text-green-600"><Check size={13} /></button>
-                <button onClick={() => setEditingHoras(false)} className="text-slate-400"><X size={13} /></button>
+
+            {/* Días por semana */}
+            <div className="flex items-center justify-between gap-4 px-4 py-3 border-b border-slate-100 dark:border-gray-600">
+              <div>
+                <p className="text-sm font-medium text-slate-700 dark:text-gray-300">Días laborales por semana</p>
+                <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">Días que atiendes pacientes</p>
               </div>
-            ) : (
-              <button onClick={() => { setHorasDraft(String(horasMes)); setEditingHoras(true); }}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-gray-600 px-4 py-2 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors group/h">
-                <span className="text-sm font-semibold text-slate-800 dark:text-white">{horasMes > 0 ? `${horasMes} horas` : "— Ingresar —"}</span>
-                <Pencil size={12} className="text-slate-300 dark:text-gray-600 group-hover/h:text-blue-500" />
-              </button>
-            )}
+              <EditableNumber
+                value={diasSemana}
+                onSave={setDiasSemana}
+                suffix=" días"
+                min={1}
+                step={1}
+                width="w-16"
+              />
+            </div>
+
+            {/* Horas por día */}
+            <div className="flex items-center justify-between gap-4 px-4 py-3 border-b border-slate-100 dark:border-gray-600">
+              <div>
+                <p className="text-sm font-medium text-slate-700 dark:text-gray-300">Horas de trabajo por día</p>
+                <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">Horas clínicas por jornada</p>
+              </div>
+              <EditableNumber
+                value={horasDia}
+                onSave={setHorasDia}
+                suffix=" h"
+                min={0.5}
+                step={0.5}
+                width="w-16"
+              />
+            </div>
+
+            {/* Resultado: horas/mes */}
+            <div className="px-4 py-3 bg-white dark:bg-gray-800">
+              <div className="flex items-center justify-between text-sm">
+                <div>
+                  <p className="font-medium text-slate-700 dark:text-gray-300">Horas de trabajo por mes</p>
+                  <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">
+                    {diasSemana} días × {horasDia} h/día × 4.33 semanas/mes
+                  </p>
+                </div>
+                <span className="text-base font-bold text-slate-800 dark:text-white tabular-nums shrink-0">{horasMes} h</span>
+              </div>
+            </div>
           </div>
 
-          {/* Resultado del cálculo */}
+          {/* Resultado final */}
           <div className="rounded-xl bg-slate-50 dark:bg-gray-700/50 border border-slate-100 dark:border-gray-700 px-5 py-4">
             <div className="flex items-center justify-between text-sm mb-1">
               <span className="text-slate-500 dark:text-gray-400">Meta mensual</span>
@@ -224,7 +289,7 @@ export default function HonorariosPage() {
             </div>
             <div className="flex items-center justify-between text-sm mb-3 pb-3 border-b border-slate-200 dark:border-gray-600">
               <span className="text-slate-500 dark:text-gray-400">÷ Horas por mes</span>
-              <span className="font-medium text-slate-700 dark:text-gray-300">{horasMes > 0 ? `${horasMes} horas` : "—"}</span>
+              <span className="font-medium text-slate-700 dark:text-gray-300">{horasMes} horas</span>
             </div>
             <div className="flex items-center justify-between">
               <span className="font-semibold text-slate-800 dark:text-white">= Tarifa calculada</span>
