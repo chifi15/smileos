@@ -1,6 +1,6 @@
 """add fee_per_hour to fixed_costs_config
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: h1o2n3o4r5a6
 Revises: z6a7b8c9d0e1
 Create Date: 2026-09-02
 
@@ -8,7 +8,7 @@ Create Date: 2026-09-02
 from alembic import op
 import sqlalchemy as sa
 
-revision = "a1b2c3d4e5f6"
+revision = "h1o2n3o4r5a6"
 down_revision = "z6a7b8c9d0e1"
 branch_labels = None
 depends_on = None
