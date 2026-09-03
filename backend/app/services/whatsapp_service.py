@@ -20,66 +20,63 @@ logger = logging.getLogger("smileos")
 settings = get_settings()
 CLINIC_TZ = ZoneInfo("America/Managua")
 HISTORY_LIMIT = 20
+GEMINI_MODEL = "gemini-3.1-flash-lite"
+GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/{GEMINI_MODEL}:generateContent"
 
-
-def _build_gemini_tools():
-    import google.generativeai as genai
-    return genai.protos.Tool(
-        function_declarations=[
-            genai.protos.FunctionDeclaration(
-                name="buscar_paciente",
-                description="Busca un paciente en la clínica por teléfono o nombre completo",
-                parameters=genai.protos.Schema(
-                    type=genai.protos.Type.OBJECT,
-                    properties={
-                        "telefono": genai.protos.Schema(type=genai.protos.Type.STRING, description="Teléfono del paciente"),
-                        "nombre": genai.protos.Schema(type=genai.protos.Type.STRING, description="Nombre completo del paciente"),
-                    },
-                ),
-            ),
-            genai.protos.FunctionDeclaration(
-                name="ver_citas",
-                description="Ver las próximas citas agendadas de un paciente",
-                parameters=genai.protos.Schema(
-                    type=genai.protos.Type.OBJECT,
-                    properties={
-                        "patient_id": genai.protos.Schema(type=genai.protos.Type.STRING, description="UUID del paciente"),
-                    },
-                    required=["patient_id"],
-                ),
-            ),
-            genai.protos.FunctionDeclaration(
-                name="ver_disponibilidad",
-                description="Ver horarios disponibles para agendar en una fecha específica",
-                parameters=genai.protos.Schema(
-                    type=genai.protos.Type.OBJECT,
-                    properties={
-                        "fecha": genai.protos.Schema(type=genai.protos.Type.STRING, description="Fecha en formato YYYY-MM-DD"),
-                    },
-                    required=["fecha"],
-                ),
-            ),
-            genai.protos.FunctionDeclaration(
-                name="crear_cita",
-                description="Agendar una nueva cita para el paciente (solo tras confirmar con él)",
-                parameters=genai.protos.Schema(
-                    type=genai.protos.Type.OBJECT,
-                    properties={
-                        "patient_id": genai.protos.Schema(type=genai.protos.Type.STRING, description="UUID del paciente"),
-                        "fecha_hora": genai.protos.Schema(type=genai.protos.Type.STRING, description="Fecha y hora: YYYY-MM-DD HH:MM"),
-                        "tipo": genai.protos.Schema(type=genai.protos.Type.STRING, description="primera_consulta, control, limpieza, extraccion, endodoncia, ortodoncia, protesis, cirugia, emergencia, otro"),
-                        "notas": genai.protos.Schema(type=genai.protos.Type.STRING, description="Notas para el dentista"),
-                    },
-                    required=["patient_id", "fecha_hora"],
-                ),
-            ),
-        ]
-    )
+TOOL_DECLARATIONS = [
+    {
+        "name": "buscar_paciente",
+        "description": "Busca un paciente en la clínica por teléfono o nombre completo",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "telefono": {"type": "STRING", "description": "Teléfono del paciente"},
+                "nombre": {"type": "STRING", "description": "Nombre completo del paciente"},
+            },
+        },
+    },
+    {
+        "name": "ver_citas",
+        "description": "Ver las próximas citas agendadas de un paciente",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "patient_id": {"type": "STRING", "description": "UUID del paciente"},
+            },
+            "required": ["patient_id"],
+        },
+    },
+    {
+        "name": "ver_disponibilidad",
+        "description": "Ver horarios disponibles para agendar en una fecha específica",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "fecha": {"type": "STRING", "description": "Fecha en formato YYYY-MM-DD"},
+            },
+            "required": ["fecha"],
+        },
+    },
+    {
+        "name": "crear_cita",
+        "description": "Agendar una nueva cita para el paciente (solo tras confirmar con él)",
+        "parameters": {
+            "type": "OBJECT",
+            "properties": {
+                "patient_id": {"type": "STRING", "description": "UUID del paciente"},
+                "fecha_hora": {"type": "STRING", "description": "Fecha y hora: YYYY-MM-DD HH:MM"},
+                "tipo": {"type": "STRING", "description": "primera_consulta, control, limpieza, extraccion, endodoncia, ortodoncia, protesis, cirugia, emergencia, otro"},
+                "notas": {"type": "STRING", "description": "Notas para el dentista"},
+            },
+            "required": ["patient_id", "fecha_hora"],
+        },
+    },
+]
 
 
 async def send_wa_message(to: str, text: str) -> None:
     async with httpx.AsyncClient() as client:
-        await client.post(
+        r = await client.post(
             f"https://graph.facebook.com/v21.0/{settings.whatsapp_phone_number_id}/messages",
             headers={
                 "Authorization": f"Bearer {settings.whatsapp_token}",
@@ -93,6 +90,25 @@ async def send_wa_message(to: str, text: str) -> None:
             },
             timeout=10,
         )
+        if r.status_code != 200:
+            logger.error("WhatsApp send error %s: %s", r.status_code, r.text[:200])
+
+
+async def _call_gemini(system_prompt: str, messages: list[dict]) -> dict:
+    payload = {
+        "system_instruction": {"parts": [{"text": system_prompt}]},
+        "contents": messages,
+        "tools": [{"function_declarations": TOOL_DECLARATIONS}],
+        "generation_config": {"max_output_tokens": 512, "temperature": 0.7},
+    }
+    async with httpx.AsyncClient() as client:
+        r = await client.post(
+            GEMINI_URL,
+            params={"key": settings.gemini_api_key},
+            json=payload,
+            timeout=30,
+        )
+    return r.json()
 
 
 async def _get_clinic(db: AsyncSession) -> Clinic | None:
@@ -190,7 +206,6 @@ async def _execute_tool(name: str, args: dict, db: AsyncSession, clinic_id: uuid
         telefono = (args.get("telefono") or "").strip()
         nombre = (args.get("nombre") or "").strip()
         query = select(Patient).where(Patient.clinic_id == clinic_id, Patient.is_active == True)
-
         if telefono:
             digits = "".join(c for c in telefono if c.isdigit())[-8:]
             query = query.where(
@@ -206,14 +221,12 @@ async def _execute_tool(name: str, args: dict, db: AsyncSession, clinic_id: uuid
             query = query.where(
                 Patient.phone.like(f"%{digits}%") | Patient.phone_secondary.like(f"%{digits}%")
             )
-
         result = await db.execute(query.limit(5))
         patients = result.scalars().all()
         if not patients:
             return "No se encontró ningún paciente con esos datos."
         return "Pacientes encontrados:\n" + "\n".join(
-            f"ID: {p.id} | {p.first_name} {p.last_name} | Tel: {p.phone or 'N/A'}"
-            for p in patients
+            f"ID: {p.id} | {p.first_name} {p.last_name} | Tel: {p.phone or 'N/A'}" for p in patients
         )
 
     if name == "ver_citas":
@@ -230,8 +243,7 @@ async def _execute_tool(name: str, args: dict, db: AsyncSession, clinic_id: uuid
                 Appointment.scheduled_at >= now,
                 Appointment.status.not_in(["cancelled", "no_show"]),
             )
-            .order_by(Appointment.scheduled_at)
-            .limit(5)
+            .order_by(Appointment.scheduled_at).limit(5)
         )
         apts = result.scalars().all()
         if not apts:
@@ -276,11 +288,8 @@ async def _execute_tool(name: str, args: dict, db: AsyncSession, clinic_id: uuid
             from app.schemas.appointment import AppointmentCreate
             from app.services.appointment_service import create_appointment as svc_create
             data = AppointmentCreate(
-                patient_id=pid,
-                dentist_id=dentist.id,
-                scheduled_at=local_dt,
-                duration_minutes=30,
-                appointment_type=tipo,
+                patient_id=pid, dentist_id=dentist.id, scheduled_at=local_dt,
+                duration_minutes=30, appointment_type=tipo,
                 notes=("Agendada por WhatsApp. " + args.get("notas", "")).strip(),
             )
             appt = await svc_create(db, clinic_id, dentist.id, data)
@@ -293,71 +302,72 @@ async def _execute_tool(name: str, args: dict, db: AsyncSession, clinic_id: uuid
 
 
 async def process_message(db: AsyncSession, wa_id: str, text: str) -> None:
-    import google.generativeai as genai
-
     clinic = await _get_clinic(db)
     if not clinic or not clinic.settings:
+        logger.error("WhatsApp: no se encontró clínica activa")
         return
 
     clinic_id = clinic.id
 
-    # Load previous history BEFORE saving current message
     prev_history = await _get_history(db, clinic_id, wa_id)
-
-    # Save current user message
     await _save_message(db, clinic_id, wa_id, "user", text)
 
     catalog = await _get_catalog(db, clinic_id)
     system_prompt = _build_system_prompt(clinic, clinic.settings, catalog)
 
-    genai.configure(api_key=settings.gemini_api_key)
-
-    # Convert DB history to Gemini format (role: "user" | "model")
-    gemini_history = [
-        {"role": "user" if m["role"] == "user" else "model", "parts": [m["content"]]}
+    # Build Gemini messages (role: "user" | "model")
+    gemini_messages = [
+        {"role": "user" if m["role"] == "user" else "model", "parts": [{"text": m["content"]}]}
         for m in prev_history
     ]
+    gemini_messages.append({"role": "user", "parts": [{"text": text}]})
 
-    model = genai.GenerativeModel(
-        model_name="gemini-3.1-flash-lite",
-        system_instruction=system_prompt,
-        tools=[_build_gemini_tools()],
-    )
-    chat = model.start_chat(history=gemini_history)
     final_text = ""
 
     try:
-        response = await chat.send_message_async(text)
-
         for _ in range(5):
-            fn_calls = [
-                (p.function_call.name, dict(p.function_call.args))
-                for p in response.parts
-                if p.function_call.name
-            ]
+            response = await _call_gemini(system_prompt, gemini_messages)
 
-            if not fn_calls:
-                text_parts = [p.text for p in response.parts if hasattr(p, "text") and p.text]
-                final_text = "".join(text_parts)
+            if "error" in response:
+                logger.error("Gemini error: %s", response["error"])
                 break
 
-            fn_parts = []
-            for fn_name, fn_args in fn_calls:
-                result = await _execute_tool(fn_name, fn_args, db, clinic_id, wa_id)
-                fn_parts.append(
-                    genai.protos.Part(
-                        function_response=genai.protos.FunctionResponse(
-                            name=fn_name,
-                            response={"result": result},
-                        )
-                    )
-                )
+            candidate = response.get("candidates", [{}])[0]
+            content = candidate.get("content", {})
+            parts = content.get("parts", [])
+            finish_reason = candidate.get("finishReason", "")
 
-            response = await chat.send_message_async(fn_parts)
+            # Collect function calls
+            fn_calls = [p["functionCall"] for p in parts if "functionCall" in p]
+
+            if not fn_calls:
+                # Extract text response
+                final_text = "".join(p.get("text", "") for p in parts if "text" in p)
+                break
+
+            # Add assistant message with tool calls to history
+            gemini_messages.append({"role": "model", "parts": parts})
+
+            # Execute tools and build response parts
+            tool_result_parts = []
+            for fc in fn_calls:
+                fn_name = fc.get("name", "")
+                fn_args = fc.get("args", {})
+                result = await _execute_tool(fn_name, fn_args, db, clinic_id, wa_id)
+                tool_result_parts.append({
+                    "functionResponse": {
+                        "name": fn_name,
+                        "response": {"result": result},
+                    }
+                })
+
+            gemini_messages.append({"role": "user", "parts": tool_result_parts})
 
     except Exception as exc:
-        logger.error("Gemini bot error para %s: %s", wa_id, exc, exc_info=True)
+        logger.error("WhatsApp bot error para %s: %s", wa_id, exc, exc_info=True)
 
     if final_text:
         await _save_message(db, clinic_id, wa_id, "assistant", final_text)
         await send_wa_message(wa_id, final_text)
+    else:
+        logger.warning("WhatsApp: no se generó respuesta para %s", wa_id)
