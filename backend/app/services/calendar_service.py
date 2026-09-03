@@ -150,6 +150,12 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
 
     try:
         access_token = await oauth.refresh_access_token(settings.google_refresh_token)
+    except oauth.TokenExpiredError as e:
+        # Token expirado (app en Testing) o revocado → limpiar para que el UI muestre "desconectado"
+        settings.google_refresh_token = None
+        settings.google_calendar_id = None
+        await db.commit()
+        return {"error": str(e), "reconnect_required": True}
     except Exception as e:
         return {"error": f"No se pudo obtener access_token: {str(e)}"}
 

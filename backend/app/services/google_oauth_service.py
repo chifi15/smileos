@@ -54,6 +54,10 @@ async def exchange_code(code: str) -> dict:
         return resp.json()
 
 
+class TokenExpiredError(Exception):
+    """El refresh_token fue revocado o expiró (app en modo Testing → max 7 días)."""
+
+
 async def refresh_access_token(refresh_token: str) -> str:
     """Obtiene un nuevo access_token usando el refresh_token."""
     async with httpx.AsyncClient() as client:
@@ -63,6 +67,14 @@ async def refresh_access_token(refresh_token: str) -> str:
             "client_secret": _settings().google_client_secret,
             "grant_type": "refresh_token",
         })
+        if resp.status_code == 400:
+            body = resp.json()
+            err = body.get("error", "")
+            if err in ("invalid_grant", "invalid_client"):
+                raise TokenExpiredError(
+                    "El token de Google Calendar expiró o fue revocado. "
+                    "Desconecta y vuelve a conectar Google Calendar en Configuración."
+                )
         resp.raise_for_status()
         data = resp.json()
         return data["access_token"]
