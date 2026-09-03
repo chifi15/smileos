@@ -45,6 +45,14 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     frontend_url: str = "https://smileos-six.vercel.app"
 
+    # WhatsApp Cloud API
+    whatsapp_token: str = ""
+    whatsapp_phone_number_id: str = ""
+    whatsapp_verify_token: str = "smileos_wa_verify_2026"
+
+    # Anthropic (Claude)
+    anthropic_api_key: str = ""
+
     @property
     def cors_origins(self) -> list[str]:
         return [o.strip() for o in self.allowed_origins.split(",")]

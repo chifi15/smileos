@@ -10,6 +10,7 @@ from app.models.audit import AuditLog
 from app.models.evolution import PatientEvolution
 from app.models.costos import CostProduct, CostTreatment, CostAppointment, FixedCostsConfig, CostProductLot
 from app.models.calendar import CalendarEvent
+from app.models.whatsapp import WhatsappConversation
 
 __all__ = [
     "Clinic",
@@ -36,4 +37,5 @@ __all__ = [
     "FixedCostsConfig",
     "CostProductLot",
     "CalendarEvent",
+    "WhatsappConversation",
 ]

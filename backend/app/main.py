@@ -119,7 +119,7 @@ async def health_check():
 
 
 # Routers
-from app.api.v1 import auth, patients, appointments, catalog, treatments, dashboard, photos, odontogram, finances, audit, costos, export, reports, calendar  # noqa: E402
+from app.api.v1 import auth, patients, appointments, catalog, treatments, dashboard, photos, odontogram, finances, audit, costos, export, reports, calendar, whatsapp  # noqa: E402
 from app.api.v1.odontogram import quote_router  # noqa: E402
 from app.api.v1.settings import settings_router, users_router  # noqa: E402
 from app.api.v1.rewards import router as rewards_router, levels_router  # noqa: E402
@@ -142,3 +142,4 @@ app.include_router(costos.router, prefix="/api/v1")
 app.include_router(export.router, prefix="/api/v1")
 app.include_router(reports.router, prefix="/api/v1")
 app.include_router(calendar.router, prefix="/api/v1")
+app.include_router(whatsapp.router, prefix="/api/v1")
