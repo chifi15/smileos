@@ -24,6 +24,7 @@ async def get_dashboard(
     patients = await dashboard_service.get_patient_stats(db, user.clinic_id)
     treatments = await dashboard_service.get_treatment_stats(db, user.clinic_id)
     rewards = await dashboard_service.get_rewards_stats(db, user.clinic_id)
+    monthly = await dashboard_service.get_monthly_appointment_stats(db, user.clinic_id)
 
     return {
         "success": True,
@@ -33,6 +34,7 @@ async def get_dashboard(
             "patients": patients,
             "treatment_plans": treatments,
             "smile_rewards": rewards,
+            "monthly": monthly,
         },
     }
 

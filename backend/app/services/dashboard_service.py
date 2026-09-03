@@ -111,6 +111,33 @@ async def get_patient_stats(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
     }
 
 
+async def get_monthly_appointment_stats(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
+    """Citas completadas del mes y pacientes únicos atendidos."""
+    month_start = _month_start_utc()
+
+    total_citas = await db.scalar(
+        select(func.count(Appointment.id)).where(
+            Appointment.clinic_id == clinic_id,
+            Appointment.status == "completed",
+            Appointment.completed_at >= month_start,
+        )
+    ) or 0
+
+    pacientes_unicos = await db.scalar(
+        select(func.count(func.distinct(Appointment.patient_id))).where(
+            Appointment.clinic_id == clinic_id,
+            Appointment.status == "completed",
+            Appointment.completed_at >= month_start,
+            Appointment.patient_id.isnot(None),
+        )
+    ) or 0
+
+    return {
+        "total_citas_mes": total_citas,
+        "pacientes_unicos_mes": pacientes_unicos,
+    }
+
+
 async def get_treatment_stats(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
     """Planes de tratamiento agrupados por estado."""
     rows = await db.execute(

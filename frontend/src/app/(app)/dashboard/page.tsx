@@ -26,6 +26,8 @@ import {
   Star,
   RefreshCw,
   Activity,
+  CalendarDays,
+  UserCheck,
 } from "lucide-react";
 
 function greeting(name: string) {
@@ -141,6 +143,24 @@ export default function DashboardPage() {
               label="No asistió"
               value={stats.today.no_show}
               color="bg-rose-50 text-rose-600"
+            />
+          </div>
+
+          {/* Monthly stats */}
+          <div className="grid grid-cols-2 gap-4">
+            <StatCard
+              icon={CalendarDays}
+              label="Citas del mes"
+              value={stats.monthly.total_citas_mes}
+              sub="Incluyendo visitas repetidas"
+              color="bg-violet-50 text-violet-600"
+            />
+            <StatCard
+              icon={UserCheck}
+              label="Pacientes únicos"
+              value={stats.monthly.pacientes_unicos_mes}
+              sub="Pacientes atendidos este mes"
+              color="bg-teal-50 text-teal-600"
             />
           </div>
 

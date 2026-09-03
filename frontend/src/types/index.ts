@@ -146,6 +146,10 @@ export interface DashboardStats {
     by_level: Record<RewardsLevel, number>;
     total_points_in_circulation: number;
   };
+  monthly: {
+    total_citas_mes: number;
+    pacientes_unicos_mes: number;
+  };
 }
 
 // ─── Patients (detail + list) ─────────────────────────────────────────────────
