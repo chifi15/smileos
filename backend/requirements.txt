@@ -30,7 +30,7 @@ python-dotenv==1.0.1
 httpx==0.28.1
 
 # IA / WhatsApp
-anthropic==0.49.0
+google-generativeai>=0.8.0
 
 # Exportación
 openpyxl==3.1.5
