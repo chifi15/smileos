@@ -197,12 +197,18 @@ export default function DashboardPage() {
                           </p>
                         </div>
                         <div className="min-w-0 flex-1">
-                          <Link
-                            href={`/patients/${item.patient.id}`}
-                            className="truncate text-sm font-medium text-slate-800 dark:text-white hover:text-blue-600 transition-colors"
-                          >
-                            {item.patient.full_name}
-                          </Link>
+                          {item.patient.id ? (
+                            <Link
+                              href={`/patients/${item.patient.id}`}
+                              className="truncate text-sm font-medium text-slate-800 dark:text-white hover:text-blue-600 transition-colors"
+                            >
+                              {item.patient.full_name}
+                            </Link>
+                          ) : (
+                            <span className="truncate text-sm font-medium text-slate-800 dark:text-white">
+                              {item.patient.full_name}
+                            </span>
+                          )}
                           <p className="text-xs text-slate-500 dark:text-gray-400">
                             {APPOINTMENT_TYPE_LABELS[item.appointment_type]}
                             {item.reason && ` — ${item.reason}`}

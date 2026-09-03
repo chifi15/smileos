@@ -212,8 +212,8 @@ async def get_todays_schedule(
 
     schedule = []
     for appt in appointments:
-        # Convertir a hora local de la clínica para mostrar
         local_time = appt.scheduled_at.astimezone(CLINIC_TZ)
+        patient = appt.patient
         schedule.append({
             "id": str(appt.id),
             "scheduled_at": appt.scheduled_at.isoformat(),
@@ -222,9 +222,9 @@ async def get_todays_schedule(
             "appointment_type": appt.appointment_type,
             "status": appt.status,
             "patient": {
-                "id": str(appt.patient.id),
-                "full_name": appt.patient.full_name,
-                "phone": appt.patient.phone,
+                "id": str(patient.id) if patient else None,
+                "full_name": patient.full_name if patient else (appt.guest_name or "Paciente sin registro"),
+                "phone": patient.phone if patient else None,
             },
             "dentist": {
                 "id": str(appt.dentist.id),
