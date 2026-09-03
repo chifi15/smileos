@@ -319,7 +319,7 @@ async def process_message(db: AsyncSession, wa_id: str, text: str) -> None:
     ]
 
     model = genai.GenerativeModel(
-        model_name="gemini-3.6-flash",
+        model_name="gemini-3.1-flash-lite",
         system_instruction=system_prompt,
         tools=[_build_gemini_tools()],
     )
