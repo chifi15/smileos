@@ -2,9 +2,12 @@
 Servicio de Dashboard — agrega KPIs en tiempo real desde la base de datos.
 Todas las consultas están aisladas por clinic_id; sin caché por ahora (v0.1).
 """
+import logging
 import uuid
 from datetime import datetime, timezone, timedelta
 from zoneinfo import ZoneInfo
+
+logger = logging.getLogger("smileos")
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, case, and_, cast, Date
@@ -19,11 +22,14 @@ CLINIC_TZ = ZoneInfo("America/Managua")
 
 
 def _today_range_utc() -> tuple[datetime, datetime]:
-    """Inicio y fin del día de hoy en UTC, usando la zona horaria de la clínica."""
-    now_local = datetime.now(CLINIC_TZ)
-    today_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_end_local = today_start_local + timedelta(days=1)
-    return today_start_local.astimezone(timezone.utc), today_end_local.astimezone(timezone.utc)
+    """Inicio y fin del día de hoy en UTC puro (medianoche UTC → medianoche UTC+1).
+    Usa el mismo criterio que list_appointments para que la agenda y el dashboard
+    muestren exactamente las mismas citas.
+    """
+    today = datetime.now(timezone.utc).date()
+    day_start = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
+    day_end = day_start + timedelta(days=1)
+    return day_start, day_end
 
 
 def _month_start_utc() -> datetime:
@@ -212,24 +218,28 @@ async def get_todays_schedule(
 
     schedule = []
     for appt in appointments:
-        local_time = appt.scheduled_at.astimezone(CLINIC_TZ)
-        patient = appt.patient
-        schedule.append({
-            "id": str(appt.id),
-            "scheduled_at": appt.scheduled_at.isoformat(),
-            "scheduled_at_local": local_time.strftime("%H:%M"),
-            "duration_minutes": appt.duration_minutes,
-            "appointment_type": appt.appointment_type,
-            "status": appt.status,
-            "patient": {
-                "id": str(patient.id) if patient else None,
-                "full_name": patient.full_name if patient else (appt.guest_name or "Paciente sin registro"),
-                "phone": patient.phone if patient else None,
-            },
-            "dentist": {
-                "id": str(appt.dentist.id),
-                "full_name": appt.dentist.full_name,
-            },
-            "reason": appt.reason,
-        })
+        try:
+            local_time = appt.scheduled_at.astimezone(CLINIC_TZ)
+            patient = appt.patient
+            dentist = appt.dentist
+            schedule.append({
+                "id": str(appt.id),
+                "scheduled_at": appt.scheduled_at.isoformat(),
+                "scheduled_at_local": local_time.strftime("%H:%M"),
+                "duration_minutes": appt.duration_minutes,
+                "appointment_type": appt.appointment_type,
+                "status": appt.status,
+                "patient": {
+                    "id": str(patient.id) if patient else None,
+                    "full_name": patient.full_name if patient else (appt.guest_name or "Paciente sin registro"),
+                    "phone": patient.phone if patient else None,
+                },
+                "dentist": {
+                    "id": str(dentist.id) if dentist else None,
+                    "full_name": dentist.full_name if dentist else "Sin asignar",
+                },
+                "reason": appt.reason,
+            })
+        except Exception as exc:
+            logger.error("Error serializando cita %s en dashboard: %s", appt.id, exc)
     return schedule
