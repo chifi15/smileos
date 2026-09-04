@@ -22,14 +22,11 @@ CLINIC_TZ = ZoneInfo("America/Managua")
 
 
 def _today_range_utc() -> tuple[datetime, datetime]:
-    """Inicio y fin del día de hoy en UTC puro (medianoche UTC → medianoche UTC+1).
-    Usa el mismo criterio que list_appointments para que la agenda y el dashboard
-    muestren exactamente las mismas citas.
-    """
-    today = datetime.now(timezone.utc).date()
-    day_start = datetime(today.year, today.month, today.day, tzinfo=timezone.utc)
-    day_end = day_start + timedelta(days=1)
-    return day_start, day_end
+    """Medianoche a medianoche en zona horaria de la clínica, convertido a UTC."""
+    now_local = datetime.now(CLINIC_TZ)
+    day_start_local = now_local.replace(hour=0, minute=0, second=0, microsecond=0)
+    day_end_local = day_start_local + timedelta(days=1)
+    return day_start_local.astimezone(timezone.utc), day_end_local.astimezone(timezone.utc)
 
 
 def _month_start_utc() -> datetime:
@@ -199,6 +196,7 @@ async def get_todays_schedule(
 ) -> list[dict]:
     """Agenda del día ordenada por hora — incluye paciente y dentista."""
     day_start, day_end = _today_range_utc()
+    logger.info("Dashboard schedule: clinic=%s rango=[%s, %s)", clinic_id, day_start, day_end)
 
     result = await db.execute(
         select(Appointment)
@@ -215,6 +213,7 @@ async def get_todays_schedule(
         .order_by(Appointment.scheduled_at)
     )
     appointments = list(result.scalars().all())
+    logger.info("Dashboard schedule: encontradas %d citas", len(appointments))
 
     schedule = []
     for appt in appointments:

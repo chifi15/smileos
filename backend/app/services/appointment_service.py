@@ -266,11 +266,11 @@ async def list_appointments(
         .order_by(Appointment.scheduled_at)
     )
     if date_from:
-        q = q.where(Appointment.scheduled_at >= datetime(date_from.year, date_from.month, date_from.day, tzinfo=timezone.utc))
+        start_local = datetime(date_from.year, date_from.month, date_from.day, tzinfo=CLINIC_TZ)
+        q = q.where(Appointment.scheduled_at >= start_local.astimezone(timezone.utc))
     if date_to:
-        from datetime import timedelta
-        next_day = date_to + timedelta(days=1)
-        q = q.where(Appointment.scheduled_at < datetime(next_day.year, next_day.month, next_day.day, tzinfo=timezone.utc))
+        end_local = datetime(date_to.year, date_to.month, date_to.day, tzinfo=CLINIC_TZ) + timedelta(days=1)
+        q = q.where(Appointment.scheduled_at < end_local.astimezone(timezone.utc))
     if patient_id:
         q = q.where(Appointment.patient_id == patient_id)
     if dentist_id:
