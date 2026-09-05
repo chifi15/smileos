@@ -91,13 +91,18 @@ function DateInput({ value, onChange }: { value: string; onChange: (iso: string)
     if (!/^\d$/.test(e.key)) return;
 
     e.preventDefault();
-    if (curDigits.length >= 8 && selStart === selEnd) return;
 
-    const newDigits = (
-      curDigits.slice(0, digitsBefore) +
-      e.key +
-      curDigits.slice(digitsBefore + digitsInSel)
-    ).slice(0, 8);
+    let newDigits: string;
+    if (curDigits.length >= 8 && selStart === selEnd) {
+      if (digitsBefore >= 8) return;
+      newDigits = curDigits.slice(0, digitsBefore) + e.key + curDigits.slice(digitsBefore + 1);
+    } else {
+      newDigits = (
+        curDigits.slice(0, digitsBefore) +
+        e.key +
+        curDigits.slice(digitsBefore + digitsInSel)
+      ).slice(0, 8);
+    }
 
     const newMasked = buildMasked(newDigits);
     setRaw(newMasked);
