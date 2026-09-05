@@ -77,38 +77,34 @@ export default function PatientsPage() {
   const pathname = usePathname();
 
   const [searchInput, setSearchInput] = useState(searchParams.get("q") ?? "");
+  const [debouncedSearch, setDebouncedSearch] = useState(searchInput);
   const [level, setLevel] = useState(searchParams.get("level") ?? "");
   const [page, setPage] = useState(parseInt(searchParams.get("page") ?? "1"));
   const [showInactive, setShowInactive] = useState(false);
   const [toDelete, setToDelete] = useState<PatientToDelete | null>(null);
   const reactivate = useReactivatePatient();
 
-  // Sync URL params → local state on navigation
-  useEffect(() => {
-    setSearchInput(searchParams.get("q") ?? "");
-    setLevel(searchParams.get("level") ?? "");
-    setPage(parseInt(searchParams.get("page") ?? "1"));
-  }, [searchParams]);
-
-  // Debounced search: push to URL after 400ms idle
+  // Debounce la búsqueda directamente en estado local (no depende del URL)
   useEffect(() => {
     const t = setTimeout(() => {
-      const p = new URLSearchParams();
-      if (searchInput) p.set("q", searchInput);
-      if (level) p.set("level", level);
-      p.set("page", "1");
-      router.replace(`${pathname}?${p.toString()}`);
+      setDebouncedSearch(searchInput);
       setPage(1);
     }, 400);
     return () => clearTimeout(t);
-  }, [searchInput, level]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [searchInput]);
 
-  const search = searchParams.get("q") ?? undefined;
-  const levelFilter = searchParams.get("level") ?? undefined;
+  // Sincronizar filtro de nivel con URL
+  useEffect(() => {
+    const p = new URLSearchParams();
+    if (debouncedSearch) p.set("q", debouncedSearch);
+    if (level) p.set("level", level);
+    p.set("page", "1");
+    router.replace(`${pathname}?${p.toString()}`);
+  }, [debouncedSearch, level]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const { data, isLoading } = usePatientList({
-    search,
-    level: levelFilter,
+    search: debouncedSearch || undefined,
+    level: level || undefined,
     page,
     per_page: 20,
     active_only: !showInactive,
