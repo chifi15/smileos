@@ -92,10 +92,10 @@ function DateInput({ value, onChange }: { value: string; onChange: (iso: string)
 
     e.preventDefault();
 
-    // En overwrite mode, si el cursor llegó al final vuelve al inicio
+    // En overwrite mode, si el cursor llegó al final vuelve al primer dígito del año
     const effectiveBefore =
       curDigits.length >= 8 && selStart === selEnd && digitsBefore >= 8
-        ? 0
+        ? 4
         : digitsBefore;
 
     // Validación: primer dígito del mes solo puede ser 0 o 1
