@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, ChevronRight, History } from "lucide-react";
+import { ChevronLeft, ChevronRight, History, FolderOpen } from "lucide-react";
 import { usePatient } from "@/hooks/usePatients";
 import { usePatientAudit } from "@/hooks/useAudit";
 import Spinner from "@/components/ui/Spinner";
@@ -111,6 +111,17 @@ export default function PatientHistoryPage() {
           </button>
         ))}
       </div>
+
+      {/* Fecha de creación del expediente */}
+      {patient && (
+        <div className="flex items-center gap-3 rounded-xl border border-blue-100 dark:border-blue-900/40 bg-blue-50 dark:bg-blue-900/10 px-4 py-3">
+          <FolderOpen size={16} className="text-blue-500 dark:text-blue-400 shrink-0" />
+          <p className="text-sm text-slate-700 dark:text-gray-300">
+            <span className="font-medium">Expediente creado el </span>
+            {format(parseISO(patient.created_at), "d 'de' MMMM yyyy 'a las' HH:mm", { locale: es })}
+          </p>
+        </div>
+      )}
 
       {/* Feed */}
       <div className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
