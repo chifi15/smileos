@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { differenceInYears, parseISO } from "date-fns";
@@ -71,7 +71,7 @@ function age(dob: string | null): string {
   return `${differenceInYears(new Date(), parseISO(dob))} años`;
 }
 
-export default function PatientsPage() {
+function PatientsContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -345,5 +345,13 @@ export default function PatientsPage() {
         <DeletePatientModal patient={toDelete} onClose={() => setToDelete(null)} />
       )}
     </div>
+  );
+}
+
+export default function PatientsPage() {
+  return (
+    <Suspense>
+      <PatientsContent />
+    </Suspense>
   );
 }

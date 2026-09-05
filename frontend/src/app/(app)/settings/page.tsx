@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
@@ -233,7 +233,7 @@ function UserRow({ user }: { user: ClinicUser }) {
   );
 }
 
-export default function SettingsPage() {
+function SettingsContent() {
   const { data: settings, isLoading: loadingSettings } = useClinicSettings();
   const { data: users = [], isLoading: loadingUsers } = useAllUsers();
   const updateSettings = useUpdateSettings();
@@ -1016,5 +1016,13 @@ function BackupSection() {
         </p>
       </div>
     </section>
+  );
+}
+
+export default function SettingsPage() {
+  return (
+    <Suspense>
+      <SettingsContent />
+    </Suspense>
   );
 }
