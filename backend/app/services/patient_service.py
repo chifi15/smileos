@@ -344,6 +344,81 @@ async def get_patient_segments(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
     }
 
 
+async def get_patient_visit_history(db: AsyncSession, clinic_id: uuid.UUID, patient_id: uuid.UUID) -> dict:
+    """Historial unificado de visitas de un paciente: citas + eventos de calendario."""
+    from collections import defaultdict
+    from sqlalchemy import text
+
+    visits_sql = text("""
+        SELECT id::text, scheduled_at AS date, appointment_type AS type,
+               status, reason, notes, 'appointment' AS source
+        FROM appointments
+        WHERE patient_id = :pid AND clinic_id = :cid
+        UNION ALL
+        SELECT id::text, start_at AS date, 'Evento de calendario' AS type,
+               'completed' AS status, title AS reason, NULL AS notes, 'calendar' AS source
+        FROM calendar_events
+        WHERE patient_id = :pid AND clinic_id = :cid
+        ORDER BY date DESC NULLS LAST
+    """)
+
+    finance_sql = text("""
+        SELECT ft.transaction_date, ft.description,
+               COALESCE(pc.name, ft.description) AS procedure_name,
+               ft.notes, ft.amount_cordobas
+        FROM finance_transactions ft
+        LEFT JOIN procedure_catalog pc ON pc.id = ft.procedure_id
+        WHERE ft.patient_id = :pid AND ft.clinic_id = :cid AND ft.type = 'ingreso'
+        ORDER BY ft.transaction_date DESC
+    """)
+
+    evo_sql = text("""
+        SELECT date, note FROM patient_evolutions
+        WHERE patient_id = :pid AND clinic_id = :cid
+        ORDER BY date DESC
+    """)
+
+    params = {"pid": str(patient_id), "cid": str(clinic_id)}
+    visits_rows = (await db.execute(visits_sql, params)).fetchall()
+    finance_rows = (await db.execute(finance_sql, params)).fetchall()
+    evo_rows = (await db.execute(evo_sql, params)).fetchall()
+
+    finance_by_date: dict = defaultdict(list)
+    for f in finance_rows:
+        finance_by_date[f.transaction_date.isoformat()].append({
+            "procedure_name": f.procedure_name,
+            "description": f.description,
+            "notes": f.notes,
+            "amount": float(f.amount_cordobas),
+        })
+
+    evo_by_date: dict = defaultdict(list)
+    for e in evo_rows:
+        evo_by_date[e.date.isoformat()].append(e.note)
+
+    visits = []
+    for v in visits_rows:
+        date_only = v.date.date().isoformat() if v.date else None
+        visits.append({
+            "id": v.id,
+            "date": v.date.isoformat() if v.date else None,
+            "type": v.type,
+            "status": v.status,
+            "reason": v.reason,
+            "notes": v.notes,
+            "source": v.source,
+            "procedures": finance_by_date.get(date_only, []),
+            "evolutions": evo_by_date.get(date_only, []),
+        })
+
+    last_visit = visits_rows[0].date.isoformat() if visits_rows else None
+    return {
+        "last_visit": last_visit,
+        "total_visits": len(visits),
+        "visits": visits,
+    }
+
+
 async def search_patients_simple(
     db: AsyncSession, clinic_id: uuid.UUID, q: str, limit: int = 10
 ) -> list[Patient]:

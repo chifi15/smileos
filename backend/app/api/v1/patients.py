@@ -323,6 +323,16 @@ async def _get_evo(db: AsyncSession, clinic_id: uuid.UUID, patient_id: uuid.UUID
     return evo
 
 
+@router.get("/{patient_id}/visit-history")
+async def get_patient_visit_history(
+    patient_id: uuid.UUID,
+    user: Annotated[object, require_permission("view_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    data = await patient_service.get_patient_visit_history(db, user.clinic_id, patient_id)
+    return {"success": True, "data": data}
+
+
 @router.get("/{patient_id}/evolutions")
 async def list_evolutions(
     patient_id: uuid.UUID,

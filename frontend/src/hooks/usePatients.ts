@@ -198,6 +198,37 @@ export function usePatientSegments() {
   });
 }
 
+export interface VisitHistoryItem {
+  id: string;
+  date: string | null;
+  type: string;
+  status: string;
+  reason: string | null;
+  notes: string | null;
+  source: "appointment" | "calendar";
+  procedures: { procedure_name: string; description: string; notes: string | null; amount: number }[];
+  evolutions: string[];
+}
+
+export interface PatientVisitHistory {
+  last_visit: string | null;
+  total_visits: number;
+  visits: VisitHistoryItem[];
+}
+
+export function usePatientVisitHistory(patientId: string | null) {
+  return useQuery({
+    queryKey: ["patients", patientId, "visit-history"],
+    enabled: !!patientId,
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: PatientVisitHistory }>(
+        `/api/v1/patients/${patientId}/visit-history`
+      );
+      return data.data;
+    },
+  });
+}
+
 export function useSetReferral(patientId: string, onSuccess?: () => void) {
   const qc = useQueryClient();
   return useMutation({
