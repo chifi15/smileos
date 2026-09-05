@@ -1,12 +1,57 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, useRef, useEffect, FormEvent } from "react";
 import { differenceInYears, parseISO } from "date-fns";
 import Input from "@/components/ui/Input";
 import Textarea from "@/components/ui/Textarea";
 import Select from "@/components/ui/Select";
 import Button from "@/components/ui/Button";
 import { PatientFormValues, EMPTY_PATIENT_FORM } from "@/types";
+
+function toDisplay(iso: string): string {
+  if (!iso || !/^\d{4}-\d{2}-\d{2}/.test(iso)) return "";
+  const [y, m, d] = iso.slice(0, 10).split("-");
+  return `${d}/${m}/${y}`;
+}
+
+function toISO(display: string): string {
+  const match = display.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (!match) return "";
+  const [, d, m, y] = match;
+  return `${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`;
+}
+
+function DateInput({ value, onChange }: { value: string; onChange: (iso: string) => void }) {
+  const [raw, setRaw] = useState(() => toDisplay(value));
+  const focused = useRef(false);
+
+  useEffect(() => {
+    if (!focused.current) setRaw(toDisplay(value));
+  }, [value]);
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = e.target.value;
+    setRaw(v);
+    const iso = toISO(v);
+    if (iso) onChange(iso);
+  }
+
+  return (
+    <div className="flex flex-col gap-1">
+      <label className="text-sm font-medium text-slate-700 dark:text-gray-300">Fecha de nacimiento</label>
+      <input
+        type="text"
+        value={raw}
+        onChange={handleChange}
+        onFocus={() => { focused.current = true; }}
+        onBlur={() => { focused.current = false; setRaw(toDisplay(value)); }}
+        placeholder="DD/MM/AAAA"
+        maxLength={10}
+        className="flex h-10 w-full rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm text-slate-900 dark:text-gray-100 placeholder:text-slate-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+      />
+    </div>
+  );
+}
 
 function calcAge(dob: string): string | null {
   if (!dob) return null;
@@ -95,11 +140,9 @@ export default function PatientForm({
             onChange={field("last_name")}
             required
           />
-          <Input
-            label="Fecha de nacimiento"
-            type="date"
+          <DateInput
             value={values.date_of_birth}
-            onChange={field("date_of_birth")}
+            onChange={(iso) => setValues((v) => ({ ...v, date_of_birth: iso }))}
           />
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-slate-700 dark:text-gray-300">Edad</label>
