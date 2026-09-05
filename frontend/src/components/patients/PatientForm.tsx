@@ -24,15 +24,87 @@ function toISO(display: string): string {
 function DateInput({ value, onChange }: { value: string; onChange: (iso: string) => void }) {
   const [raw, setRaw] = useState(() => toDisplay(value));
   const focused = useRef(false);
+  const ref = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!focused.current) setRaw(toDisplay(value));
   }, [value]);
 
-  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const v = e.target.value;
-    setRaw(v);
-    const iso = toISO(v);
+  function buildMasked(digits: string): string {
+    const d = digits.slice(0, 8);
+    let r = d.slice(0, 2);
+    if (d.length > 2) r += "/" + d.slice(2, 4);
+    if (d.length > 4) r += "/" + d.slice(4);
+    return r;
+  }
+
+  function posAfterDigit(masked: string, digitIdx: number): number {
+    let dc = -1;
+    for (let i = 0; i < masked.length; i++) {
+      if (masked[i] !== "/") {
+        dc++;
+        if (dc === digitIdx) {
+          let pos = i + 1;
+          while (pos < masked.length && masked[pos] === "/") pos++;
+          return pos;
+        }
+      }
+    }
+    return masked.length;
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    const el = ref.current!;
+    const selStart = el.selectionStart ?? 0;
+    const selEnd = el.selectionEnd ?? 0;
+    const curDigits = raw.replace(/\D/g, "");
+    const digitsBefore = raw.slice(0, selStart).replace(/\D/g, "").length;
+    const digitsInSel = raw.slice(selStart, selEnd).replace(/\D/g, "").length;
+
+    if (e.key === "Backspace" || e.key === "Delete") {
+      e.preventDefault();
+      let newDigits: string;
+      let afterDigits: number;
+
+      if (selStart !== selEnd) {
+        newDigits = curDigits.slice(0, digitsBefore) + curDigits.slice(digitsBefore + digitsInSel);
+        afterDigits = digitsBefore;
+      } else if (e.key === "Backspace" && digitsBefore > 0) {
+        newDigits = curDigits.slice(0, digitsBefore - 1) + curDigits.slice(digitsBefore);
+        afterDigits = digitsBefore - 1;
+      } else if (e.key === "Delete" && digitsBefore < curDigits.length) {
+        newDigits = curDigits.slice(0, digitsBefore) + curDigits.slice(digitsBefore + 1);
+        afterDigits = digitsBefore;
+      } else {
+        return;
+      }
+
+      const newMasked = buildMasked(newDigits);
+      setRaw(newMasked);
+      const pos = afterDigits > 0 ? posAfterDigit(newMasked, afterDigits - 1) : 0;
+      requestAnimationFrame(() => el.setSelectionRange(pos, pos));
+      const iso = toISO(newMasked);
+      if (iso) onChange(iso);
+      return;
+    }
+
+    if (!/^\d$/.test(e.key)) return;
+
+    e.preventDefault();
+    if (curDigits.length >= 8 && selStart === selEnd) return;
+
+    const newDigits = (
+      curDigits.slice(0, digitsBefore) +
+      e.key +
+      curDigits.slice(digitsBefore + digitsInSel)
+    ).slice(0, 8);
+
+    const newMasked = buildMasked(newDigits);
+    setRaw(newMasked);
+    const pos = posAfterDigit(newMasked, digitsBefore);
+    requestAnimationFrame(() => el.setSelectionRange(pos, pos));
+
+    const iso = toISO(newMasked);
     if (iso) onChange(iso);
   }
 
@@ -40,13 +112,17 @@ function DateInput({ value, onChange }: { value: string; onChange: (iso: string)
     <div className="flex flex-col gap-1">
       <label className="text-sm font-medium text-slate-700 dark:text-gray-300">Fecha de nacimiento</label>
       <input
+        ref={ref}
         type="text"
         value={raw}
-        onChange={handleChange}
+        onChange={() => {}}
+        onKeyDown={handleKeyDown}
         onFocus={() => { focused.current = true; }}
         onBlur={() => { focused.current = false; setRaw(toDisplay(value)); }}
+        onPaste={(e) => e.preventDefault()}
         placeholder="DD/MM/AAAA"
         maxLength={10}
+        inputMode="numeric"
         className="flex h-10 w-full rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm text-slate-900 dark:text-gray-100 placeholder:text-slate-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
       />
     </div>
