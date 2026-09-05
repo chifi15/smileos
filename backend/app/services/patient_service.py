@@ -313,6 +313,7 @@ async def get_patient_segments(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
     rows = result.fetchall()
 
     incomplete_treatment: list[dict] = []
+    active: list[dict] = []
     pending_review: list[dict] = []
     dormant: list[dict] = []
 
@@ -344,9 +345,12 @@ async def get_patient_segments(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
             dormant.append(patient_data)
         elif last_known < six_months_ago:
             pending_review.append(patient_data)
+        else:
+            active.append(patient_data)
 
     return {
         "incomplete_treatment": {"count": len(incomplete_treatment), "patients": incomplete_treatment},
+        "active": {"count": len(active), "patients": active},
         "pending_review": {"count": len(pending_review), "patients": pending_review},
         "dormant": {"count": len(dormant), "patients": dormant},
     }

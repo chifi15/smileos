@@ -182,6 +182,7 @@ export interface PatientSegmentItem {
 
 export interface PatientSegments {
   incomplete_treatment: { count: number; patients: PatientSegmentItem[] };
+  active: { count: number; patients: PatientSegmentItem[] };
   pending_review: { count: number; patients: PatientSegmentItem[] };
   dormant: { count: number; patients: PatientSegmentItem[] };
 }

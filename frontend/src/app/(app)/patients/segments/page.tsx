@@ -17,6 +17,7 @@ import {
   ExternalLink,
   FileText,
   Stethoscope,
+  CheckCircle2,
 } from "lucide-react";
 import {
   usePatientSegments,
@@ -27,6 +28,14 @@ import {
 import Spinner from "@/components/ui/Spinner";
 
 const COLOR_MAP = {
+  green: {
+    card: "border-green-200 dark:border-green-800",
+    header: "bg-green-50 dark:bg-green-900/20",
+    badge: "bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300",
+    icon: "text-green-500 dark:text-green-400",
+    dot: "bg-green-500",
+    row: "hover:bg-green-50/50 dark:hover:bg-green-900/10",
+  },
   red: {
     card: "border-red-200 dark:border-red-800",
     header: "bg-red-50 dark:bg-red-900/20",
@@ -246,7 +255,7 @@ interface SegmentCardProps {
   description: string;
   count: number;
   patients: PatientSegmentItem[];
-  color: "red" | "yellow" | "slate";
+  color: "green" | "red" | "yellow" | "slate";
   icon: React.ReactNode;
   defaultOpen?: boolean;
   onPatientClick: (p: PatientSegmentItem) => void;
@@ -360,7 +369,7 @@ export default function PatientSegmentsPage() {
   const [selectedPatient, setSelectedPatient] = useState<PatientSegmentItem | null>(null);
 
   const total = data
-    ? data.incomplete_treatment.count + data.pending_review.count + data.dormant.count
+    ? data.incomplete_treatment.count + data.active.count + data.pending_review.count + data.dormant.count
     : 0;
 
   return (
@@ -379,7 +388,7 @@ export default function PatientSegmentsPage() {
             </h1>
             {!isLoading && (
               <p className="text-sm text-slate-500 dark:text-gray-400">
-                {total} pacientes requieren atención · Haz clic en un paciente para ver su historial
+                {total} pacientes · Haz clic en un paciente para ver su historial
               </p>
             )}
           </div>
@@ -399,6 +408,15 @@ export default function PatientSegmentsPage() {
               color="red"
               icon={<AlertCircle size={20} />}
               defaultOpen={true}
+              onPatientClick={setSelectedPatient}
+            />
+            <SegmentCard
+              label="Al día"
+              description="Visitaron la clínica en los últimos 6 meses"
+              count={data!.active.count}
+              patients={data!.active.patients}
+              color="green"
+              icon={<CheckCircle2 size={20} />}
               onPatientClick={setSelectedPatient}
             />
             <SegmentCard
