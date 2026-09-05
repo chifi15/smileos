@@ -92,21 +92,35 @@ function DateInput({ value, onChange }: { value: string; onChange: (iso: string)
 
     e.preventDefault();
 
+    // En overwrite mode, si el cursor llegó al final vuelve al inicio
+    const effectiveBefore =
+      curDigits.length >= 8 && selStart === selEnd && digitsBefore >= 8
+        ? 0
+        : digitsBefore;
+
+    // Validación: primer dígito del mes solo puede ser 0 o 1
+    if (effectiveBefore === 2 && parseInt(e.key, 10) > 1) return;
+
     let newDigits: string;
     if (curDigits.length >= 8 && selStart === selEnd) {
-      if (digitsBefore >= 8) return;
-      newDigits = curDigits.slice(0, digitsBefore) + e.key + curDigits.slice(digitsBefore + 1);
+      newDigits = curDigits.slice(0, effectiveBefore) + e.key + curDigits.slice(effectiveBefore + 1);
     } else {
       newDigits = (
-        curDigits.slice(0, digitsBefore) +
+        curDigits.slice(0, effectiveBefore) +
         e.key +
-        curDigits.slice(digitsBefore + digitsInSel)
+        curDigits.slice(effectiveBefore + digitsInSel)
       ).slice(0, 8);
+    }
+
+    // Validación: mes completo no puede superar 12
+    if (newDigits.length >= 4) {
+      const month = parseInt(newDigits.slice(2, 4), 10);
+      if (month < 1 || month > 12) return;
     }
 
     const newMasked = buildMasked(newDigits);
     setRaw(newMasked);
-    const pos = posAfterDigit(newMasked, digitsBefore);
+    const pos = posAfterDigit(newMasked, effectiveBefore);
     requestAnimationFrame(() => el.setSelectionRange(pos, pos));
 
     const iso = toISO(newMasked);
