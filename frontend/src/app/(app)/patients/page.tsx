@@ -208,13 +208,13 @@ function PatientsContent() {
           <div className="flex flex-col items-center gap-3 py-16 text-slate-400">
             <Users size={40} strokeWidth={1.2} />
             <p className="text-sm">
-              {search
+              {debouncedSearch
                 ? "Sin resultados para la búsqueda."
                 : showInactive
                 ? "No hay pacientes inactivos."
                 : "Aún no hay pacientes registrados."}
             </p>
-            {!search && !showInactive && (
+            {!debouncedSearch && !showInactive && (
               <Link href="/patients/new">
                 <Button size="sm">Registrar primer paciente</Button>
               </Link>
