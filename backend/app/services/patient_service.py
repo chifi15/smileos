@@ -268,12 +268,20 @@ async def get_patient_segments(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
             WHERE clinic_id = :cid AND patient_id IS NOT NULL AND end_at < NOW()
             GROUP BY patient_id
         ),
+        last_fin_visit AS (
+            SELECT patient_id, MAX(transaction_date)::timestamp with time zone AS last_completed
+            FROM finance_transactions
+            WHERE clinic_id = :cid AND patient_id IS NOT NULL AND type = 'ingreso'
+            GROUP BY patient_id
+        ),
         last_visit AS (
             SELECT patient_id, MAX(last_completed) AS last_completed
             FROM (
                 SELECT patient_id, last_completed FROM last_appt_visit
                 UNION ALL
                 SELECT patient_id, last_completed FROM last_cal_visit
+                UNION ALL
+                SELECT patient_id, last_completed FROM last_fin_visit
             ) combined
             GROUP BY patient_id
         ),
