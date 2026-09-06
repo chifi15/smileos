@@ -129,6 +129,21 @@ async def op_costs_breakdown(
     return {"success": True, "data": data}
 
 
+@router.get("/finances/material-usage")
+async def material_usage(
+    user: Annotated[object, require_permission("view_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    product_id: str = Query(...),
+    year: int = Query(...),
+    month: int | None = Query(default=None),
+):
+    import uuid as _uuid
+    data = await reports_service.get_material_usage(
+        db, user.clinic_id, _uuid.UUID(product_id), year, month
+    )
+    return {"success": True, "data": data}
+
+
 @router.get("/finances/top-materials")
 async def top_materials(
     user: Annotated[object, require_permission("view_patients")],

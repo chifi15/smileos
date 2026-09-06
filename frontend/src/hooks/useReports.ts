@@ -244,6 +244,43 @@ export function useOpCostsBreakdown(year: number, month: number | null) {
   });
 }
 
+export interface MaterialUsageRow {
+  transaction_id: string;
+  date: string;
+  time: string;
+  patient_name: string | null;
+  patient_id: string | null;
+  procedure_name: string | null;
+  doctor_name: string | null;
+  units_used: number;
+}
+
+export interface MaterialUsageData {
+  product_name: string;
+  category: string;
+  unit_price: number;
+  usages: MaterialUsageRow[];
+}
+
+export function useMaterialUsage(
+  productId: string | null,
+  year: number,
+  month: number | null,
+) {
+  return useQuery({
+    queryKey: ["report-material-usage", productId, year, month],
+    enabled: !!productId,
+    queryFn: async () => {
+      const params = new URLSearchParams({ product_id: productId!, year: String(year) });
+      if (month) params.set("month", String(month));
+      const { data } = await apiClient.get<{ data: MaterialUsageData }>(
+        `${base}/material-usage?${params}`
+      );
+      return data.data;
+    },
+  });
+}
+
 export function useTopMaterials(year: number, month: number | null) {
   return useQuery({
     queryKey: ["report-top-materials", year, month],

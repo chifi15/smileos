@@ -506,6 +506,107 @@ async def get_op_costs_breakdown(
     ]
 
 
+async def get_material_usage(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    product_id: uuid.UUID,
+    year: int,
+    month: int | None = None,
+) -> dict:
+    from app.models.costos import CostTreatment, CostProduct
+
+    pid_str = str(product_id)
+
+    prod_result = await db.execute(
+        select(CostProduct).where(CostProduct.id == product_id, CostProduct.clinic_id == clinic_id)
+    )
+    product = prod_result.scalar_one_or_none()
+    if not product:
+        return {"product_name": "Desconocido", "category": "", "unit_price": 0.0, "usages": []}
+
+    result = await db.execute(
+        select(CostTreatment)
+        .where(CostTreatment.clinic_id == clinic_id, CostTreatment.procedure_catalog_id.isnot(None))
+        .options(selectinload(CostTreatment.appointments))
+    )
+    treatments = list(result.scalars().all())
+
+    proc_to_qty: dict[str, float] = {}
+    for treatment in treatments:
+        proc_str = str(treatment.procedure_catalog_id)
+        qty = 0.0
+        for apt in treatment.appointments:
+            for mat in (apt.materials or []):
+                if mat.get("productId") == pid_str:
+                    qty += float(mat.get("quantity", 0))
+        if qty > 0:
+            proc_to_qty[proc_str] = proc_to_qty.get(proc_str, 0.0) + qty
+
+    if not proc_to_qty:
+        return {
+            "product_name": product.name,
+            "category": product.category,
+            "unit_price": float(product.unit_price or 0),
+            "usages": [],
+        }
+
+    proc_ids = [uuid.UUID(p) for p in proc_to_qty.keys()]
+    filters = [
+        FinanceTransaction.clinic_id == clinic_id,
+        FinanceTransaction.type == "ingreso",
+        FinanceTransaction.procedure_id.in_(proc_ids),
+        extract("year", FinanceTransaction.transaction_date) == year,
+    ]
+    if month:
+        filters.append(extract("month", FinanceTransaction.transaction_date) == month)
+
+    tx_result = await db.execute(
+        select(FinanceTransaction)
+        .where(*filters)
+        .options(
+            selectinload(FinanceTransaction.patient),
+            selectinload(FinanceTransaction.procedure),
+            selectinload(FinanceTransaction.doctor),
+        )
+        .order_by(FinanceTransaction.transaction_date.desc(), FinanceTransaction.created_at.desc())
+    )
+    transactions = list(tx_result.scalars().all())
+
+    usages = []
+    for tx in transactions:
+        units_used = 0.0
+        proc_qty = tx.procedure_quantity or 1
+        if tx.deducted_materials:
+            for mat in tx.deducted_materials:
+                if mat.get("productId") == pid_str:
+                    units_used = float(mat.get("qty") or 0) * proc_qty
+                    break
+        else:
+            units_used = proc_to_qty.get(str(tx.procedure_id), 0.0) * proc_qty
+
+        if units_used <= 0:
+            continue
+
+        dt = tx.transaction_date
+        usages.append({
+            "transaction_id": str(tx.id),
+            "date": dt.date().isoformat(),
+            "time": dt.strftime("%H:%M"),
+            "patient_name": tx.patient.full_name if tx.patient else None,
+            "patient_id": str(tx.patient_id) if tx.patient_id else None,
+            "procedure_name": tx.procedure.name if tx.procedure else None,
+            "doctor_name": tx.doctor.full_name if tx.doctor else None,
+            "units_used": round(units_used, 4),
+        })
+
+    return {
+        "product_name": product.name,
+        "category": product.category,
+        "unit_price": float(product.unit_price or 0),
+        "usages": usages,
+    }
+
+
 async def get_top_materials(
     db: AsyncSession,
     clinic_id: uuid.UUID,
