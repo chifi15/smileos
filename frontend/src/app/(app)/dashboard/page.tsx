@@ -122,6 +122,7 @@ function MonthlyPatientsModal({
             <table className="w-full text-sm">
               <thead className="sticky top-0 bg-slate-50 dark:bg-gray-900 border-b border-slate-100 dark:border-gray-700">
                 <tr>
+                  <th className="px-3 py-3 text-center text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide w-8">#</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Fecha</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Paciente</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Procedimiento</th>
@@ -130,8 +131,9 @@ function MonthlyPatientsModal({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
-                {displayRows.map((row) => (
+                {displayRows.map((row, i) => (
                   <tr key={row.transaction_id} className="hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <td className="px-3 py-3 text-center text-xs text-slate-400 dark:text-gray-500">{i + 1}</td>
                     <td className="px-4 py-3 text-slate-500 dark:text-gray-400 whitespace-nowrap">
                       {format(parseISO(row.date), "d MMM yyyy", { locale: es })}
                     </td>
