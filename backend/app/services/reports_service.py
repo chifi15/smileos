@@ -517,6 +517,7 @@ async def get_material_usage(
 
     pid_str = str(product_id)
 
+    # Load product info
     prod_result = await db.execute(
         select(CostProduct).where(CostProduct.id == product_id, CostProduct.clinic_id == clinic_id)
     )
@@ -524,16 +525,14 @@ async def get_material_usage(
     if not product:
         return {"product_name": "Desconocido", "category": "", "unit_price": 0.0, "usages": []}
 
-    # Build full proc -> {pid -> qty} map (same logic as get_top_materials)
-    result = await db.execute(
+    # Build full proc -> {pid -> qty} template map (fallback for txs without deducted_materials)
+    tpl_result = await db.execute(
         select(CostTreatment)
         .where(CostTreatment.clinic_id == clinic_id, CostTreatment.procedure_catalog_id.isnot(None))
         .options(selectinload(CostTreatment.appointments))
     )
-    treatments = list(result.scalars().all())
-
     proc_to_materials: dict[str, dict[str, float]] = {}
-    for treatment in treatments:
+    for treatment in tpl_result.scalars().all():
         proc_str = str(treatment.procedure_catalog_id)
         merged: dict[str, float] = {}
         for apt in treatment.appointments:
@@ -548,26 +547,18 @@ async def get_material_usage(
                 existing[p] = existing.get(p, 0.0) + q
             proc_to_materials[proc_str] = existing
 
-    proc_with_product = {ps for ps, mats in proc_to_materials.items() if pid_str in mats}
-    if not proc_with_product:
-        return {
-            "product_name": product.name,
-            "category": product.category,
-            "unit_price": float(product.unit_price or 0),
-            "usages": [],
-        }
-
-    # Load all products for the clinic to resolve material names
+    # Load all products for name resolution
     all_prods_result = await db.execute(
         select(CostProduct).where(CostProduct.clinic_id == clinic_id)
     )
     all_products: dict[str, CostProduct] = {str(p.id): p for p in all_prods_result.scalars().all()}
 
-    proc_ids = [uuid.UUID(p) for p in proc_with_product]
+    # Query ALL ingreso transactions for the period — filter by product in Python.
+    # We do NOT filter by procedure_id here because templates may have changed since
+    # the transaction was recorded; the source of truth is deducted_materials.
     filters = [
         FinanceTransaction.clinic_id == clinic_id,
         FinanceTransaction.type == "ingreso",
-        FinanceTransaction.procedure_id.in_(proc_ids),
         extract("year", FinanceTransaction.transaction_date) == year,
     ]
     if month:
@@ -592,6 +583,7 @@ async def get_material_usage(
         raw: list[tuple[str, float]] = []  # (product_id, units)
 
         if tx.deducted_materials:
+            # Primary source: exact materials recorded at transaction time
             for mat in tx.deducted_materials:
                 p = mat.get("productId")
                 q = float(mat.get("qty") or 0) * proc_qty
@@ -600,7 +592,8 @@ async def get_material_usage(
                 if p == pid_str:
                     units_of_selected = q
                 raw.append((p, q))
-        else:
+        elif tx.procedure_id:
+            # Fallback: read from current template
             for p, q_per in proc_to_materials.get(str(tx.procedure_id), {}).items():
                 q = q_per * proc_qty
                 if q <= 0:
