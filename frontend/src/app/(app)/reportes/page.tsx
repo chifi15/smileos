@@ -355,7 +355,6 @@ function MaterialUsageModal({
                           <span className="font-medium text-slate-700 dark:text-gray-200 whitespace-nowrap">
                             {fmtDate(row.date)}
                           </span>
-                          <span className="text-slate-400 dark:text-gray-500">{row.time}</span>
                           {row.procedure_name && (
                             <span className="text-slate-600 dark:text-gray-300 truncate">{row.procedure_name}</span>
                           )}

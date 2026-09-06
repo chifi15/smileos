@@ -622,8 +622,7 @@ async def get_material_usage(
         dt = tx.transaction_date
         usages.append({
             "transaction_id": str(tx.id),
-            "date": dt.date().isoformat(),
-            "time": dt.strftime("%H:%M"),
+            "date": dt.isoformat()[:10],
             "patient_name": tx.patient.full_name if tx.patient else None,
             "patient_id": str(tx.patient_id) if tx.patient_id else None,
             "procedure_name": tx.procedure.name if tx.procedure else None,

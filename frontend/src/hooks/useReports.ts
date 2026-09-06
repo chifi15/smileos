@@ -255,7 +255,6 @@ export interface MaterialInTx {
 export interface MaterialUsageRow {
   transaction_id: string;
   date: string;
-  time: string;
   patient_name: string | null;
   patient_id: string | null;
   procedure_name: string | null;
