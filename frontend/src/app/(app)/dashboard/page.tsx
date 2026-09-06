@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { useDashboardStats, useTodaySchedule } from "@/hooks/useDashboard";
+import { useState, useMemo } from "react";
+import { useDashboardStats, useTodaySchedule, useMonthlyPatients, MonthlyPatientRow } from "@/hooks/useDashboard";
 import { useAuditFeed } from "@/hooks/useAudit";
 import { useAuthStore } from "@/stores/auth.store";
 import Spinner from "@/components/ui/Spinner";
@@ -28,6 +29,7 @@ import {
   Activity,
   CalendarDays,
   UserCheck,
+  X,
 } from "lucide-react";
 
 function greeting(name: string) {
@@ -42,15 +44,20 @@ function StatCard({
   value,
   sub,
   color,
+  onClick,
 }: {
   icon: React.ElementType;
   label: string;
   value: number | string;
   sub?: string;
   color: string;
+  onClick?: () => void;
 }) {
   return (
-    <div className="rounded-xl bg-white dark:bg-gray-800 p-5 shadow-sm border border-slate-100 dark:border-gray-700">
+    <div
+      className={`rounded-xl bg-white dark:bg-gray-800 p-5 shadow-sm border border-slate-100 dark:border-gray-700 ${onClick ? "cursor-pointer hover:shadow-md hover:border-slate-200 dark:hover:border-gray-600 transition-all" : ""}`}
+      onClick={onClick}
+    >
       <div className="flex items-start justify-between">
         <div>
           <p className="text-sm text-slate-500 dark:text-gray-400">{label}</p>
@@ -60,6 +67,105 @@ function StatCard({
         <div className={`flex h-10 w-10 items-center justify-center rounded-lg ${color}`}>
           <Icon size={20} />
         </div>
+      </div>
+    </div>
+  );
+}
+
+type ModalMode = "atenciones" | "unicos";
+
+function MonthlyPatientsModal({
+  mode,
+  rows,
+  isLoading,
+  onClose,
+}: {
+  mode: ModalMode;
+  rows: MonthlyPatientRow[] | undefined;
+  isLoading: boolean;
+  onClose: () => void;
+}) {
+  const title = mode === "atenciones" ? "Atenciones del mes" : "Pacientes únicos del mes";
+
+  const displayRows = useMemo(() => {
+    if (!rows) return [];
+    if (mode === "atenciones") return rows;
+    const seen = new Set<string>();
+    return rows.filter((r) => {
+      const key = r.patient_id ?? r.patient_name;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
+  }, [rows, mode]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col border border-slate-200 dark:border-gray-700">
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-gray-700 shrink-0">
+          <h2 className="font-semibold text-slate-800 dark:text-white">{title}</h2>
+          <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors">
+            <X size={16} className="text-slate-500" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="overflow-auto flex-1">
+          {isLoading ? (
+            <div className="flex justify-center py-12"><Spinner /></div>
+          ) : displayRows.length === 0 ? (
+            <div className="py-12 text-center text-sm text-slate-400 dark:text-gray-500">
+              No hay registros para este mes
+            </div>
+          ) : (
+            <table className="w-full text-sm">
+              <thead className="sticky top-0 bg-slate-50 dark:bg-gray-900 border-b border-slate-100 dark:border-gray-700">
+                <tr>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Fecha</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Paciente</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Procedimiento</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Doctor</th>
+                  <th className="px-4 py-3 text-right text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Monto</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
+                {displayRows.map((row) => (
+                  <tr key={row.transaction_id} className="hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors">
+                    <td className="px-4 py-3 text-slate-500 dark:text-gray-400 whitespace-nowrap">
+                      {format(parseISO(row.date), "d MMM yyyy", { locale: es })}
+                    </td>
+                    <td className="px-4 py-3 font-medium text-slate-800 dark:text-white">
+                      {row.patient_id ? (
+                        <Link href={`/patients/${row.patient_id}`} className="hover:text-blue-600 transition-colors">
+                          {row.patient_name}
+                        </Link>
+                      ) : (
+                        row.patient_name
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 dark:text-gray-400">
+                      {row.procedure_name ?? <span className="text-slate-300 dark:text-gray-600">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-slate-500 dark:text-gray-400">
+                      {row.doctor_name ?? <span className="text-slate-300 dark:text-gray-600">—</span>}
+                    </td>
+                    <td className="px-4 py-3 text-right font-semibold text-slate-800 dark:text-white">
+                      C$ {row.amount.toLocaleString("es-NI", { minimumFractionDigits: 2 })}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </div>
+
+        {/* Footer */}
+        {displayRows.length > 0 && (
+          <div className="px-6 py-3 border-t border-slate-100 dark:border-gray-700 text-xs text-slate-400 dark:text-gray-500 shrink-0">
+            {displayRows.length} {mode === "atenciones" ? "atención(es)" : "paciente(s)"}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -84,6 +190,8 @@ export default function DashboardPage() {
   const { data: stats, isLoading: loadingStats, refetch: refetchStats } = useDashboardStats();
   const { data: schedule, isLoading: loadingSchedule } = useTodaySchedule();
   const { data: auditData } = useAuditFeed({ per_page: 6 });
+  const [monthlyModal, setMonthlyModal] = useState<ModalMode | null>(null);
+  const { data: monthlyRows, isLoading: loadingMonthly } = useMonthlyPatients();
 
   const today = format(new Date(), "EEEE d 'de' MMMM 'de' yyyy", { locale: es });
   const todayCapitalized = today.charAt(0).toUpperCase() + today.slice(1);
@@ -154,6 +262,7 @@ export default function DashboardPage() {
               value={stats.monthly.total_citas_mes}
               sub="Ingresos registrados (con repetidos)"
               color="bg-violet-50 text-violet-600"
+              onClick={() => setMonthlyModal("atenciones")}
             />
             <StatCard
               icon={UserCheck}
@@ -161,6 +270,7 @@ export default function DashboardPage() {
               value={stats.monthly.pacientes_unicos_mes}
               sub="Sin contar visitas repetidas"
               color="bg-teal-50 text-teal-600"
+              onClick={() => setMonthlyModal("unicos")}
             />
           </div>
 
@@ -335,6 +445,15 @@ export default function DashboardPage() {
         <div className="py-10 text-center text-sm text-slate-400 dark:text-gray-500">
           No se pudo cargar el dashboard. Intenta actualizar.
         </div>
+      )}
+
+      {monthlyModal && (
+        <MonthlyPatientsModal
+          mode={monthlyModal}
+          rows={monthlyRows}
+          isLoading={loadingMonthly}
+          onClose={() => setMonthlyModal(null)}
+        />
       )}
     </div>
   );

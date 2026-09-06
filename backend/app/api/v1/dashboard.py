@@ -39,6 +39,16 @@ async def get_dashboard(
     }
 
 
+@router.get("/monthly-patients")
+async def get_monthly_patients(
+    user: Annotated[object, require_permission("view_dashboard")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Detalle de pacientes atendidos en el mes actual (según finanzas)."""
+    rows = await dashboard_service.get_monthly_patient_transactions(db, user.clinic_id)
+    return {"success": True, "data": rows}
+
+
 @router.get("/schedule")
 async def get_todays_schedule(
     user: Annotated[object, require_permission("view_dashboard")],
