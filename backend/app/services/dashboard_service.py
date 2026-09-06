@@ -119,13 +119,9 @@ async def get_monthly_patient_transactions(
     db: AsyncSession, clinic_id: uuid.UUID
 ) -> list[dict]:
     """Transacciones de ingreso del mes actual vinculadas a un paciente."""
-    from app.models.procedure import Procedure
-
     now_local = datetime.now(CLINIC_TZ)
     current_year = now_local.year
     current_month = now_local.month
-
-    from sqlalchemy.orm import selectinload as _sil
 
     result = await db.execute(
         select(FinanceTransaction)
@@ -137,9 +133,9 @@ async def get_monthly_patient_transactions(
             extract("month", FinanceTransaction.transaction_date) == current_month,
         )
         .options(
-            _sil(FinanceTransaction.patient),
-            _sil(FinanceTransaction.doctor),
-            _sil(FinanceTransaction.procedure),
+            selectinload(FinanceTransaction.patient),
+            selectinload(FinanceTransaction.doctor),
+            selectinload(FinanceTransaction.procedure),
         )
         .order_by(FinanceTransaction.transaction_date.desc(), FinanceTransaction.created_at.desc())
     )
@@ -157,7 +153,7 @@ async def get_monthly_patient_transactions(
             "patient_name": patient.full_name if patient else tx.description,
             "procedure_name": procedure.name if procedure else None,
             "doctor_name": doctor.full_name if doctor else None,
-            "amount": float(tx.amount),
+            "amount": float(tx.amount_cordobas),
             "description": tx.description,
         })
     return rows
