@@ -10,13 +10,14 @@ from zoneinfo import ZoneInfo
 logger = logging.getLogger("smileos")
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, case, and_, cast, Date
+from sqlalchemy import select, func, case, and_, cast, Date, extract
 from sqlalchemy.orm import selectinload
 
 from app.models.appointment import Appointment
 from app.models.patient import Patient
 from app.models.treatment import TreatmentPlan
 from app.models.rewards import RewardsAccount
+from app.models.finance import FinanceTransaction
 
 CLINIC_TZ = ZoneInfo("America/Managua")
 
@@ -115,23 +116,26 @@ async def get_patient_stats(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
 
 
 async def get_monthly_appointment_stats(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
-    """Citas completadas del mes y pacientes únicos atendidos."""
-    month_start = _month_start_utc()
+    """Ingresos del mes actual y pacientes únicos atendidos según finanzas."""
+    now_local = datetime.now(ZoneInfo("America/Managua"))
+    current_year = now_local.year
+    current_month = now_local.month
+
+    base_filters = [
+        FinanceTransaction.clinic_id == clinic_id,
+        FinanceTransaction.type == "ingreso",
+        extract("year", FinanceTransaction.transaction_date) == current_year,
+        extract("month", FinanceTransaction.transaction_date) == current_month,
+    ]
 
     total_citas = await db.scalar(
-        select(func.count(Appointment.id)).where(
-            Appointment.clinic_id == clinic_id,
-            Appointment.status == "completed",
-            Appointment.completed_at >= month_start,
-        )
+        select(func.count(FinanceTransaction.id)).where(*base_filters)
     ) or 0
 
     pacientes_unicos = await db.scalar(
-        select(func.count(func.distinct(Appointment.patient_id))).where(
-            Appointment.clinic_id == clinic_id,
-            Appointment.status == "completed",
-            Appointment.completed_at >= month_start,
-            Appointment.patient_id.isnot(None),
+        select(func.count(func.distinct(FinanceTransaction.patient_id))).where(
+            *base_filters,
+            FinanceTransaction.patient_id.isnot(None),
         )
     ) or 0
 

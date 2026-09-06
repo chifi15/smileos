@@ -150,16 +150,16 @@ export default function DashboardPage() {
           <div className="grid grid-cols-2 gap-4">
             <StatCard
               icon={CalendarDays}
-              label="Citas del mes"
+              label="Atenciones del mes"
               value={stats.monthly.total_citas_mes}
-              sub="Incluyendo visitas repetidas"
+              sub="Ingresos registrados (con repetidos)"
               color="bg-violet-50 text-violet-600"
             />
             <StatCard
               icon={UserCheck}
-              label="Pacientes únicos"
+              label="Pacientes únicos del mes"
               value={stats.monthly.pacientes_unicos_mes}
-              sub="Pacientes atendidos este mes"
+              sub="Sin contar visitas repetidas"
               color="bg-teal-50 text-teal-600"
             />
           </div>
