@@ -128,14 +128,15 @@ async def get_monthly_appointment_stats(db: AsyncSession, clinic_id: uuid.UUID) 
         extract("month", FinanceTransaction.transaction_date) == current_month,
     ]
 
+    patient_filter = FinanceTransaction.patient_id.isnot(None)
+
     total_citas = await db.scalar(
-        select(func.count(FinanceTransaction.id)).where(*base_filters)
+        select(func.count(FinanceTransaction.id)).where(*base_filters, patient_filter)
     ) or 0
 
     pacientes_unicos = await db.scalar(
         select(func.count(func.distinct(FinanceTransaction.patient_id))).where(
-            *base_filters,
-            FinanceTransaction.patient_id.isnot(None),
+            *base_filters, patient_filter,
         )
     ) or 0
 
