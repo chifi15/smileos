@@ -722,7 +722,7 @@ export default function ReportesPage() {
               {topExp?.map((e) => (
                 <tr key={e.category} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
                   <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-gray-200">
-                    {EXPENSE_LABELS[e.category] ?? e.category}
+                    {e.category_label}
                   </td>
                   <td className="px-4 py-2.5 text-right text-slate-600 dark:text-gray-300">{e.count}</td>
                   <td className="px-4 py-2.5 text-right">

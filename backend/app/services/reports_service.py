@@ -141,6 +141,8 @@ async def get_top_expenses(
     year: int,
     month: int | None = None,
 ) -> list[dict]:
+    from app.models.finance import ExpenseCategory
+
     filters = [
         FinanceTransaction.clinic_id == clinic_id,
         FinanceTransaction.type == "egreso",
@@ -159,9 +161,17 @@ async def get_top_expenses(
         .group_by(FinanceTransaction.category)
         .order_by(func.sum(FinanceTransaction.amount_cordobas).desc())
     )
+
+    cat_rows = await db.execute(
+        select(ExpenseCategory.key, ExpenseCategory.label)
+        .where(ExpenseCategory.clinic_id == clinic_id)
+    )
+    cat_labels: dict[str, str] = {r.key: r.label for r in cat_rows}
+
     results = [
         {
             "category": r.category,
+            "category_label": cat_labels.get(r.category, r.category),
             "total": round(float(r.total), 2),
             "count": int(r.count),
         }

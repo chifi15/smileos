@@ -37,6 +37,7 @@ export interface TopProcedureQuoted {
 
 export interface TopExpense {
   category: string;
+  category_label: string;
   total: number;
   count: number;
   pct: number;
