@@ -524,6 +524,7 @@ async def get_material_usage(
     if not product:
         return {"product_name": "Desconocido", "category": "", "unit_price": 0.0, "usages": []}
 
+    # Build full proc -> {pid -> qty} map (same logic as get_top_materials)
     result = await db.execute(
         select(CostTreatment)
         .where(CostTreatment.clinic_id == clinic_id, CostTreatment.procedure_catalog_id.isnot(None))
@@ -531,18 +532,24 @@ async def get_material_usage(
     )
     treatments = list(result.scalars().all())
 
-    proc_to_qty: dict[str, float] = {}
+    proc_to_materials: dict[str, dict[str, float]] = {}
     for treatment in treatments:
         proc_str = str(treatment.procedure_catalog_id)
-        qty = 0.0
+        merged: dict[str, float] = {}
         for apt in treatment.appointments:
             for mat in (apt.materials or []):
-                if mat.get("productId") == pid_str:
-                    qty += float(mat.get("quantity", 0))
-        if qty > 0:
-            proc_to_qty[proc_str] = proc_to_qty.get(proc_str, 0.0) + qty
+                p = mat.get("productId")
+                q = float(mat.get("quantity", 0))
+                if p and q > 0:
+                    merged[p] = merged.get(p, 0.0) + q
+        if merged:
+            existing = proc_to_materials.get(proc_str, {})
+            for p, q in merged.items():
+                existing[p] = existing.get(p, 0.0) + q
+            proc_to_materials[proc_str] = existing
 
-    if not proc_to_qty:
+    proc_with_product = {ps for ps, mats in proc_to_materials.items() if pid_str in mats}
+    if not proc_with_product:
         return {
             "product_name": product.name,
             "category": product.category,
@@ -550,7 +557,13 @@ async def get_material_usage(
             "usages": [],
         }
 
-    proc_ids = [uuid.UUID(p) for p in proc_to_qty.keys()]
+    # Load all products for the clinic to resolve material names
+    all_prods_result = await db.execute(
+        select(CostProduct).where(CostProduct.clinic_id == clinic_id)
+    )
+    all_products: dict[str, CostProduct] = {str(p.id): p for p in all_prods_result.scalars().all()}
+
+    proc_ids = [uuid.UUID(p) for p in proc_with_product]
     filters = [
         FinanceTransaction.clinic_id == clinic_id,
         FinanceTransaction.type == "ingreso",
@@ -574,18 +587,44 @@ async def get_material_usage(
 
     usages = []
     for tx in transactions:
-        units_used = 0.0
+        units_of_selected = 0.0
         proc_qty = tx.procedure_quantity or 1
+        raw: list[tuple[str, float]] = []  # (product_id, units)
+
         if tx.deducted_materials:
             for mat in tx.deducted_materials:
-                if mat.get("productId") == pid_str:
-                    units_used = float(mat.get("qty") or 0) * proc_qty
-                    break
+                p = mat.get("productId")
+                q = float(mat.get("qty") or 0) * proc_qty
+                if not p or q <= 0:
+                    continue
+                if p == pid_str:
+                    units_of_selected = q
+                raw.append((p, q))
         else:
-            units_used = proc_to_qty.get(str(tx.procedure_id), 0.0) * proc_qty
+            for p, q_per in proc_to_materials.get(str(tx.procedure_id), {}).items():
+                q = q_per * proc_qty
+                if q <= 0:
+                    continue
+                if p == pid_str:
+                    units_of_selected = q
+                raw.append((p, q))
 
-        if units_used <= 0:
+        if units_of_selected <= 0:
             continue
+
+        all_materials = []
+        for p, q in raw:
+            prod_obj = all_products.get(p)
+            if not prod_obj:
+                continue
+            q_r = round(q, 4)
+            all_materials.append({
+                "name": prod_obj.name,
+                "units": q_r,
+                "unit_price": float(prod_obj.unit_price or 0),
+                "total_cost": round(q_r * float(prod_obj.unit_price or 0), 2),
+                "is_selected": p == pid_str,
+            })
 
         dt = tx.transaction_date
         usages.append({
@@ -596,7 +635,8 @@ async def get_material_usage(
             "patient_id": str(tx.patient_id) if tx.patient_id else None,
             "procedure_name": tx.procedure.name if tx.procedure else None,
             "doctor_name": tx.doctor.full_name if tx.doctor else None,
-            "units_used": round(units_used, 4),
+            "units_used": round(units_of_selected, 4),
+            "all_materials": all_materials,
         })
 
     return {

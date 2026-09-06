@@ -244,6 +244,14 @@ export function useOpCostsBreakdown(year: number, month: number | null) {
   });
 }
 
+export interface MaterialInTx {
+  name: string;
+  units: number;
+  unit_price: number;
+  total_cost: number;
+  is_selected: boolean;
+}
+
 export interface MaterialUsageRow {
   transaction_id: string;
   date: string;
@@ -253,6 +261,7 @@ export interface MaterialUsageRow {
   procedure_name: string | null;
   doctor_name: string | null;
   units_used: number;
+  all_materials: MaterialInTx[];
 }
 
 export interface MaterialUsageData {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import {
   BarChart,
   Bar,
@@ -25,6 +25,10 @@ import {
   Pencil,
   Check,
   X,
+  ArrowLeft,
+  ChevronDown,
+  ChevronUp,
+  ExternalLink,
 } from "lucide-react";
 import { categoryLabel, categoryColor } from "@/types/costos";
 import Spinner from "@/components/ui/Spinner";
@@ -43,6 +47,7 @@ import {
   useOpCostsBreakdown,
   useMaterialsByMonth,
   useMaterialUsage,
+  MaterialUsageRow,
 } from "@/hooks/useReports";
 
 const MONTHS = [
@@ -219,6 +224,23 @@ interface SelectedMaterial {
   month: number | null;
 }
 
+interface PatientGroup {
+  patient_id: string | null;
+  patient_name: string;
+  total_units: number;
+  usages: MaterialUsageRow[];
+}
+
+function fmtUnits(n: number) {
+  return n % 1 === 0 ? n.toFixed(0) : n.toFixed(2);
+}
+
+function fmtDate(iso: string) {
+  return new Date(iso + "T00:00:00").toLocaleDateString("es-NI", {
+    day: "2-digit", month: "short", year: "numeric",
+  });
+}
+
 function MaterialUsageModal({
   selected,
   onClose,
@@ -227,114 +249,240 @@ function MaterialUsageModal({
   onClose: () => void;
 }) {
   const { data, isLoading } = useMaterialUsage(selected.productId, selected.year, selected.month);
+  const [drillId, setDrillId] = useState<string | null>(null);
+  const [expandedTx, setExpandedTx] = useState<Set<string>>(new Set());
 
-  const totalUnits = data?.usages.reduce((s, r) => s + r.units_used, 0) ?? 0;
-  const totalCost = totalUnits * (data?.unit_price ?? 0);
+  const patientGroups = useMemo<PatientGroup[]>(() => {
+    if (!data?.usages.length) return [];
+    const map = new Map<string, PatientGroup>();
+    for (const u of data.usages) {
+      const key = u.patient_id ?? "__none__";
+      if (!map.has(key)) {
+        map.set(key, { patient_id: u.patient_id, patient_name: u.patient_name ?? "Sin paciente", total_units: 0, usages: [] });
+      }
+      const g = map.get(key)!;
+      g.total_units += u.units_used;
+      g.usages.push(u);
+    }
+    return Array.from(map.values()).sort((a, b) => b.total_units - a.total_units);
+  }, [data]);
+
+  const activeGroup = drillId != null
+    ? patientGroups.find(g => (g.patient_id ?? "__none__") === drillId) ?? null
+    : null;
+
+  function toggleTx(id: string) {
+    setExpandedTx(prev => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  const period = selected.month
+    ? `${MONTHS[selected.month - 1]} ${selected.year}`
+    : `año ${selected.year}`;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="w-full max-w-2xl rounded-2xl bg-white dark:bg-gray-800 shadow-2xl flex flex-col max-h-[90vh]">
-        {/* Header */}
-        <div className="flex items-start justify-between px-5 py-4 border-b border-slate-100 dark:border-gray-700">
-          <div className="min-w-0">
+
+        {/* ── Header ── */}
+        <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 dark:border-gray-700">
+          {activeGroup && (
+            <button
+              onClick={() => { setDrillId(null); setExpandedTx(new Set()); }}
+              className="shrink-0 flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs text-slate-500 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors"
+            >
+              <ArrowLeft size={13} /> Pacientes
+            </button>
+          )}
+          <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
-              <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
-                <Package size={14} />
+              <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
+                <Package size={12} />
               </div>
-              <h2 className="font-semibold text-slate-800 dark:text-white truncate">{selected.name}</h2>
+              <span className="font-semibold text-sm text-slate-800 dark:text-white truncate">{selected.name}</span>
               {data && (
                 <span className={`shrink-0 rounded px-1.5 py-0.5 text-[10px] font-medium ${categoryColor(data.category)}`}>
                   {categoryLabel(data.category)}
                 </span>
               )}
             </div>
-            <p className="mt-0.5 text-xs text-slate-500 dark:text-gray-400">
-              Uso del material · {selected.month ? `${MONTHS[selected.month - 1]} ${selected.year}` : `año ${selected.year}`}
-            </p>
+            {activeGroup ? (
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-gray-400">
+                {activeGroup.patient_name} · {activeGroup.usages.length} transacciones · {fmtUnits(activeGroup.total_units)} unidades
+              </p>
+            ) : (
+              <p className="mt-0.5 text-xs text-slate-500 dark:text-gray-400">{period}</p>
+            )}
           </div>
+          {activeGroup?.patient_id && (
+            <Link
+              href={`/patients/${activeGroup.patient_id}`}
+              onClick={onClose}
+              className="shrink-0 flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+            >
+              Ver perfil <ExternalLink size={11} />
+            </Link>
+          )}
           <button
             onClick={onClose}
-            className="ml-3 shrink-0 rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors"
+            className="shrink-0 rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors"
           >
-            <X size={16} />
+            <X size={15} />
           </button>
         </div>
 
-        {/* Body */}
+        {/* ── Body ── */}
         <div className="flex-1 overflow-y-auto">
           {isLoading ? (
             <div className="flex justify-center py-12"><Spinner /></div>
           ) : !data || data.usages.length === 0 ? (
-            <div className="py-12 text-center text-sm text-slate-400 dark:text-gray-500">
+            <p className="py-12 text-center text-sm text-slate-400 dark:text-gray-500">
               No se encontraron usos de este material en el período seleccionado.
+            </p>
+          ) : activeGroup ? (
+            /* ── Nivel 2: transacciones del paciente ── */
+            <div className="divide-y divide-slate-50 dark:divide-gray-700/50">
+              {activeGroup.usages.map((row) => {
+                const open = expandedTx.has(row.transaction_id);
+                return (
+                  <div key={row.transaction_id}>
+                    <div className="flex items-center gap-3 px-4 py-3 text-xs">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-3 flex-wrap">
+                          <span className="font-medium text-slate-700 dark:text-gray-200 whitespace-nowrap">
+                            {fmtDate(row.date)}
+                          </span>
+                          <span className="text-slate-400 dark:text-gray-500">{row.time}</span>
+                          {row.procedure_name && (
+                            <span className="text-slate-600 dark:text-gray-300 truncate">{row.procedure_name}</span>
+                          )}
+                          {row.doctor_name && (
+                            <span className="text-slate-400 dark:text-gray-500 truncate">{row.doctor_name}</span>
+                          )}
+                        </div>
+                        <div className="mt-1 flex items-center gap-2">
+                          <span className="text-amber-600 dark:text-amber-400 font-semibold">
+                            {fmtUnits(row.units_used)} u. de {selected.name}
+                          </span>
+                          {row.all_materials.length > 1 && (
+                            <button
+                              onClick={() => toggleTx(row.transaction_id)}
+                              className="flex items-center gap-0.5 text-slate-400 hover:text-slate-600 dark:hover:text-gray-300 transition-colors"
+                            >
+                              {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+                              <span className="text-[10px]">
+                                {open ? "Ocultar" : `Ver todos (${row.all_materials.length} materiales)`}
+                              </span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      <Link
+                        href={`/patients/${activeGroup.patient_id}`}
+                        onClick={onClose}
+                        className="shrink-0 flex items-center gap-1 rounded-md px-2 py-1 text-[10px] font-medium text-blue-600 dark:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 border border-blue-200 dark:border-blue-800 transition-colors"
+                        title="Ver transacción en el perfil del paciente"
+                      >
+                        Ir <ExternalLink size={10} />
+                      </Link>
+                    </div>
+
+                    {/* Expanded materials list */}
+                    {open && row.all_materials.length > 0 && (
+                      <div className="mx-4 mb-3 rounded-lg bg-slate-50 dark:bg-gray-700/40 border border-slate-100 dark:border-gray-700 overflow-hidden">
+                        <table className="w-full text-[11px]">
+                          <thead>
+                            <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
+                              <th className="px-3 py-1.5 font-medium">Material</th>
+                              <th className="px-3 py-1.5 font-medium text-right">Unidades</th>
+                              <th className="px-3 py-1.5 font-medium text-right">Precio unit.</th>
+                              <th className="px-3 py-1.5 font-medium text-right">Costo</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {row.all_materials.map((mat, idx) => (
+                              <tr
+                                key={idx}
+                                className={mat.is_selected ? "bg-amber-50 dark:bg-amber-900/20" : ""}
+                              >
+                                <td className={`px-3 py-1 font-medium ${mat.is_selected ? "text-amber-700 dark:text-amber-400" : "text-slate-600 dark:text-gray-300"}`}>
+                                  {mat.is_selected && <span className="mr-1 text-amber-500">★</span>}
+                                  {mat.name}
+                                </td>
+                                <td className="px-3 py-1 text-right text-slate-600 dark:text-gray-300">{fmtUnits(mat.units)}</td>
+                                <td className="px-3 py-1 text-right text-slate-400 dark:text-gray-500">{fmt(mat.unit_price)}</td>
+                                <td className="px-3 py-1 text-right font-semibold text-amber-600 dark:text-amber-400">{fmt(mat.total_cost)}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           ) : (
+            /* ── Nivel 1: lista de pacientes ── */
             <table className="w-full text-xs">
               <thead className="sticky top-0 z-10 bg-white dark:bg-gray-800">
                 <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
-                  <th className="px-4 py-2.5 font-medium">Fecha</th>
-                  <th className="px-4 py-2.5 font-medium">Hora</th>
+                  <th className="px-4 py-2.5 font-medium">#</th>
                   <th className="px-4 py-2.5 font-medium">Paciente</th>
-                  <th className="px-4 py-2.5 font-medium">Tratamiento</th>
-                  <th className="px-4 py-2.5 font-medium">Doctor</th>
+                  <th className="px-4 py-2.5 font-medium text-right">Usos</th>
                   <th className="px-4 py-2.5 font-medium text-right">Unidades</th>
+                  <th className="px-4 py-2.5 font-medium text-right">Costo total</th>
+                  <th className="px-4 py-2.5" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-gray-700/50">
-                {data.usages.map((row) => (
-                  <tr key={row.transaction_id} className="hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
-                    <td className="px-4 py-2.5 text-slate-600 dark:text-gray-300 whitespace-nowrap">
-                      {new Date(row.date + "T00:00:00").toLocaleDateString("es-NI", { day: "2-digit", month: "short", year: "numeric" })}
-                    </td>
-                    <td className="px-4 py-2.5 text-slate-500 dark:text-gray-400 whitespace-nowrap">{row.time}</td>
-                    <td className="px-4 py-2.5">
-                      {row.patient_id ? (
-                        <Link
-                          href={`/patients/${row.patient_id}`}
-                          onClick={onClose}
-                          className="font-medium text-blue-600 dark:text-blue-400 hover:underline"
-                        >
-                          {row.patient_name ?? "—"}
-                        </Link>
-                      ) : (
-                        <span className="text-slate-500 dark:text-gray-400">{row.patient_name ?? "—"}</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-2.5 text-slate-600 dark:text-gray-300">{row.procedure_name ?? "—"}</td>
-                    <td className="px-4 py-2.5 text-slate-500 dark:text-gray-400">{row.doctor_name ?? "—"}</td>
-                    <td className="px-4 py-2.5 text-right font-semibold text-amber-600 dark:text-amber-400">
-                      {row.units_used % 1 === 0 ? row.units_used.toFixed(0) : row.units_used.toFixed(2)}
-                    </td>
-                  </tr>
-                ))}
+                {patientGroups.map((g, i) => {
+                  const cost = g.total_units * (data?.unit_price ?? 0);
+                  return (
+                    <tr
+                      key={g.patient_id ?? "__none__"}
+                      onClick={() => setDrillId(g.patient_id ?? "__none__")}
+                      className="cursor-pointer hover:bg-amber-50/60 dark:hover:bg-amber-900/10 transition-colors"
+                    >
+                      <td className="px-4 py-3 text-slate-400 dark:text-gray-500">{i + 1}</td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold">
+                            {g.patient_name.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="font-medium text-slate-700 dark:text-gray-200">{g.patient_name}</span>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3 text-right text-slate-600 dark:text-gray-300">{g.usages.length}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-amber-600 dark:text-amber-400">{fmtUnits(g.total_units)}</td>
+                      <td className="px-4 py-3 text-right font-semibold text-amber-600 dark:text-amber-400">{fmt(cost)}</td>
+                      <td className="px-4 py-3 text-right text-slate-300 dark:text-gray-600">›</td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           )}
         </div>
 
-        {/* Footer totals */}
-        {data && data.usages.length > 0 && (
-          <div className="border-t-2 border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/40 px-4 py-3 flex flex-wrap gap-4 text-xs">
-            <div>
-              <span className="text-slate-500 dark:text-gray-400">Total usos: </span>
-              <span className="font-semibold text-slate-700 dark:text-gray-200">{data.usages.length}</span>
-            </div>
-            <div>
-              <span className="text-slate-500 dark:text-gray-400">Unidades totales: </span>
-              <span className="font-semibold text-amber-600 dark:text-amber-400">
-                {totalUnits % 1 === 0 ? totalUnits.toFixed(0) : totalUnits.toFixed(2)}
-              </span>
-            </div>
-            <div>
-              <span className="text-slate-500 dark:text-gray-400">Costo total: </span>
-              <span className="font-semibold text-amber-600 dark:text-amber-400">{fmt(totalCost)}</span>
-            </div>
-            {data.unit_price > 0 && (
-              <div>
-                <span className="text-slate-500 dark:text-gray-400">Precio unit.: </span>
-                <span className="font-medium text-slate-600 dark:text-gray-300">{fmt(data.unit_price)}</span>
-              </div>
-            )}
+        {/* ── Footer ── */}
+        {data && data.usages.length > 0 && !activeGroup && (
+          <div className="border-t-2 border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/40 px-4 py-2.5 flex flex-wrap gap-4 text-xs">
+            <span className="text-slate-500 dark:text-gray-400">
+              {patientGroups.length} pacientes
+            </span>
+            <span className="text-slate-500 dark:text-gray-400">
+              {data.usages.length} transacciones
+            </span>
+            <span className="text-amber-600 dark:text-amber-400 font-semibold">
+              {fmtUnits(data.usages.reduce((s, r) => s + r.units_used, 0))} unidades totales
+            </span>
+            <span className="text-amber-600 dark:text-amber-400 font-semibold">
+              {fmt(data.usages.reduce((s, r) => s + r.units_used, 0) * data.unit_price)} costo total
+            </span>
           </div>
         )}
       </div>
