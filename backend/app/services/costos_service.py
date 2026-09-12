@@ -567,6 +567,33 @@ async def reorder_treatments(db: AsyncSession, clinic_id: uuid.UUID, ordered_ids
     await db.flush()
 
 
+async def reorder_appointments(db: AsyncSession, clinic_id: uuid.UUID, treatment_id: uuid.UUID, ordered_ids: list[uuid.UUID]) -> Optional[CostTreatment]:
+    result = await db.execute(
+        select(CostTreatment)
+        .where(CostTreatment.id == treatment_id, CostTreatment.clinic_id == clinic_id)
+        .options(selectinload(CostTreatment.appointments))
+    )
+    treatment = result.scalar_one_or_none()
+    if not treatment:
+        return None
+    for i, apt_id in enumerate(ordered_ids):
+        apt = next((a for a in treatment.appointments if a.id == apt_id), None)
+        if apt:
+            old_num = apt.number
+            apt.sort_order = i
+            apt.number = i + 1
+            if apt.name == f"Cita {old_num}":
+                apt.name = f"Cita {i + 1}"
+    await db.flush()
+    await _sync_one_treatment_op_cost(db, clinic_id, treatment)
+    result2 = await db.execute(
+        select(CostTreatment)
+        .where(CostTreatment.id == treatment_id)
+        .options(selectinload(CostTreatment.appointments))
+    )
+    return result2.scalar_one()
+
+
 async def add_appointment(db: AsyncSession, clinic_id: uuid.UUID, treatment_id: uuid.UUID) -> Optional[CostTreatment]:
     result = await db.execute(
         select(CostTreatment)
@@ -733,8 +760,11 @@ async def delete_appointment(db: AsyncSession, clinic_id: uuid.UUID, treatment_i
     )
     treatment = result2.scalar_one()
     for i, a in enumerate(sorted(treatment.appointments, key=lambda x: x.sort_order)):
+        old_num = a.number
         a.number = i + 1
         a.sort_order = i
+        if a.name == f"Cita {old_num}":
+            a.name = f"Cita {i + 1}"
     await db.flush()
     await _sync_one_treatment_op_cost(db, clinic_id, treatment)
     return treatment

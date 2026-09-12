@@ -48,6 +48,7 @@ import {
   useDuplicateCostAppointment,
   useMergeCostAppointments,
   useUpdateCostAppointment,
+  useReorderCostAppointments,
   useLinkCostProcedure,
   ApiProduct,
   ApiTreatment,
@@ -718,6 +719,9 @@ function EditableAppointment({
   onUpdateApt: (data: { name?: string; materials?: ApiMaterial[] }) => void;
   onMerge: (sourceId: string) => void;
 }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: apt.id });
+  const dragStyle = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 };
+
   const [open, setOpen] = useState(defaultOpen ?? false);
   const [addOpen, setAddOpen] = useState(false);
   const [addCategoryOpen, setAddCategoryOpen] = useState(false);
@@ -819,13 +823,22 @@ function EditableAppointment({
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+    <div ref={setNodeRef} style={dragStyle} className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
       {/* Header */}
       <button
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between px-5 py-4 text-left hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors"
       >
         <div className="flex items-center gap-3">
+          <button
+            {...attributes}
+            {...listeners}
+            onClick={(e) => e.stopPropagation()}
+            className="cursor-grab active:cursor-grabbing text-slate-300 dark:text-gray-600 hover:text-slate-500 dark:hover:text-gray-400 touch-none p-0.5 -ml-1"
+            title="Arrastrar para reordenar"
+          >
+            <GripVertical size={15} />
+          </button>
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-xs font-bold text-white">
             {appointment.number}
           </div>
@@ -1122,6 +1135,7 @@ export default function TreatmentDetailPage({
   const duplicateAppointment = useDuplicateCostAppointment();
   const mergeMutation = useMergeCostAppointments();
   const updateApt = useUpdateCostAppointment();
+  const reorderAppointments = useReorderCostAppointments();
   const linkProcedure = useLinkCostProcedure();
 
   const { data: catalogProcedures = [] } = useProcedures();
@@ -1152,6 +1166,19 @@ export default function TreatmentDetailPage({
       newMaterials = [...apt.materials, ...clipboard.materials.filter((m) => !existingIds.has(m.productId))];
     }
     updateApt.mutate({ treatmentId: id, aptId, materials: newMaterials });
+  }
+
+  const aptSensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+
+  function handleAptDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const sorted = [...treatment!.appointments].sort((a, b) => a.sort_order - b.sort_order);
+    const oldIdx = sorted.findIndex((a) => a.id === active.id);
+    const newIdx = sorted.findIndex((a) => a.id === over.id);
+    if (oldIdx === -1 || newIdx === -1) return;
+    const reordered = arrayMove(sorted, oldIdx, newIdx);
+    reorderAppointments.mutate({ treatmentId: id, ids: reordered.map((a) => a.id) });
   }
 
   if (loadingTreatments || loadingProducts) {
@@ -1318,27 +1345,31 @@ export default function TreatmentDetailPage({
             </Button>
           </div>
         </div>
-        {breakdown.appointmentCosts.map((detail, i) => {
-          const apt = treatment.appointments.find((a) => a.id === detail.appointment.id)!;
-          return (
-            <EditableAppointment
-              key={detail.appointment.id}
-              treatmentId={id}
-              detail={detail}
-              apt={apt}
-              allApts={treatment.appointments}
-              products={apiProducts}
-              defaultOpen={i === 0}
-              clipboard={clipboard}
-              onCopy={(mats, name, sourceAptId) => setClipboard({ materials: mats, name, sourceAptId })}
-              onPaste={handlePaste}
-              onDelete={(aptId) => deleteAppointment.mutate({ treatmentId: id, aptId })}
-              onDuplicate={(aptId) => duplicateAppointment.mutate({ treatmentId: id, aptId })}
-              onUpdateApt={(data) => updateApt.mutate({ treatmentId: id, aptId: apt.id, ...data })}
-              onMerge={(sourceId) => mergeMutation.mutate({ treatmentId: id, targetId: apt.id, sourceId })}
-            />
-          );
-        })}
+        <DndContext sensors={aptSensors} collisionDetection={closestCenter} onDragEnd={handleAptDragEnd}>
+          <SortableContext items={breakdown.appointmentCosts.map((d) => d.appointment.id)} strategy={verticalListSortingStrategy}>
+            {breakdown.appointmentCosts.map((detail, i) => {
+              const apt = treatment.appointments.find((a) => a.id === detail.appointment.id)!;
+              return (
+                <EditableAppointment
+                  key={detail.appointment.id}
+                  treatmentId={id}
+                  detail={detail}
+                  apt={apt}
+                  allApts={treatment.appointments}
+                  products={apiProducts}
+                  defaultOpen={i === 0}
+                  clipboard={clipboard}
+                  onCopy={(mats, name, sourceAptId) => setClipboard({ materials: mats, name, sourceAptId })}
+                  onPaste={handlePaste}
+                  onDelete={(aptId) => deleteAppointment.mutate({ treatmentId: id, aptId })}
+                  onDuplicate={(aptId) => duplicateAppointment.mutate({ treatmentId: id, aptId })}
+                  onUpdateApt={(data) => updateApt.mutate({ treatmentId: id, aptId: apt.id, ...data })}
+                  onMerge={(sourceId) => mergeMutation.mutate({ treatmentId: id, targetId: apt.id, sourceId })}
+                />
+              );
+            })}
+          </SortableContext>
+        </DndContext>
       </div>
     </div>
   );

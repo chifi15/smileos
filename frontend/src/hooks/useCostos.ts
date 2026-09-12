@@ -292,6 +292,15 @@ export function useUpdateCostAppointment() {
   });
 }
 
+export function useReorderCostAppointments() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ treatmentId, ids }: { treatmentId: string; ids: string[] }) =>
+      api.post(`/api/v1/costos/treatments/${treatmentId}/appointments/reorder`, { ids }).then((r) => r.data),
+    onSuccess: () => qc.invalidateQueries({ queryKey: TREATMENTS_KEY }),
+  });
+}
+
 export function useDeleteCostAppointment() {
   const qc = useQueryClient();
   return useMutation({

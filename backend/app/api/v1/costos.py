@@ -416,6 +416,19 @@ async def reorder_treatments(
     await svc.reorder_treatments(db, current_user.clinic_id, body.ids)
 
 
+@router.post("/treatments/{treatment_id}/appointments/reorder", response_model=TreatmentOut)
+async def reorder_appointments(
+    treatment_id: uuid.UUID,
+    body: ReorderIn,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    obj = await svc.reorder_appointments(db, current_user.clinic_id, treatment_id, body.ids)
+    if not obj:
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Tratamiento no encontrado"})
+    return obj
+
+
 @router.post("/treatments/{treatment_id}/appointments", response_model=TreatmentOut)
 async def add_appointment(
     treatment_id: uuid.UUID,
