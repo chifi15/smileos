@@ -1,6 +1,7 @@
 "use client";
 
-import { use, useState, useEffect } from "react";
+import { use, useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import {
   ArrowLeft,
@@ -521,6 +522,32 @@ function SortableMaterialRow({
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: productId });
   const [groupOpen, setGroupOpen] = useState(false);
+  const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
+  const groupBtnRef = useRef<HTMLButtonElement>(null);
+
+  const openGroupMenu = useCallback(() => {
+    if (groupBtnRef.current) {
+      const rect = groupBtnRef.current.getBoundingClientRect();
+      setMenuStyle({
+        position: "fixed",
+        top: rect.bottom + 4,
+        right: window.innerWidth - rect.right,
+        zIndex: 9999,
+      });
+    }
+    setGroupOpen(true);
+  }, []);
+
+  useEffect(() => {
+    if (!groupOpen) return;
+    const handler = (e: MouseEvent) => {
+      if (groupBtnRef.current && !groupBtnRef.current.contains(e.target as Node)) {
+        setGroupOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handler);
+    return () => document.removeEventListener("mousedown", handler);
+  }, [groupOpen]);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -609,14 +636,15 @@ function SortableMaterialRow({
           {/* Botón de grupo alternativo */}
           <div className="relative">
             <button
+              ref={groupBtnRef}
               title="Marcar como alternativa"
-              onClick={() => setGroupOpen((v) => !v)}
+              onClick={() => groupOpen ? setGroupOpen(false) : openGroupMenu()}
               className={`rounded p-1 transition-colors ${altGroup ? altGroupColor(altGroup) : "text-slate-300 hover:bg-orange-50 hover:text-orange-500"}`}
             >
               <Link2 size={12} />
             </button>
-            {groupOpen && (
-              <div className="absolute right-0 top-full mt-1 z-30 min-w-[150px] rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg overflow-hidden">
+            {groupOpen && typeof window !== "undefined" && createPortal(
+              <div style={menuStyle} className="min-w-[150px] rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg overflow-hidden">
                 <p className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wide border-b border-slate-100 dark:border-gray-700">
                   Grupo alternativo
                 </p>
@@ -650,7 +678,8 @@ function SortableMaterialRow({
                     Quitar del grupo
                   </button>
                 )}
-              </div>
+              </div>,
+              document.body
             )}
           </div>
           <button onClick={onRemove} className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500">
