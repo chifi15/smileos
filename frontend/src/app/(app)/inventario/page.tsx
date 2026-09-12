@@ -740,8 +740,8 @@ export default function InventarioPage() {
         </div>
       )}
 
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative flex-1">
+      <div className="mb-4 flex flex-col gap-3">
+        <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
           <input type="text" placeholder="Buscar producto..." value={search} onChange={(e) => setSearch(e.target.value)}
             className="h-10 w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white pl-9 pr-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
