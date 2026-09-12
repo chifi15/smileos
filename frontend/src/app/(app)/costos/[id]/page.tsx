@@ -524,7 +524,6 @@ function SortableMaterialRow({
   const [groupOpen, setGroupOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
   const groupBtnRef = useRef<HTMLButtonElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
 
   const openGroupMenu = useCallback(() => {
     if (groupBtnRef.current) {
@@ -538,17 +537,6 @@ function SortableMaterialRow({
     }
     setGroupOpen(true);
   }, []);
-
-  useEffect(() => {
-    if (!groupOpen) return;
-    const handler = (e: MouseEvent) => {
-      const inBtn = groupBtnRef.current?.contains(e.target as Node);
-      const inMenu = menuRef.current?.contains(e.target as Node);
-      if (!inBtn && !inMenu) setGroupOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [groupOpen]);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -645,7 +633,9 @@ function SortableMaterialRow({
               <Link2 size={12} />
             </button>
             {groupOpen && typeof window !== "undefined" && createPortal(
-              <div ref={menuRef} style={menuStyle} className="min-w-[150px] rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg overflow-hidden">
+              <>
+                <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => setGroupOpen(false)} />
+                <div style={menuStyle} className="min-w-[150px] rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg overflow-hidden">
                 <p className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wide border-b border-slate-100 dark:border-gray-700">
                   Grupo alternativo
                 </p>
@@ -679,7 +669,8 @@ function SortableMaterialRow({
                     Quitar del grupo
                   </button>
                 )}
-              </div>,
+              </div>
+              </>,
               document.body
             )}
           </div>
