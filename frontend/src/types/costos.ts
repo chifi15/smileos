@@ -110,6 +110,7 @@ export interface TreatmentCostBreakdown {
   appointmentCosts: AppointmentCostDetail[];
   totalMaterialsCost: number;
   professionalFees: number;
+  fixedCostPerAppointment: number;
   fixedCosts: number;
   subtotal: number;
   margin: number;

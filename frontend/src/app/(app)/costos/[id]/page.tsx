@@ -85,15 +85,19 @@ function altGroupColor(g: string) {
 function TreatmentSettings({
   treatment,
   globalFixedCost,
+  numAppointments,
   calculatedPrice,
   onUpdate,
 }: {
   treatment: ApiTreatment;
   globalFixedCost?: number;
+  numAppointments: number;
   calculatedPrice: number;
   onUpdate: (data: Partial<Omit<ApiTreatment, "id" | "appointments">>) => void;
 }) {
   const [open, setOpen] = useState(false);
+  const fixedPerCita = treatment.fixed_costs;
+  const totalFijo = fixedPerCita * Math.max(numAppointments, 1);
 
   return (
     <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
@@ -156,17 +160,38 @@ function TreatmentSettings({
             </div>
           </div>
 
-          {globalFixedCost !== undefined && (
-            <div className="flex items-center gap-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 px-4 py-3 text-sm">
-              <DollarSign size={14} className="text-blue-500 dark:text-blue-400 shrink-0" />
-              <span className="text-blue-700 dark:text-blue-400">
-                Costos fijos por paciente: <strong>C$ {globalFixedCost.toFixed(2)}</strong>
-              </span>
-              <a href="/costos/costos-fijos" className="ml-auto text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium">
-                Editar →
-              </a>
-            </div>
-          )}
+          <div>
+            <label className="text-xs font-medium text-slate-500 dark:text-gray-400 block mb-1.5">
+              Costo fijo por cita (C$)
+            </label>
+            <input
+              key={treatment.fixed_costs}
+              type="number"
+              step="0.01"
+              min="0"
+              className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              defaultValue={fixedPerCita}
+              onBlur={(e) => onUpdate({ fixed_costs: parseFloat(e.target.value) || 0 })}
+            />
+            {numAppointments > 1 && (
+              <p className="mt-1.5 text-xs text-slate-500 dark:text-gray-400">
+                Total costos fijos: <span className="font-semibold text-slate-700 dark:text-gray-300">C$ {totalFijo.toFixed(2)}</span>
+                <span className="ml-1 text-slate-400 dark:text-gray-500">({numAppointments} citas × C$ {fixedPerCita.toFixed(2)})</span>
+              </p>
+            )}
+            {globalFixedCost !== undefined && Math.abs(globalFixedCost - fixedPerCita) > 0.01 && (
+              <p className="mt-1 text-xs text-slate-400 dark:text-gray-500">
+                Referencia global: C$ {globalFixedCost.toFixed(2)}/cita —{" "}
+                <button
+                  type="button"
+                  className="underline hover:text-slate-600 dark:hover:text-gray-300"
+                  onClick={() => onUpdate({ fixed_costs: globalFixedCost })}
+                >
+                  Restaurar
+                </button>
+              </p>
+            )}
+          </div>
 
           <div>
             <label className="text-xs font-medium text-slate-500 dark:text-gray-400 block mb-1.5">
@@ -1245,6 +1270,7 @@ export default function TreatmentDetailPage({
       <TreatmentSettings
         treatment={treatment}
         globalFixedCost={globalFixedCost}
+        numAppointments={treatment.appointments.length}
         calculatedPrice={breakdown.calculatedPrice}
         onUpdate={(data) => updateTreatment.mutate({ id, ...data })}
       />

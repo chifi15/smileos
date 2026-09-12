@@ -84,7 +84,9 @@ export function calculateTreatmentCosts(
 
   const totalMaterialsCost = appointmentCosts.reduce((sum, a) => sum + a.materialCost, 0);
   const professionalFees = treatment.professionalFeePerHour * treatment.totalHours;
-  const fixedCosts = globalFixedCostPerPatient ?? treatment.fixedCosts;
+  const fixedCostPerAppointment = globalFixedCostPerPatient ?? treatment.fixedCosts;
+  const numAppointments = Math.max(treatment.appointments.length, 1);
+  const fixedCosts = fixedCostPerAppointment * numAppointments;
   const subtotal = totalMaterialsCost + professionalFees + fixedCosts;
   const margin = subtotal * treatment.clinicMarginPct;
   const calculatedPrice = subtotal + margin;
@@ -94,6 +96,7 @@ export function calculateTreatmentCosts(
     appointmentCosts,
     totalMaterialsCost,
     professionalFees,
+    fixedCostPerAppointment,
     fixedCosts,
     subtotal,
     margin,

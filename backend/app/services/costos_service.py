@@ -686,9 +686,10 @@ async def _sync_one_treatment_op_cost(
     if not proc:
         return
 
-    per_patient = float(treatment.fixed_costs or 0.0)
+    per_appointment = float(treatment.fixed_costs or 0.0)
+    num_appointments = max(len(treatment.appointments), 1)
     prof_fees = float(treatment.professional_fee_per_hour) * float(treatment.total_hours)
-    proc.operational_cost = round(material_cost + prof_fees + per_patient, 2)
+    proc.operational_cost = round(material_cost + prof_fees + per_appointment * num_appointments, 2)
     await db.flush()
 
 

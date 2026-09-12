@@ -42,12 +42,19 @@ export default function CostSummaryBar({ breakdown, compact }: Props) {
 
   const marginPct = subtotal > 0 ? Math.round((margin / subtotal) * 100) : 0;
 
+  const numAppointments = breakdown.appointmentCosts.length;
+  const fixedCostPerAppointment = breakdown.fixedCostPerAppointment;
+
   return (
     <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800">
       <div className="grid grid-cols-2 divide-x divide-slate-100 dark:divide-gray-700 sm:grid-cols-4">
         <SummaryCell label="Materiales" value={totalMaterialsCost} />
         <SummaryCell label="Honorarios" value={professionalFees} />
-        <SummaryCell label="Costos fijos" value={fixedCosts} />
+        <SummaryCell
+          label="Costos fijos"
+          value={fixedCosts}
+          annotation={numAppointments > 1 ? `${numAppointments} citas × C$ ${fixedCostPerAppointment.toFixed(2)}` : undefined}
+        />
         <SummaryCell label="Subtotal" value={subtotal} highlight />
       </div>
       <div className="grid grid-cols-3 divide-x divide-slate-100 dark:divide-gray-700 border-t border-slate-100 dark:border-gray-700">
@@ -78,10 +85,12 @@ function SummaryCell({
   label,
   value,
   highlight,
+  annotation,
 }: {
   label: string;
   value: number;
   highlight?: boolean;
+  annotation?: string;
 }) {
   return (
     <div className={`px-5 py-4 ${highlight ? "bg-slate-50 dark:bg-gray-700/50" : ""}`}>
@@ -89,6 +98,9 @@ function SummaryCell({
       <p className={`text-base font-semibold ${highlight ? "text-slate-900 dark:text-white" : "text-slate-700 dark:text-gray-300"}`}>
         {fmtC(value)}
       </p>
+      {annotation && (
+        <p className="text-[10px] text-slate-400 dark:text-gray-500 mt-0.5">{annotation}</p>
+      )}
     </div>
   );
 }
