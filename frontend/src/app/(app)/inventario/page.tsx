@@ -18,7 +18,7 @@ import {
 } from "@/hooks/useCostos";
 import { categoryLabel, categoryColor, ProductCategory } from "@/types/costos";
 import { fmt, fmtC, fmtUSD } from "@/lib/costos-utils";
-import { fmtDate, useEscapeKey } from "@/lib/utils";
+import { fmtDate, useEscapeKey, normalizeSearch } from "@/lib/utils";
 import { useClinicSettings } from "@/hooks/useSettings";
 
 const ALL_CATEGORIES: ProductCategory[] = [
@@ -676,7 +676,7 @@ export default function InventarioPage() {
   const [lotsProduct, setLotsProduct] = useState<ApiProduct | null>(null);
 
   const filtered = products.filter((p) => {
-    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || (p.supplier ?? "").toLowerCase().includes(search.toLowerCase());
+    const matchSearch = normalizeSearch(p.name).includes(normalizeSearch(search)) || normalizeSearch(p.supplier ?? "").includes(normalizeSearch(search));
     const matchCat = category === "all" || p.category === category;
     const matchStatus = statusFilter === "all" || getStatus(p) === statusFilter;
     return matchSearch && matchCat && matchStatus;

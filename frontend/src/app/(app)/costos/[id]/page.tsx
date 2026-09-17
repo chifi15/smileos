@@ -61,6 +61,7 @@ import {
   apiProductToProduct,
   apiTreatmentToTreatment,
 } from "@/lib/costos-utils";
+import { normalizeSearch } from "@/lib/utils";
 import { categoryLabel, categoryColor } from "@/types/costos";
 import { useProcedures } from "@/hooks/useCatalog";
 import CostSummaryBar from "@/components/costos/CostSummaryBar";
@@ -235,7 +236,7 @@ function AddMaterialModal({
   const existingIds = new Set(apt.materials.map((m) => m.productId));
   const filtered = products
     .filter((p) => !existingIds.has(p.id))
-    .filter((p) => p.name.toLowerCase().includes(search.toLowerCase()));
+    .filter((p) => normalizeSearch(p.name).includes(normalizeSearch(search)));
 
   function handleAdd() {
     if (!selected) return;

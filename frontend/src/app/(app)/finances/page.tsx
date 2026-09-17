@@ -60,7 +60,7 @@ import {
   ALL_CATEGORY_LABELS,
   TransactionCreatePayload,
 } from "@/types";
-import { fmtDate, useEscapeKey } from "@/lib/utils";
+import { fmtDate, useEscapeKey, normalizeSearch } from "@/lib/utils";
 
 const MONTHS_ES = [
   "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -1242,7 +1242,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                       <div className="max-h-36 overflow-y-auto rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 divide-y divide-slate-50 dark:divide-gray-700">
                         {apiProducts
                           .filter((p) => !usedMaterials.some((m) => m.productId === p.id))
-                          .filter((p) => p.name.toLowerCase().includes(addMatSearch.toLowerCase()))
+                          .filter((p) => normalizeSearch(p.name).includes(normalizeSearch(addMatSearch)))
                           .slice(0, 12)
                           .map((p) => (
                             <button
@@ -1437,16 +1437,16 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
   }
 
   const filteredTxs = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase();
+    const q = normalizeSearch(searchQuery.trim());
     if (!q) return txs;
     return txs.filter((tx) => {
       return (
-        tx.patient?.full_name?.toLowerCase().includes(q) ||
-        tx.description?.toLowerCase().includes(q) ||
-        tx.invoice_number?.toLowerCase().includes(q) ||
-        tx.procedure?.name?.toLowerCase().includes(q) ||
-        tx.notes?.toLowerCase().includes(q) ||
-        (ALL_CATEGORY_LABELS[tx.category] ?? dynamicCategoryLabels[tx.category] ?? tx.category)?.toLowerCase().includes(q)
+        normalizeSearch(tx.patient?.full_name ?? "").includes(q) ||
+        normalizeSearch(tx.description ?? "").includes(q) ||
+        normalizeSearch(tx.invoice_number ?? "").includes(q) ||
+        normalizeSearch(tx.procedure?.name ?? "").includes(q) ||
+        normalizeSearch(tx.notes ?? "").includes(q) ||
+        normalizeSearch(ALL_CATEGORY_LABELS[tx.category] ?? dynamicCategoryLabels[tx.category] ?? tx.category).includes(q)
       );
     });
   }, [txs, searchQuery, dynamicCategoryLabels]);

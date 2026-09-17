@@ -19,6 +19,11 @@ export function useEscapeKey(onClose: () => void) {
 const _D = ["dom.", "lun.", "mar.", "mié.", "jue.", "vie.", "sáb."];
 const _M = ["ene.", "feb.", "mar.", "abr.", "may.", "jun.", "jul.", "ago.", "sep.", "oct.", "nov.", "dic."];
 
+/** Normaliza texto para búsqueda sin distinción de tildes ni mayúsculas. */
+export function normalizeSearch(str: string): string {
+  return str.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+}
+
 /** Formatea una fecha como "lun. 21 ago. 2026". showWeekday=false omite el día de semana. */
 export function fmtDate(dateStr: string, opts?: { showWeekday?: boolean; showYear?: boolean }) {
   const { showWeekday = true, showYear = true } = opts ?? {};

@@ -27,7 +27,7 @@ import {
 } from "@/types/costos";
 import { fmtC, fmtUSD, fmt } from "@/lib/costos-utils";
 import { useClinicSettings } from "@/hooks/useSettings";
-import { fmtDate, useEscapeKey } from "@/lib/utils";
+import { fmtDate, useEscapeKey, normalizeSearch } from "@/lib/utils";
 import Button from "@/components/ui/Button";
 
 const ALL_CATEGORIES: ProductCategory[] = [
@@ -542,7 +542,7 @@ export default function ProductosPage() {
   const bulkDelete = useDeleteCostProducts();
 
   const filtered = products.filter((p) => {
-    const matchSearch = p.name.toLowerCase().includes(search.toLowerCase()) || (p.supplier ?? "").toLowerCase().includes(search.toLowerCase());
+    const matchSearch = normalizeSearch(p.name).includes(normalizeSearch(search)) || normalizeSearch(p.supplier ?? "").includes(normalizeSearch(search));
     const matchCat = category === "all" || p.category === category;
     return matchSearch && matchCat;
   });
