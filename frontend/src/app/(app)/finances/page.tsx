@@ -1577,6 +1577,7 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                   <th className="px-4 py-3 text-left">Categoría</th>
                   <th className="px-4 py-3 text-left">Descripción</th>
                   <th className="px-4 py-3 text-left">Paciente</th>
+                  <th className="px-4 py-3 text-left">Doctor</th>
                   <th className="px-4 py-3 text-left">Procedimiento</th>
                   <th className="px-4 py-3 text-left">Factura</th>
                   <th className="px-4 py-3 text-right">Monto C$</th>
@@ -1617,6 +1618,13 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                             <User size={10} />
                             {tx.patient.full_name}
                           </span>
+                        ) : (
+                          <span className="text-slate-400 dark:text-gray-500">—</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 text-xs">
+                        {tx.doctor ? (
+                          <span className="text-violet-700 dark:text-violet-400 font-medium">{tx.doctor.full_name}</span>
                         ) : (
                           <span className="text-slate-400 dark:text-gray-500">—</span>
                         )}
