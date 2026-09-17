@@ -29,10 +29,16 @@ import {
   ChevronDown,
   ChevronUp,
   ExternalLink,
+  Target,
+  Wallet,
+  ShoppingCart,
+  Boxes,
 } from "lucide-react";
 import { categoryLabel, categoryColor } from "@/types/costos";
 import Spinner from "@/components/ui/Spinner";
 import { useUiPreferences, useUpdateUiPreference } from "@/hooks/useSettings";
+import { useFixedCosts, useCostProducts } from "@/hooks/useCostos";
+import { useIncomeByPatient } from "@/hooks/useFinances";
 import {
   useReportSummary,
   useMonthlyTrend,
@@ -499,6 +505,9 @@ export default function ReportesPage() {
 
   const { data: summary, isLoading: loadingSummary } = useReportSummary(year, month);
   const { data: trend, isLoading: loadingTrend } = useMonthlyTrend(year);
+  const { data: fixedCosts } = useFixedCosts();
+  const { data: allProducts = [] } = useCostProducts();
+  const { data: incomeByPatient = [] } = useIncomeByPatient(year, month);
   const { data: topProc } = useTopProcedures(year, filterMonth);
   const { data: topQuoted } = useTopProceduresQuoted(year, filterMonth);
   const { data: topExp } = useTopExpenses(year, filterMonth);
@@ -606,6 +615,111 @@ export default function ReportesPage() {
           />
         </div>
       ) : null}
+
+      {/* ── Métricas Clave ── */}
+      {summary && (() => {
+        const totalFixedCosts = fixedCosts?.items.reduce((s, i) => s + i.amount, 0) ?? 0;
+        const uniquePatients = incomeByPatient.length;
+        const avgTicket = uniquePatients > 0 ? summary.ingresos_brutos / uniquePatients : 0;
+        const avgMargin = summary.count_ingresos > 0
+          ? (summary.ingresos_brutos - summary.costos_operativos) / summary.count_ingresos
+          : 0;
+        const breakEven = avgMargin > 0 ? Math.ceil(totalFixedCosts / avgMargin) : null;
+        const stockValue = allProducts.reduce((s, p) => s + (p.stock_qty ?? 0) * p.unit_price, 0);
+        const freeCapital = summary.utilidad_neta;
+
+        return (
+          <div className="rounded-xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shadow-sm p-5">
+            <h2 className="text-sm font-semibold text-slate-700 dark:text-gray-200 mb-4">Métricas clave del mes</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+
+              {/* Ticket promedio */}
+              <div className="rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/40 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
+                    <ShoppingCart size={15} className="text-blue-600 dark:text-blue-400" />
+                  </div>
+                  <span className="text-xs font-semibold text-slate-600 dark:text-gray-300 uppercase tracking-wide">Ticket promedio / paciente</span>
+                </div>
+                <p className="text-2xl font-bold text-slate-800 dark:text-white">
+                  {uniquePatients > 0 ? `C$ ${fmt(avgTicket)}` : "—"}
+                </p>
+                <p className="text-xs text-slate-400 dark:text-gray-500 mt-1">
+                  {uniquePatients > 0
+                    ? `Basado en ${uniquePatients} paciente${uniquePatients !== 1 ? "s" : ""} este mes`
+                    : "Sin ingresos con paciente asignado"}
+                </p>
+              </div>
+
+              {/* Punto de equilibrio */}
+              <div className="rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/40 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                    <Target size={15} className="text-amber-600 dark:text-amber-400" />
+                  </div>
+                  <span className="text-xs font-semibold text-slate-600 dark:text-gray-300 uppercase tracking-wide">Punto de equilibrio</span>
+                </div>
+                {breakEven !== null ? (
+                  <>
+                    <p className="text-2xl font-bold text-slate-800 dark:text-white">
+                      {breakEven} tratamiento{breakEven !== 1 ? "s" : ""}
+                    </p>
+                    <p className="text-xs text-slate-400 dark:text-gray-500 mt-1">
+                      {summary.count_ingresos >= breakEven
+                        ? <span className="text-green-600 dark:text-green-400 font-medium">✓ Superado este mes ({summary.count_ingresos} realizados)</span>
+                        : `Llevas ${summary.count_ingresos} de ${breakEven} — faltan ${breakEven - summary.count_ingresos}`}
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-2xl font-bold text-slate-400 dark:text-gray-500">—</p>
+                    <p className="text-xs text-slate-400 dark:text-gray-500 mt-1">
+                      {totalFixedCosts === 0
+                        ? "Configura costos fijos en Costos → Costos Fijos"
+                        : "Sin margen por tratamiento este mes"}
+                    </p>
+                  </>
+                )}
+              </div>
+
+              {/* Capital libre */}
+              <div className="rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/40 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${freeCapital >= 0 ? "bg-green-100 dark:bg-green-900/30" : "bg-red-100 dark:bg-red-900/30"}`}>
+                    <Wallet size={15} className={freeCapital >= 0 ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"} />
+                  </div>
+                  <span className="text-xs font-semibold text-slate-600 dark:text-gray-300 uppercase tracking-wide">Flujo libre del mes</span>
+                </div>
+                <p className={`text-2xl font-bold ${freeCapital >= 0 ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
+                  C$ {fmt(freeCapital)}
+                </p>
+                <p className="text-xs text-slate-400 dark:text-gray-500 mt-1">
+                  {freeCapital >= 0
+                    ? "Puedes usar este monto sin afectar operaciones"
+                    : "El mes cierra en números rojos"}
+                </p>
+              </div>
+
+              {/* Stock inmovilizado */}
+              <div className="rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/40 p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/30">
+                    <Boxes size={15} className="text-violet-600 dark:text-violet-400" />
+                  </div>
+                  <span className="text-xs font-semibold text-slate-600 dark:text-gray-300 uppercase tracking-wide">Capital en stock</span>
+                </div>
+                <p className="text-2xl font-bold text-violet-700 dark:text-violet-400">
+                  C$ {fmt(stockValue)}
+                </p>
+                <p className="text-xs text-slate-400 dark:text-gray-500 mt-1">
+                  Dinero inmovilizado en productos — no está disponible como efectivo
+                </p>
+              </div>
+
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Tendencia anual */}
       <div className="rounded-xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shadow-sm p-5">
