@@ -642,7 +642,7 @@ export default function ReportesPage() {
                   <span className="text-xs font-semibold text-slate-600 dark:text-gray-300 uppercase tracking-wide">Ticket promedio / paciente</span>
                 </div>
                 <p className="text-2xl font-bold text-slate-800 dark:text-white">
-                  {uniquePatients > 0 ? `C$ ${fmt(avgTicket)}` : "—"}
+                  {uniquePatients > 0 ? fmt(avgTicket) : "—"}
                 </p>
                 <p className="text-xs text-slate-400 dark:text-gray-500 mt-1">
                   {uniquePatients > 0
@@ -691,7 +691,7 @@ export default function ReportesPage() {
                   <span className="text-xs font-semibold text-slate-600 dark:text-gray-300 uppercase tracking-wide">Flujo libre del mes</span>
                 </div>
                 <p className={`text-2xl font-bold ${freeCapital >= 0 ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                  C$ {fmt(freeCapital)}
+                  {fmt(freeCapital)}
                 </p>
                 <p className="text-xs text-slate-400 dark:text-gray-500 mt-1">
                   {freeCapital >= 0
@@ -709,7 +709,7 @@ export default function ReportesPage() {
                   <span className="text-xs font-semibold text-slate-600 dark:text-gray-300 uppercase tracking-wide">Capital en stock</span>
                 </div>
                 <p className="text-2xl font-bold text-violet-700 dark:text-violet-400">
-                  C$ {fmt(stockValue)}
+                  {fmt(stockValue)}
                 </p>
                 <p className="text-xs text-slate-400 dark:text-gray-500 mt-1">
                   Dinero inmovilizado en productos — no está disponible como efectivo
