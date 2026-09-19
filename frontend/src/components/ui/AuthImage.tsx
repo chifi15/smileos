@@ -16,18 +16,23 @@ export default function AuthImage({ src, alt = "", className = "" }: AuthImagePr
 
   useEffect(() => {
     let url = "";
+    let active = true;
     setObjectUrl(null);
     setError(false);
 
     apiClient
       .get(src, { responseType: "blob" })
       .then(({ data }) => {
+        if (!active) return;
         url = URL.createObjectURL(data as Blob);
         setObjectUrl(url);
       })
-      .catch(() => setError(true));
+      .catch(() => {
+        if (active) setError(true);
+      });
 
     return () => {
+      active = false;
       if (url) URL.revokeObjectURL(url);
     };
   }, [src]);
