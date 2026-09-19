@@ -489,6 +489,15 @@ export default function PatientPhotosPage() {
     [orderedPhotos]
   );
 
+  // Flat list in visual display order (same sequence the user sees on screen)
+  const displayOrderedPhotos = useMemo(
+    () =>
+      (Object.keys(PHOTO_TYPE_LABELS) as PhotoType[]).flatMap(
+        (type) => groupedPhotos[type] ?? []
+      ),
+    [groupedPhotos]
+  );
+
   function handleDragEnd(event: DragEndEvent, type: PhotoType) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
@@ -613,7 +622,7 @@ export default function PatientPhotosPage() {
                   >
                     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
                       {group.map((photo) => {
-                        const globalIndex = orderedPhotos.findIndex(
+                        const globalIndex = displayOrderedPhotos.findIndex(
                           (p) => p.id === photo.id
                         );
                         return (
@@ -645,13 +654,13 @@ export default function PatientPhotosPage() {
 
       {lightboxIndex >= 0 && (
         <PhotoLightbox
-          photos={orderedPhotos}
+          photos={displayOrderedPhotos}
           index={lightboxIndex}
           patientId={id}
           onClose={() => setLightboxIndex(-1)}
           onPrev={() => setLightboxIndex((i) => Math.max(0, i - 1))}
           onNext={() =>
-            setLightboxIndex((i) => Math.min(orderedPhotos.length - 1, i + 1))
+            setLightboxIndex((i) => Math.min(displayOrderedPhotos.length - 1, i + 1))
           }
         />
       )}
