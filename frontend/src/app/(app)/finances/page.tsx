@@ -761,9 +761,10 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
       if (apptTreatment) {
         const profFees = (apptTreatment.professional_fee_per_hour || 0) * (apptTreatment.total_hours || 0);
         const fixedCosts = apptTreatment.fixed_costs || 0;
+        const marginPct = apptTreatment.clinic_margin_pct || 0;
         const totalApts = apptTreatment.appointments.length || 1;
-        // honorarios se dividen entre citas; fixed_costs ya es por cita; sin margen
-        opCostOverride = Math.round((materialCost + profFees / totalApts + fixedCosts) * 100) / 100;
+        const subtotal = materialCost + profFees / totalApts + fixedCosts;
+        opCostOverride = Math.round(subtotal * (1 + marginPct) * 100) / 100;
       } else {
         opCostOverride = materialCost;
       }
@@ -773,9 +774,10 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
       if (apptTreatment) {
         const profFees = (apptTreatment.professional_fee_per_hour || 0) * (apptTreatment.total_hours || 0);
         const fixedCosts = apptTreatment.fixed_costs || 0;
+        const marginPct = apptTreatment.clinic_margin_pct || 0;
         const totalApts = apptTreatment.appointments.length || 1;
-        // costo total del tratamiento: materiales + honorarios totales + costos fijos × n citas
-        opCostOverride = Math.round((materialCost + profFees + fixedCosts * totalApts) * 100) / 100;
+        const subtotal = materialCost + profFees + fixedCosts * totalApts;
+        opCostOverride = Math.round(subtotal * (1 + marginPct) * 100) / 100;
       } else {
         opCostOverride = materialCost;
       }
@@ -1077,16 +1079,21 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
               if (apptTreatment) {
                 const profFees = (apptTreatment.professional_fee_per_hour || 0) * (apptTreatment.total_hours || 0);
                 const fixedCosts = apptTreatment.fixed_costs || 0;
+                const marginPct = apptTreatment.clinic_margin_pct || 0;
                 const totalApts = apptTreatment.appointments.length || 1;
                 const honPorCita = profFees / totalApts;
-                costPreview = Math.round((matCost + honPorCita + fixedCosts) * 100) / 100;
+                const subtotal = matCost + honPorCita + fixedCosts;
+                const ganancia = subtotal * marginPct;
+                costPreview = Math.round((subtotal + ganancia) * 100) / 100;
                 costLabel = (
-                  <span className="space-x-1">
+                  <span className="flex flex-wrap gap-x-1 items-center">
                     <span>Mat. <strong>C${fmt(matCost)}</strong></span>
                     <span className="text-slate-400">+</span>
                     <span>Hon. <strong>C${fmt(honPorCita)}</strong> <span className="text-slate-400">({totalApts} citas)</span></span>
                     <span className="text-slate-400">+</span>
                     <span>C.Fijos <strong>C${fmt(fixedCosts)}</strong></span>
+                    <span className="text-slate-400">+</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">Gan. <strong>C${fmt(ganancia)}</strong> <span className="text-slate-400">({Math.round(marginPct * 100)}%)</span></span>
                     <span className="text-slate-400">=</span>
                     <strong>C${fmt(costPreview)}</strong>
                   </span>
