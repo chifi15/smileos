@@ -1148,7 +1148,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                         <span className="text-green-700 dark:text-green-400 font-medium">Mat. compartidos:</span>
                         {sharedMats.map((m) => {
                           const p = apiProducts.find((ap) => ap.id === m.productId);
-                          const matSaving = calcMaterialsCost([{ productId: m.productId, qty: m.qty }]) * ((m.sharedBy ?? 1) - 1) / (m.sharedBy ?? 1);
+                          const matSaving = calcMaterialsCost([{ productId: m.productId, qty: m.qty }]) * ((m.sharedBy ?? 1) - 1);
                           return (
                             <span key={m.productId} className="inline-flex items-center gap-1 bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 rounded px-1.5 py-0.5 text-[10px]">
                               {p?.name ?? m.productId}
