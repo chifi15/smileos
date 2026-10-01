@@ -2090,11 +2090,16 @@ function GananciasTab({ year, month }: { year: number; month: number }) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-xs text-emerald-800 dark:text-emerald-300 leading-relaxed">
-        <strong>¿De dónde sale la ganancia?</strong> El costo operativo guardado ya incluye el margen clínico
-        (subtotal C$500 + 15% = C$575 guardado). La ganancia se extrae con{" "}
-        <code className="bg-emerald-100 dark:bg-emerald-800/50 px-1 rounded">snapshot × margen / (1 + margen)</code>
-        {" "}— recupera exactamente el 15% del costo base (C$575 × 0.15/1.15 = C$75), sin contarlo dos veces.
+      <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-xs text-emerald-800 dark:text-emerald-300 leading-relaxed space-y-1.5">
+        <p><strong>¿De dónde sale la ganancia?</strong> Al guardar una transacción, el costo operativo almacenado ya incluye el margen clínico. Ejemplo:</p>
+        <p className="pl-2 border-l-2 border-emerald-300 dark:border-emerald-600 space-y-0.5">
+          <span className="block">Materiales <strong>C$200</strong> + Honorarios <strong>C$150</strong> + Costos fijos <strong>C$150</strong> = Subtotal <strong>C$500</strong></span>
+          <span className="block">Subtotal <strong>C$500</strong> × 1.15 = Costo operativo guardado <strong>C$575</strong></span>
+        </p>
+        <p>Para extraer la ganancia del snapshot se usa{" "}
+          <code className="bg-emerald-100 dark:bg-emerald-800/50 px-1 rounded">snapshot × margen / (1 + margen)</code>
+          {" "}→ C$575 × 0.15 / 1.15 = <strong>C$75</strong> — así se recupera el 15% exacto del subtotal, sin contarlo dos veces.
+        </p>
       </div>
 
       <div className="flex items-center justify-between flex-wrap gap-3">
