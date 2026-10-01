@@ -2089,7 +2089,14 @@ function GananciasTab({ year, month }: { year: number; month: number }) {
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+    <div className="space-y-3">
+      <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-xs text-emerald-800 dark:text-emerald-300 leading-relaxed">
+        <strong>¿De dónde sale la ganancia?</strong> Al registrar una transacción, el costo operativo guardado ya incluye el margen clínico
+        (p.ej. subtotal C$500 + 15% = C$575 guardado). La ganancia se extrae con{" "}
+        <code className="bg-emerald-100 dark:bg-emerald-800/50 px-1 rounded">snapshot × margen / (1 + margen)</code>
+        {" "}— así se recupera exactamente el 15% del costo base (C$575 × 0.15/1.15 = C$75), sin contarlo dos veces.
+      </div>
+      <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
@@ -2129,6 +2136,7 @@ function GananciasTab({ year, month }: { year: number; month: number }) {
           </tfoot>
         </table>
       </div>
+    </div>
     </div>
   );
 }
