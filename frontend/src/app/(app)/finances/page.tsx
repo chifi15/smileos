@@ -761,10 +761,9 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
       if (apptTreatment) {
         const profFees = (apptTreatment.professional_fee_per_hour || 0) * (apptTreatment.total_hours || 0);
         const fixedCosts = apptTreatment.fixed_costs || 0;
-        const marginPct = apptTreatment.clinic_margin_pct || 0;
         const totalApts = apptTreatment.appointments.length || 1;
-        const aptSubtotal = materialCost + (profFees + fixedCosts) / totalApts;
-        opCostOverride = Math.round(aptSubtotal * (1 + marginPct) * 100) / 100;
+        // honorarios se dividen entre citas; fixed_costs ya es por cita; sin margen
+        opCostOverride = Math.round((materialCost + profFees / totalApts + fixedCosts) * 100) / 100;
       } else {
         opCostOverride = materialCost;
       }
@@ -774,7 +773,9 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
       if (apptTreatment) {
         const profFees = (apptTreatment.professional_fee_per_hour || 0) * (apptTreatment.total_hours || 0);
         const fixedCosts = apptTreatment.fixed_costs || 0;
-        opCostOverride = Math.round((materialCost + profFees + fixedCosts) * 100) / 100;
+        const totalApts = apptTreatment.appointments.length || 1;
+        // costo total del tratamiento: materiales + honorarios totales + costos fijos × n citas
+        opCostOverride = Math.round((materialCost + profFees + fixedCosts * totalApts) * 100) / 100;
       } else {
         opCostOverride = materialCost;
       }
@@ -1076,14 +1077,24 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
               if (apptTreatment) {
                 const profFees = (apptTreatment.professional_fee_per_hour || 0) * (apptTreatment.total_hours || 0);
                 const fixedCosts = apptTreatment.fixed_costs || 0;
-                const marginPct = apptTreatment.clinic_margin_pct || 0;
                 const totalApts = apptTreatment.appointments.length || 1;
-                const aptSubtotal = matCost + (profFees + fixedCosts) / totalApts;
-                costPreview = Math.round(aptSubtotal * (1 + marginPct) * 100) / 100;
+                const honPorCita = profFees / totalApts;
+                costPreview = Math.round((matCost + honPorCita + fixedCosts) * 100) / 100;
+                costLabel = (
+                  <span className="space-x-1">
+                    <span>Mat. <strong>C${fmt(matCost)}</strong></span>
+                    <span className="text-slate-400">+</span>
+                    <span>Hon. <strong>C${fmt(honPorCita)}</strong> <span className="text-slate-400">({totalApts} citas)</span></span>
+                    <span className="text-slate-400">+</span>
+                    <span>C.Fijos <strong>C${fmt(fixedCosts)}</strong></span>
+                    <span className="text-slate-400">=</span>
+                    <strong>C${fmt(costPreview)}</strong>
+                  </span>
+                );
               } else {
                 costPreview = matCost;
+                costLabel = <>Costo op. esta cita: <strong>C${fmt(costPreview)}</strong></>;
               }
-              costLabel = <>Costo op. esta cita: <strong>C${fmt(costPreview)}</strong></>;
             } else if (sess > 1) {
               costPreview = unitCost * qty / sess;
               costLabel = <>Costo op.: C${fmt(unitCost)} ÷ {sess} ses. = <strong>C${fmt(costPreview)}</strong></>;
