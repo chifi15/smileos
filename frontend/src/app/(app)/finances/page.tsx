@@ -668,18 +668,35 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   // Costo combinado correcto:
   // Para cada spec calcula el costo base (mat + honorarios + fijos) respetando
   // si se eligió una cita específica o el tratamiento completo.
-  function specBaseCost(s: { procedure_id: string; appointment_id: string }): number {
+  type SpecBreakdown = {
+    procName: string;
+    citaLabel: string | null;
+    matCost: number;
+    honCost: number;
+    fixedCost: number;
+    subtotal: number;
+  };
+
+  function specBreakdown(s: { procedure_id: string; appointment_id: string }): SpecBreakdown {
     const treatment = apiTreatments.find((t) => t.procedure_catalog_id === s.procedure_id);
+    const proc = procedures.find((p) => p.id === s.procedure_id);
     const matCost = calcMaterialsCost(getMaterialsForSpec(s.procedure_id, s.appointment_id));
+    const procName = proc?.name ?? "Procedimiento";
+    let citaLabel: string | null = null;
+    if (s.appointment_id && treatment) {
+      const apt = treatment.appointments.find((a) => a.id === s.appointment_id);
+      citaLabel = apt ? `Cita ${apt.number}${apt.name ? `: ${apt.name}` : ""}` : null;
+    }
     if (treatment) {
       const profFees = (treatment.professional_fee_per_hour || 0) * (treatment.total_hours || 0);
       const fixed = treatment.fixed_costs || 0;
       const n = treatment.appointments.length || 1;
-      const nonMat = s.appointment_id ? (profFees / n + fixed) : (profFees + fixed * n);
-      return matCost + nonMat;
+      const honCost = s.appointment_id ? profFees / n : profFees;
+      const fixedCost = s.appointment_id ? fixed : fixed * n;
+      return { procName, citaLabel, matCost, honCost, fixedCost, subtotal: matCost + honCost + fixedCost };
     }
-    // fallback: operational_cost del catálogo (no distingue cita)
-    return procedures.find((p) => p.id === s.procedure_id)?.operational_cost ?? matCost;
+    const fallback = proc?.operational_cost ?? matCost;
+    return { procName, citaLabel, matCost, honCost: 0, fixedCost: 0, subtotal: fallback };
   }
 
   function calcCombinedOpCost(
@@ -687,29 +704,24 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     mainAptId: string,
     extras: ExtraProc[],
     merged: UsedMaterial[]
-  ): { total: number; savings: number; individualSum: number } {
+  ): { total: number; savings: number; individualSum: number; breakdowns: SpecBreakdown[] } {
     const allSpecs = [{ procedure_id: mainProcId, appointment_id: mainAptId }, ...extras]
       .filter((s) => !!s.procedure_id);
 
-    // Costo individual de cada spec (respeta cita específica vs. tratamiento completo)
-    const individualSum = allSpecs.reduce((sum, s) => sum + specBaseCost(s), 0);
+    const breakdowns = allSpecs.map(specBreakdown);
+    const individualSum = breakdowns.reduce((s, b) => s + b.subtotal, 0);
 
-    // Ahorro de materiales compartidos entre procedimientos
-    const individualMatCost = allSpecs.reduce((sum, s) => {
-      return sum + calcMaterialsCost(getMaterialsForSpec(s.procedure_id, s.appointment_id));
-    }, 0);
+    const individualMatCost = breakdowns.reduce((s, b) => s + b.matCost, 0);
     const mergedMatCost = calcMaterialsCost(merged);
     const savings = Math.max(0, individualMatCost - mergedMatCost);
 
-    // El total nunca puede ser menor que el procedimiento más caro por sí solo
-    const maxIndividual = allSpecs.reduce((max, s) => Math.max(max, specBaseCost(s)), 0);
+    const maxIndividual = breakdowns.reduce((max, b) => Math.max(max, b.subtotal), 0);
 
-    // Aplicar margen usando el del procedimiento principal
     const mainTreatment = apiTreatments.find((t) => t.procedure_catalog_id === mainProcId);
     const marginPct = mainTreatment?.clinic_margin_pct ?? 0.15;
     const subtotal = Math.max(individualSum - savings, maxIndividual);
     const total = Math.round(subtotal * (1 + marginPct) * 100) / 100;
-    return { total, savings, individualSum };
+    return { total, savings, individualSum, breakdowns };
   }
 
   function initMaterialsFromTreatment(procedureId: string) {
@@ -1105,7 +1117,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
             let costPreview: number;
             let costLabel: React.ReactNode;
             if (isMultiProc && usedMaterials) {
-              const { total, savings, individualSum } = calcCombinedOpCost(
+              const { total, savings, individualSum, breakdowns } = calcCombinedOpCost(
                 form.procedure_id, form.appointment_id, extraProcedures, usedMaterials
               );
               costPreview = total;
@@ -1114,21 +1126,35 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
               const subtotalMulti = Math.max(individualSum - savings, 0);
               const gananciaMulti = subtotalMulti * marginPctMulti;
               costLabel = (
-                <span className="flex flex-wrap gap-x-1 items-center">
-                  {savings > 0 ? (
-                    <>
-                      <span>C${fmt(individualSum)}</span>
-                      <span className="text-green-700 dark:text-green-400">− C${fmt(savings)} mat. compartidos</span>
+                <span className="flex flex-col gap-1 w-full text-xs">
+                  {breakdowns.map((bd, i) => (
+                    <span key={i} className="flex flex-wrap gap-x-1 items-center">
+                      <span className="font-medium text-slate-700 dark:text-slate-300">
+                        {bd.procName}{bd.citaLabel ? ` (${bd.citaLabel})` : ""}:
+                      </span>
+                      <span>Mat. <strong>C${fmt(bd.matCost)}</strong></span>
+                      <span className="text-slate-400">+</span>
+                      <span>Hon. <strong>C${fmt(bd.honCost)}</strong></span>
+                      <span className="text-slate-400">+</span>
+                      <span>Fijos <strong>C${fmt(bd.fixedCost)}</strong></span>
                       <span className="text-slate-400">=</span>
-                      <span>C${fmt(subtotalMulti)}</span>
-                    </>
-                  ) : (
-                    <span>Subtotal C${fmt(subtotalMulti)}</span>
-                  )}
-                  <span className="text-slate-400">+</span>
-                  <span className="text-emerald-600 dark:text-emerald-400">Gan. <strong>C${fmt(gananciaMulti)}</strong> <span className="text-slate-400">({Math.round(marginPctMulti * 100)}%)</span></span>
-                  <span className="text-slate-400">=</span>
-                  <strong>C${fmt(costPreview)}</strong>
+                      <strong>C${fmt(bd.subtotal)}</strong>
+                    </span>
+                  ))}
+                  <span className="border-t border-slate-200 dark:border-slate-600 pt-1 flex flex-wrap gap-x-1 items-center">
+                    <span className="text-slate-500">Suma: C${fmt(individualSum)}</span>
+                    {savings > 0 && (
+                      <>
+                        <span className="text-slate-400">−</span>
+                        <span className="text-green-700 dark:text-green-400">C${fmt(savings)} mat. compartidos</span>
+                        <span className="text-slate-400">= C${fmt(subtotalMulti)}</span>
+                      </>
+                    )}
+                    <span className="text-slate-400">+</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">Gan. <strong>C${fmt(gananciaMulti)}</strong> <span className="text-slate-400">({Math.round(marginPctMulti * 100)}%)</span></span>
+                    <span className="text-slate-400">=</span>
+                    <strong>C${fmt(costPreview)}</strong>
+                  </span>
                 </span>
               );
             } else if (form.appointment_id && matCost !== null) {
