@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.models.finance import FinanceTransaction
 from app.models.clinic import ClinicSettings
 from app.models.treatment import ProcedureCatalog
+from app.models.costos import CostTreatment
 from app.models.patient import Patient
 from app.core.exceptions import NotFoundError
 
@@ -203,7 +204,15 @@ async def create_transaction(
                 )
             )
             if proc and proc.operational_cost:
-                op_cost = round(Decimal(str(proc.operational_cost)) * quantity / sessions, 2)
+                treatment = await db.scalar(
+                    select(CostTreatment).where(
+                        CostTreatment.procedure_catalog_id == proc.id,
+                        CostTreatment.clinic_id == clinic_id,
+                    )
+                )
+                margin = Decimal(str(treatment.clinic_margin_pct)) if treatment else Decimal("0.15")
+                raw = Decimal(str(proc.operational_cost)) * quantity / sessions
+                op_cost = round(raw * (1 + margin), 2)
 
     tx = FinanceTransaction(
         clinic_id=clinic_id,
@@ -456,8 +465,18 @@ async def update_transaction(
                         ProcedureCatalog.clinic_id == clinic_id,
                     )
                 )
-                base = Decimal(str(proc.operational_cost)) if proc and proc.operational_cost else None
-                tx.operational_cost_snapshot = round(base * (upd_quantity or 1) / upd_sessions, 2) if base else None
+                if proc and proc.operational_cost:
+                    treatment = await db.scalar(
+                        select(CostTreatment).where(
+                            CostTreatment.procedure_catalog_id == proc.id,
+                            CostTreatment.clinic_id == clinic_id,
+                        )
+                    )
+                    margin = Decimal(str(treatment.clinic_margin_pct)) if treatment else Decimal("0.15")
+                    raw = Decimal(str(proc.operational_cost)) * (upd_quantity or 1) / upd_sessions
+                    tx.operational_cost_snapshot = round(raw * (1 + margin), 2)
+                else:
+                    tx.operational_cost_snapshot = None
         else:
             tx.operational_cost_snapshot = None
     elif upd_cost_override is not None and tx.procedure_id:

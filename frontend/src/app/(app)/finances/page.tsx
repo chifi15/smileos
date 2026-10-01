@@ -1222,12 +1222,30 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                 costPreview = matCost;
                 costLabel = <>Costo op. esta cita: <strong>C${fmt(costPreview)}</strong></>;
               }
-            } else if (sess > 1) {
-              costPreview = unitCost * qty / sess;
-              costLabel = <>Costo op.: C${fmt(unitCost)} ÷ {sess} ses. = <strong>C${fmt(costPreview)}</strong></>;
             } else {
-              costPreview = unitCost * qty;
-              costLabel = <>Costo op.: C${fmt(unitCost)} × {qty} = <strong>C${fmt(costPreview)}</strong></>;
+              const simpleTreatment = apiTreatments.find((t) => t.procedure_catalog_id === form.procedure_id);
+              const marginPct = simpleTreatment?.clinic_margin_pct ?? 0;
+              const rawCost = unitCost * qty / sess;
+              const ganancia = rawCost * marginPct;
+              costPreview = Math.round((rawCost + ganancia) * 100) / 100;
+              if (marginPct > 0) {
+                costLabel = (
+                  <span className="flex flex-wrap gap-x-1 items-center">
+                    {sess > 1
+                      ? <span>C${fmt(unitCost)} × {qty} ÷ {sess} ses. = C${fmt(rawCost)}</span>
+                      : <span>Costo op. C${fmt(rawCost)}</span>
+                    }
+                    <span className="text-slate-400">+</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">Gan. <strong>C${fmt(ganancia)}</strong> <span className="text-slate-400">({Math.round(marginPct * 100)}%)</span></span>
+                    <span className="text-slate-400">=</span>
+                    <strong>C${fmt(costPreview)}</strong>
+                  </span>
+                );
+              } else if (sess > 1) {
+                costLabel = <>Costo op.: C${fmt(unitCost)} ÷ {sess} ses. = <strong>C${fmt(rawCost)}</strong></>;
+              } else {
+                costLabel = <>Costo op.: <strong>C${fmt(rawCost)}</strong></>;
+              }
             }
 
             return (
