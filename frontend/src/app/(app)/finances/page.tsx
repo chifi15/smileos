@@ -773,7 +773,8 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         const fixedCosts = apptTreatment.fixed_costs || 0;
         const marginPct = apptTreatment.clinic_margin_pct || 0;
         const totalApts = apptTreatment.appointments.length || 1;
-        const subtotal = materialCost + profFees / totalApts + fixedCosts;
+        const nPiezas = Math.max(1, parseInt(form.n_piezas) || 1);
+        const subtotal = materialCost + (profFees / totalApts + fixedCosts) * nPiezas;
         opCostOverride = Math.round(subtotal * (1 + marginPct) * 100) / 100;
       } else {
         opCostOverride = materialCost;
@@ -1009,8 +1010,8 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                   className="w-16 rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
                 {(parseInt(form.n_piezas) || 1) > 1 && (
-                  <span className="text-xs text-blue-600 dark:text-blue-400">
-                    misma visita — los materiales compartidos (p.ej. impresión) bájalos a 1
+                  <span className="text-xs text-slate-400 dark:text-gray-500">
+                    Honorarios y costos fijos ×{parseInt(form.n_piezas)}
                   </span>
                 )}
               </div>
@@ -1116,38 +1117,27 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                 const ganancia = subtotal * marginPct;
                 costPreview = Math.round((subtotal + ganancia) * 100) / 100;
 
-                const nPiezas = parseInt(form.n_piezas) || 1;
-                let savingsLabel: React.ReactNode = null;
-                if (nPiezas > 1) {
-                  const baseMats = getMaterialsForSpec(form.procedure_id, form.appointment_id);
-                  const baseSingleMat = calcMaterialsCost(baseMats);
-                  const singleSubtotal = baseSingleMat + honPorCita + fixedCosts;
-                  const separateCost = Math.round(nPiezas * singleSubtotal * (1 + marginPct) * 100) / 100;
-                  const savings = Math.round((separateCost - costPreview) * 100) / 100;
-                  savingsLabel = (
-                    <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400 mt-0.5">
-                      <span>{nPiezas} visitas sep.: <strong>C${fmt(separateCost)}</strong></span>
-                      <span className="text-slate-400">→</span>
-                      <span>esta visita: <strong>C${fmt(costPreview)}</strong></span>
-                      {savings > 0 && <span className="ml-1 text-emerald-600 dark:text-emerald-400 font-semibold">(ahorro C${fmt(savings)})</span>}
-                    </span>
-                  );
-                }
+                const nPiezas = Math.max(1, parseInt(form.n_piezas) || 1);
+                const honTotal = honPorCita * nPiezas;
+                const fixedTotal = fixedCosts * nPiezas;
 
                 costLabel = (
-                  <span className="flex flex-col gap-0.5">
-                    <span className="flex flex-wrap gap-x-1 items-center">
-                      <span>Mat. <strong>C${fmt(matCost)}</strong>{nPiezas > 1 && <span className="text-slate-400 text-[10px]"> ×{nPiezas}pz</span>}</span>
-                      <span className="text-slate-400">+</span>
-                      <span>Hon. <strong>C${fmt(honPorCita)}</strong> <span className="text-slate-400">({totalApts} citas)</span></span>
-                      <span className="text-slate-400">+</span>
-                      <span>C.Fijos <strong>C${fmt(fixedCosts)}</strong></span>
-                      <span className="text-slate-400">+</span>
-                      <span className="text-emerald-600 dark:text-emerald-400">Gan. <strong>C${fmt(ganancia)}</strong> <span className="text-slate-400">({Math.round(marginPct * 100)}%)</span></span>
-                      <span className="text-slate-400">=</span>
-                      <strong>C${fmt(costPreview)}</strong>
+                  <span className="flex flex-wrap gap-x-1 items-center">
+                    <span>Mat. <strong>C${fmt(matCost)}</strong></span>
+                    <span className="text-slate-400">+</span>
+                    <span>
+                      Hon. <strong>C${fmt(honTotal)}</strong>
+                      <span className="text-slate-400"> ({totalApts} citas{nPiezas > 1 ? ` ×${nPiezas}pz` : ""})</span>
                     </span>
-                    {savingsLabel}
+                    <span className="text-slate-400">+</span>
+                    <span>
+                      C.Fijos <strong>C${fmt(fixedTotal)}</strong>
+                      {nPiezas > 1 && <span className="text-slate-400 text-[10px]"> ×{nPiezas}pz</span>}
+                    </span>
+                    <span className="text-slate-400">+</span>
+                    <span className="text-emerald-600 dark:text-emerald-400">Gan. <strong>C${fmt(ganancia)}</strong> <span className="text-slate-400">({Math.round(marginPct * 100)}%)</span></span>
+                    <span className="text-slate-400">=</span>
+                    <strong>C${fmt(costPreview)}</strong>
                   </span>
                 );
               } else {
