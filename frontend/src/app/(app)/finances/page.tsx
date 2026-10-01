@@ -1561,7 +1561,7 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full min-w-max text-sm">
+            <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-gray-700 text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">
                   <th className="pl-4 pr-2 py-3">
@@ -1612,7 +1612,7 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-slate-600 dark:text-gray-400 text-xs">{ALL_CATEGORY_LABELS[tx.category] ?? dynamicCategoryLabels[tx.category] ?? tx.category}</td>
-                      <td className="px-4 py-3 text-slate-800 dark:text-gray-200 text-xs max-w-[160px] truncate">{tx.description}</td>
+                      <td className="px-4 py-3 text-slate-800 dark:text-gray-200 text-xs w-[130px] max-w-[130px] truncate">{tx.description}</td>
                       <td className="px-4 py-3 text-xs">
                         {tx.patient ? (
                           <span className="inline-flex items-center gap-1 text-blue-700 dark:text-blue-400 font-medium">
@@ -1637,10 +1637,10 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                       }`}>
                         C${fmt(tx.amount_cordobas)}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-xs text-amber-700 dark:text-amber-400 whitespace-nowrap">
+                      <td className="px-4 py-3 text-right font-mono text-xs text-amber-700 dark:text-amber-400 whitespace-nowrap min-w-[115px]">
                         {tx.operational_cost_snapshot ? `C$${fmt(tx.operational_cost_snapshot)}` : "—"}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-xs text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
+                      <td className="px-4 py-3 text-right font-mono text-xs text-emerald-700 dark:text-emerald-400 whitespace-nowrap min-w-[115px]">
                         {tx.operational_cost_snapshot ? `C$${fmt(tx.operational_cost_snapshot * 0.15)}` : "—"}
                       </td>
                       <td className="px-4 py-3 text-center">
