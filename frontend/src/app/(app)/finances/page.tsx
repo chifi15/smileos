@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { useCostTreatments, useCostProducts } from "@/hooks/useCostos";
 import {
   TrendingUp,
@@ -474,6 +474,7 @@ interface FormState {
   appointment_id: string;
   quantity: string;
   sessions: string;
+  n_piezas: string;
   doctor_id: string;
   invoice_number: string;
   transaction_date: string;
@@ -495,6 +496,7 @@ function emptyForm(type: FinanceType): FormState {
     appointment_id: "",
     quantity: "1",
     sessions: "1",
+    n_piezas: "1",
     doctor_id: "",
     invoice_number: "",
     transaction_date: today,
@@ -514,6 +516,7 @@ function formFromTx(tx: FinanceTransaction): FormState {
     appointment_id: tx.cost_appointment_id ?? "",
     quantity: String(tx.procedure_quantity ?? 1),
     sessions: "1",
+    n_piezas: "1",
     doctor_id: tx.doctor?.id ?? "",
     invoice_number: tx.invoice_number ?? "",
     transaction_date: tx.transaction_date,
@@ -644,12 +647,17 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     });
   }
 
-  function recomputeMerged(mainProcId: string, mainAptId: string, extras: ExtraProc[]) {
+  function recomputeMerged(mainProcId: string, mainAptId: string, extras: ExtraProc[], nPiezas = 1) {
     const allSpecs = [{ procedure_id: mainProcId, appointment_id: mainAptId }, ...extras];
     const hasAnyProc = allSpecs.some((s) => !!s.procedure_id);
     if (!hasAnyProc) { setUsedMaterials(null); return; }
     const merged = mergeMaterialSpecs(allSpecs);
-    setUsedMaterials(merged.length > 0 ? merged : []);
+    // Multiplicar materiales por nPiezas solo cuando no hay extras (modo múltiples piezas)
+    const hasExtras = extras.some((e) => !!e.procedure_id);
+    const final = (nPiezas > 1 && !hasExtras)
+      ? merged.map((m) => ({ ...m, qty: m.qty * nPiezas, sharedBy: nPiezas }))
+      : merged;
+    setUsedMaterials(final.length > 0 ? final : []);
     setMaterialsOpen(true);
   }
 
@@ -697,11 +705,17 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
 
   function initMaterialsFromTreatment(procedureId: string) {
     if (!procedureId) { setUsedMaterials(null); return; }
-    recomputeMerged(procedureId, "", extraProcedures);
+    recomputeMerged(procedureId, "", extraProcedures, parseInt(form.n_piezas) || 1);
   }
 
   function initMaterialsFromAppointment(procedureId: string, aptId: string) {
-    recomputeMerged(procedureId, aptId, extraProcedures);
+    recomputeMerged(procedureId, aptId, extraProcedures, parseInt(form.n_piezas) || 1);
+  }
+
+  function handleNPiezasChange(val: string) {
+    set("n_piezas", val);
+    const n = Math.max(1, parseInt(val) || 1);
+    recomputeMerged(form.procedure_id, form.appointment_id, extraProcedures, n);
   }
 
   function addExtraProcedure() {
@@ -711,13 +725,13 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   function removeExtraProcedure(idx: number) {
     const updated = extraProcedures.filter((_, i) => i !== idx);
     setExtraProcedures(updated);
-    recomputeMerged(form.procedure_id, form.appointment_id, updated);
+    recomputeMerged(form.procedure_id, form.appointment_id, updated, parseInt(form.n_piezas) || 1);
   }
 
   function updateExtraProc(idx: number, field: keyof ExtraProc, value: string) {
     const updated = extraProcedures.map((ep, i) => i === idx ? { ...ep, [field]: value, ...(field === "procedure_id" ? { appointment_id: "" } : {}) } : ep);
     setExtraProcedures(updated);
-    recomputeMerged(form.procedure_id, form.appointment_id, updated);
+    recomputeMerged(form.procedure_id, form.appointment_id, updated, parseInt(form.n_piezas) || 1);
   }
 
   function calcMaterialsCost(materials: { productId: string; qty: number }[]): number {
@@ -974,7 +988,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                   onChange={(e) => {
                     const aptId = e.target.value;
                     set("appointment_id", aptId);
-                    recomputeMerged(form.procedure_id, aptId, extraProcedures);
+                    recomputeMerged(form.procedure_id, aptId, extraProcedures, parseInt(form.n_piezas) || 1);
                   }}
                   className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
@@ -989,6 +1003,25 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                 </select>
               );
             })()}
+
+            {/* Campo # Piezas — solo para ingreso, sin extras */}
+            {isIngreso && form.procedure_id && extraProcedures.length === 0 && (
+              <div className="flex items-center gap-3">
+                <label className="text-xs font-medium text-slate-600 dark:text-gray-400 whitespace-nowrap">
+                  # Piezas
+                </label>
+                <input
+                  type="number" min="1" max="16" value={form.n_piezas}
+                  onChange={(e) => handleNPiezasChange(e.target.value)}
+                  className="w-16 rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                />
+                {(parseInt(form.n_piezas) || 1) > 1 && (
+                  <span className="text-xs text-blue-600 dark:text-blue-400">
+                    misma visita — los materiales compartidos (p.ej. impresión) bájalos a 1
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Procedimientos extra */}
             {extraProcedures.map((ep, idx) => {
@@ -1085,20 +1118,43 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                 const marginPct = apptTreatment.clinic_margin_pct || 0;
                 const totalApts = apptTreatment.appointments.length || 1;
                 const honPorCita = profFees / totalApts;
+                // matCost ya viene × n_piezas si aplica; hon y fixed siempre × 1
                 const subtotal = matCost + honPorCita + fixedCosts;
                 const ganancia = subtotal * marginPct;
                 costPreview = Math.round((subtotal + ganancia) * 100) / 100;
+
+                const nPiezas = parseInt(form.n_piezas) || 1;
+                let savingsLabel: React.ReactNode = null;
+                if (nPiezas > 1) {
+                  const baseMats = getMaterialsForSpec(form.procedure_id, form.appointment_id);
+                  const baseSingleMat = calcMaterialsCost(baseMats);
+                  const singleSubtotal = baseSingleMat + honPorCita + fixedCosts;
+                  const separateCost = Math.round(nPiezas * singleSubtotal * (1 + marginPct) * 100) / 100;
+                  const savings = Math.round((separateCost - costPreview) * 100) / 100;
+                  savingsLabel = (
+                    <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400 mt-0.5">
+                      <span>{nPiezas} visitas sep.: <strong>C${fmt(separateCost)}</strong></span>
+                      <span className="text-slate-400">→</span>
+                      <span>esta visita: <strong>C${fmt(costPreview)}</strong></span>
+                      {savings > 0 && <span className="ml-1 text-emerald-600 dark:text-emerald-400 font-semibold">(ahorro C${fmt(savings)})</span>}
+                    </span>
+                  );
+                }
+
                 costLabel = (
-                  <span className="flex flex-wrap gap-x-1 items-center">
-                    <span>Mat. <strong>C${fmt(matCost)}</strong></span>
-                    <span className="text-slate-400">+</span>
-                    <span>Hon. <strong>C${fmt(honPorCita)}</strong> <span className="text-slate-400">({totalApts} citas)</span></span>
-                    <span className="text-slate-400">+</span>
-                    <span>C.Fijos <strong>C${fmt(fixedCosts)}</strong></span>
-                    <span className="text-slate-400">+</span>
-                    <span className="text-emerald-600 dark:text-emerald-400">Gan. <strong>C${fmt(ganancia)}</strong> <span className="text-slate-400">({Math.round(marginPct * 100)}%)</span></span>
-                    <span className="text-slate-400">=</span>
-                    <strong>C${fmt(costPreview)}</strong>
+                  <span className="flex flex-col gap-0.5">
+                    <span className="flex flex-wrap gap-x-1 items-center">
+                      <span>Mat. <strong>C${fmt(matCost)}</strong>{nPiezas > 1 && <span className="text-slate-400 text-[10px]"> ×{nPiezas}pz</span>}</span>
+                      <span className="text-slate-400">+</span>
+                      <span>Hon. <strong>C${fmt(honPorCita)}</strong> <span className="text-slate-400">({totalApts} citas)</span></span>
+                      <span className="text-slate-400">+</span>
+                      <span>C.Fijos <strong>C${fmt(fixedCosts)}</strong></span>
+                      <span className="text-slate-400">+</span>
+                      <span className="text-emerald-600 dark:text-emerald-400">Gan. <strong>C${fmt(ganancia)}</strong> <span className="text-slate-400">({Math.round(marginPct * 100)}%)</span></span>
+                      <span className="text-slate-400">=</span>
+                      <strong>C${fmt(costPreview)}</strong>
+                    </span>
+                    {savingsLabel}
                   </span>
                 );
               } else {
