@@ -101,7 +101,7 @@ async def get_summary(
 
 async def get_ganancia_breakdown(
     db: AsyncSession, clinic_id: uuid.UUID, year: int, month: int
-) -> list[dict]:
+) -> dict:
     rows = await list_transactions(db, clinic_id, year, month)
     from app.models.costos import CostTreatment
     treats_result = await db.execute(
@@ -112,7 +112,9 @@ async def get_ganancia_breakdown(
         str(ct.procedure_catalog_id): ct for ct in treats_result.scalars()
     }
 
-    groups: dict[str, dict] = {}
+    by_proc: dict[str, dict] = {}
+    by_doc: dict[str, dict] = {}
+
     for t in rows:
         if t.type != "ingreso" or not t.operational_cost_snapshot:
             continue
@@ -124,29 +126,46 @@ async def get_ganancia_breakdown(
         # snapshot = subtotal × (1+margin); extraer la parte de ganancia
         ganancia = op * margin / (1 + margin)
 
-        key = proc_id or "__none__"
-        if key not in groups:
-            groups[key] = {
-                "procedure_id": proc_id,
-                "procedure_name": proc_name,
-                "count": 0,
-                "total_ingreso": 0.0,
-                "total_op_cost": 0.0,
-                "ganancia": 0.0,
-                "margin_pct": margin,
-            }
-        g = groups[key]
-        g["count"] += 1
-        g["total_ingreso"] += float(t.amount_cordobas)
-        g["total_op_cost"] += op
-        g["ganancia"] += ganancia
+        doc_id = str(t.doctor_id) if t.doctor_id else None
+        doc_name = t.doctor.full_name if t.doctor else "Sin doctor asignado"
 
-    result = sorted(groups.values(), key=lambda x: x["ganancia"], reverse=True)
-    for g in result:
-        g["total_ingreso"] = round(g["total_ingreso"], 2)
-        g["total_op_cost"] = round(g["total_op_cost"], 2)
-        g["ganancia"] = round(g["ganancia"], 2)
-    return result
+        # agrupar por procedimiento
+        pk = proc_id or "__none__"
+        if pk not in by_proc:
+            by_proc[pk] = {"procedure_id": proc_id, "procedure_name": proc_name,
+                           "count": 0, "total_ingreso": 0.0, "total_op_cost": 0.0,
+                           "ganancia": 0.0, "margin_pct": margin}
+        by_proc[pk]["count"] += 1
+        by_proc[pk]["total_ingreso"] += float(t.amount_cordobas)
+        by_proc[pk]["total_op_cost"] += op
+        by_proc[pk]["ganancia"] += ganancia
+
+        # agrupar por doctor
+        dk = doc_id or "__none__"
+        if dk not in by_doc:
+            by_doc[dk] = {"doctor_id": doc_id, "doctor_name": doc_name,
+                          "total_ganancia": 0.0, "procedures": {}}
+        by_doc[dk]["total_ganancia"] += ganancia
+        if pk not in by_doc[dk]["procedures"]:
+            by_doc[dk]["procedures"][pk] = {"procedure_name": proc_name, "count": 0, "ganancia": 0.0}
+        by_doc[dk]["procedures"][pk]["count"] += 1
+        by_doc[dk]["procedures"][pk]["ganancia"] += ganancia
+
+    procs = sorted(by_proc.values(), key=lambda x: x["ganancia"], reverse=True)
+    for p in procs:
+        p["total_ingreso"] = round(p["total_ingreso"], 2)
+        p["total_op_cost"] = round(p["total_op_cost"], 2)
+        p["ganancia"] = round(p["ganancia"], 2)
+
+    docs = sorted(by_doc.values(), key=lambda x: x["total_ganancia"], reverse=True)
+    for d in docs:
+        d["total_ganancia"] = round(d["total_ganancia"], 2)
+        d["procedures"] = sorted(d["procedures"].values(), key=lambda x: x["ganancia"], reverse=True)
+        for p in d["procedures"]:
+            p["ganancia"] = round(p["ganancia"], 2)
+
+    total = round(sum(p["ganancia"] for p in procs), 2)
+    return {"total_ganancia": total, "by_procedure": procs, "by_doctor": docs}
 
 
 async def create_transaction(

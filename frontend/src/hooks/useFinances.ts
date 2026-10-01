@@ -28,7 +28,7 @@ export interface HonorariosData {
   by_doctor: HonorariosDoctor[];
 }
 
-export interface GananciaBreakdownItem {
+export interface GananciaByProcedure {
   procedure_id: string | null;
   procedure_name: string;
   count: number;
@@ -36,6 +36,19 @@ export interface GananciaBreakdownItem {
   total_op_cost: number;
   ganancia: number;
   margin_pct: number;
+}
+
+export interface GananciaByDoctor {
+  doctor_id: string | null;
+  doctor_name: string;
+  total_ganancia: number;
+  procedures: { procedure_name: string; count: number; ganancia: number }[];
+}
+
+export interface GananciaBreakdownData {
+  total_ganancia: number;
+  by_procedure: GananciaByProcedure[];
+  by_doctor: GananciaByDoctor[];
 }
 
 const keys = {
@@ -97,7 +110,7 @@ export function useGananciaBreakdown(year: number, month: number) {
   return useQuery({
     queryKey: keys.gananciaBreakdown(year, month),
     queryFn: async () => {
-      const { data } = await apiClient.get<{ data: GananciaBreakdownItem[] }>(
+      const { data } = await apiClient.get<{ data: GananciaBreakdownData }>(
         `/api/v1/finances/ganancia-breakdown?year=${year}&month=${month}`
       );
       return data.data;

@@ -49,7 +49,8 @@ import {
   type ExpenseCategoryItem,
   type HonorariosProcedure,
   type HonorariosDoctor,
-  type GananciaBreakdownItem,
+  type GananciaByProcedure,
+  type GananciaByDoctor,
 } from "@/hooks/useFinances";
 import { useProcedures } from "@/hooks/useCatalog";
 import { usePatientSearch } from "@/hooks/usePatients";
@@ -2063,24 +2064,20 @@ function HonorariosTab({ year, month }: { year: number; month: number }) {
 // ─── Ganancias Tab ────────────────────────────────────────────────────────────
 
 function GananciasTab({ year, month }: { year: number; month: number }) {
-  const { data = [], isLoading } = useGananciaBreakdown(year, month);
-
-  const totalIngreso = data.reduce((s, r) => s + r.total_ingreso, 0);
-  const totalOpCost = data.reduce((s, r) => s + r.total_op_cost, 0);
-  const totalGanancia = data.reduce((s, r) => s + r.ganancia, 0);
-  const totalCount = data.reduce((s, r) => s + r.count, 0);
+  const { data, isLoading } = useGananciaBreakdown(year, month);
+  const [view, setView] = useState<"doctor" | "procedure">("doctor");
 
   if (isLoading) {
     return (
       <div className="space-y-2">
         {[...Array(4)].map((_, i) => (
-          <div key={i} className="h-10 rounded-lg bg-slate-100 dark:bg-gray-700 animate-pulse" />
+          <div key={i} className="h-12 rounded-xl bg-slate-100 dark:bg-gray-700 animate-pulse" />
         ))}
       </div>
     );
   }
 
-  if (data.length === 0) {
+  if (!data || data.by_procedure.length === 0) {
     return (
       <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-10 text-center text-sm text-slate-400 dark:text-gray-500">
         No hay ingresos con costo operativo registrado este mes.
@@ -2088,55 +2085,124 @@ function GananciasTab({ year, month }: { year: number; month: number }) {
     );
   }
 
+  const maxProc = data.by_procedure[0]?.ganancia ?? 1;
+  const maxDoc = data.by_doctor[0]?.total_ganancia ?? 1;
+
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="rounded-xl border border-emerald-200 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-900/20 px-4 py-3 text-xs text-emerald-800 dark:text-emerald-300 leading-relaxed">
-        <strong>¿De dónde sale la ganancia?</strong> Al registrar una transacción, el costo operativo guardado ya incluye el margen clínico
-        (p.ej. subtotal C$500 + 15% = C$575 guardado). La ganancia se extrae con{" "}
+        <strong>¿De dónde sale la ganancia?</strong> El costo operativo guardado ya incluye el margen clínico
+        (subtotal C$500 + 15% = C$575 guardado). La ganancia se extrae con{" "}
         <code className="bg-emerald-100 dark:bg-emerald-800/50 px-1 rounded">snapshot × margen / (1 + margen)</code>
-        {" "}— así se recupera exactamente el 15% del costo base (C$575 × 0.15/1.15 = C$75), sin contarlo dos veces.
+        {" "}— recupera exactamente el 15% del costo base (C$575 × 0.15/1.15 = C$75), sin contarlo dos veces.
       </div>
-      <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
-      <div className="overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50">
-              <th className="px-5 py-3 text-left font-semibold text-slate-600 dark:text-gray-400">Tratamiento</th>
-              <th className="px-5 py-3 text-right font-semibold text-slate-600 dark:text-gray-400 whitespace-nowrap"># Citas</th>
-              <th className="px-5 py-3 text-right font-semibold text-slate-600 dark:text-gray-400 whitespace-nowrap">Ingreso Total</th>
-              <th className="px-5 py-3 text-right font-semibold text-slate-600 dark:text-gray-400 whitespace-nowrap">Costo Op.</th>
-              <th className="px-5 py-3 text-right font-semibold text-slate-600 dark:text-gray-400 whitespace-nowrap">Margen</th>
-              <th className="px-5 py-3 text-right font-semibold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">Ganancia</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-50 dark:divide-gray-700/50">
-            {data.map((row: GananciaBreakdownItem) => {
-              const pct = Math.round(row.margin_pct * 100);
-              return (
-                <tr key={row.procedure_id ?? "__none__"} className="hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
-                  <td className="px-5 py-3 font-medium text-slate-800 dark:text-white">{row.procedure_name}</td>
-                  <td className="px-5 py-3 text-right text-slate-600 dark:text-gray-400">{row.count}</td>
-                  <td className="px-5 py-3 text-right text-slate-600 dark:text-gray-400 whitespace-nowrap">C$ {fmt(row.total_ingreso)}</td>
-                  <td className="px-5 py-3 text-right text-amber-700 dark:text-amber-400 whitespace-nowrap">C$ {fmt(row.total_op_cost)}</td>
-                  <td className="px-5 py-3 text-right text-slate-500 dark:text-gray-500">{pct}%</td>
+
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div className="flex gap-1 bg-slate-100 dark:bg-gray-700 rounded-xl p-1 w-fit">
+          <button onClick={() => setView("doctor")}
+            className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
+              view === "doctor" ? "bg-white dark:bg-gray-800 text-slate-800 dark:text-white shadow-sm" : "text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300"
+            }`}>
+            Por doctor
+          </button>
+          <button onClick={() => setView("procedure")}
+            className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
+              view === "procedure" ? "bg-white dark:bg-gray-800 text-slate-800 dark:text-white shadow-sm" : "text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300"
+            }`}>
+            Por procedimiento
+          </button>
+        </div>
+        <span className="text-sm font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 border border-emerald-200 dark:border-emerald-800 px-3 py-1 rounded-full">
+          Total mes: C$ {fmt(data.total_ganancia)}
+        </span>
+      </div>
+
+      {view === "doctor" ? (
+        <div className="space-y-4">
+          {data.by_doctor.map((doc: GananciaByDoctor) => (
+            <div key={doc.doctor_id ?? "__sin_doctor__"} className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+              <div className="px-5 py-3 bg-emerald-50 dark:bg-emerald-900/20 border-b border-emerald-100 dark:border-emerald-800/40 flex items-center justify-between">
+                <span className="font-semibold text-slate-800 dark:text-gray-200 text-sm">{doc.doctor_name}</span>
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 w-32 h-2 bg-emerald-100 dark:bg-emerald-800/40 rounded-full overflow-hidden">
+                    <div className="h-full bg-emerald-500 dark:bg-emerald-400 rounded-full"
+                      style={{ width: `${(doc.total_ganancia / maxDoc) * 100}%` }} />
+                  </div>
+                  <span className="text-sm font-bold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
+                    C$ {fmt(doc.total_ganancia)}
+                  </span>
+                </div>
+              </div>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-gray-700 text-xs text-slate-500 dark:text-gray-400">
+                    <th className="px-5 py-2 text-left font-medium">Procedimiento</th>
+                    <th className="px-4 py-2 text-right font-medium">Cant.</th>
+                    <th className="px-5 py-2 text-right font-medium">Ganancia</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {doc.procedures.map((p, i) => (
+                    <tr key={i} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30">
+                      <td className="px-5 py-2.5 text-slate-700 dark:text-gray-300">{p.procedure_name}</td>
+                      <td className="px-4 py-2.5 text-right text-slate-500 dark:text-gray-400">{p.count}</td>
+                      <td className="px-5 py-2.5 text-right font-semibold text-emerald-700 dark:text-emerald-400">C$ {fmt(p.ganancia)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="border-b border-slate-100 dark:border-gray-700 text-xs text-slate-500 dark:text-gray-400">
+                <th className="px-5 py-2.5 text-left font-medium">Procedimiento</th>
+                <th className="px-4 py-2.5 text-right font-medium">Cantidad</th>
+                <th className="px-4 py-2.5 text-right font-medium">Ingreso total</th>
+                <th className="px-4 py-2.5 text-right font-medium">Costo op.</th>
+                <th className="px-4 py-2.5 text-right font-medium">Margen</th>
+                <th className="px-5 py-2.5 text-right font-medium">Ganancia</th>
+                <th className="px-5 py-2.5 text-right font-medium w-40">Distribución</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.by_procedure.map((row: GananciaByProcedure) => (
+                <tr key={row.procedure_id ?? "__none__"} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30">
+                  <td className="px-5 py-3 font-medium text-slate-800 dark:text-gray-200">{row.procedure_name}</td>
+                  <td className="px-4 py-3 text-right text-slate-600 dark:text-gray-400">{row.count}</td>
+                  <td className="px-4 py-3 text-right text-slate-600 dark:text-gray-400 whitespace-nowrap">C$ {fmt(row.total_ingreso)}</td>
+                  <td className="px-4 py-3 text-right text-amber-700 dark:text-amber-400 whitespace-nowrap">C$ {fmt(row.total_op_cost)}</td>
+                  <td className="px-4 py-3 text-right text-slate-500 dark:text-gray-500">{Math.round(row.margin_pct * 100)}%</td>
                   <td className="px-5 py-3 text-right font-semibold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">C$ {fmt(row.ganancia)}</td>
+                  <td className="px-5 py-3">
+                    <div className="flex items-center gap-2">
+                      <div className="flex-1 h-2 bg-slate-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div className="h-full bg-emerald-500 dark:bg-emerald-400 rounded-full"
+                          style={{ width: `${(row.ganancia / maxProc) * 100}%` }} />
+                      </div>
+                      <span className="text-xs text-slate-400 dark:text-gray-500 w-8 text-right">
+                        {Math.round((row.ganancia / data.total_ganancia) * 100)}%
+                      </span>
+                    </div>
+                  </td>
                 </tr>
-              );
-            })}
-          </tbody>
-          <tfoot>
-            <tr className="border-t-2 border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/50">
-              <td className="px-5 py-3 font-bold text-slate-700 dark:text-gray-300">Total</td>
-              <td className="px-5 py-3 text-right font-bold text-slate-700 dark:text-gray-300">{totalCount}</td>
-              <td className="px-5 py-3 text-right font-bold text-slate-700 dark:text-gray-300 whitespace-nowrap">C$ {fmt(totalIngreso)}</td>
-              <td className="px-5 py-3 text-right font-bold text-amber-700 dark:text-amber-400 whitespace-nowrap">C$ {fmt(totalOpCost)}</td>
-              <td />
-              <td className="px-5 py-3 text-right font-bold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">C$ {fmt(totalGanancia)}</td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
-    </div>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="bg-emerald-50 dark:bg-emerald-900/20">
+                <td colSpan={5} className="px-5 py-3 text-sm font-bold text-slate-700 dark:text-gray-300">Total</td>
+                <td className="px-5 py-3 text-right text-base font-bold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
+                  C$ {fmt(data.total_ganancia)}
+                </td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
