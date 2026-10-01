@@ -1561,7 +1561,7 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
           </div>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full min-w-max text-sm">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-gray-700 text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">
                   <th className="pl-4 pr-2 py-3">
@@ -1581,8 +1581,8 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                   <th className="px-4 py-3 text-left">Procedimiento</th>
                   <th className="px-4 py-3 text-left">Factura</th>
                   <th className="px-4 py-3 text-right">Monto C$</th>
-                  <th className="px-4 py-3 text-right whitespace-nowrap">Costo Op.</th>
-                  <th className="px-4 py-3 text-right whitespace-nowrap">Ganancia (15%)</th>
+                  <th className="px-4 py-3 text-right whitespace-nowrap min-w-[110px]">Costo Op.</th>
+                  <th className="px-4 py-3 text-right whitespace-nowrap min-w-[110px]">Ganancia (15%)</th>
                   <th className="px-4 py-3 text-center">Foto</th>
                   <th className="sticky right-0 bg-white dark:bg-gray-800 px-4 py-3 w-16" />
                 </tr>
