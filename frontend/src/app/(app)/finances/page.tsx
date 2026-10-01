@@ -937,7 +937,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-medium text-slate-600 dark:text-gray-400">Procedimiento</label>
-              {!isEdit && form.procedure_id && extraProcedures.length === 0 && (
+              {form.procedure_id && extraProcedures.length === 0 && (
                 <button
                   type="button"
                   onClick={addExtraProcedure}
@@ -1039,7 +1039,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
             })}
 
             {/* Botón agregar más procedimientos (cuando ya hay al menos uno extra) */}
-            {!isEdit && form.procedure_id && extraProcedures.length > 0 &&
+            {form.procedure_id && extraProcedures.length > 0 &&
               extraProcedures.every((ep) => !!ep.procedure_id) &&
               (extraProcedures.length + 1) < procedures.length && (
               <button
