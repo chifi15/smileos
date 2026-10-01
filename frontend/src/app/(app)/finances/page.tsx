@@ -1027,7 +1027,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
               const extraTreatment = ep.procedure_id
                 ? apiTreatments.find((t) => t.procedure_catalog_id === ep.procedure_id)
                 : null;
-              const usedIds = new Set([form.procedure_id, ...extraProcedures.filter((_, i) => i !== idx).map((e) => e.procedure_id)]);
+              const usedIds = new Set<string>(); // sin filtro — permite repetir el mismo procedimiento para distintas citas/piezas
               return (
                 <div key={idx} className="space-y-1.5 rounded-xl bg-blue-50/60 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 p-3">
                   <div className="flex items-center gap-2">
