@@ -564,9 +564,13 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   type ExtraProc = { procedure_id: string; appointment_id: string };
   const [extraProcedures, setExtraProcedures] = useState<ExtraProc[]>([]);
 
-  // En modo edición, inicializar materiales cuando cargan los tratamientos
+  // En modo edición, restaurar extra procedures y materiales cuando cargan los tratamientos
   useEffect(() => {
     if (isEdit && form.procedure_id && apiTreatments.length > 0 && usedMaterials === null) {
+      // Restaurar procedimientos extra guardados
+      if (editTx?.extra_procedures && editTx.extra_procedures.length > 0) {
+        setExtraProcedures(editTx.extra_procedures);
+      }
       // Si la transacción ya tiene un snapshot guardado, usarlo en vez del template
       if (editTx?.deducted_materials && editTx.deducted_materials.length >= 0) {
         setUsedMaterials(editTx.deducted_materials.map((m) => ({ productId: m.productId, qty: m.qty, altGroup: m.altGroup ?? null })));
@@ -836,6 +840,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         invoice_number: form.invoice_number.trim() || null,
         notes: form.notes.trim() || null,
         deducted_materials: resolvedMaterials ? resolvedMaterials.map((m) => ({ productId: m.productId, qty: m.qty, altGroup: m.altGroup ?? null })) : null,
+        extra_procedures: extraProcedures.filter((ep) => !!ep.procedure_id).map((ep) => ({ procedure_id: ep.procedure_id, appointment_id: ep.appointment_id })),
       };
       if (opCostOverride !== null) payload.operational_cost_override = opCostOverride;
       update.mutate({ txId: editTx!.id, payload }, { onSuccess: onClose });
@@ -864,6 +869,10 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     if (form.notes.trim()) payload.notes = form.notes.trim();
     if (resolvedMaterials !== null) {
       payload.deducted_materials = resolvedMaterials.map((m) => ({ productId: m.productId, qty: m.qty, altGroup: m.altGroup ?? null }));
+    }
+    const filteredExtras = extraProcedures.filter((ep) => !!ep.procedure_id);
+    if (filteredExtras.length > 0) {
+      payload.extra_procedures = filteredExtras.map((ep) => ({ procedure_id: ep.procedure_id, appointment_id: ep.appointment_id }));
     }
 
     create.mutate(payload, {

@@ -225,6 +225,7 @@ async def create_transaction(
         notes=data.get("notes"),
         created_by_id=user_id,
         deducted_materials=data.get("deducted_materials"),
+        extra_procedures=data.get("extra_procedures"),
     )
     db.add(tx)
     await db.flush()
@@ -477,6 +478,9 @@ async def update_transaction(
 
     if "deducted_materials" in data:
         tx.deducted_materials = data["deducted_materials"]
+
+    if "extra_procedures" in data:
+        tx.extra_procedures = data["extra_procedures"]
 
     if "original_amount" in data or "original_currency" in data:
         currency = data.get("original_currency", tx.original_currency or "NIO")

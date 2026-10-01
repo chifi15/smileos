@@ -45,6 +45,7 @@ class FinanceTransaction(UUIDMixin, TimestampMixin, Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     cost_appointment_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     deducted_materials: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    extra_procedures: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     receipt_path: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_by_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=True)
 

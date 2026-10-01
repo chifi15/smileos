@@ -642,6 +642,7 @@ export interface FinanceTransaction {
   procedure_quantity: number;
   cost_appointment_id: string | null;
   deducted_materials: { productId: string; qty: number; altGroup?: string | null }[] | null;
+  extra_procedures: { procedure_id: string; appointment_id: string }[] | null;
   operational_cost_snapshot: number | null;
   doctor: { id: string; full_name: string } | null;
   invoice_number: string | null;
@@ -680,6 +681,7 @@ export interface TransactionCreatePayload {
   transaction_date: string;
   notes?: string;
   deducted_materials?: { productId: string; qty: number; altGroup?: string | null }[] | null;
+  extra_procedures?: { procedure_id: string; appointment_id: string }[] | null;
 }
 
 
