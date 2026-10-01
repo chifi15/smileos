@@ -1581,7 +1581,8 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                   <th className="px-4 py-3 text-left">Procedimiento</th>
                   <th className="px-4 py-3 text-left">Factura</th>
                   <th className="px-4 py-3 text-right">Monto C$</th>
-                  <th className="px-4 py-3 text-right">Costo Op.</th>
+                  <th className="px-4 py-3 text-right whitespace-nowrap">Costo Op.</th>
+                  <th className="px-4 py-3 text-right whitespace-nowrap">Ganancia (15%)</th>
                   <th className="px-4 py-3 text-center">Foto</th>
                   <th className="sticky right-0 bg-white dark:bg-gray-800 px-4 py-3 w-16" />
                 </tr>
@@ -1636,8 +1637,11 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                       }`}>
                         C${fmt(tx.amount_cordobas)}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-xs text-amber-700 dark:text-amber-400">
+                      <td className="px-4 py-3 text-right font-mono text-xs text-amber-700 dark:text-amber-400 whitespace-nowrap">
                         {tx.operational_cost_snapshot ? `C$${fmt(tx.operational_cost_snapshot)}` : "—"}
+                      </td>
+                      <td className="px-4 py-3 text-right font-mono text-xs text-emerald-700 dark:text-emerald-400 whitespace-nowrap">
+                        {tx.operational_cost_snapshot ? `C$${fmt(tx.operational_cost_snapshot * 0.15)}` : "—"}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <button
@@ -2114,17 +2118,19 @@ export default function FinancesPage() {
 
       {/* ── Cuadros de resumen ── */}
       {loadingSummary ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-          {[...Array(6)].map((_, i) => <div key={i} className="h-20 rounded-xl bg-slate-100 dark:bg-gray-700 animate-pulse" />)}
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
+          {[...Array(7)].map((_, i) => <div key={i} className="h-20 rounded-xl bg-slate-100 dark:bg-gray-700 animate-pulse" />)}
         </div>
       ) : summary && showSummary ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
           <SummaryCard label="Ingresos Brutos" value={summary.ingresos_brutos}
             color="bg-green-50 border-green-200 dark:bg-green-900/40 dark:border-green-700" sub={`${summary.count_ingresos} transacciones`} />
           <SummaryCard label="Egresos" value={summary.egresos}
             color="bg-red-50 border-red-200 dark:bg-red-900/40 dark:border-red-700" sub={`${summary.count_egresos} transacciones`} />
           <SummaryCard label="Costos Operativos" value={summary.costos_operativos}
             color="bg-amber-50 border-amber-200 dark:bg-amber-900/40 dark:border-amber-700" sub="De procedimientos" />
+          <SummaryCard label="Ganancia Clínica (15%)" value={summary.ganancia_clinica ?? 0}
+            color="bg-emerald-50 border-emerald-200 dark:bg-emerald-900/40 dark:border-emerald-700" sub="Margen sobre costos op." />
           <SummaryCard label="Ingreso Neto" value={summary.ingreso_neto}
             color={summary.ingreso_neto >= 0 ? "bg-blue-50 border-blue-200 dark:bg-blue-900/40 dark:border-blue-700" : "bg-rose-50 border-rose-200 dark:bg-rose-900/40 dark:border-rose-700"}
             sub="Bruto − egresos" />

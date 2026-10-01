@@ -656,6 +656,7 @@ export interface FinanceSummary {
   ingresos_brutos: number;
   egresos: number;
   costos_operativos: number;
+  ganancia_clinica: number;
   ingreso_neto: number;
   ingreso_neto_con_op: number;
   count_ingresos: number;

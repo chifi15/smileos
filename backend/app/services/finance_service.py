@@ -71,10 +71,12 @@ async def get_summary(
         for t in rows
         if t.type == "ingreso" and t.operational_cost_snapshot
     )
+    ganancia_clinica = costos_op * 0.15
     return {
         "ingresos_brutos": round(ingresos, 2),
         "egresos": round(egresos, 2),
         "costos_operativos": round(costos_op, 2),
+        "ganancia_clinica": round(ganancia_clinica, 2),
         "ingreso_neto": round(ingresos - egresos, 2),
         "ingreso_neto_con_op": round(ingresos - egresos - costos_op, 2),
         "count_ingresos": sum(1 for t in rows if t.type == "ingreso"),
