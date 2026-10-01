@@ -153,6 +153,17 @@ async def get_summary(
     return {"success": True, "data": summary}
 
 
+@router.get("/ganancia-breakdown")
+async def get_ganancia_breakdown(
+    user: Annotated[object, require_permission("view_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    year: int = Query(...),
+    month: int = Query(...),
+):
+    data = await finance_service.get_ganancia_breakdown(db, user.clinic_id, year, month)
+    return {"success": True, "data": data}
+
+
 @router.get("/by-patient")
 async def income_by_patient(
     user: Annotated[object, require_permission("view_patients")],

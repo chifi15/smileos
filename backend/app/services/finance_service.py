@@ -101,6 +101,57 @@ async def get_summary(
     }
 
 
+async def get_ganancia_breakdown(
+    db: AsyncSession, clinic_id: uuid.UUID, year: int, month: int
+) -> list[dict]:
+    rows = await list_transactions(db, clinic_id, year, month)
+    from app.models.costos import CostTreatment
+    treats_result = await db.execute(
+        select(CostTreatment)
+        .where(CostTreatment.clinic_id == clinic_id, CostTreatment.procedure_catalog_id.isnot(None))
+        .options(selectinload(CostTreatment.appointments))
+    )
+    treat_by_proc: dict[str, CostTreatment] = {
+        str(ct.procedure_catalog_id): ct for ct in treats_result.scalars()
+    }
+
+    groups: dict[str, dict] = {}
+    for t in rows:
+        if t.type != "ingreso" or not t.operational_cost_snapshot:
+            continue
+        op = float(t.operational_cost_snapshot)
+        proc_id = str(t.procedure_id) if t.procedure_id else None
+        proc_name = t.procedure.name if t.procedure else "Sin tratamiento"
+        ct = treat_by_proc.get(proc_id) if proc_id else None
+        margin = float(ct.clinic_margin_pct) if ct else 0.15
+        n = max(len(ct.appointments), 1) if (ct and not t.cost_appointment_id) else 1
+        ganancia = op * margin / n
+
+        key = proc_id or "__none__"
+        if key not in groups:
+            groups[key] = {
+                "procedure_id": proc_id,
+                "procedure_name": proc_name,
+                "count": 0,
+                "total_ingreso": 0.0,
+                "total_op_cost": 0.0,
+                "ganancia": 0.0,
+                "margin_pct": margin,
+            }
+        g = groups[key]
+        g["count"] += 1
+        g["total_ingreso"] += float(t.amount_cordobas)
+        g["total_op_cost"] += op
+        g["ganancia"] += ganancia
+
+    result = sorted(groups.values(), key=lambda x: x["ganancia"], reverse=True)
+    for g in result:
+        g["total_ingreso"] = round(g["total_ingreso"], 2)
+        g["total_op_cost"] = round(g["total_op_cost"], 2)
+        g["ganancia"] = round(g["ganancia"], 2)
+    return result
+
+
 async def create_transaction(
     db: AsyncSession,
     clinic_id: uuid.UUID,

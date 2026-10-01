@@ -45,9 +45,11 @@ import {
   useDeleteExpenseCategory,
   useHonorarios,
   useDoctors,
+  useGananciaBreakdown,
   type ExpenseCategoryItem,
   type HonorariosProcedure,
   type HonorariosDoctor,
+  type GananciaBreakdownItem,
 } from "@/hooks/useFinances";
 import { useProcedures } from "@/hooks/useCatalog";
 import { usePatientSearch } from "@/hooks/usePatients";
@@ -2058,13 +2060,86 @@ function HonorariosTab({ year, month }: { year: number; month: number }) {
   );
 }
 
+// ─── Ganancias Tab ────────────────────────────────────────────────────────────
+
+function GananciasTab({ year, month }: { year: number; month: number }) {
+  const { data = [], isLoading } = useGananciaBreakdown(year, month);
+
+  const totalIngreso = data.reduce((s, r) => s + r.total_ingreso, 0);
+  const totalOpCost = data.reduce((s, r) => s + r.total_op_cost, 0);
+  const totalGanancia = data.reduce((s, r) => s + r.ganancia, 0);
+  const totalCount = data.reduce((s, r) => s + r.count, 0);
+
+  if (isLoading) {
+    return (
+      <div className="space-y-2">
+        {[...Array(4)].map((_, i) => (
+          <div key={i} className="h-10 rounded-lg bg-slate-100 dark:bg-gray-700 animate-pulse" />
+        ))}
+      </div>
+    );
+  }
+
+  if (data.length === 0) {
+    return (
+      <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-10 text-center text-sm text-slate-400 dark:text-gray-500">
+        No hay ingresos con costo operativo registrado este mes.
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+      <div className="overflow-x-auto">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50">
+              <th className="px-5 py-3 text-left font-semibold text-slate-600 dark:text-gray-400">Tratamiento</th>
+              <th className="px-5 py-3 text-right font-semibold text-slate-600 dark:text-gray-400 whitespace-nowrap"># Citas</th>
+              <th className="px-5 py-3 text-right font-semibold text-slate-600 dark:text-gray-400 whitespace-nowrap">Ingreso Total</th>
+              <th className="px-5 py-3 text-right font-semibold text-slate-600 dark:text-gray-400 whitespace-nowrap">Costo Op.</th>
+              <th className="px-5 py-3 text-right font-semibold text-slate-600 dark:text-gray-400 whitespace-nowrap">Margen</th>
+              <th className="px-5 py-3 text-right font-semibold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">Ganancia</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-50 dark:divide-gray-700/50">
+            {data.map((row: GananciaBreakdownItem) => {
+              const pct = Math.round(row.margin_pct * 100);
+              return (
+                <tr key={row.procedure_id ?? "__none__"} className="hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
+                  <td className="px-5 py-3 font-medium text-slate-800 dark:text-white">{row.procedure_name}</td>
+                  <td className="px-5 py-3 text-right text-slate-600 dark:text-gray-400">{row.count}</td>
+                  <td className="px-5 py-3 text-right text-slate-600 dark:text-gray-400 whitespace-nowrap">C$ {fmt(row.total_ingreso)}</td>
+                  <td className="px-5 py-3 text-right text-amber-700 dark:text-amber-400 whitespace-nowrap">C$ {fmt(row.total_op_cost)}</td>
+                  <td className="px-5 py-3 text-right text-slate-500 dark:text-gray-500">{pct}%</td>
+                  <td className="px-5 py-3 text-right font-semibold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">C$ {fmt(row.ganancia)}</td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr className="border-t-2 border-slate-200 dark:border-gray-600 bg-slate-50 dark:bg-gray-700/50">
+              <td className="px-5 py-3 font-bold text-slate-700 dark:text-gray-300">Total</td>
+              <td className="px-5 py-3 text-right font-bold text-slate-700 dark:text-gray-300">{totalCount}</td>
+              <td className="px-5 py-3 text-right font-bold text-slate-700 dark:text-gray-300 whitespace-nowrap">C$ {fmt(totalIngreso)}</td>
+              <td className="px-5 py-3 text-right font-bold text-amber-700 dark:text-amber-400 whitespace-nowrap">C$ {fmt(totalOpCost)}</td>
+              <td />
+              <td className="px-5 py-3 text-right font-bold text-emerald-700 dark:text-emerald-400 whitespace-nowrap">C$ {fmt(totalGanancia)}</td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function FinancesPage() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
-  const [mainTab, setMainTab] = useState<"transactions" | "patients" | "honorarios">("transactions");
+  const [mainTab, setMainTab] = useState<"transactions" | "patients" | "honorarios" | "ganancias">("transactions");
   const [modal, setModal] = useState<"ingreso" | "egreso" | null>(null);
   const [showCatManager, setShowCatManager] = useState(false);
   const [showSummary, setShowSummary] = useState(true);
@@ -2176,14 +2251,22 @@ export default function FinancesPage() {
           }`}>
           Honorarios Dr.
         </button>
+        <button onClick={() => setMainTab("ganancias")}
+          className={`rounded-lg px-4 py-1.5 text-sm font-medium transition-colors ${
+            mainTab === "ganancias" ? "bg-white dark:bg-gray-800 text-slate-800 dark:text-white shadow-sm" : "text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300"
+          }`}>
+          Ganancias
+        </button>
       </div>
 
       {mainTab === "transactions" ? (
         <TransactionsTab year={year} month={month} />
       ) : mainTab === "patients" ? (
         <ByPatientTab year={year} month={month} />
-      ) : (
+      ) : mainTab === "honorarios" ? (
         <HonorariosTab year={year} month={month} />
+      ) : (
+        <GananciasTab year={year} month={month} />
       )}
 
       {modal && (
