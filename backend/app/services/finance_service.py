@@ -66,12 +66,29 @@ async def get_summary(
     rows = await list_transactions(db, clinic_id, year, month)
     ingresos = sum(float(t.amount_cordobas) for t in rows if t.type == "ingreso")
     egresos = sum(float(t.amount_cordobas) for t in rows if t.type == "egreso")
-    costos_op = sum(
-        float(t.operational_cost_snapshot)
-        for t in rows
-        if t.type == "ingreso" and t.operational_cost_snapshot
+    from app.models.costos import CostTreatment
+    treats_result = await db.execute(
+        select(CostTreatment)
+        .where(CostTreatment.clinic_id == clinic_id, CostTreatment.procedure_catalog_id.isnot(None))
+        .options(selectinload(CostTreatment.appointments))
     )
-    ganancia_clinica = costos_op * 0.15
+    treat_by_proc: dict[str, CostTreatment] = {
+        str(ct.procedure_catalog_id): ct for ct in treats_result.scalars()
+    }
+
+    costos_op = 0.0
+    ganancia_clinica = 0.0
+    for t in rows:
+        if t.type != "ingreso" or not t.operational_cost_snapshot:
+            continue
+        op = float(t.operational_cost_snapshot)
+        costos_op += op
+        proc_id = str(t.procedure_id) if t.procedure_id else None
+        ct = treat_by_proc.get(proc_id) if proc_id else None
+        margin = float(ct.clinic_margin_pct) if ct else 0.15
+        # si la tx es por cita específica el snapshot ya es por cita; si no, dividir entre n citas
+        n = max(len(ct.appointments), 1) if (ct and not t.cost_appointment_id) else 1
+        ganancia_clinica += op * margin / n
     return {
         "ingresos_brutos": round(ingresos, 2),
         "egresos": round(egresos, 2),

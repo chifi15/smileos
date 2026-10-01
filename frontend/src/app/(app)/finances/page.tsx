@@ -1430,6 +1430,7 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
   const [tab, setTab] = useState<"all" | "ingreso" | "egreso">("all");
   const [searchQuery, setSearchQuery] = useState("");
   const { data: txs = [], isLoading } = useTransactions(year, month, tab === "all" ? undefined : tab);
+  const { data: apiTreatments = [] } = useCostTreatments();
   const { data: exchangeRate = 37 } = useExchangeRate();
   const { data: expenseCats = [] } = useExpenseCategories();
   const dynamicCategoryLabels = Object.fromEntries(expenseCats.map((c) => [c.key, c.label]));
@@ -1652,7 +1653,19 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                         {tx.operational_cost_snapshot ? `C$${fmt(tx.operational_cost_snapshot)}` : "—"}
                       </td>
                       <td className="px-4 py-3 text-right font-mono text-xs text-emerald-700 dark:text-emerald-400 whitespace-nowrap min-w-[115px]">
-                        {tx.operational_cost_snapshot ? `C$${fmt(tx.operational_cost_snapshot * 0.15)}` : "—"}
+                        {(() => {
+                          if (!tx.operational_cost_snapshot) return "—";
+                          const treat = apiTreatments.find(t => t.procedure_catalog_id === tx.procedure?.id);
+                          const nCitas = (!tx.cost_appointment_id && treat && treat.appointments.length > 1)
+                            ? treat.appointments.length : 1;
+                          const ganancia = tx.operational_cost_snapshot * 0.15 / nCitas;
+                          return (
+                            <span title={nCitas > 1 ? `÷ ${nCitas} citas` : undefined}>
+                              C${fmt(ganancia)}
+                              {nCitas > 1 && <span className="text-emerald-400 dark:text-emerald-600 ml-0.5 font-normal">/{nCitas}</span>}
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-4 py-3 text-center">
                         <button
