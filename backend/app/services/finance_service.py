@@ -70,7 +70,6 @@ async def get_summary(
     treats_result = await db.execute(
         select(CostTreatment)
         .where(CostTreatment.clinic_id == clinic_id, CostTreatment.procedure_catalog_id.isnot(None))
-        .options(selectinload(CostTreatment.appointments))
     )
     treat_by_proc: dict[str, CostTreatment] = {
         str(ct.procedure_catalog_id): ct for ct in treats_result.scalars()
@@ -86,9 +85,8 @@ async def get_summary(
         proc_id = str(t.procedure_id) if t.procedure_id else None
         ct = treat_by_proc.get(proc_id) if proc_id else None
         margin = float(ct.clinic_margin_pct) if ct else 0.15
-        # si la tx es por cita específica el snapshot ya es por cita; si no, dividir entre n citas
-        n = max(len(ct.appointments), 1) if (ct and not t.cost_appointment_id) else 1
-        ganancia_clinica += op * margin / n
+        # snapshot = subtotal × (1+margin); ganancia ya está dentro
+        ganancia_clinica += op * margin / (1 + margin)
     return {
         "ingresos_brutos": round(ingresos, 2),
         "egresos": round(egresos, 2),
@@ -109,7 +107,6 @@ async def get_ganancia_breakdown(
     treats_result = await db.execute(
         select(CostTreatment)
         .where(CostTreatment.clinic_id == clinic_id, CostTreatment.procedure_catalog_id.isnot(None))
-        .options(selectinload(CostTreatment.appointments))
     )
     treat_by_proc: dict[str, CostTreatment] = {
         str(ct.procedure_catalog_id): ct for ct in treats_result.scalars()
@@ -124,8 +121,8 @@ async def get_ganancia_breakdown(
         proc_name = t.procedure.name if t.procedure else "Sin tratamiento"
         ct = treat_by_proc.get(proc_id) if proc_id else None
         margin = float(ct.clinic_margin_pct) if ct else 0.15
-        n = max(len(ct.appointments), 1) if (ct and not t.cost_appointment_id) else 1
-        ganancia = op * margin / n
+        # snapshot = subtotal × (1+margin); extraer la parte de ganancia
+        ganancia = op * margin / (1 + margin)
 
         key = proc_id or "__none__"
         if key not in groups:
