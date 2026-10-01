@@ -44,12 +44,18 @@ export default function CostSummaryBar({ breakdown, compact }: Props) {
 
   const numAppointments = breakdown.appointmentCosts.length;
   const fixedCostPerAppointment = breakdown.fixedCostPerAppointment;
+  const profFeesPerApt = numAppointments > 1 ? professionalFees / numAppointments : null;
+  const marginPerApt = numAppointments > 1 ? margin / numAppointments : null;
 
   return (
     <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800">
       <div className="grid grid-cols-2 divide-x divide-slate-100 dark:divide-gray-700 sm:grid-cols-4">
         <SummaryCell label="Materiales" value={totalMaterialsCost} />
-        <SummaryCell label="Honorarios" value={professionalFees} />
+        <SummaryCell
+          label="Honorarios"
+          value={professionalFees}
+          annotation={profFeesPerApt !== null ? `${numAppointments} citas × C$ ${profFeesPerApt.toFixed(2)}` : undefined}
+        />
         <SummaryCell
           label="Costos fijos"
           value={fixedCosts}
@@ -63,6 +69,11 @@ export default function CostSummaryBar({ breakdown, compact }: Props) {
             Ganancia clínica ({marginPct}%)
           </p>
           <p className="text-base font-semibold text-green-700 dark:text-green-400">{fmtC(margin)}</p>
+          {marginPerApt !== null && (
+            <p className="text-[10px] text-slate-400 dark:text-gray-500 mt-0.5">
+              {numAppointments} citas × C$ {marginPerApt.toFixed(2)}
+            </p>
+          )}
         </div>
         <div className="px-5 py-4 bg-blue-50 dark:bg-blue-900/20">
           <p className="text-xs font-medium text-blue-600 dark:text-blue-400 mb-1">Total</p>
