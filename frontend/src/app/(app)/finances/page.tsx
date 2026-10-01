@@ -1141,12 +1141,30 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                       <strong>C${fmt(bd.subtotal)}</strong>
                     </span>
                   ))}
+                  {savings > 0 && (() => {
+                    const sharedMats = usedMaterials.filter((m) => (m.sharedBy ?? 1) > 1);
+                    return (
+                      <span className="flex flex-wrap gap-1 items-center pl-1">
+                        <span className="text-green-700 dark:text-green-400 font-medium">Mat. compartidos:</span>
+                        {sharedMats.map((m) => {
+                          const p = apiProducts.find((ap) => ap.id === m.productId);
+                          const matSaving = calcMaterialsCost([{ productId: m.productId, qty: m.qty }]) * ((m.sharedBy ?? 1) - 1) / (m.sharedBy ?? 1);
+                          return (
+                            <span key={m.productId} className="inline-flex items-center gap-1 bg-green-50 dark:bg-green-900/20 text-green-800 dark:text-green-300 rounded px-1.5 py-0.5 text-[10px]">
+                              {p?.name ?? m.productId}
+                              <span className="text-green-600 dark:text-green-400">−C${fmt(matSaving)}</span>
+                            </span>
+                          );
+                        })}
+                      </span>
+                    );
+                  })()}
                   <span className="border-t border-slate-200 dark:border-slate-600 pt-1 flex flex-wrap gap-x-1 items-center">
                     <span className="text-slate-500">Suma: C${fmt(individualSum)}</span>
                     {savings > 0 && (
                       <>
                         <span className="text-slate-400">−</span>
-                        <span className="text-green-700 dark:text-green-400">C${fmt(savings)} mat. compartidos</span>
+                        <span className="text-green-700 dark:text-green-400">C${fmt(savings)} compartidos</span>
                         <span className="text-slate-400">= C${fmt(subtotalMulti)}</span>
                       </>
                     )}
