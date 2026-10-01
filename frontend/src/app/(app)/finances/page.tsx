@@ -1269,27 +1269,31 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                       const product = apiProducts.find((p) => p.id === m.productId);
                       return (
                         <div key={m.productId} className={`flex items-center gap-3 px-4 py-2 ${m.altGroup ? altFinanceColor(m.altGroup).row : ""}`}>
-                          <span className="flex-1 text-xs text-slate-700 dark:text-gray-300 truncate">
-                            {product?.name ?? m.productId}
-                            {product?.portion_description && (
-                              <span className="text-slate-400 dark:text-gray-500 ml-1">/ {product.portion_description}</span>
-                            )}
-                            {m.altGroup && (
-                              <span className={`ml-1.5 inline-flex items-center rounded px-1 py-0.5 text-[9px] font-semibold border ${altFinanceColor(m.altGroup).badge}`}>
-                                Alt {m.altGroup}
-                              </span>
-                            )}
-                                    {extraProcedures.some((ep) => !!ep.procedure_id) && (
-                              (m.sharedBy ?? 1) > 1 ? (
-                                <span className="ml-1.5 inline-flex items-center rounded px-1 py-0.5 text-[9px] font-semibold bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-300 border border-violet-200 dark:border-violet-700">
-                                  Compartido
+                          <span className="flex-1 min-w-0 flex flex-col gap-0.5">
+                            <span className="text-xs text-slate-700 dark:text-gray-300 truncate">
+                              {product?.name ?? m.productId}
+                              {product?.portion_description && (
+                                <span className="text-slate-400 dark:text-gray-500 ml-1">/ {product.portion_description}</span>
+                              )}
+                            </span>
+                            <span className="flex flex-wrap gap-1">
+                              {m.altGroup && (
+                                <span className={`inline-flex items-center rounded px-1 py-0.5 text-[9px] font-semibold border ${altFinanceColor(m.altGroup).badge}`}>
+                                  Alt {m.altGroup}
                                 </span>
-                              ) : (
-                                <span className="ml-1.5 inline-flex items-center rounded px-1 py-0.5 text-[9px] font-semibold bg-slate-50 dark:bg-gray-700 text-slate-400 dark:text-gray-500 border border-slate-200 dark:border-gray-600">
-                                  Único
-                                </span>
-                              )
-                            )}
+                              )}
+                              {extraProcedures.some((ep) => !!ep.procedure_id) && (
+                                (m.sharedBy ?? 1) > 1 ? (
+                                  <span className="inline-flex items-center rounded px-1 py-0.5 text-[9px] font-semibold bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-300 border border-violet-200 dark:border-violet-700">
+                                    Compartido
+                                  </span>
+                                ) : (
+                                  <span className="inline-flex items-center rounded px-1 py-0.5 text-[9px] font-semibold bg-slate-50 dark:bg-gray-700 text-slate-400 dark:text-gray-500 border border-slate-200 dark:border-gray-600">
+                                    Único
+                                  </span>
+                                )
+                              )}
+                            </span>
                           </span>
                           <input
                             type="number"
