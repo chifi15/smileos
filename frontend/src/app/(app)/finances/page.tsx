@@ -1593,8 +1593,7 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                   <th className="px-4 py-3 text-left">Procedimiento</th>
                   <th className="px-4 py-3 text-left">Factura</th>
                   <th className="px-4 py-3 text-right">Monto C$</th>
-                  <th className="px-4 py-3 text-right whitespace-nowrap min-w-[110px]">Costo Op.</th>
-                  <th className="px-4 py-3 text-right whitespace-nowrap min-w-[110px]">Ganancia (15%)</th>
+                  <th className="px-4 py-3 text-right whitespace-nowrap min-w-[130px]">Costo Op. / Ganancia</th>
                   <th className="px-4 py-3 text-center">Foto</th>
                   <th className="sticky right-0 bg-white dark:bg-gray-800 px-4 py-3 w-16" />
                 </tr>
@@ -1649,21 +1648,23 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                       }`}>
                         C${fmt(tx.amount_cordobas)}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono text-xs text-amber-700 dark:text-amber-400 whitespace-nowrap min-w-[115px]">
-                        {tx.operational_cost_snapshot ? `C$${fmt(tx.operational_cost_snapshot)}` : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono text-xs text-emerald-700 dark:text-emerald-400 whitespace-nowrap min-w-[115px]">
+                      <td className="px-4 py-3 text-right whitespace-nowrap min-w-[130px]">
                         {(() => {
-                          if (!tx.operational_cost_snapshot) return "—";
+                          if (!tx.operational_cost_snapshot) return <span className="text-slate-400 dark:text-gray-500 text-xs">—</span>;
                           const treat = apiTreatments.find(t => t.procedure_catalog_id === tx.procedure?.id);
+                          const marginPct = treat ? treat.clinic_margin_pct : 0.15;
                           const nCitas = (!tx.cost_appointment_id && treat && treat.appointments.length > 1)
                             ? treat.appointments.length : 1;
-                          const ganancia = tx.operational_cost_snapshot * 0.15 / nCitas;
+                          const ganancia = tx.operational_cost_snapshot * marginPct / nCitas;
                           return (
-                            <span title={nCitas > 1 ? `÷ ${nCitas} citas` : undefined}>
-                              C${fmt(ganancia)}
-                              {nCitas > 1 && <span className="text-emerald-400 dark:text-emerald-600 ml-0.5 font-normal">/{nCitas}</span>}
-                            </span>
+                            <div className="flex flex-col items-end gap-0.5">
+                              <span className="font-mono text-xs text-amber-700 dark:text-amber-400">
+                                C${fmt(tx.operational_cost_snapshot)}
+                              </span>
+                              <span className="font-mono text-xs text-emerald-700 dark:text-emerald-400" title={nCitas > 1 ? `ganancia ÷ ${nCitas} citas` : "ganancia clínica"}>
+                                +C${fmt(ganancia)}{nCitas > 1 && <span className="text-emerald-400 dark:text-emerald-600 font-normal">/{nCitas}</span>}
+                              </span>
+                            </div>
                           );
                         })()}
                       </td>
