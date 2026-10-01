@@ -1254,7 +1254,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                 <div className="border-t border-slate-100 dark:border-gray-700 divide-y divide-slate-50 dark:divide-gray-700">
                   {extraProcedures.some((ep) => !!ep.procedure_id) && usedMaterials && usedMaterials.some((m) => (m.sharedBy ?? 1) > 1) && (
                     <p className="px-4 py-2.5 text-[10px] text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/20 border-b border-violet-100 dark:border-violet-800/30">
-                      Los materiales marcados <strong>Compartido</strong> se usan en ambos procedimientos — se cobra una sola vez (el mayor de los dos).
+                      <strong>Compartido</strong> = aparece en ambos procedimientos, se cobra una vez. <strong>Único</strong> = solo pertenece a uno de los procedimientos.
                     </p>
                   )}
                   {usedMaterials.some((m) => m.altGroup) && (
@@ -1279,10 +1279,16 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                                 Alt {m.altGroup}
                               </span>
                             )}
-                            {(m.sharedBy ?? 1) > 1 && (
-                              <span className="ml-1.5 inline-flex items-center rounded px-1 py-0.5 text-[9px] font-semibold bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-300 border border-violet-200 dark:border-violet-700">
-                                Compartido
-                              </span>
+                                    {extraProcedures.some((ep) => !!ep.procedure_id) && (
+                              (m.sharedBy ?? 1) > 1 ? (
+                                <span className="ml-1.5 inline-flex items-center rounded px-1 py-0.5 text-[9px] font-semibold bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-300 border border-violet-200 dark:border-violet-700">
+                                  Compartido
+                                </span>
+                              ) : (
+                                <span className="ml-1.5 inline-flex items-center rounded px-1 py-0.5 text-[9px] font-semibold bg-slate-50 dark:bg-gray-700 text-slate-400 dark:text-gray-500 border border-slate-200 dark:border-gray-600">
+                                  Único
+                                </span>
+                              )
                             )}
                           </span>
                           <input
