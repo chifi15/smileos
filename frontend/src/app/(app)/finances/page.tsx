@@ -657,9 +657,22 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   }
 
   // Costo combinado correcto:
-  // Base = suma de operational_cost individuales
-  // Ahorro = materiales compartidos que antes se pagaban N veces, ahora 1
-  // Combinado = base − ahorro  (siempre ≥ costo del procedimiento más caro)
+  // Para cada spec calcula el costo base (mat + honorarios + fijos) respetando
+  // si se eligió una cita específica o el tratamiento completo.
+  function specBaseCost(s: { procedure_id: string; appointment_id: string }): number {
+    const treatment = apiTreatments.find((t) => t.procedure_catalog_id === s.procedure_id);
+    const matCost = calcMaterialsCost(getMaterialsForSpec(s.procedure_id, s.appointment_id));
+    if (treatment) {
+      const profFees = (treatment.professional_fee_per_hour || 0) * (treatment.total_hours || 0);
+      const fixed = treatment.fixed_costs || 0;
+      const n = treatment.appointments.length || 1;
+      const nonMat = s.appointment_id ? (profFees / n + fixed) : (profFees + fixed * n);
+      return matCost + nonMat;
+    }
+    // fallback: operational_cost del catálogo (no distingue cita)
+    return procedures.find((p) => p.id === s.procedure_id)?.operational_cost ?? matCost;
+  }
+
   function calcCombinedOpCost(
     mainProcId: string,
     mainAptId: string,
@@ -669,32 +682,24 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     const allSpecs = [{ procedure_id: mainProcId, appointment_id: mainAptId }, ...extras]
       .filter((s) => !!s.procedure_id);
 
-    // Suma de costos operativos individuales (proc.operational_cost)
-    const individualSum = allSpecs.reduce((sum, s) => {
-      const p = procedures.find((p) => p.id === s.procedure_id);
-      return sum + (p?.operational_cost ?? 0);
-    }, 0);
+    // Costo individual de cada spec (respeta cita específica vs. tratamiento completo)
+    const individualSum = allSpecs.reduce((sum, s) => sum + specBaseCost(s), 0);
 
-    // Costo de materiales de cada procedimiento por separado (sin compartir)
+    // Ahorro de materiales compartidos entre procedimientos
     const individualMatCost = allSpecs.reduce((sum, s) => {
-      const mats = getMaterialsForSpec(s.procedure_id, s.appointment_id);
-      return sum + calcMaterialsCost(mats);
+      return sum + calcMaterialsCost(getMaterialsForSpec(s.procedure_id, s.appointment_id));
     }, 0);
-
-    // Costo de materiales con fusión (máximo por producto compartido)
     const mergedMatCost = calcMaterialsCost(merged);
-
-    // Ahorro = diferencia entre pagar materiales por separado vs compartidos
     const savings = Math.max(0, individualMatCost - mergedMatCost);
 
-    // Costo combinado = suma individual − ahorro de materiales compartidos
-    // Nunca puede ser menor que el costo individual más alto
-    const maxIndividual = allSpecs.reduce((max, s) => {
-      const p = procedures.find((p) => p.id === s.procedure_id);
-      return Math.max(max, p?.operational_cost ?? 0);
-    }, 0);
+    // El total nunca puede ser menor que el procedimiento más caro por sí solo
+    const maxIndividual = allSpecs.reduce((max, s) => Math.max(max, specBaseCost(s)), 0);
 
-    const total = Math.max(individualSum - savings, maxIndividual);
+    // Aplicar margen usando el del procedimiento principal
+    const mainTreatment = apiTreatments.find((t) => t.procedure_catalog_id === mainProcId);
+    const marginPct = mainTreatment?.clinic_margin_pct ?? 0.15;
+    const subtotal = Math.max(individualSum - savings, maxIndividual);
+    const total = Math.round(subtotal * (1 + marginPct) * 100) / 100;
     return { total, savings, individualSum };
   }
 
@@ -1095,14 +1100,27 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                 form.procedure_id, form.appointment_id, extraProcedures, usedMaterials
               );
               costPreview = total;
-              costLabel = savings > 0 ? (
-                <>
-                  Costo op. combinado: <strong>C${fmt(individualSum)}</strong>
-                  <span className="text-green-700 dark:text-green-400"> − C${fmt(savings)} compartidos</span>
-                  {" = "}<strong>C${fmt(costPreview)}</strong>
-                </>
-              ) : (
-                <>Costo op. combinado: <strong>C${fmt(costPreview)}</strong></>
+              const mainTreatmentForPreview = apiTreatments.find((t) => t.procedure_catalog_id === form.procedure_id);
+              const marginPctMulti = mainTreatmentForPreview?.clinic_margin_pct ?? 0.15;
+              const subtotalMulti = Math.max(individualSum - savings, 0);
+              const gananciaMulti = subtotalMulti * marginPctMulti;
+              costLabel = (
+                <span className="flex flex-wrap gap-x-1 items-center">
+                  {savings > 0 ? (
+                    <>
+                      <span>C${fmt(individualSum)}</span>
+                      <span className="text-green-700 dark:text-green-400">− C${fmt(savings)} mat. compartidos</span>
+                      <span className="text-slate-400">=</span>
+                      <span>C${fmt(subtotalMulti)}</span>
+                    </>
+                  ) : (
+                    <span>Subtotal C${fmt(subtotalMulti)}</span>
+                  )}
+                  <span className="text-slate-400">+</span>
+                  <span className="text-emerald-600 dark:text-emerald-400">Gan. <strong>C${fmt(gananciaMulti)}</strong> <span className="text-slate-400">({Math.round(marginPctMulti * 100)}%)</span></span>
+                  <span className="text-slate-400">=</span>
+                  <strong>C${fmt(costPreview)}</strong>
+                </span>
               );
             } else if (form.appointment_id && matCost !== null) {
               const apptTreatment = apiTreatments.find((t) => t.procedure_catalog_id === form.procedure_id);
