@@ -774,7 +774,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         const marginPct = apptTreatment.clinic_margin_pct || 0;
         const totalApts = apptTreatment.appointments.length || 1;
         const nPiezas = Math.max(1, parseInt(form.n_piezas) || 1);
-        const subtotal = materialCost + (profFees / totalApts + fixedCosts) * nPiezas;
+        const subtotal = materialCost + (profFees / totalApts) * nPiezas + fixedCosts * nPiezas;
         opCostOverride = Math.round(subtotal * (1 + marginPct) * 100) / 100;
       } else {
         opCostOverride = materialCost;
@@ -1112,14 +1112,12 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                 const marginPct = apptTreatment.clinic_margin_pct || 0;
                 const totalApts = apptTreatment.appointments.length || 1;
                 const honPorCita = profFees / totalApts;
-                // matCost ya viene × n_piezas si aplica; hon y fixed siempre × 1
-                const subtotal = matCost + honPorCita + fixedCosts;
-                const ganancia = subtotal * marginPct;
-                costPreview = Math.round((subtotal + ganancia) * 100) / 100;
-
                 const nPiezas = Math.max(1, parseInt(form.n_piezas) || 1);
                 const honTotal = honPorCita * nPiezas;
                 const fixedTotal = fixedCosts * nPiezas;
+                const subtotal = matCost + honTotal + fixedTotal;
+                const ganancia = subtotal * marginPct;
+                costPreview = Math.round((subtotal + ganancia) * 100) / 100;
 
                 costLabel = (
                   <span className="flex flex-wrap gap-x-1 items-center">
