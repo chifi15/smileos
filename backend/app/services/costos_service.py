@@ -1,3 +1,4 @@
+import re
 import uuid
 from datetime import date
 from typing import Optional, Any
@@ -6,6 +7,8 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.costos import CostProduct, CostTreatment, CostAppointment, FixedCostsConfig, CostProductLot
+
+_CITA_NAME_RE = re.compile(r'^Cita \d+$')
 
 
 # ─── Seed data ────────────────────────────────────────────────────────────────
@@ -579,10 +582,9 @@ async def reorder_appointments(db: AsyncSession, clinic_id: uuid.UUID, treatment
     for i, apt_id in enumerate(ordered_ids):
         apt = next((a for a in treatment.appointments if a.id == apt_id), None)
         if apt:
-            old_num = apt.number
             apt.sort_order = i
             apt.number = i + 1
-            if apt.name == f"Cita {old_num}":
+            if _CITA_NAME_RE.match(apt.name):
                 apt.name = f"Cita {i + 1}"
     await db.flush()
     await _sync_one_treatment_op_cost(db, clinic_id, treatment)
@@ -760,10 +762,9 @@ async def delete_appointment(db: AsyncSession, clinic_id: uuid.UUID, treatment_i
     )
     treatment = result2.scalar_one()
     for i, a in enumerate(sorted(treatment.appointments, key=lambda x: x.sort_order)):
-        old_num = a.number
         a.number = i + 1
         a.sort_order = i
-        if a.name == f"Cita {old_num}":
+        if _CITA_NAME_RE.match(a.name):
             a.name = f"Cita {i + 1}"
     await db.flush()
     await _sync_one_treatment_op_cost(db, clinic_id, treatment)
@@ -804,6 +805,8 @@ async def merge_appointments(db: AsyncSession, clinic_id: uuid.UUID, treatment_i
     for i, a in enumerate(sorted(treatment.appointments, key=lambda x: x.sort_order)):
         a.number = i + 1
         a.sort_order = i
+        if _CITA_NAME_RE.match(a.name):
+            a.name = f"Cita {i + 1}"
     await db.flush()
     await _sync_one_treatment_op_cost(db, clinic_id, treatment)
     return treatment
