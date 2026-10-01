@@ -602,26 +602,35 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   function mergeMaterialSpecs(specs: { procedure_id: string; appointment_id: string }[]): UsedMaterial[] {
     const maxQty = new Map<string, number>();
     const groups = new Map<string, string | null>();
-    const countByProduct = new Map<string, number>(); // how many procedures use this product
+    const countByProduct = new Map<string, number>();
+    // Cuántos specs tienen al menos un material de cada altGroup
+    const countByAltGroup = new Map<string, number>();
     const validIds = new Set(apiProducts.map((p) => p.id));
 
     for (const spec of specs) {
       if (!spec.procedure_id) continue;
       const mats = getMaterialsForSpec(spec.procedure_id, spec.appointment_id);
+      const seenAltGroupsInSpec = new Set<string>();
       for (const m of mats) {
         if (!validIds.has(m.productId)) continue;
         maxQty.set(m.productId, Math.max(maxQty.get(m.productId) ?? 0, m.qty));
-        if (!groups.has(m.productId)) groups.set(m.productId, m.altGroup);
+        if (!groups.has(m.productId)) groups.set(m.productId, m.altGroup ?? null);
         countByProduct.set(m.productId, (countByProduct.get(m.productId) ?? 0) + 1);
+        // contar el altGroup una sola vez por spec
+        if (m.altGroup && !seenAltGroupsInSpec.has(m.altGroup)) {
+          countByAltGroup.set(m.altGroup, (countByAltGroup.get(m.altGroup) ?? 0) + 1);
+          seenAltGroupsInSpec.add(m.altGroup);
+        }
       }
     }
 
-    return Array.from(maxQty.entries()).map(([productId, qty]) => ({
-      productId,
-      qty,
-      altGroup: groups.get(productId) ?? null,
-      sharedBy: countByProduct.get(productId) ?? 1,
-    }));
+    return Array.from(maxQty.entries()).map(([productId, qty]) => {
+      const altGroup = groups.get(productId) ?? null;
+      // sharedBy: el mayor entre coincidencias exactas de producto y coincidencias de altGroup
+      const byProduct = countByProduct.get(productId) ?? 1;
+      const byAltGroup = altGroup ? (countByAltGroup.get(altGroup) ?? 1) : 1;
+      return { productId, qty, altGroup, sharedBy: Math.max(byProduct, byAltGroup) };
+    });
   }
 
   function autoSelectAltGroups(materials: UsedMaterial[]): UsedMaterial[] {
