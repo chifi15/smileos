@@ -647,17 +647,12 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     });
   }
 
-  function recomputeMerged(mainProcId: string, mainAptId: string, extras: ExtraProc[], nPiezas = 1) {
+  function recomputeMerged(mainProcId: string, mainAptId: string, extras: ExtraProc[], _nPiezas = 1) {
     const allSpecs = [{ procedure_id: mainProcId, appointment_id: mainAptId }, ...extras];
     const hasAnyProc = allSpecs.some((s) => !!s.procedure_id);
     if (!hasAnyProc) { setUsedMaterials(null); return; }
     const merged = mergeMaterialSpecs(allSpecs);
-    // Multiplicar materiales por nPiezas solo cuando no hay extras (modo múltiples piezas)
-    const hasExtras = extras.some((e) => !!e.procedure_id);
-    const final = (nPiezas > 1 && !hasExtras)
-      ? merged.map((m) => ({ ...m, qty: m.qty * nPiezas, sharedBy: nPiezas }))
-      : merged;
-    setUsedMaterials(final.length > 0 ? final : []);
+    setUsedMaterials(merged.length > 0 ? merged : []);
     setMaterialsOpen(true);
   }
 
@@ -714,8 +709,6 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
 
   function handleNPiezasChange(val: string) {
     set("n_piezas", val);
-    const n = Math.max(1, parseInt(val) || 1);
-    recomputeMerged(form.procedure_id, form.appointment_id, extraProcedures, n);
   }
 
   function addExtraProcedure() {
