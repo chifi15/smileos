@@ -15,6 +15,8 @@ import {
   useCopyInicialToTratamiento, useTreatmentQuote, useSaveTreatmentQuote,
 } from "@/hooks/useOdontogram";
 import { useProcedures } from "@/hooks/useCatalog";
+import { useCostTreatments, useCostProducts, useFixedCosts } from "@/hooks/useCostos";
+import { calculateTreatmentCosts, apiTreatmentToTreatment, apiProductToProduct } from "@/lib/costos-utils";
 import {
   ToothCondition, OdontogramTooth,
   TOOTH_CONDITION_LABELS, TOOTH_CONDITION_COLORS, QuoteItem,
@@ -251,8 +253,25 @@ export default function OdontogramPage() {
   const { id } = useParams<{ id: string }>();
   const { data: patient } = usePatient(id);
   const { data: procedures = [] } = useProcedures();
+  const { data: apiTreatments = [] } = useCostTreatments();
+  const { data: apiProducts = [] } = useCostProducts();
+  const { data: fixedCosts } = useFixedCosts();
   const { data: savedQuote = [] } = useTreatmentQuote(id);
   const saveQuote = useSaveTreatmentQuote(id);
+
+  const totalFijo = (fixedCosts?.items ?? []).reduce((s: number, i: { amount: number }) => s + i.amount, 0);
+  const perPaciente = (fixedCosts?.patients_per_month ?? 1) > 0
+    ? totalFijo / (fixedCosts?.patients_per_month ?? 1)
+    : 0;
+  const products = apiProducts.map(apiProductToProduct);
+
+  // precio real por procedure_catalog_id: usa finalPrice del tratamiento vinculado si existe
+  const priceByProcedureId = new Map<string, number>();
+  for (const t of apiTreatments) {
+    if (!t.procedure_catalog_id) continue;
+    const breakdown = calculateTreatmentCosts(apiTreatmentToTreatment(t), products, perPaciente);
+    priceByProcedureId.set(t.procedure_catalog_id, breakdown.finalPrice);
+  }
 
   const [activeTab, setActiveTab] = useState<"inicial" | "tratamiento">("inicial");
 
@@ -279,7 +298,7 @@ export default function OdontogramPage() {
       toothNumber: addTooth ? parseInt(addTooth) : null,
       procedureId: proc.id,
       procedureName: proc.name,
-      price: proc.default_price ?? 0,
+      price: priceByProcedureId.get(proc.id) ?? proc.default_price ?? 0,
     }];
     setQuoteItems(newItems);
     saveQuote.mutate(newItems);
@@ -385,7 +404,7 @@ export default function OdontogramPage() {
                 <option value="">Seleccionar...</option>
                 {procedures.map((p, idx) => (
                   <option key={p.id} value={p.id}>
-                    {idx + 1}. {p.name}{p.default_price != null ? ` — C$ ${Number(p.default_price).toLocaleString("es-NI")}` : ""}
+                    {idx + 1}. {p.name}{(priceByProcedureId.get(p.id) ?? p.default_price) != null ? ` — C$ ${Number(priceByProcedureId.get(p.id) ?? p.default_price).toLocaleString("es-NI")}` : ""}
                   </option>
                 ))}
               </select>
