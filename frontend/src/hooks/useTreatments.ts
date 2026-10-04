@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import toast from "react-hot-toast";
 import apiClient from "@/lib/api-client";
-import { TreatmentPlan } from "@/types";
+import { TreatmentPlan, TreatmentPayment } from "@/types";
 
 const base = (patientId: string) => `/api/v1/patients/${patientId}/treatment-plans`;
 
@@ -191,6 +191,57 @@ export function useDeletePlan(patientId: string, onSuccess?: () => void) {
     },
     onError: (err: any) => {
       toast.error(err?.response?.data?.detail || "Error al eliminar el plan.");
+    },
+  });
+}
+
+// ─── Abonos ───────────────────────────────────────────────────────────────────
+
+export function usePlanPayments(patientId: string, planId: string) {
+  return useQuery({
+    queryKey: ["treatments", patientId, planId, "payments"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: TreatmentPayment[] }>(
+        `${base(patientId)}/${planId}/payments`
+      );
+      return data.data;
+    },
+    enabled: !!patientId && !!planId,
+  });
+}
+
+export function useCreatePayment(patientId: string, planId: string, onSuccess?: () => void) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { amount: number; payment_date: string; notes?: string }) => {
+      const { data } = await apiClient.post<{ data: TreatmentPayment }>(
+        `${base(patientId)}/${planId}/payments`,
+        body
+      );
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["treatments", patientId, planId, "payments"] });
+      toast.success("Abono registrado.");
+      onSuccess?.();
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.detail || "Error al registrar el abono.");
+    },
+  });
+}
+
+export function useDeletePayment(patientId: string, planId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (paymentId: string) =>
+      apiClient.delete(`${base(patientId)}/${planId}/payments/${paymentId}`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["treatments", patientId, planId, "payments"] });
+      toast.success("Abono eliminado.");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.detail || "Error al eliminar el abono.");
     },
   });
 }

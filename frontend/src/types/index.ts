@@ -296,6 +296,16 @@ export interface TreatmentPlan {
   items: TreatmentItem[];
 }
 
+export interface TreatmentPayment {
+  id: string;
+  treatment_plan_id: string;
+  amount: number;
+  payment_date: string;
+  notes: string | null;
+  created_by: { id: string; full_name: string } | null;
+  created_at: string;
+}
+
 export interface Procedure {
   id: string;
   name: string;

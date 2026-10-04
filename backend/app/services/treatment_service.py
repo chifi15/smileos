@@ -2,13 +2,14 @@
 Motor de Planes de Tratamiento y Catálogo de Procedimientos.
 """
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timezone, date
+from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
-from app.models.treatment import ProcedureCatalog, TreatmentPlan, TreatmentPlanItem
+from app.models.treatment import ProcedureCatalog, TreatmentPlan, TreatmentPlanItem, TreatmentPayment
 from app.models.appointment import Appointment
 from app.models.patient import Patient
 from app.models.rewards import RewardsAccount, RewardsTransaction
@@ -464,3 +465,61 @@ async def _check_plan_completion(db: AsyncSession, plan_id: uuid.UUID) -> None:
     if not active:
         plan.status = "completed"
         plan.completed_at = datetime.now(timezone.utc)
+
+
+# ─── Abonos ───────────────────────────────────────────────────────────────────
+
+async def list_payments(
+    db: AsyncSession, clinic_id: uuid.UUID, plan_id: uuid.UUID
+) -> list[TreatmentPayment]:
+    result = await db.execute(
+        select(TreatmentPayment)
+        .where(
+            TreatmentPayment.clinic_id == clinic_id,
+            TreatmentPayment.treatment_plan_id == plan_id,
+        )
+        .options(selectinload(TreatmentPayment.created_by))
+        .order_by(TreatmentPayment.payment_date)
+    )
+    return list(result.scalars().all())
+
+
+async def create_payment(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    plan_id: uuid.UUID,
+    patient_id: uuid.UUID,
+    amount: Decimal,
+    payment_date: date,
+    notes: str | None,
+    created_by_id: uuid.UUID,
+) -> TreatmentPayment:
+    payment = TreatmentPayment(
+        clinic_id=clinic_id,
+        treatment_plan_id=plan_id,
+        patient_id=patient_id,
+        amount=amount,
+        payment_date=payment_date,
+        notes=notes,
+        created_by_id=created_by_id,
+    )
+    db.add(payment)
+    await db.flush()
+    await db.refresh(payment, ["created_by"])
+    return payment
+
+
+async def delete_payment(
+    db: AsyncSession, clinic_id: uuid.UUID, plan_id: uuid.UUID, payment_id: uuid.UUID
+) -> None:
+    result = await db.execute(
+        select(TreatmentPayment).where(
+            TreatmentPayment.id == payment_id,
+            TreatmentPayment.clinic_id == clinic_id,
+            TreatmentPayment.treatment_plan_id == plan_id,
+        )
+    )
+    payment = result.scalar_one_or_none()
+    if not payment:
+        raise NotFoundError("Abono")
+    await db.delete(payment)

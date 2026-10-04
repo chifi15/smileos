@@ -1,6 +1,7 @@
 import uuid
-from datetime import datetime
-from sqlalchemy import String, Boolean, DateTime, Text, ForeignKey, Integer, Numeric
+from datetime import datetime, date
+from decimal import Decimal
+from sqlalchemy import String, Boolean, DateTime, Text, ForeignKey, Integer, Numeric, Date
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.core.database import Base
@@ -60,6 +61,9 @@ class TreatmentPlan(UUIDMixin, TimestampMixin, Base):
     items: Mapped[list["TreatmentPlanItem"]] = relationship(
         back_populates="treatment_plan", order_by="TreatmentPlanItem.sort_order"
     )
+    payments: Mapped[list["TreatmentPayment"]] = relationship(
+        back_populates="treatment_plan", order_by="TreatmentPayment.payment_date", cascade="all, delete-orphan"
+    )
 
 
 class TreatmentPlanItem(UUIDMixin, TimestampMixin, Base):
@@ -92,3 +96,26 @@ class TreatmentPlanItem(UUIDMixin, TimestampMixin, Base):
     # Relaciones
     treatment_plan: Mapped["TreatmentPlan"] = relationship(back_populates="items")
     procedure: Mapped["ProcedureCatalog"] = relationship(back_populates="items")
+
+
+class TreatmentPayment(UUIDMixin, TimestampMixin, Base):
+    __tablename__ = "treatment_payments"
+
+    clinic_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False
+    )
+    treatment_plan_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("treatment_plans.id", ondelete="CASCADE"), nullable=False
+    )
+    patient_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False
+    )
+    amount: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False)
+    payment_date: Mapped[date] = mapped_column(Date, nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+    )
+
+    treatment_plan: Mapped["TreatmentPlan"] = relationship(back_populates="payments")
+    created_by: Mapped["User"] = relationship("User", foreign_keys=[created_by_id])  # type: ignore  # noqa: F821

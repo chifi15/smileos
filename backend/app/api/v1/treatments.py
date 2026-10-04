@@ -1,7 +1,10 @@
 import uuid
+from datetime import date
+from decimal import Decimal
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel, condecimal
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
@@ -14,6 +17,12 @@ from app.schemas.treatment import (
     CompleteItemRequest,
 )
 from app.services import treatment_service, audit_service
+
+
+class PaymentCreate(BaseModel):
+    amount: Decimal
+    payment_date: date
+    notes: str | None = None
 
 router = APIRouter(
     prefix="/patients/{patient_id}/treatment-plans",
@@ -297,3 +306,62 @@ async def complete_item(
         patient_id=patient_id,
     )
     return {"success": True, "data": _serialize_plan(plan)}
+
+
+# ─── Abonos ───────────────────────────────────────────────────────────────────
+
+def _serialize_payment(p) -> dict:
+    return {
+        "id": str(p.id),
+        "treatment_plan_id": str(p.treatment_plan_id),
+        "amount": float(p.amount),
+        "payment_date": p.payment_date.isoformat(),
+        "notes": p.notes,
+        "created_by": {"id": str(p.created_by.id), "full_name": p.created_by.full_name} if p.created_by else None,
+        "created_at": _iso(p.created_at),
+    }
+
+
+@router.get("/{plan_id}/payments")
+async def list_payments(
+    patient_id: uuid.UUID,
+    plan_id: uuid.UUID,
+    user: Annotated[object, require_permission("view_treatments")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    payments = await treatment_service.list_payments(db, user.clinic_id, plan_id)
+    return {"success": True, "data": [_serialize_payment(p) for p in payments]}
+
+
+@router.post("/{plan_id}/payments", status_code=201)
+async def create_payment(
+    patient_id: uuid.UUID,
+    plan_id: uuid.UUID,
+    body: PaymentCreate,
+    user: Annotated[object, require_permission("manage_treatments")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    plan = await treatment_service.get_treatment_plan(db, user.clinic_id, patient_id, plan_id)
+    payment = await treatment_service.create_payment(
+        db, user.clinic_id, plan_id, patient_id,
+        body.amount, body.payment_date, body.notes, user.id,
+    )
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="treatment_payment.created", resource_type="treatment_plan", resource_id=str(plan_id),
+        description=f'Registró abono de C$ {body.amount} en plan "{plan.title}"',
+        patient_id=patient_id,
+    )
+    return {"success": True, "data": _serialize_payment(payment)}
+
+
+@router.delete("/{plan_id}/payments/{payment_id}", status_code=200)
+async def delete_payment(
+    patient_id: uuid.UUID,
+    plan_id: uuid.UUID,
+    payment_id: uuid.UUID,
+    user: Annotated[object, require_permission("manage_treatments")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    await treatment_service.delete_payment(db, user.clinic_id, plan_id, payment_id)
+    return {"success": True}
