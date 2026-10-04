@@ -32,7 +32,8 @@ function toothLabel(n: number | null) {
 }
 
 export default function ImportFromOdontogramModal({ open, onClose, patientId, planId }: Props) {
-  const { data: quote = [], isLoading: loadingQuote } = useTreatmentQuote(patientId);
+  const { data: quoteData, isLoading: loadingQuote } = useTreatmentQuote(patientId);
+  const quote = quoteData?.items ?? [];
   const { data: procedures = [], isLoading: loadingProcs } = useProcedures();
   const addMultiple = useAddMultipleItems(patientId, planId, () => onClose());
 

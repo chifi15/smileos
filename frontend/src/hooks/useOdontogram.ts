@@ -98,14 +98,19 @@ export function useCopyInicialToTratamiento(patientId: string) {
   });
 }
 
+export interface QuoteData {
+  items: QuoteItem[];
+  discount_pct: number;
+}
+
 export function useTreatmentQuote(patientId: string) {
   return useQuery({
     queryKey: ["quote", patientId],
     queryFn: async () => {
-      const { data } = await apiClient.get<{ data: QuoteItem[] }>(
+      const { data } = await apiClient.get<{ data: QuoteData }>(
         `/api/v1/patients/${patientId}/treatment-quote`
       );
-      return data.data ?? [];
+      return data.data ?? { items: [], discount_pct: 0 };
     },
     enabled: !!patientId,
     staleTime: 5 * 60 * 1000,
@@ -115,8 +120,8 @@ export function useTreatmentQuote(patientId: string) {
 export function useSaveTreatmentQuote(patientId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (items: QuoteItem[]) => {
-      await apiClient.put(`/api/v1/patients/${patientId}/treatment-quote`, { items });
+    mutationFn: async (payload: { items: QuoteItem[]; discount_pct: number }) => {
+      await apiClient.put(`/api/v1/patients/${patientId}/treatment-quote`, payload);
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["quote", patientId] });

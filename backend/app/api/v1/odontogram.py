@@ -167,6 +167,7 @@ quote_router = APIRouter(
 
 class QuoteSaveBody(BaseModel):
     items: list[dict]
+    discount_pct: float = 0
 
 
 @quote_router.get("")
@@ -183,7 +184,13 @@ async def get_quote(
         )
     )
     quote = result.scalar_one_or_none()
-    return {"success": True, "data": quote.items if quote else []}
+    return {
+        "success": True,
+        "data": {
+            "items": quote.items if quote else [],
+            "discount_pct": float(quote.discount_pct) if quote else 0,
+        },
+    }
 
 
 @quote_router.put("")
@@ -204,6 +211,7 @@ async def save_quote(
     now = datetime.now(timezone.utc)
     if quote:
         quote.items = body.items
+        quote.discount_pct = body.discount_pct
         quote.updated_at = now
         quote.updated_by_id = user.id
     else:
@@ -211,9 +219,10 @@ async def save_quote(
             clinic_id=user.clinic_id,
             patient_id=patient_id,
             items=body.items,
+            discount_pct=body.discount_pct,
             updated_at=now,
             updated_by_id=user.id,
         )
         db.add(quote)
     await db.commit()
-    return {"success": True, "data": quote.items}
+    return {"success": True, "data": {"items": quote.items, "discount_pct": float(quote.discount_pct)}}

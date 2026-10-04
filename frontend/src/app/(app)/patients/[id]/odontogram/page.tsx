@@ -7,8 +7,17 @@ import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import {
   ChevronLeft, History, Plus, Trash2, Calculator,
-  Stethoscope, ClipboardList, Copy,
+  Stethoscope, ClipboardList, Copy, GripVertical, Tag,
 } from "lucide-react";
+import {
+  DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from "@dnd-kit/core";
+import {
+  SortableContext, sortableKeyboardCoordinates, useSortable,
+  verticalListSortingStrategy, arrayMove,
+} from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { usePatient } from "@/hooks/usePatients";
 import {
   useOdontogram, useUpdateOdontogram, useOdontogramSnapshots,
@@ -25,6 +34,61 @@ import OdontogramChart from "@/components/odontogram/OdontogramChart";
 import Button from "@/components/ui/Button";
 import Spinner from "@/components/ui/Spinner";
 import Modal from "@/components/ui/Modal";
+
+function fmtNIO(n: number) {
+  return new Intl.NumberFormat("es-NI", { minimumFractionDigits: 0 }).format(n);
+}
+
+function SortableQuoteRow({
+  item, idx, onPriceChange, onRemove,
+}: {
+  item: QuoteItem;
+  idx: number;
+  onPriceChange: (id: string, val: string) => void;
+  onRemove: (id: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: item.id });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.4 : 1 }}
+      className="grid grid-cols-12 items-center px-5 py-2.5 hover:bg-slate-50 dark:hover:bg-gray-700 bg-white dark:bg-gray-800"
+    >
+      <div className="col-span-1 flex items-center gap-1">
+        <button
+          {...attributes}
+          {...listeners}
+          className="text-slate-300 hover:text-slate-500 cursor-grab active:cursor-grabbing touch-none"
+          title="Arrastrar para reordenar"
+        >
+          <GripVertical size={14} />
+        </button>
+        <span className="text-xs font-bold text-slate-400 dark:text-gray-500">{idx + 1}</span>
+      </div>
+      <span className="col-span-1 text-sm font-mono text-slate-500 dark:text-gray-400">
+        {item.toothNumber ?? "—"}
+      </span>
+      <span className="col-span-5 text-sm text-slate-700 dark:text-gray-300">{item.procedureName}</span>
+      <div className="col-span-4 flex justify-end">
+        <input
+          type="number"
+          min="0"
+          step="1"
+          value={item.price}
+          onChange={(e) => onPriceChange(item.id, e.target.value)}
+          className="w-28 text-right rounded border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+        />
+      </div>
+      <div className="col-span-1 flex justify-end">
+        <button onClick={() => onRemove(item.id)} className="text-slate-300 hover:text-red-400 transition-colors ml-2">
+          <Trash2 size={14} />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 interface PendingChange {
   condition: ToothCondition;
@@ -256,7 +320,7 @@ export default function OdontogramPage() {
   const { data: apiTreatments = [] } = useCostTreatments();
   const { data: apiProducts = [] } = useCostProducts();
   const { data: fixedCosts } = useFixedCosts();
-  const { data: savedQuote = [] } = useTreatmentQuote(id);
+  const { data: savedQuote } = useTreatmentQuote(id);
   const saveQuote = useSaveTreatmentQuote(id);
 
   const totalFijo = (fixedCosts?.items ?? []).reduce((s: number, i: { amount: number }) => s + i.amount, 0);
@@ -265,7 +329,6 @@ export default function OdontogramPage() {
     : 0;
   const products = apiProducts.map(apiProductToProduct);
 
-  // precio real por procedure_catalog_id: usa finalPrice del tratamiento vinculado si existe
   const priceByProcedureId = new Map<string, number>();
   for (const t of apiTreatments) {
     if (!t.procedure_catalog_id) continue;
@@ -274,21 +337,30 @@ export default function OdontogramPage() {
   }
 
   const [activeTab, setActiveTab] = useState<"inicial" | "tratamiento">("inicial");
-
   const [quoteItems, setQuoteItems] = useState<QuoteItem[]>([]);
+  const [discountPct, setDiscountPct] = useState(0);
   const [quoteLoaded, setQuoteLoaded] = useState(false);
   const [addTooth, setAddTooth] = useState<string>("");
   const [addProc, setAddProc] = useState<string>("");
 
-  if (!quoteLoaded && savedQuote.length > 0) {
-    setQuoteItems(savedQuote);
-    setQuoteLoaded(true);
-  }
-  if (!quoteLoaded && savedQuote.length === 0 && !saveQuote.isPending) {
+  const sensors = useSensors(
+    useSensor(PointerSensor),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  );
+
+  if (!quoteLoaded && savedQuote) {
+    setQuoteItems(savedQuote.items);
+    setDiscountPct(savedQuote.discount_pct ?? 0);
     setQuoteLoaded(true);
   }
 
-  const quoteTotal = quoteItems.reduce((sum, i) => sum + i.price, 0);
+  const subtotal = quoteItems.reduce((sum, i) => sum + i.price, 0);
+  const discountAmt = subtotal * (discountPct / 100);
+  const quoteTotal = subtotal - discountAmt;
+
+  function save(items: QuoteItem[], pct: number) {
+    saveQuote.mutate({ items, discount_pct: pct });
+  }
 
   function handleAddQuoteItem() {
     const proc = procedures.find((p) => p.id === addProc);
@@ -301,7 +373,7 @@ export default function OdontogramPage() {
       price: priceByProcedureId.get(proc.id) ?? proc.default_price ?? 0,
     }];
     setQuoteItems(newItems);
-    saveQuote.mutate(newItems);
+    save(newItems, discountPct);
     setAddTooth("");
     setAddProc("");
   }
@@ -309,14 +381,30 @@ export default function OdontogramPage() {
   function handleRemoveQuoteItem(itemId: string) {
     const newItems = quoteItems.filter((i) => i.id !== itemId);
     setQuoteItems(newItems);
-    saveQuote.mutate(newItems);
+    save(newItems, discountPct);
   }
 
   function handleQuotePriceChange(itemId: string, newPrice: string) {
     const val = parseFloat(newPrice) || 0;
     const newItems = quoteItems.map((i) => i.id === itemId ? { ...i, price: val } : i);
     setQuoteItems(newItems);
-    saveQuote.mutate(newItems);
+    save(newItems, discountPct);
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const oldIndex = quoteItems.findIndex((i) => i.id === active.id);
+    const newIndex = quoteItems.findIndex((i) => i.id === over.id);
+    const newItems = arrayMove(quoteItems, oldIndex, newIndex);
+    setQuoteItems(newItems);
+    save(newItems, discountPct);
+  }
+
+  function handleDiscountChange(val: string) {
+    const pct = Math.min(100, Math.max(0, parseFloat(val) || 0));
+    setDiscountPct(pct);
+    save(quoteItems, pct);
   }
 
   return (
@@ -429,43 +517,65 @@ export default function OdontogramPage() {
                 <span className="col-span-4 text-right">Precio (C$)</span>
                 <span className="col-span-1" />
               </div>
-              {quoteItems.map((item, idx) => (
-                <div key={item.id} className="grid grid-cols-12 items-center px-5 py-2.5 hover:bg-slate-50 dark:hover:bg-gray-700">
-                  <span className="col-span-1 text-xs font-bold text-slate-400 dark:text-gray-500">{idx + 1}</span>
-                  <span className="col-span-1 text-sm font-mono text-slate-500 dark:text-gray-400">
-                    {item.toothNumber ?? "—"}
-                  </span>
-                  <span className="col-span-5 text-sm text-slate-700 dark:text-gray-300">{item.procedureName}</span>
-                  <div className="col-span-4 flex justify-end">
-                    <input
-                      type="number"
-                      min="0"
-                      step="1"
-                      value={item.price}
-                      onChange={(e) => handleQuotePriceChange(item.id, e.target.value)}
-                      className="w-28 text-right rounded border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                <SortableContext items={quoteItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                  {quoteItems.map((item, idx) => (
+                    <SortableQuoteRow
+                      key={item.id}
+                      item={item}
+                      idx={idx}
+                      onPriceChange={handleQuotePriceChange}
+                      onRemove={handleRemoveQuoteItem}
                     />
-                  </div>
-                  <div className="col-span-1 flex justify-end">
-                    <button onClick={() => handleRemoveQuoteItem(item.id)}
-                      className="text-slate-300 hover:text-red-400 transition-colors ml-2">
-                      <Trash2 size={14} />
-                    </button>
-                  </div>
-                </div>
-              ))}
+                  ))}
+                </SortableContext>
+              </DndContext>
             </div>
 
-            <div className="flex items-center justify-between px-5 py-4 border-t-2 border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50">
+            {/* Footer con descuento y total */}
+            <div className="border-t-2 border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50">
+              {/* Fila de descuento */}
+              <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 dark:border-gray-700">
+                <div className="flex items-center gap-2">
+                  <Tag size={14} className="text-orange-500" />
+                  <span className="text-sm text-slate-600 dark:text-gray-300">Descuento</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    max="100"
+                    step="1"
+                    value={discountPct || ""}
+                    onChange={(e) => handleDiscountChange(e.target.value)}
+                    placeholder="0"
+                    className="w-16 text-right rounded border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
+                  />
+                  <span className="text-sm text-slate-500 dark:text-gray-400">%</span>
+                  {discountPct > 0 && (
+                    <span className="text-sm text-orange-600 dark:text-orange-400 font-medium w-28 text-right">
+                      − C$ {fmtNIO(discountAmt)}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between px-5 py-4">
               <div>
                 <p className="text-xs text-slate-400 dark:text-gray-500">{quoteItems.length} procedimiento(s)</p>
                 <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">Paciente: {patient?.full_name}</p>
               </div>
               <div className="text-right">
+                {discountPct > 0 && (
+                  <p className="text-xs text-slate-400 dark:text-gray-500 mb-0.5 line-through">
+                    C$ {fmtNIO(subtotal)}
+                  </p>
+                )}
                 <p className="text-xs text-slate-500 dark:text-gray-400 mb-0.5">Total estimado</p>
                 <p className="text-2xl font-bold text-slate-800 dark:text-white">
-                  C$ {quoteTotal.toLocaleString("es-NI", { minimumFractionDigits: 0 })}
+                  C$ {fmtNIO(quoteTotal)}
                 </p>
+              </div>
               </div>
             </div>
           </>

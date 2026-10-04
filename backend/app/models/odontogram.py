@@ -67,6 +67,7 @@ class TreatmentQuote(UUIDMixin, Base):
         UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False
     )
     items: Mapped[list] = mapped_column(JSON, nullable=False, default=list)
+    discount_pct: Mapped[float] = mapped_column(Numeric(5, 2), nullable=False, default=0)
     updated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     updated_by_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
