@@ -508,78 +508,76 @@ export default function OdontogramPage() {
             Agrega procedimientos para calcular el costo del tratamiento.
           </div>
         ) : (
-          <>
-            <div className="divide-y divide-slate-50 dark:divide-gray-700">
-              <div className="grid grid-cols-12 px-5 py-2 text-xs font-medium text-slate-400 dark:text-gray-500 bg-slate-50 dark:bg-gray-700/50">
-                <span className="col-span-1">#</span>
-                <span className="col-span-1">Pieza</span>
-                <span className="col-span-5">Procedimiento</span>
-                <span className="col-span-4 text-right">Precio (C$)</span>
-                <span className="col-span-1" />
-              </div>
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={quoteItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
-                  {quoteItems.map((item, idx) => (
-                    <SortableQuoteRow
-                      key={item.id}
-                      item={item}
-                      idx={idx}
-                      onPriceChange={handleQuotePriceChange}
-                      onRemove={handleRemoveQuoteItem}
-                    />
-                  ))}
-                </SortableContext>
-              </DndContext>
+          <div className="divide-y divide-slate-50 dark:divide-gray-700">
+            <div className="grid grid-cols-12 px-5 py-2 text-xs font-medium text-slate-400 dark:text-gray-500 bg-slate-50 dark:bg-gray-700/50">
+              <span className="col-span-1">#</span>
+              <span className="col-span-1">Pieza</span>
+              <span className="col-span-5">Procedimiento</span>
+              <span className="col-span-4 text-right">Precio (C$)</span>
+              <span className="col-span-1" />
             </div>
-
-            {/* Footer con descuento y total */}
-            <div className="border-t-2 border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50">
-              {/* Fila de descuento */}
-              <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 dark:border-gray-700">
-                <div className="flex items-center gap-2">
-                  <Tag size={14} className="text-orange-500" />
-                  <span className="text-sm text-slate-600 dark:text-gray-300">Descuento</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="1"
-                    value={discountPct || ""}
-                    onChange={(e) => handleDiscountChange(e.target.value)}
-                    placeholder="0"
-                    className="w-16 text-right rounded border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+              <SortableContext items={quoteItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
+                {quoteItems.map((item, idx) => (
+                  <SortableQuoteRow
+                    key={item.id}
+                    item={item}
+                    idx={idx}
+                    onPriceChange={handleQuotePriceChange}
+                    onRemove={handleRemoveQuoteItem}
                   />
-                  <span className="text-sm text-slate-500 dark:text-gray-400">%</span>
-                  {discountPct > 0 && (
-                    <span className="text-sm text-orange-600 dark:text-orange-400 font-medium w-28 text-right">
-                      − C$ {fmtNIO(discountAmt)}
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between px-5 py-4">
-              <div>
-                <p className="text-xs text-slate-400 dark:text-gray-500">{quoteItems.length} procedimiento(s)</p>
-                <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">Paciente: {patient?.full_name}</p>
-              </div>
-              <div className="text-right">
-                {discountPct > 0 && (
-                  <p className="text-xs text-slate-400 dark:text-gray-500 mb-0.5 line-through">
-                    C$ {fmtNIO(subtotal)}
-                  </p>
-                )}
-                <p className="text-xs text-slate-500 dark:text-gray-400 mb-0.5">Total estimado</p>
-                <p className="text-2xl font-bold text-slate-800 dark:text-white">
-                  C$ {fmtNIO(quoteTotal)}
-                </p>
-              </div>
-              </div>
-            </div>
-          </>
+                ))}
+              </SortableContext>
+            </DndContext>
+          </div>
         )}
+
+        {/* Footer: descuento + total — siempre visible */}
+        <div className="border-t-2 border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50">
+          {/* Fila de descuento */}
+          <div className="flex items-center justify-between px-5 py-3 border-b border-slate-100 dark:border-gray-700">
+            <div className="flex items-center gap-2">
+              <Tag size={14} className="text-orange-500" />
+              <span className="text-sm text-slate-600 dark:text-gray-300">Descuento</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                step="1"
+                value={discountPct || ""}
+                onChange={(e) => handleDiscountChange(e.target.value)}
+                placeholder="0"
+                className="w-16 text-right rounded border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-orange-400"
+              />
+              <span className="text-sm text-slate-500 dark:text-gray-400">%</span>
+              {discountPct > 0 && (
+                <span className="text-sm text-orange-600 dark:text-orange-400 font-medium w-28 text-right">
+                  − C$ {fmtNIO(discountAmt)}
+                </span>
+              )}
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between px-5 py-4">
+            <div>
+              <p className="text-xs text-slate-400 dark:text-gray-500">{quoteItems.length} procedimiento(s)</p>
+              <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">Paciente: {patient?.full_name}</p>
+            </div>
+            <div className="text-right">
+              {discountPct > 0 && (
+                <p className="text-xs text-slate-400 dark:text-gray-500 mb-0.5 line-through">
+                  C$ {fmtNIO(subtotal)}
+                </p>
+              )}
+              <p className="text-xs text-slate-500 dark:text-gray-400 mb-0.5">Total estimado</p>
+              <p className="text-2xl font-bold text-slate-800 dark:text-white">
+                C$ {fmtNIO(quoteTotal)}
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
