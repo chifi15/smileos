@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { differenceInYears, parseISO } from "date-fns";
 import {
-  UserPlus, Search, ChevronLeft, ChevronRight, Users,
+  UserPlus, Search, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, Users,
   Trash2, X, UserCheck, UserX, BarChart2,
 } from "lucide-react";
 import { usePatientList, useDeletePatientPermanent, useReactivatePatient } from "@/hooks/usePatients";
@@ -326,13 +326,19 @@ function PatientsContent() {
                   {(meta.page - 1) * meta.per_page + 1}–
                   {Math.min(meta.page * meta.per_page, meta.total)} de {meta.total}
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1">
+                  <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => goPage(1)}>
+                    <ChevronsLeft size={14} />
+                  </Button>
                   <Button variant="secondary" size="sm" disabled={page === 1} onClick={() => goPage(page - 1)}>
                     <ChevronLeft size={14} />
                   </Button>
-                  <span className="text-xs text-slate-600 dark:text-gray-400">{page} / {meta.pages}</span>
+                  <span className="px-2 text-xs text-slate-600 dark:text-gray-400">{page} / {meta.pages}</span>
                   <Button variant="secondary" size="sm" disabled={page === meta.pages} onClick={() => goPage(page + 1)}>
                     <ChevronRight size={14} />
+                  </Button>
+                  <Button variant="secondary" size="sm" disabled={page === meta.pages} onClick={() => goPage(meta.pages)}>
+                    <ChevronsRight size={14} />
                   </Button>
                 </div>
               </div>
