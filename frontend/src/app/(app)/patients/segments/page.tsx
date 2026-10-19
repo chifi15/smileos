@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Link from "next/link";
 import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
@@ -18,6 +18,7 @@ import {
   FileText,
   Stethoscope,
   CheckCircle2,
+  Search,
 } from "lucide-react";
 import {
   usePatientSegments,
@@ -282,12 +283,30 @@ function SegmentCard({
   onPatientClick,
 }: SegmentCardProps) {
   const [open, setOpen] = useState(defaultOpen);
+  const [search, setSearch] = useState("");
   const c = COLOR_MAP[color];
+
+  function toggle() {
+    setOpen((v) => {
+      if (v) setSearch("");
+      return !v;
+    });
+  }
+
+  const filtered = useMemo(
+    () =>
+      search.trim()
+        ? patients.filter((p) =>
+            p.full_name.toLowerCase().includes(search.toLowerCase())
+          )
+        : patients,
+    [patients, search]
+  );
 
   return (
     <div className={`rounded-xl border ${c.card} bg-white dark:bg-gray-800 overflow-hidden shadow-sm`}>
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={toggle}
         className={`w-full flex items-center justify-between px-5 py-4 ${c.header} transition-colors`}
       >
         <div className="flex items-center gap-3">
@@ -306,57 +325,86 @@ function SegmentCard({
       </button>
 
       {open && (
-        <div className="divide-y divide-slate-50 dark:divide-gray-700">
-          {patients.length === 0 ? (
-            <p className="px-5 py-6 text-sm text-center text-slate-400 dark:text-gray-500">
-              No hay pacientes en esta categoría.
-            </p>
-          ) : (
-            patients.map((p) => (
-              <div
-                key={p.id}
-                className={`flex items-center justify-between px-5 py-3 cursor-pointer transition-colors ${c.row}`}
-                onClick={() => onPatientClick(p)}
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className={`w-2 h-2 rounded-full shrink-0 ${c.dot}`} />
-                  <div className="min-w-0">
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm font-medium text-slate-800 dark:text-white truncate">
-                        {p.full_name}
-                      </span>
-                      {p.patient_number && (
-                        <span className="text-[10px] font-mono text-slate-400 dark:text-gray-500 shrink-0">
-                          #{String(p.patient_number).padStart(3, "0")}
+        <>
+          {/* Buscador */}
+          <div className="px-4 py-2.5 border-b border-slate-100 dark:border-gray-700">
+            <div className="relative">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500 pointer-events-none" />
+              <input
+                type="text"
+                placeholder="Buscar paciente…"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full pl-8 pr-7 py-1.5 text-sm bg-slate-50 dark:bg-gray-700/60 border border-slate-200 dark:border-gray-600 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-400 dark:text-white placeholder:text-slate-400 dark:placeholder:text-gray-500"
+              />
+              {search && (
+                <button
+                  onClick={() => setSearch("")}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-0.5 rounded text-slate-400 hover:text-slate-600 dark:hover:text-gray-300 transition-colors"
+                >
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+            {search && (
+              <p className="mt-1 text-[11px] text-slate-400 dark:text-gray-500">
+                {filtered.length} resultado{filtered.length !== 1 ? "s" : ""} de {patients.length}
+              </p>
+            )}
+          </div>
+
+          <div className="divide-y divide-slate-50 dark:divide-gray-700">
+            {filtered.length === 0 ? (
+              <p className="px-5 py-6 text-sm text-center text-slate-400 dark:text-gray-500">
+                {search ? `Sin resultados para "${search}"` : "No hay pacientes en esta categoría."}
+              </p>
+            ) : (
+              filtered.map((p) => (
+                <div
+                  key={p.id}
+                  className={`flex items-center justify-between px-5 py-3 cursor-pointer transition-colors ${c.row}`}
+                  onClick={() => onPatientClick(p)}
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className={`w-2 h-2 rounded-full shrink-0 ${c.dot}`} />
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-medium text-slate-800 dark:text-white truncate">
+                          {p.full_name}
                         </span>
-                      )}
+                        {p.patient_number && (
+                          <span className="text-[10px] font-mono text-slate-400 dark:text-gray-500 shrink-0">
+                            #{String(p.patient_number).padStart(3, "0")}
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs text-slate-400 dark:text-gray-500">{lastSeenLabel(p)}</p>
                     </div>
-                    <p className="text-xs text-slate-400 dark:text-gray-500">{lastSeenLabel(p)}</p>
+                  </div>
+                  <div className="flex items-center gap-3 shrink-0 ml-4">
+                    {p.phone && (
+                      <a
+                        href={`tel:${p.phone}`}
+                        onClick={(e) => e.stopPropagation()}
+                        className="flex items-center gap-1 text-xs text-slate-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                      >
+                        <Phone size={12} />
+                        {p.phone}
+                      </a>
+                    )}
+                    <Link
+                      href={`/patients/${p.id}`}
+                      onClick={(e) => e.stopPropagation()}
+                      className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
+                    >
+                      Ver
+                    </Link>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 shrink-0 ml-4">
-                  {p.phone && (
-                    <a
-                      href={`tel:${p.phone}`}
-                      onClick={(e) => e.stopPropagation()}
-                      className="flex items-center gap-1 text-xs text-slate-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
-                    >
-                      <Phone size={12} />
-                      {p.phone}
-                    </a>
-                  )}
-                  <Link
-                    href={`/patients/${p.id}`}
-                    onClick={(e) => e.stopPropagation()}
-                    className="text-xs font-medium text-blue-600 dark:text-blue-400 hover:underline"
-                  >
-                    Ver
-                  </Link>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+              ))
+            )}
+          </div>
+        </>
       )}
     </div>
   );
