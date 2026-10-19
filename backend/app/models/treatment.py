@@ -59,7 +59,7 @@ class TreatmentPlan(UUIDMixin, TimestampMixin, Base):
     patient: Mapped["Patient"] = relationship(back_populates="treatment_plans")
     created_by: Mapped["User"] = relationship(foreign_keys=[created_by_id])
     items: Mapped[list["TreatmentPlanItem"]] = relationship(
-        back_populates="treatment_plan", order_by="TreatmentPlanItem.sort_order"
+        back_populates="treatment_plan", order_by="TreatmentPlanItem.sort_order", cascade="all, delete-orphan"
     )
     payments: Mapped[list["TreatmentPayment"]] = relationship(
         back_populates="treatment_plan", order_by="TreatmentPayment.payment_date", cascade="all, delete-orphan"
