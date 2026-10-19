@@ -138,6 +138,26 @@ export function useAddMultipleItems(patientId: string, planId: string, onSuccess
   });
 }
 
+export function useUpdateItem(patientId: string, planId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ itemId, quoted_price }: { itemId: string; quoted_price: number | null }) => {
+      const { data } = await apiClient.patch<{ data: TreatmentPlan }>(
+        `${base(patientId)}/${planId}/items/${itemId}`,
+        { quoted_price }
+      );
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["treatments", patientId, planId] });
+      toast.success("Precio actualizado.");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.detail || "Error al actualizar el precio.");
+    },
+  });
+}
+
 export function useDeleteItem(patientId: string, planId: string) {
   const qc = useQueryClient();
   return useMutation({

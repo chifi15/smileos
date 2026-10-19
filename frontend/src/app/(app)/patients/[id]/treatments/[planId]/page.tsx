@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, Plus, Trash2, Play, CheckCircle2, XCircle, ScanLine, RotateCcw, Wallet, X } from "lucide-react";
-import { usePlan, useDeleteItem, useStartItem, useCancelItem, useUpdatePlan, useReopenItem, usePlanPayments, useCreatePayment, useDeletePayment } from "@/hooks/useTreatments";
+import { ChevronLeft, Plus, Trash2, Play, CheckCircle2, XCircle, ScanLine, RotateCcw, Wallet, X, Pencil } from "lucide-react";
+import { usePlan, useDeleteItem, useStartItem, useCancelItem, useUpdatePlan, useReopenItem, usePlanPayments, useCreatePayment, useDeletePayment, useUpdateItem } from "@/hooks/useTreatments";
 import { usePatient } from "@/hooks/usePatients";
 import AddItemModal from "@/components/treatments/AddItemModal";
 import CompleteItemModal from "@/components/treatments/CompleteItemModal";
@@ -109,6 +109,115 @@ function AddPaymentModal({
   );
 }
 
+function EditPriceModal({
+  patientId,
+  planId,
+  itemId,
+  procedureName,
+  currentPrice,
+  onClose,
+}: {
+  patientId: string;
+  planId: string;
+  itemId: string;
+  procedureName: string | null;
+  currentPrice: number | null;
+  onClose: () => void;
+}) {
+  const [discount, setDiscount] = useState("");
+  const [finalPrice, setFinalPrice] = useState(
+    currentPrice != null ? String(currentPrice) : ""
+  );
+  const update = useUpdateItem(patientId, planId);
+
+  function handleDiscountChange(val: string) {
+    setDiscount(val);
+    const pct = parseFloat(val);
+    if (!isNaN(pct) && pct >= 0 && pct <= 100 && currentPrice != null) {
+      setFinalPrice(String(Math.round(currentPrice * (1 - pct / 100) * 100) / 100));
+    }
+  }
+
+  function handleFinalPriceChange(val: string) {
+    setFinalPrice(val);
+    const p = parseFloat(val);
+    if (!isNaN(p) && currentPrice != null && currentPrice > 0) {
+      setDiscount(String(Math.round((1 - p / currentPrice) * 10000) / 100));
+    } else {
+      setDiscount("");
+    }
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const p = parseFloat(finalPrice);
+    if (isNaN(p) || p < 0) return;
+    update.mutate({ itemId, quoted_price: p }, { onSuccess: onClose });
+  }
+
+  const discountNum = parseFloat(discount);
+  const isValidDiscount = !isNaN(discountNum) && discountNum > 0 && discountNum <= 100;
+
+  return (
+    <Modal open onClose={onClose} title="Editar precio" size="sm">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <p className="text-sm text-slate-600 dark:text-gray-400">
+          <span className="font-medium text-slate-800 dark:text-white">{procedureName}</span>
+          {currentPrice != null && (
+            <> — precio original: <span className="font-semibold">C$ {fmt(currentPrice)}</span></>
+          )}
+        </p>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">
+            Descuento (%)
+          </label>
+          <input
+            type="number"
+            min="0"
+            max="100"
+            step="0.01"
+            value={discount}
+            onChange={(e) => handleDiscountChange(e.target.value)}
+            placeholder="0"
+            className="w-full rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+            autoFocus
+          />
+          {isValidDiscount && currentPrice != null && (
+            <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
+              Ahorro: C$ {fmt(currentPrice * discountNum / 100)}
+            </p>
+          )}
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">
+            Precio final (C$)
+          </label>
+          <input
+            type="number"
+            min="0"
+            step="0.01"
+            value={finalPrice}
+            onChange={(e) => handleFinalPriceChange(e.target.value)}
+            placeholder="0.00"
+            className="w-full rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+        </div>
+
+        <div className="flex justify-end gap-3 pt-1">
+          <Button variant="secondary" type="button" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" loading={update.isPending}>
+            Guardar precio
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 const PRIORITY_COLORS = {
   normal: "text-slate-400",
   urgent: "text-red-500",
@@ -117,6 +226,12 @@ const PRIORITY_COLORS = {
 interface CompleteTarget {
   itemId: string;
   procedureName: string | null;
+}
+
+interface EditPriceTarget {
+  itemId: string;
+  procedureName: string | null;
+  currentPrice: number | null;
 }
 
 export default function TreatmentPlanDetailPage() {
@@ -128,6 +243,7 @@ export default function TreatmentPlanDetailPage() {
   const [showImport, setShowImport] = useState(false);
   const [showAddPayment, setShowAddPayment] = useState(false);
   const [completeTarget, setCompleteTarget] = useState<CompleteTarget | null>(null);
+  const [editPriceTarget, setEditPriceTarget] = useState<EditPriceTarget | null>(null);
 
   const deleteItem = useDeleteItem(patientId, planId);
   const startItem = useStartItem(patientId, planId);
@@ -332,6 +448,19 @@ export default function TreatmentPlanDetailPage() {
                     {/* Actions */}
                     {(canAct || ["completed", "cancelled"].includes(status)) && (
                       <div className="flex shrink-0 gap-1">
+                        {canAct && item.quoted_price != null && (
+                          <button
+                            title="Editar precio"
+                            className="rounded-md p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 transition-colors"
+                            onClick={() => setEditPriceTarget({
+                              itemId: item.id,
+                              procedureName: item.procedure_name,
+                              currentPrice: item.quoted_price ?? null,
+                            })}
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        )}
                         {status === "pending" && (
                           <button
                             title="Iniciar"
@@ -514,6 +643,16 @@ export default function TreatmentPlanDetailPage() {
           patientId={patientId}
           planId={planId}
           onClose={() => setShowAddPayment(false)}
+        />
+      )}
+      {editPriceTarget && (
+        <EditPriceModal
+          patientId={patientId}
+          planId={planId}
+          itemId={editPriceTarget.itemId}
+          procedureName={editPriceTarget.procedureName}
+          currentPrice={editPriceTarget.currentPrice}
+          onClose={() => setEditPriceTarget(null)}
         />
       )}
     </div>
