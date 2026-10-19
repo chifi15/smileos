@@ -25,7 +25,7 @@ import {
   History,
 } from "lucide-react";
 import { usePatient, useDeactivatePatient, useDeletePatientPermanent } from "@/hooks/usePatients";
-import { useCreateTransaction, useExchangeRate } from "@/hooks/useFinances";
+import { useCreateTransaction, useExchangeRate, useDoctors } from "@/hooks/useFinances";
 import { useProcedures } from "@/hooks/useCatalog";
 import { useRewardsConfig } from "@/hooks/useRewards";
 import {
@@ -56,8 +56,10 @@ function QuickPaymentModal({
   const [date, setDate] = useState(today);
   const [procedureId, setProcedureId] = useState("");
   const [quantity, setQuantity] = useState("1");
+  const [doctorId, setDoctorId] = useState("");
   const { data: exchangeRate = 37 } = useExchangeRate();
   const { data: procedures = [] } = useProcedures();
+  const { data: doctors = [] } = useDoctors();
   const create = useCreateTransaction(now.getFullYear(), now.getMonth() + 1);
 
   const amountNIO =
@@ -95,6 +97,7 @@ function QuickPaymentModal({
         patient_id: patientId,
         procedure_id: procedureId || undefined,
         quantity: procedureId ? qty : undefined,
+        doctor_id: doctorId || undefined,
       },
       { onSuccess: onClose }
     );
@@ -204,6 +207,23 @@ function QuickPaymentModal({
               onChange={(e) => setDescription(e.target.value)}
               className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             />
+          </div>
+
+          {/* Doctor */}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">
+              Doctor que realizó el procedimiento
+            </label>
+            <select
+              value={doctorId}
+              onChange={(e) => setDoctorId(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            >
+              <option value="">— Sin asignar —</option>
+              {doctors.map((d) => (
+                <option key={d.id} value={d.id}>{d.full_name}</option>
+              ))}
+            </select>
           </div>
 
           {/* Date */}
