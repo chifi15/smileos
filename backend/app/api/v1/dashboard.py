@@ -26,6 +26,7 @@ async def get_dashboard(
     rewards = await dashboard_service.get_rewards_stats(db, user.clinic_id)
     monthly = await dashboard_service.get_monthly_appointment_stats(db, user.clinic_id)
     returning = await dashboard_service.get_returning_patients_stats(db, user.clinic_id)
+    new_patients = await dashboard_service.get_new_patients_stats(db, user.clinic_id)
 
     return {
         "success": True,
@@ -35,9 +36,19 @@ async def get_dashboard(
             "patients": patients,
             "treatment_plans": treatments,
             "smile_rewards": rewards,
-            "monthly": {**monthly, **returning},
+            "monthly": {**monthly, **returning, **new_patients},
         },
     }
+
+
+@router.get("/new-patients")
+async def get_new_patients(
+    user: Annotated[object, require_permission("view_dashboard")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Pacientes con primera visita este mes."""
+    rows = await dashboard_service.get_new_patients_list(db, user.clinic_id)
+    return {"success": True, "data": rows}
 
 
 @router.get("/monthly-patients")

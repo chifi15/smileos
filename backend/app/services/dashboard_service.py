@@ -190,6 +190,81 @@ async def get_monthly_appointment_stats(db: AsyncSession, clinic_id: uuid.UUID) 
     }
 
 
+async def get_new_patients_stats(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
+    """Pacientes con primera visita este mes (sin ninguna cita anterior)."""
+    month_start = _month_start_utc()
+
+    previous_patients_subq = (
+        select(func.distinct(Appointment.patient_id))
+        .where(
+            Appointment.clinic_id == clinic_id,
+            Appointment.patient_id.isnot(None),
+            Appointment.scheduled_at < month_start,
+        )
+        .scalar_subquery()
+    )
+
+    new_count = await db.scalar(
+        select(func.count(func.distinct(Appointment.patient_id)))
+        .where(
+            Appointment.clinic_id == clinic_id,
+            Appointment.patient_id.isnot(None),
+            Appointment.scheduled_at >= month_start,
+            Appointment.status.not_in(["cancelled"]),
+            Appointment.patient_id.not_in(previous_patients_subq),
+        )
+    ) or 0
+
+    return {"pacientes_nuevos_mes": new_count}
+
+
+async def get_new_patients_list(db: AsyncSession, clinic_id: uuid.UUID) -> list[dict]:
+    """Lista de pacientes con primera visita este mes para el modal del dashboard."""
+    month_start = _month_start_utc()
+
+    previous_patients_subq = (
+        select(func.distinct(Appointment.patient_id))
+        .where(
+            Appointment.clinic_id == clinic_id,
+            Appointment.patient_id.isnot(None),
+            Appointment.scheduled_at < month_start,
+        )
+        .scalar_subquery()
+    )
+
+    result = await db.execute(
+        select(Appointment)
+        .where(
+            Appointment.clinic_id == clinic_id,
+            Appointment.patient_id.isnot(None),
+            Appointment.scheduled_at >= month_start,
+            Appointment.status.not_in(["cancelled"]),
+            Appointment.patient_id.not_in(previous_patients_subq),
+        )
+        .options(selectinload(Appointment.patient))
+        .order_by(Appointment.scheduled_at)
+    )
+    appointments = list(result.scalars().all())
+
+    seen: set[uuid.UUID] = set()
+    rows = []
+    for appt in appointments:
+        if appt.patient_id in seen:
+            continue
+        seen.add(appt.patient_id)
+        patient = appt.patient
+        local_dt = appt.scheduled_at.astimezone(CLINIC_TZ)
+        rows.append({
+            "patient_id": str(patient.id),
+            "patient_name": patient.full_name,
+            "phone": patient.phone,
+            "first_appointment_date": local_dt.date().isoformat(),
+            "appointment_type": appt.appointment_type,
+            "status": appt.status,
+        })
+    return rows
+
+
 async def get_returning_patients_stats(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
     """Pacientes que regresaron este mes: tuvieron cita no cancelada este mes
     y además tienen al menos una cita completada en un mes anterior."""

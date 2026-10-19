@@ -150,6 +150,7 @@ export interface DashboardStats {
     total_citas_mes: number;
     pacientes_unicos_mes: number;
     pacientes_regresaron_mes: number;
+    pacientes_nuevos_mes: number;
   };
 }
 

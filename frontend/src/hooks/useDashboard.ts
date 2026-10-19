@@ -13,6 +13,15 @@ export interface MonthlyPatientRow {
   description: string;
 }
 
+export interface NewPatientRow {
+  patient_id: string;
+  patient_name: string;
+  phone: string | null;
+  first_appointment_date: string;
+  appointment_type: string;
+  status: string;
+}
+
 export function useDashboardStats() {
   return useQuery({
     queryKey: ["dashboard", "stats"],
@@ -29,6 +38,16 @@ export function useMonthlyPatients() {
     queryKey: ["dashboard", "monthly-patients"],
     queryFn: async () => {
       const { data } = await apiClient.get<{ data: MonthlyPatientRow[] }>("/api/v1/dashboard/monthly-patients");
+      return data.data;
+    },
+  });
+}
+
+export function useNewPatients() {
+  return useQuery({
+    queryKey: ["dashboard", "new-patients"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: NewPatientRow[] }>("/api/v1/dashboard/new-patients");
       return data.data;
     },
   });
