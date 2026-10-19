@@ -24,6 +24,11 @@ class PaymentCreate(BaseModel):
     payment_date: date
     notes: str | None = None
 
+class PaymentUpdate(BaseModel):
+    amount: Decimal | None = None
+    payment_date: date | None = None
+    notes: str | None = None
+
 router = APIRouter(
     prefix="/patients/{patient_id}/treatment-plans",
     tags=["Planes de Tratamiento"],
@@ -351,6 +356,21 @@ async def create_payment(
         action="treatment_payment.created", resource_type="treatment_plan", resource_id=str(plan_id),
         description=f'Registró abono de C$ {body.amount} en plan "{plan.title}"',
         patient_id=patient_id,
+    )
+    return {"success": True, "data": _serialize_payment(payment)}
+
+
+@router.patch("/{plan_id}/payments/{payment_id}")
+async def update_payment(
+    patient_id: uuid.UUID,
+    plan_id: uuid.UUID,
+    payment_id: uuid.UUID,
+    body: PaymentUpdate,
+    user: Annotated[object, require_permission("manage_treatments")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    payment = await treatment_service.update_payment(
+        db, user.clinic_id, plan_id, payment_id, body.model_dump(exclude_none=True)
     )
     return {"success": True, "data": _serialize_payment(payment)}
 

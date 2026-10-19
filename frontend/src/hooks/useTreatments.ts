@@ -251,6 +251,26 @@ export function useCreatePayment(patientId: string, planId: string, onSuccess?: 
   });
 }
 
+export function useUpdatePayment(patientId: string, planId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ paymentId, ...body }: { paymentId: string; amount?: number; payment_date?: string; notes?: string | null }) => {
+      const { data } = await apiClient.patch<{ data: TreatmentPayment }>(
+        `${base(patientId)}/${planId}/payments/${paymentId}`,
+        body
+      );
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["treatments", patientId, planId, "payments"] });
+      toast.success("Abono actualizado.");
+    },
+    onError: (err: any) => {
+      toast.error(err?.response?.data?.detail || "Error al actualizar el abono.");
+    },
+  });
+}
+
 export function useDeletePayment(patientId: string, planId: string) {
   const qc = useQueryClient();
   return useMutation({

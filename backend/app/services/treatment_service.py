@@ -512,6 +512,29 @@ async def create_payment(
     return payment
 
 
+async def update_payment(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    plan_id: uuid.UUID,
+    payment_id: uuid.UUID,
+    data: dict,
+) -> TreatmentPayment:
+    result = await db.execute(
+        select(TreatmentPayment).where(
+            TreatmentPayment.id == payment_id,
+            TreatmentPayment.clinic_id == clinic_id,
+            TreatmentPayment.treatment_plan_id == plan_id,
+        ).options(selectinload(TreatmentPayment.created_by))
+    )
+    payment = result.scalar_one_or_none()
+    if not payment:
+        raise NotFoundError("Abono")
+    for k, v in data.items():
+        setattr(payment, k, v)
+    await db.flush()
+    return payment
+
+
 async def delete_payment(
     db: AsyncSession, clinic_id: uuid.UUID, plan_id: uuid.UUID, payment_id: uuid.UUID
 ) -> None:

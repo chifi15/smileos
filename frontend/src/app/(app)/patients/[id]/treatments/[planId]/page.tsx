@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { ChevronLeft, Plus, Trash2, Play, CheckCircle2, XCircle, ScanLine, RotateCcw, Wallet, X, Pencil } from "lucide-react";
-import { usePlan, useDeleteItem, useStartItem, useCancelItem, useUpdatePlan, useReopenItem, usePlanPayments, useCreatePayment, useDeletePayment, useUpdateItem } from "@/hooks/useTreatments";
+import { usePlan, useDeleteItem, useStartItem, useCancelItem, useUpdatePlan, useReopenItem, usePlanPayments, useCreatePayment, useDeletePayment, useUpdateItem, useUpdatePayment } from "@/hooks/useTreatments";
 import { usePatient } from "@/hooks/usePatients";
 import AddItemModal from "@/components/treatments/AddItemModal";
 import CompleteItemModal from "@/components/treatments/CompleteItemModal";
@@ -32,29 +32,41 @@ function fmt(n: number) {
   return new Intl.NumberFormat("es-NI", { minimumFractionDigits: 2 }).format(n);
 }
 
-function AddPaymentModal({
+function PaymentFormModal({
   patientId,
   planId,
+  editing,
   onClose,
 }: {
   patientId: string;
   planId: string;
+  editing?: { id: string; amount: number; payment_date: string; notes: string | null };
   onClose: () => void;
 }) {
-  const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(todayISO);
-  const [notes, setNotes] = useState("");
+  const [amount, setAmount] = useState(editing ? String(editing.amount) : "");
+  const [date, setDate] = useState(editing?.payment_date ?? todayISO);
+  const [notes, setNotes] = useState(editing?.notes ?? "");
   const create = useCreatePayment(patientId, planId, onClose);
+  const update = useUpdatePayment(patientId, planId);
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     const n = parseFloat(amount);
     if (!n || n <= 0) return;
-    create.mutate({ amount: n, payment_date: date, notes: notes.trim() || undefined });
+    if (editing) {
+      update.mutate(
+        { paymentId: editing.id, amount: n, payment_date: date, notes: notes.trim() || null },
+        { onSuccess: onClose }
+      );
+    } else {
+      create.mutate({ amount: n, payment_date: date, notes: notes.trim() || undefined });
+    }
   }
 
+  const isPending = create.isPending || update.isPending;
+
   return (
-    <Modal open onClose={onClose} title="Registrar abono" size="sm">
+    <Modal open onClose={onClose} title={editing ? "Editar abono" : "Registrar abono"} size="sm">
       <form onSubmit={handleSubmit} className="space-y-4">
         <div>
           <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">
@@ -100,8 +112,8 @@ function AddPaymentModal({
           <Button variant="secondary" type="button" onClick={onClose}>
             Cancelar
           </Button>
-          <Button type="submit" loading={create.isPending}>
-            Guardar abono
+          <Button type="submit" loading={isPending}>
+            {editing ? "Guardar cambios" : "Guardar abono"}
           </Button>
         </div>
       </form>
@@ -242,6 +254,7 @@ export default function TreatmentPlanDetailPage() {
   const [showAddItem, setShowAddItem] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showAddPayment, setShowAddPayment] = useState(false);
+  const [editingPayment, setEditingPayment] = useState<{ id: string; amount: number; payment_date: string; notes: string | null } | null>(null);
   const [completeTarget, setCompleteTarget] = useState<CompleteTarget | null>(null);
   const [editPriceTarget, setEditPriceTarget] = useState<EditPriceTarget | null>(null);
 
@@ -600,17 +613,26 @@ export default function TreatmentPlanDetailPage() {
                     <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">{p.notes}</p>
                   )}
                 </div>
-                <button
-                  title="Eliminar abono"
-                  className="shrink-0 rounded-md p-1.5 text-slate-300 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 transition-colors"
-                  onClick={() => {
-                    if (window.confirm("¿Eliminar este abono?")) {
-                      deletePayment.mutate(p.id);
-                    }
-                  }}
-                >
-                  <X size={14} />
-                </button>
+                <div className="flex shrink-0 gap-1">
+                  <button
+                    title="Editar abono"
+                    className="rounded-md p-1.5 text-slate-300 hover:bg-blue-50 hover:text-blue-500 dark:hover:bg-blue-900/20 transition-colors"
+                    onClick={() => setEditingPayment({ id: p.id, amount: p.amount, payment_date: p.payment_date, notes: p.notes })}
+                  >
+                    <Pencil size={14} />
+                  </button>
+                  <button
+                    title="Eliminar abono"
+                    className="rounded-md p-1.5 text-slate-300 hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 transition-colors"
+                    onClick={() => {
+                      if (window.confirm("¿Eliminar este abono?")) {
+                        deletePayment.mutate(p.id);
+                      }
+                    }}
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -639,10 +661,18 @@ export default function TreatmentPlanDetailPage() {
         procedureName={completeTarget?.procedureName ?? null}
       />
       {showAddPayment && (
-        <AddPaymentModal
+        <PaymentFormModal
           patientId={patientId}
           planId={planId}
           onClose={() => setShowAddPayment(false)}
+        />
+      )}
+      {editingPayment && (
+        <PaymentFormModal
+          patientId={patientId}
+          planId={planId}
+          editing={editingPayment}
+          onClose={() => setEditingPayment(null)}
         />
       )}
       {editPriceTarget && (
