@@ -201,6 +201,9 @@ async def delete_treatment_plan(
     plan_id: uuid.UUID,
 ) -> None:
     plan = await get_treatment_plan(db, clinic_id, patient_id, plan_id)
+    for item in list(plan.items):
+        await db.delete(item)
+    await db.flush()
     await db.delete(plan)
     await db.flush()
 

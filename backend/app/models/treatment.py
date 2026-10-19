@@ -73,7 +73,7 @@ class TreatmentPlanItem(UUIDMixin, TimestampMixin, Base):
         UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False
     )
     treatment_plan_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("treatment_plans.id"), nullable=False
+        UUID(as_uuid=True), ForeignKey("treatment_plans.id", ondelete="CASCADE"), nullable=False
     )
     procedure_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("procedure_catalog.id"), nullable=False
