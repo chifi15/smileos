@@ -29,6 +29,7 @@ import {
   Activity,
   CalendarDays,
   UserCheck,
+  Repeat2,
   X,
 } from "lucide-react";
 
@@ -257,7 +258,7 @@ export default function DashboardPage() {
           </div>
 
           {/* Monthly stats */}
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-3">
             <StatCard
               icon={CalendarDays}
               label="Atenciones del mes"
@@ -273,6 +274,13 @@ export default function DashboardPage() {
               sub="Sin contar visitas repetidas"
               color="bg-teal-50 text-teal-600"
               onClick={() => setMonthlyModal("unicos")}
+            />
+            <StatCard
+              icon={Repeat2}
+              label="Pacientes que regresaron"
+              value={stats.monthly.pacientes_regresaron_mes}
+              sub="Con cita este mes y visita previa"
+              color="bg-indigo-50 text-indigo-600"
             />
           </div>
 

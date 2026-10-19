@@ -190,6 +190,38 @@ async def get_monthly_appointment_stats(db: AsyncSession, clinic_id: uuid.UUID) 
     }
 
 
+async def get_returning_patients_stats(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
+    """Pacientes que regresaron este mes: tuvieron cita no cancelada este mes
+    y además tienen al menos una cita completada en un mes anterior."""
+    month_start = _month_start_utc()
+
+    # patient_ids con cita activa este mes
+    this_month_subq = (
+        select(func.distinct(Appointment.patient_id))
+        .where(
+            Appointment.clinic_id == clinic_id,
+            Appointment.patient_id.isnot(None),
+            Appointment.scheduled_at >= month_start,
+            Appointment.status.not_in(["cancelled"]),
+        )
+        .scalar_subquery()
+    )
+
+    # de esos, los que también tuvieron una cita completada antes de este mes
+    returning = await db.scalar(
+        select(func.count(func.distinct(Appointment.patient_id)))
+        .where(
+            Appointment.clinic_id == clinic_id,
+            Appointment.patient_id.isnot(None),
+            Appointment.scheduled_at < month_start,
+            Appointment.status == "completed",
+            Appointment.patient_id.in_(this_month_subq),
+        )
+    ) or 0
+
+    return {"pacientes_regresaron_mes": returning}
+
+
 async def get_treatment_stats(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
     """Planes de tratamiento agrupados por estado."""
     rows = await db.execute(
