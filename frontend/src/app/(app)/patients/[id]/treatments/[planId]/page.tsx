@@ -448,7 +448,7 @@ export default function TreatmentPlanDetailPage() {
                     {/* Actions */}
                     {(canAct || ["completed", "cancelled"].includes(status)) && (
                       <div className="flex shrink-0 gap-1">
-                        {canAct && item.quoted_price != null && (
+                        {canAct && (
                           <button
                             title="Editar precio"
                             className="rounded-md p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 transition-colors"

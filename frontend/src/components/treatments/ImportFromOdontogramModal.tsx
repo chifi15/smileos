@@ -34,6 +34,7 @@ function toothLabel(n: number | null) {
 export default function ImportFromOdontogramModal({ open, onClose, patientId, planId }: Props) {
   const { data: quoteData, isLoading: loadingQuote } = useTreatmentQuote(patientId);
   const quote = quoteData?.items ?? [];
+  const discountPct: number = quoteData?.discount_pct ?? 0;
   const { data: procedures = [], isLoading: loadingProcs } = useProcedures();
   const addMultiple = useAddMultipleItems(patientId, planId, () => onClose());
 
@@ -42,17 +43,22 @@ export default function ImportFromOdontogramModal({ open, onClose, patientId, pl
   useEffect(() => {
     if (!open || loadingQuote) return;
     setRows(
-      quote.map((item: QuoteItem) => ({
-        id: item.id,
-        toothNumber: item.toothNumber,
-        procedureId: item.procedureId,
-        procedureName: item.procedureName,
-        price: item.price,
-        priority: "normal",
-        selected: true,
-      }))
+      quote.map((item: QuoteItem) => {
+        const discounted = discountPct > 0
+          ? Math.round(item.price * (1 - discountPct / 100) * 100) / 100
+          : item.price;
+        return {
+          id: item.id,
+          toothNumber: item.toothNumber,
+          procedureId: item.procedureId,
+          procedureName: item.procedureName,
+          price: discounted,
+          priority: "normal",
+          selected: true,
+        };
+      })
     );
-  }, [open, quote, loadingQuote]);
+  }, [open, quote, loadingQuote, discountPct]);
 
   function toggle(id: string) {
     setRows((prev) => prev.map((r) => r.id === id ? { ...r, selected: !r.selected } : r));
@@ -125,9 +131,16 @@ export default function ImportFromOdontogramModal({ open, onClose, patientId, pl
       ) : (
         <div className="space-y-4">
           <div className="flex items-center justify-between">
-            <p className="text-sm text-slate-500 dark:text-gray-400">
-              <strong className="text-slate-800 dark:text-white">{quote.length}</strong> procedimiento{quote.length !== 1 ? "s" : ""} en la cotización
-            </p>
+            <div>
+              <p className="text-sm text-slate-500 dark:text-gray-400">
+                <strong className="text-slate-800 dark:text-white">{quote.length}</strong> procedimiento{quote.length !== 1 ? "s" : ""} en la cotización
+              </p>
+              {discountPct > 0 && (
+                <p className="text-xs text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  Descuento del odontograma aplicado: <strong>{discountPct}%</strong>
+                </p>
+              )}
+            </div>
             <div className="flex gap-2">
               <button onClick={selectAll} className="text-xs text-blue-600 hover:underline">Seleccionar todos</button>
               <span className="text-slate-300 dark:text-gray-600">·</span>
