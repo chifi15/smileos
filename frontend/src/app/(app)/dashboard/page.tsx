@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useMemo } from "react";
-import { useDashboardStats, useTodaySchedule, useMonthlyPatients, useNewPatients, MonthlyPatientRow, NewPatientRow } from "@/hooks/useDashboard";
+import { useDashboardStats, useTodaySchedule, useMonthlyPatients, useNewPatientsHistory, MonthlyPatientRow, NewPatientsByMonthItem } from "@/hooks/useDashboard";
 import { useAuditFeed } from "@/hooks/useAudit";
 import { useAuthStore } from "@/stores/auth.store";
 import Spinner from "@/components/ui/Spinner";
@@ -32,6 +32,8 @@ import {
   Repeat2,
   UserPlus,
   Phone,
+  ChevronDown,
+  ChevronUp,
   X,
 } from "lucide-react";
 
@@ -176,90 +178,138 @@ function MonthlyPatientsModal({
   );
 }
 
-function NewPatientsModal({
-  rows,
-  isLoading,
-  onClose,
-}: {
-  rows: NewPatientRow[] | undefined;
-  isLoading: boolean;
-  onClose: () => void;
-}) {
+function NewPatientsHistoryModal({ onClose }: { onClose: () => void }) {
+  const { data, isLoading } = useNewPatientsHistory();
+  const nowKey = `${new Date().getFullYear()}-${new Date().getMonth() + 1}`;
+  const [expanded, setExpanded] = useState<Set<string>>(() => new Set([nowKey]));
+
+  function toggle(key: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+  }
+
+  function monthLabel(year: number, month: number) {
+    const s = format(new Date(year, month - 1, 1), "MMMM yyyy", { locale: es });
+    return s.charAt(0).toUpperCase() + s.slice(1);
+  }
+
+  const totalNuevos = data?.reduce((s, m) => s + m.count, 0) ?? 0;
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-3xl max-h-[80vh] flex flex-col border border-slate-200 dark:border-gray-700">
+      <div className="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-2xl max-h-[85vh] flex flex-col border border-slate-200 dark:border-gray-700">
+        {/* Header */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-gray-700 shrink-0">
           <div className="flex items-center gap-2">
             <UserPlus size={16} className="text-emerald-500" />
-            <h2 className="font-semibold text-slate-800 dark:text-white">Pacientes nuevos del mes</h2>
+            <div>
+              <h2 className="font-semibold text-slate-800 dark:text-white">Pacientes nuevos por mes</h2>
+              {!isLoading && (
+                <p className="text-xs text-slate-400 dark:text-gray-500">{totalNuevos} nuevos en los últimos 12 meses</p>
+              )}
+            </div>
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 hover:bg-slate-100 dark:hover:bg-gray-700 transition-colors">
             <X size={16} className="text-slate-500" />
           </button>
         </div>
 
-        <div className="overflow-auto flex-1">
+        {/* Body */}
+        <div className="overflow-y-auto flex-1">
           {isLoading ? (
             <div className="flex justify-center py-12"><Spinner /></div>
-          ) : !rows || rows.length === 0 ? (
-            <div className="py-12 text-center text-sm text-slate-400 dark:text-gray-500">
-              No hay pacientes nuevos este mes
-            </div>
+          ) : !data || data.length === 0 ? (
+            <div className="py-12 text-center text-sm text-slate-400 dark:text-gray-500">Sin datos</div>
           ) : (
-            <table className="w-full text-sm">
-              <thead className="sticky top-0 bg-slate-50 dark:bg-gray-900 border-b border-slate-100 dark:border-gray-700">
-                <tr>
-                  <th className="px-3 py-3 text-center text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide w-8">#</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Paciente</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Teléfono</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Primera cita</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Tipo</th>
-                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Estado</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
-                {rows.map((row, i) => (
-                  <tr key={row.patient_id} className="hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors">
-                    <td className="px-3 py-3 text-center text-xs text-slate-400 dark:text-gray-500">{i + 1}</td>
-                    <td className="px-4 py-3 font-medium text-slate-800 dark:text-white">
-                      <Link href={`/patients/${row.patient_id}`} className="hover:text-blue-600 transition-colors">
-                        {row.patient_name}
-                      </Link>
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 dark:text-gray-400">
-                      {row.phone ? (
-                        <a href={`tel:${row.phone}`} className="flex items-center gap-1 hover:text-blue-600 transition-colors">
-                          <Phone size={12} />
-                          {row.phone}
-                        </a>
-                      ) : (
-                        <span className="text-slate-300 dark:text-gray-600">—</span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 dark:text-gray-400 whitespace-nowrap">
-                      {format(parseISO(row.first_appointment_date), "d MMM yyyy", { locale: es })}
-                    </td>
-                    <td className="px-4 py-3 text-slate-500 dark:text-gray-400">
-                      {APPOINTMENT_TYPE_LABELS[row.appointment_type as keyof typeof APPOINTMENT_TYPE_LABELS] ?? row.appointment_type}
-                    </td>
-                    <td className="px-4 py-3">
-                      <Badge
-                        label={APPOINTMENT_STATUS_LABELS[row.status as keyof typeof APPOINTMENT_STATUS_LABELS] ?? row.status}
-                        className={APPOINTMENT_STATUS_COLORS[row.status as keyof typeof APPOINTMENT_STATUS_COLORS] ?? "bg-slate-100 text-slate-600"}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="divide-y divide-slate-100 dark:divide-gray-700">
+              {data.map((item) => {
+                const key = `${item.year}-${item.month}`;
+                const isOpen = expanded.has(key);
+                const isCurrentMonth = key === nowKey;
+                return (
+                  <div key={key}>
+                    {/* Fila del mes */}
+                    <button
+                      onClick={() => toggle(key)}
+                      className="w-full flex items-center justify-between px-5 py-3.5 hover:bg-slate-50 dark:hover:bg-gray-700/50 transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-medium text-slate-800 dark:text-white">
+                          {monthLabel(item.year, item.month)}
+                        </span>
+                        {isCurrentMonth && (
+                          <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300">
+                            Mes actual
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-3 shrink-0">
+                        <span className={`text-sm font-bold ${item.count > 0 ? "text-emerald-600 dark:text-emerald-400" : "text-slate-400 dark:text-gray-500"}`}>
+                          {item.count} {item.count === 1 ? "paciente" : "pacientes"}
+                        </span>
+                        {isOpen
+                          ? <ChevronUp size={15} className="text-slate-400" />
+                          : <ChevronDown size={15} className="text-slate-400" />}
+                      </div>
+                    </button>
+
+                    {/* Lista de pacientes del mes */}
+                    {isOpen && (
+                      <div className="bg-slate-50/60 dark:bg-gray-900/30 border-t border-slate-100 dark:border-gray-700">
+                        {item.patients.length === 0 ? (
+                          <p className="px-5 py-4 text-sm text-slate-400 dark:text-gray-500 text-center">
+                            Sin pacientes nuevos este mes
+                          </p>
+                        ) : (
+                          <table className="w-full text-sm">
+                            <thead>
+                              <tr className="border-b border-slate-100 dark:border-gray-700">
+                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wide">Paciente</th>
+                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wide">Teléfono</th>
+                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wide">Fecha</th>
+                                <th className="px-4 py-2 text-left text-xs font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wide">Tipo</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-100 dark:divide-gray-700/50">
+                              {item.patients.map((p) => (
+                                <tr key={p.patient_id} className="hover:bg-white dark:hover:bg-gray-800/60 transition-colors">
+                                  <td className="px-4 py-2.5 font-medium text-slate-800 dark:text-white">
+                                    <Link href={`/patients/${p.patient_id}`} className="hover:text-blue-600 transition-colors">
+                                      {p.patient_name}
+                                    </Link>
+                                  </td>
+                                  <td className="px-4 py-2.5 text-slate-500 dark:text-gray-400">
+                                    {p.phone ? (
+                                      <a href={`tel:${p.phone}`} className="flex items-center gap-1 hover:text-blue-600 transition-colors">
+                                        <Phone size={11} />
+                                        {p.phone}
+                                      </a>
+                                    ) : (
+                                      <span className="text-slate-300 dark:text-gray-600">—</span>
+                                    )}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-slate-500 dark:text-gray-400 whitespace-nowrap">
+                                    {format(parseISO(p.first_appointment_date), "d MMM", { locale: es })}
+                                  </td>
+                                  <td className="px-4 py-2.5 text-slate-500 dark:text-gray-400">
+                                    {APPOINTMENT_TYPE_LABELS[p.appointment_type as keyof typeof APPOINTMENT_TYPE_LABELS] ?? p.appointment_type}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
-
-        {rows && rows.length > 0 && (
-          <div className="px-6 py-3 border-t border-slate-100 dark:border-gray-700 text-xs text-slate-400 dark:text-gray-500 shrink-0">
-            {rows.length} paciente(s) nuevo(s) este mes
-          </div>
-        )}
       </div>
     </div>
   );
@@ -285,9 +335,8 @@ export default function DashboardPage() {
   const { data: schedule, isLoading: loadingSchedule } = useTodaySchedule();
   const { data: auditData } = useAuditFeed({ per_page: 6 });
   const [monthlyModal, setMonthlyModal] = useState<ModalMode | null>(null);
-  const [showNewPatients, setShowNewPatients] = useState(false);
+  const [showNewPatientsHistory, setShowNewPatientsHistory] = useState(false);
   const { data: monthlyRows, isLoading: loadingMonthly } = useMonthlyPatients();
-  const { data: newPatientRows, isLoading: loadingNewPatients } = useNewPatients();
 
   const today = format(new Date(), "EEEE d 'de' MMMM 'de' yyyy", { locale: es });
   const todayCapitalized = today.charAt(0).toUpperCase() + today.slice(1);
@@ -381,7 +430,7 @@ export default function DashboardPage() {
               value={stats.monthly.pacientes_nuevos_mes}
               sub="Primera visita este mes"
               color="bg-emerald-50 text-emerald-600"
-              onClick={() => setShowNewPatients(true)}
+              onClick={() => setShowNewPatientsHistory(true)}
             />
           </div>
 
@@ -567,12 +616,8 @@ export default function DashboardPage() {
         />
       )}
 
-      {showNewPatients && (
-        <NewPatientsModal
-          rows={newPatientRows}
-          isLoading={loadingNewPatients}
-          onClose={() => setShowNewPatients(false)}
-        />
+      {showNewPatientsHistory && (
+        <NewPatientsHistoryModal onClose={() => setShowNewPatientsHistory(false)} />
       )}
     </div>
   );

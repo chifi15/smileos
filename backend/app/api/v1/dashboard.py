@@ -51,6 +51,16 @@ async def get_new_patients(
     return {"success": True, "data": rows}
 
 
+@router.get("/new-patients-history")
+async def get_new_patients_history(
+    user: Annotated[object, require_permission("view_dashboard")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Nuevos pacientes agrupados por mes (últimos 12 meses)."""
+    rows = await dashboard_service.get_new_patients_by_month(db, user.clinic_id)
+    return {"success": True, "data": rows}
+
+
 @router.get("/monthly-patients")
 async def get_monthly_patients(
     user: Annotated[object, require_permission("view_dashboard")],

@@ -43,6 +43,29 @@ export function useMonthlyPatients() {
   });
 }
 
+export interface NewPatientsByMonthItem {
+  year: number;
+  month: number;
+  count: number;
+  patients: {
+    patient_id: string;
+    patient_name: string;
+    phone: string | null;
+    first_appointment_date: string;
+    appointment_type: string;
+  }[];
+}
+
+export function useNewPatientsHistory() {
+  return useQuery({
+    queryKey: ["dashboard", "new-patients-history"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: NewPatientsByMonthItem[] }>("/api/v1/dashboard/new-patients-history");
+      return data.data;
+    },
+  });
+}
+
 export function useNewPatients() {
   return useQuery({
     queryKey: ["dashboard", "new-patients"],

@@ -190,6 +190,102 @@ async def get_monthly_appointment_stats(db: AsyncSession, clinic_id: uuid.UUID) 
     }
 
 
+async def get_new_patients_by_month(
+    db: AsyncSession, clinic_id: uuid.UUID, months: int = 12
+) -> list[dict]:
+    """Nuevos pacientes (primera visita) agrupados por mes, últimos N meses."""
+    now_local = datetime.now(CLINIC_TZ)
+
+    # Calcular inicio de la ventana
+    m, y = now_local.month, now_local.year
+    for _ in range(months - 1):
+        m -= 1
+        if m == 0:
+            m = 12
+            y -= 1
+    window_start_local = now_local.replace(
+        year=y, month=m, day=1, hour=0, minute=0, second=0, microsecond=0
+    )
+    window_start_utc = window_start_local.astimezone(timezone.utc)
+
+    # Subconsulta: fecha mínima de cita por paciente (ignorando canceladas)
+    first_appt_subq = (
+        select(
+            Appointment.patient_id.label("patient_id"),
+            func.min(Appointment.scheduled_at).label("first_at"),
+        )
+        .where(
+            Appointment.clinic_id == clinic_id,
+            Appointment.patient_id.isnot(None),
+            Appointment.status.not_in(["cancelled"]),
+        )
+        .group_by(Appointment.patient_id)
+        .subquery()
+    )
+
+    stmt = (
+        select(
+            Patient.id,
+            Patient.full_name,
+            Patient.phone,
+            first_appt_subq.c.first_at,
+            Appointment.appointment_type,
+        )
+        .join(first_appt_subq, Patient.id == first_appt_subq.c.patient_id)
+        .join(
+            Appointment,
+            and_(
+                Appointment.patient_id == first_appt_subq.c.patient_id,
+                Appointment.scheduled_at == first_appt_subq.c.first_at,
+                Appointment.clinic_id == clinic_id,
+                Appointment.status.not_in(["cancelled"]),
+            ),
+        )
+        .where(
+            Patient.clinic_id == clinic_id,
+            first_appt_subq.c.first_at >= window_start_utc,
+        )
+        .order_by(first_appt_subq.c.first_at)
+    )
+    rows = (await db.execute(stmt)).all()
+
+    # Agrupar por año/mes (deduplicar por si hay citas con exactamente el mismo scheduled_at)
+    by_month: dict[tuple[int, int], list] = {}
+    seen_patients: set = set()
+    for row in rows:
+        if row.id in seen_patients:
+            continue
+        seen_patients.add(row.id)
+        local_dt = row.first_at.astimezone(CLINIC_TZ)
+        key = (local_dt.year, local_dt.month)
+        if key not in by_month:
+            by_month[key] = []
+        by_month[key].append({
+            "patient_id": str(row.id),
+            "patient_name": row.full_name,
+            "phone": row.phone,
+            "first_appointment_date": local_dt.date().isoformat(),
+            "appointment_type": row.appointment_type,
+        })
+
+    # Construir lista de N meses más reciente primero, incluir meses sin pacientes
+    result = []
+    cy, cm = now_local.year, now_local.month
+    for _ in range(months):
+        patients_in_month = by_month.get((cy, cm), [])
+        result.append({
+            "year": cy,
+            "month": cm,
+            "count": len(patients_in_month),
+            "patients": patients_in_month,
+        })
+        cm -= 1
+        if cm == 0:
+            cm = 12
+            cy -= 1
+    return result
+
+
 async def get_new_patients_stats(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
     """Pacientes con primera visita este mes (sin ninguna cita anterior)."""
     month_start = _month_start_utc()
