@@ -465,17 +465,7 @@ async def get_treatments(db: AsyncSession, clinic_id: uuid.UUID) -> list[CostTre
         .options(selectinload(CostTreatment.appointments))
         .order_by(CostTreatment.sort_order, CostTreatment.created_at)
     )
-    treatments = list(result.scalars().all())
-    if not treatments:
-        treatments = await _seed_treatments(db, clinic_id)
-        result2 = await db.execute(
-            select(CostTreatment)
-            .where(CostTreatment.clinic_id == clinic_id)
-            .options(selectinload(CostTreatment.appointments))
-            .order_by(CostTreatment.sort_order, CostTreatment.created_at)
-        )
-        treatments = list(result2.scalars().all())
-    return treatments
+    return list(result.scalars().all())
 
 
 async def create_treatment(db: AsyncSession, clinic_id: uuid.UUID, data: dict, appointments: list[dict]) -> CostTreatment:
