@@ -2,17 +2,18 @@ import logging
 import resend
 from app.core.config import get_settings
 
-settings = get_settings()
 logger = logging.getLogger(__name__)
 
 
 def send_password_reset_email(to_email: str, to_name: str, reset_url: str) -> bool:
-    if not settings.resend_api_key:
+    settings = get_settings()
+    api_key = settings.resend_api_key
+    logger.info(f"Enviando email a {to_email}, key vacia: {not api_key}")
+    if not api_key:
         logger.error("RESEND_API_KEY no configurada")
         return False
 
-    logger.info(f"Enviando email a {to_email}, key prefix: {settings.resend_api_key[:8]}")
-    resend.api_key = settings.resend_api_key
+    resend.api_key = api_key
 
     html = f"""
     <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto;">
