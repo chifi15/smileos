@@ -1,15 +1,25 @@
+import ssl as _ssl
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import DeclarativeBase
 from app.core.config import get_settings
 
 settings = get_settings()
 
+_connect_args: dict = {}
+_url = settings.database_url
+if "localhost" not in _url and "127.0.0.1" not in _url:
+    _ssl_ctx = _ssl.create_default_context()
+    _ssl_ctx.check_hostname = False
+    _ssl_ctx.verify_mode = _ssl.CERT_NONE
+    _connect_args = {"ssl": _ssl_ctx}
+
 engine = create_async_engine(
-    settings.database_url,
+    _url,
     echo=settings.environment == "development",
     pool_pre_ping=True,
     pool_size=10,
     max_overflow=20,
+    connect_args=_connect_args,
 )
 
 AsyncSessionLocal = async_sessionmaker(
