@@ -64,6 +64,106 @@ const currencyOptions = [
   { value: "GTQ", label: "GTQ — Quetzal Guatemalteco" },
 ];
 
+const PLAN_DETAILS = [
+  {
+    key: "free",
+    name: "Free",
+    price: 0,
+    features: [
+      "Hasta 30 pacientes activos",
+      "Citas y calendario",
+      "Odontograma",
+      "Planes de tratamiento",
+      "Fotos clínicas",
+      "Historial clínico",
+      "Finanzas y recibos",
+      "Costos e inventario",
+      "Dashboard básico",
+      "Exportación de datos",
+    ],
+    locked: ["Reportes financieros", "Smile Rewards"],
+  },
+  {
+    key: "pro",
+    name: "Pro",
+    price: 29,
+    features: [
+      "Pacientes ilimitados",
+      "Todo lo del plan Free",
+      "Reportes financieros completos",
+      "Smile Rewards (fidelización)",
+      "Segmentación de pacientes",
+    ],
+    locked: [],
+  },
+  {
+    key: "clinic",
+    name: "Clinic",
+    price: 59,
+    features: [
+      "Pacientes ilimitados",
+      "Todo lo del plan Pro",
+      "Soporte prioritario",
+      "Múltiples sucursales (próximamente)",
+      "API de integración (próximamente)",
+    ],
+    locked: [],
+  },
+];
+
+function PlanPreviewCards({ currentPlan }: { currentPlan: string }) {
+  const [previewPlan, setPreviewPlan] = useState<string>(currentPlan);
+  const preview = PLAN_DETAILS.find(p => p.key === previewPlan)!;
+
+  return (
+    <div className="space-y-3 pt-1">
+      <div className="grid grid-cols-3 gap-2">
+        {PLAN_DETAILS.map((p) => (
+          <button
+            key={p.key}
+            onClick={() => setPreviewPlan(p.key)}
+            className={`rounded-xl border p-3 text-left space-y-1 transition-all ${
+              previewPlan === p.key
+                ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-500"
+                : "border-slate-200 dark:border-gray-600 hover:border-slate-300 dark:hover:border-gray-500"
+            }`}
+          >
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-slate-800 dark:text-white">{p.name}</p>
+              {currentPlan === p.key && (
+                <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Actual</span>
+              )}
+            </div>
+            <p className="text-sm font-bold text-slate-700 dark:text-gray-300">
+              {p.price === 0 ? "Gratis" : `$${p.price}/mes`}
+            </p>
+          </button>
+        ))}
+      </div>
+
+      <div className="rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-900/50 p-4 space-y-2">
+        <p className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">
+          {preview.name} — {preview.price === 0 ? "Gratis" : `$${preview.price}/mes`}
+        </p>
+        <ul className="space-y-1.5">
+          {preview.features.map((f) => (
+            <li key={f} className="flex items-center gap-2 text-sm text-slate-700 dark:text-gray-300">
+              <Check size={13} className="text-green-500 shrink-0" />
+              {f}
+            </li>
+          ))}
+          {preview.locked.map((f) => (
+            <li key={f} className="flex items-center gap-2 text-sm text-slate-400 dark:text-gray-500 line-through">
+              <X size={13} className="text-slate-300 dark:text-gray-600 shrink-0" />
+              {f}
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
 interface CreateUserModalProps {
   open: boolean;
   onClose: () => void;
@@ -354,104 +454,7 @@ function SettingsContent() {
               </div>
 
               {/* Planes disponibles */}
-              {(() => {
-                const PLAN_DETAILS = [
-                  {
-                    key: "free",
-                    name: "Free",
-                    price: 0,
-                    features: [
-                      "Hasta 30 pacientes activos",
-                      "Citas y calendario",
-                      "Odontograma",
-                      "Planes de tratamiento",
-                      "Fotos clínicas",
-                      "Historial clínico",
-                      "Finanzas y recibos",
-                      "Costos e inventario",
-                      "Dashboard básico",
-                      "Exportación de datos",
-                    ],
-                    locked: ["Reportes financieros", "Smile Rewards"],
-                  },
-                  {
-                    key: "pro",
-                    name: "Pro",
-                    price: 29,
-                    features: [
-                      "Pacientes ilimitados",
-                      "Todo lo del plan Free",
-                      "Reportes financieros completos",
-                      "Smile Rewards (fidelización)",
-                      "Segmentación de pacientes",
-                    ],
-                    locked: [],
-                  },
-                  {
-                    key: "clinic",
-                    name: "Clinic",
-                    price: 59,
-                    features: [
-                      "Pacientes ilimitados",
-                      "Todo lo del plan Pro",
-                      "Soporte prioritario",
-                      "Múltiples sucursales (próximamente)",
-                      "API de integración (próximamente)",
-                    ],
-                    locked: [],
-                  },
-                ];
-                const [previewPlan, setPreviewPlan] = useState<string>(planStatus.plan);
-                const preview = PLAN_DETAILS.find(p => p.key === previewPlan)!;
-                return (
-                  <div className="space-y-3 pt-1">
-                    <div className="grid grid-cols-3 gap-2">
-                      {PLAN_DETAILS.map((p) => (
-                        <button
-                          key={p.key}
-                          onClick={() => setPreviewPlan(p.key)}
-                          className={`rounded-xl border p-3 text-left space-y-1 transition-all ${
-                            previewPlan === p.key
-                              ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20 ring-1 ring-blue-500"
-                              : "border-slate-200 dark:border-gray-600 hover:border-slate-300 dark:hover:border-gray-500"
-                          }`}
-                        >
-                          <div className="flex items-center justify-between">
-                            <p className="text-sm font-semibold text-slate-800 dark:text-white">{p.name}</p>
-                            {planStatus.plan === p.key && (
-                              <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Actual</span>
-                            )}
-                          </div>
-                          <p className="text-sm font-bold text-slate-700 dark:text-gray-300">
-                            {p.price === 0 ? "Gratis" : `$${p.price}/mes`}
-                          </p>
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Detalle del plan seleccionado */}
-                    <div className="rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-900/50 p-4 space-y-2">
-                      <p className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">
-                        {preview.name} — {preview.price === 0 ? "Gratis" : `$${preview.price}/mes`}
-                      </p>
-                      <ul className="space-y-1.5">
-                        {preview.features.map((f) => (
-                          <li key={f} className="flex items-center gap-2 text-sm text-slate-700 dark:text-gray-300">
-                            <Check size={13} className="text-green-500 shrink-0" />
-                            {f}
-                          </li>
-                        ))}
-                        {preview.locked.map((f) => (
-                          <li key={f} className="flex items-center gap-2 text-sm text-slate-400 dark:text-gray-500 line-through">
-                            <X size={13} className="text-slate-300 dark:text-gray-600 shrink-0" />
-                            {f}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                  </div>
-                );
-              })()}
+              <PlanPreviewCards currentPlan={planStatus.plan} />
               <p className="text-xs text-slate-400 dark:text-gray-500">
                 Para cambiar de plan contacta a soporte: <a href="mailto:soporte@smileos.app" className="underline">soporte@smileos.app</a>
               </p>
