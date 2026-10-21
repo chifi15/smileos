@@ -51,7 +51,10 @@ export function useUpdateWorkingHours() {
       return data.data;
     },
     onSuccess: (updated) => {
-      qc.setQueryData(["working-hours"], updated);
+      qc.setQueryData(["working-hours"], (old: { hours: WorkingHour[]; clinic_slug: string } | undefined) => ({
+        hours: updated,
+        clinic_slug: old?.clinic_slug ?? "",
+      }));
       toast.success("Horario guardado.");
     },
     onError: () => toast.error("Error al guardar el horario."),
