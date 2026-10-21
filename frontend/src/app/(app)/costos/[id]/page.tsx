@@ -76,8 +76,13 @@ const ALT_GROUP_COLORS: Record<string, string> = {
   C: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400 border border-teal-200 dark:border-teal-700",
   D: "bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-400 border border-pink-200 dark:border-pink-700",
   E: "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 border border-yellow-200 dark:border-yellow-700",
+  F: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 border border-blue-200 dark:border-blue-700",
+  G: "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 border border-red-200 dark:border-red-700",
+  H: "bg-lime-100 text-lime-700 dark:bg-lime-900/30 dark:text-lime-400 border border-lime-200 dark:border-lime-700",
+  I: "bg-cyan-100 text-cyan-700 dark:bg-cyan-900/30 dark:text-cyan-400 border border-cyan-200 dark:border-cyan-700",
+  J: "bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 border border-rose-200 dark:border-rose-700",
 };
-const ALT_GROUP_LETTERS = ["A", "B", "C", "D", "E"];
+const ALT_GROUP_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
 
 function altGroupColor(g: string) {
   return ALT_GROUP_COLORS[g] ?? "bg-slate-100 text-slate-600 border border-slate-200";
