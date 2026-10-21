@@ -90,13 +90,17 @@ async def get_settings(
     user: Annotated[object, require_permission("view_settings")],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    from app.models.clinic import Clinic
+    from sqlalchemy import select as _select
     config = await settings_service.get_clinic_config(db, user.clinic_id)
+    clinic = await db.scalar(_select(Clinic).where(Clinic.id == user.clinic_id))
     return {
         "success": True,
         "data": {
             "settings": _serialize_settings(config["settings"]),
             "working_hours": [_serialize_wh(wh) for wh in config["working_hours"]],
             "upcoming_holidays": [_serialize_holiday(h) for h in config["holidays"]],
+            "clinic_slug": clinic.slug if clinic else "",
         },
     }
 

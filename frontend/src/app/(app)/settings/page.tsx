@@ -683,10 +683,13 @@ const DEFAULT_HOURS: WorkingHour[] = [0, 1, 2, 3, 4, 5, 6].map((day) => ({
 }));
 
 function WorkingHoursSection() {
-  const { data: savedHours, isLoading } = useWorkingHours();
+  const { data: settingsData, isLoading } = useWorkingHours();
+  const savedHours = settingsData?.hours;
+  const clinicSlug = settingsData?.clinic_slug;
   const updateHours = useUpdateWorkingHours();
   const [hours, setHours] = useState<WorkingHour[]>([]);
   const [dirty, setDirty] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     if (savedHours && savedHours.length > 0) {
@@ -696,6 +699,15 @@ function WorkingHoursSection() {
       setHours(DEFAULT_HOURS);
     }
   }, [savedHours, isLoading]);
+
+  function copyLink() {
+    if (!clinicSlug) return;
+    const url = `${window.location.origin}/reservar/${clinicSlug}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
 
   function update(day: number, patch: Partial<WorkingHour>) {
     setHours((prev) => prev.map((h) => h.day_of_week === day ? { ...h, ...patch } : h));
@@ -708,16 +720,40 @@ function WorkingHoursSection() {
 
   return (
     <section className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
-      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-gray-700">
+      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 px-6 py-4 border-b border-slate-100 dark:border-gray-700">
         <div>
           <h2 className="font-semibold text-slate-800 dark:text-white">Horario de atención</h2>
           <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">Define los días y horarios disponibles para reservas de pacientes</p>
+          {clinicSlug && (
+            <div className="mt-2 flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-slate-400 dark:text-gray-500">Enlace para pacientes:</span>
+              <code className="text-xs bg-slate-100 dark:bg-gray-700 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded">
+                /reservar/{clinicSlug}
+              </code>
+              <button
+                onClick={copyLink}
+                className="flex items-center gap-1 text-xs text-slate-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              >
+                {copied ? <Check size={12} className="text-green-500" /> : <Copy size={12} />}
+                {copied ? "¡Copiado!" : "Copiar"}
+              </button>
+              <a
+                href={`/reservar/${clinicSlug}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-xs text-slate-500 dark:text-gray-400 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+              >
+                <ExternalLink size={12} />
+                Vista previa
+              </a>
+            </div>
+          )}
         </div>
         {dirty && (
           <button
             onClick={save}
             disabled={updateHours.isPending}
-            className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60 transition-colors"
+            className="shrink-0 flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60 transition-colors"
           >
             {updateHours.isPending ? "Guardando..." : "Guardar horario"}
           </button>

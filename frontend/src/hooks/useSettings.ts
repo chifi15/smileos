@@ -28,8 +28,8 @@ export function useWorkingHours() {
   return useQuery({
     queryKey: ["working-hours"],
     queryFn: async () => {
-      const { data } = await apiClient.get<{ data: { working_hours: WorkingHour[] } }>("/api/v1/settings");
-      return data.data.working_hours;
+      const { data } = await apiClient.get<{ data: { working_hours: WorkingHour[]; clinic_slug: string } }>("/api/v1/settings");
+      return { hours: data.data.working_hours, clinic_slug: data.data.clinic_slug };
     },
     staleTime: 5 * 60 * 1000,
   });
@@ -47,7 +47,7 @@ export function useUpdateWorkingHours() {
         afternoon_open: h.afternoon_open,
         afternoon_close: h.afternoon_close,
       }));
-      const { data } = await apiClient.put<{ data: WorkingHour[] }>("/api/v1/settings/working-hours", { working_hours: entries });
+      const { data } = await apiClient.put<{ data: WorkingHour[] }>("/api/v1/settings/working-hours", { hours: entries });
       return data.data;
     },
     onSuccess: (updated) => {

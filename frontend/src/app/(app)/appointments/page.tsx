@@ -9,6 +9,7 @@ import { useClinicUsers } from "@/hooks/useUsers";
 import { useCalendarEvents, useSyncCalendar, useCalendarStatus } from "@/hooks/useCalendar";
 import { AppointmentFull } from "@/types";
 import { useAuthStore } from "@/stores/auth.store";
+import { useWorkingHours } from "@/hooks/useSettings";
 import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
 import Spinner from "@/components/ui/Spinner";
@@ -48,10 +49,13 @@ export default function AppointmentsPage() {
   const [showTrash, setShowTrash] = useState(false);
   const [copied, setCopied] = useState(false);
   const user = useAuthStore((s) => s.user);
+  const { data: settingsData } = useWorkingHours();
+  const clinicSlug = settingsData?.clinic_slug || user?.clinic_slug;
 
   function copyBookingLink() {
-    if (!user?.clinic_slug) return;
-    const url = `${window.location.origin}/reservar/${user.clinic_slug}`;
+    const slug = clinicSlug;
+    if (!slug) return;
+    const url = `${window.location.origin}/reservar/${slug}`;
     navigator.clipboard.writeText(url).then(() => {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -118,13 +122,26 @@ export default function AppointmentsPage() {
               Google Calendar
             </Button>
           )}
+          {clinicSlug && (
+            <a
+              href={`/reservar/${clinicSlug}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-gray-600 px-3 py-2 text-sm font-medium transition-colors text-slate-500 dark:text-gray-400 hover:border-slate-300 hover:text-slate-700 dark:hover:text-gray-200"
+              title="Ver página de reserva del paciente"
+            >
+              <Link2 size={15} />
+              Ver página
+            </a>
+          )}
           <button
             onClick={copyBookingLink}
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-gray-600 px-3 py-2 text-sm font-medium transition-colors text-slate-500 dark:text-gray-400 hover:border-blue-300 hover:text-blue-600 dark:hover:text-blue-400"
+            disabled={!clinicSlug}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-gray-600 px-3 py-2 text-sm font-medium transition-colors text-slate-500 dark:text-gray-400 hover:border-blue-300 hover:text-blue-600 dark:hover:text-blue-400 disabled:opacity-40"
             title="Copiar enlace de reserva para pacientes"
           >
-            {copied ? <Check size={15} className="text-green-500" /> : <Link2 size={15} />}
-            {copied ? "¡Copiado!" : "Enlace de reserva"}
+            {copied ? <Check size={15} className="text-green-500" /> : <Copy size={15} />}
+            {copied ? "¡Copiado!" : "Copiar enlace"}
           </button>
           <button
             onClick={() => setShowTrash(true)}
