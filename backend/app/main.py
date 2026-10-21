@@ -4,11 +4,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.exceptions import RequestValidationError
 from sqlalchemy import text
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
 
 from app.core.config import get_settings
 from app.core.redis import get_redis, close_redis
 from app.core.exceptions import SmileOSException
 from app.core.database import engine
+from app.core.rate_limit import limiter
 
 settings = get_settings()
 
@@ -51,6 +54,8 @@ app = FastAPI(
     redoc_url="/redoc" if not settings.is_production else None,
     lifespan=lifespan,
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 app.add_middleware(
     CORSMiddleware,

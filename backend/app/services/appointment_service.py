@@ -65,6 +65,7 @@ async def _validate_slot(
         Appointment.status.not_in(["cancelled", "no_show"]),
         Appointment.scheduled_at < end_at,
         existing_end > scheduled_at,
+        Appointment.deleted_at.is_(None),
     )
     if exclude_id:
         overlap_q = overlap_q.where(Appointment.id != exclude_id)
@@ -88,7 +89,11 @@ async def get_appointment(
     result = await db.execute(
         select(Appointment)
         .options(*_load_options())
-        .where(Appointment.id == appointment_id, Appointment.clinic_id == clinic_id)
+        .where(
+            Appointment.id == appointment_id,
+            Appointment.clinic_id == clinic_id,
+            Appointment.deleted_at.is_(None),
+        )
     )
     appt = result.scalar_one_or_none()
     if not appt:
@@ -239,14 +244,16 @@ async def delete_appointment(
     clinic_id: uuid.UUID,
     appointment_id: uuid.UUID,
 ) -> None:
-    from sqlalchemy import delete as sql_delete
-    from app.models.appointment import Appointment as ApptModel
-    await db.execute(
-        sql_delete(ApptModel).where(
-            ApptModel.id == appointment_id,
-            ApptModel.clinic_id == clinic_id,
+    appt = await db.scalar(
+        select(Appointment).where(
+            Appointment.id == appointment_id,
+            Appointment.clinic_id == clinic_id,
+            Appointment.deleted_at.is_(None),
         )
     )
+    if not appt:
+        raise NotFoundError("Cita")
+    appt.deleted_at = datetime.now(timezone.utc)
     await db.commit()
 
 
@@ -262,7 +269,7 @@ async def list_appointments(
     q = (
         select(Appointment)
         .options(*_load_options())
-        .where(Appointment.clinic_id == clinic_id)
+        .where(Appointment.clinic_id == clinic_id, Appointment.deleted_at.is_(None))
         .order_by(Appointment.scheduled_at)
     )
     if date_from:
@@ -321,6 +328,7 @@ async def get_available_slots(
             Appointment.scheduled_at >= day_start,
             Appointment.scheduled_at < day_end,
             Appointment.status.not_in(["cancelled", "no_show"]),
+            Appointment.deleted_at.is_(None),
         )
     )
     booked = [(r.scheduled_at, r.duration_minutes) for r in existing]

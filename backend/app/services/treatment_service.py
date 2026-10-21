@@ -31,7 +31,11 @@ async def _get_plan(
 ) -> TreatmentPlan:
     result = await db.execute(
         select(TreatmentPlan)
-        .where(TreatmentPlan.id == plan_id, TreatmentPlan.clinic_id == clinic_id)
+        .where(
+            TreatmentPlan.id == plan_id,
+            TreatmentPlan.clinic_id == clinic_id,
+            TreatmentPlan.deleted_at.is_(None),
+        )
         .options(*_plan_load_options())
     )
     plan = result.scalar_one_or_none()
@@ -142,6 +146,7 @@ async def list_treatment_plans(
         .where(
             TreatmentPlan.clinic_id == clinic_id,
             TreatmentPlan.patient_id == patient_id,
+            TreatmentPlan.deleted_at.is_(None),
         )
         .options(*_plan_load_options())
         .order_by(TreatmentPlan.created_at.desc())
@@ -185,6 +190,7 @@ async def get_treatment_plan(
             TreatmentPlan.id == plan_id,
             TreatmentPlan.clinic_id == clinic_id,
             TreatmentPlan.patient_id == patient_id,
+            TreatmentPlan.deleted_at.is_(None),
         )
         .options(*_plan_load_options())
     )
@@ -201,10 +207,7 @@ async def delete_treatment_plan(
     plan_id: uuid.UUID,
 ) -> None:
     plan = await get_treatment_plan(db, clinic_id, patient_id, plan_id)
-    for item in list(plan.items):
-        await db.delete(item)
-    await db.flush()
-    await db.delete(plan)
+    plan.deleted_at = datetime.now(timezone.utc)
     await db.flush()
 
 

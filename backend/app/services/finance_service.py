@@ -1,5 +1,5 @@
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -51,6 +51,7 @@ async def list_transactions(
             FinanceTransaction.clinic_id == clinic_id,
             extract("year", FinanceTransaction.transaction_date) == year,
             extract("month", FinanceTransaction.transaction_date) == month,
+            FinanceTransaction.deleted_at.is_(None),
         )
         .options(*_LOAD)
         .order_by(FinanceTransaction.transaction_date.desc(), FinanceTransaction.created_at.desc())
@@ -406,6 +407,7 @@ async def list_patient_transactions(
         .where(
             FinanceTransaction.clinic_id == clinic_id,
             FinanceTransaction.patient_id == patient_id,
+            FinanceTransaction.deleted_at.is_(None),
         )
         .options(*_LOAD)
         .order_by(FinanceTransaction.transaction_date.desc(), FinanceTransaction.created_at.desc())
@@ -423,6 +425,7 @@ async def update_transaction(
         select(FinanceTransaction).where(
             FinanceTransaction.id == tx_id,
             FinanceTransaction.clinic_id == clinic_id,
+            FinanceTransaction.deleted_at.is_(None),
         )
     )
     if not tx:
@@ -531,11 +534,12 @@ async def delete_transaction(
         select(FinanceTransaction).where(
             FinanceTransaction.id == tx_id,
             FinanceTransaction.clinic_id == clinic_id,
+            FinanceTransaction.deleted_at.is_(None),
         )
     )
     if not tx:
         raise NotFoundError("Transacción")
-    await db.delete(tx)
+    tx.deleted_at = datetime.now(timezone.utc)
     await db.commit()
 
 

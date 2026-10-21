@@ -23,6 +23,7 @@ from app.services.auth_service import (
 from app.services.email_service import send_password_reset_email
 from app.services import google_oauth_service as google_oauth
 from fastapi.responses import RedirectResponse
+from app.core.rate_limit import limiter
 
 settings = get_settings()
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
@@ -47,7 +48,9 @@ def _clear_refresh_cookie(response: Response) -> None:
 
 
 @router.post("/register", response_model=dict, status_code=201)
+@limiter.limit("5/minute")
 async def register(
+    request: Request,
     body: RegisterRequest,
     response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -76,7 +79,9 @@ async def register(
 
 
 @router.post("/login", response_model=dict)
+@limiter.limit("10/minute")
 async def login(
+    request: Request,
     body: LoginRequest,
     response: Response,
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -189,7 +194,9 @@ async def google_callback(
 
 
 @router.post("/forgot-password")
+@limiter.limit("3/minute")
 async def forgot_password(
+    request: Request,
     body: ForgotPasswordRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
@@ -204,7 +211,9 @@ async def forgot_password(
 
 
 @router.post("/reset-password")
+@limiter.limit("5/minute")
 async def reset_password(
+    request: Request,
     body: ResetPasswordRequest,
     db: Annotated[AsyncSession, Depends(get_db)],
 ):

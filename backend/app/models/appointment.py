@@ -64,6 +64,8 @@ class Appointment(UUIDMixin, TimestampMixin, Base):
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     cancellation_reason: Mapped[str | None] = mapped_column(Text)
 
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
     # Relaciones
     patient: Mapped["Patient"] = relationship(back_populates="appointments")
     dentist: Mapped["User"] = relationship(foreign_keys=[dentist_id])

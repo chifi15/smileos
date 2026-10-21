@@ -54,6 +54,7 @@ class TreatmentPlan(UUIDMixin, TimestampMixin, Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     abandoned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     abandoned_reason: Mapped[str | None] = mapped_column(Text)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relaciones
     patient: Mapped["Patient"] = relationship(back_populates="treatment_plans")
