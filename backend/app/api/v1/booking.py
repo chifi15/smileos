@@ -48,7 +48,7 @@ async def get_booking_info(
     dentists = (await db.execute(
         select(User).where(
             User.clinic_id == clinic.id,
-            User.role.in_(["dentist", "clinic_owner", "admin"]),
+            User.role.in_(["dentist", "clinic_owner"]),
             User.is_active == True,  # noqa: E712
         ).order_by(User.full_name)
     )).scalars().all()
