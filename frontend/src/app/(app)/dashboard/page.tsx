@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useState, useMemo } from "react";
-import { useDashboardStats, useTodaySchedule, useMonthlyPatients, useNewPatientsHistory, MonthlyPatientRow, NewPatientsByMonthItem } from "@/hooks/useDashboard";
+import { useDashboardStats, useTodaySchedule, useMonthlyPatients, useNewPatientsHistory, useLowStock, LowStockItem, MonthlyPatientRow, NewPatientsByMonthItem } from "@/hooks/useDashboard";
 import { useAuditFeed } from "@/hooks/useAudit";
 import { useAuthStore } from "@/stores/auth.store";
 import Spinner from "@/components/ui/Spinner";
@@ -35,6 +35,8 @@ import {
   ChevronDown,
   ChevronUp,
   X,
+  PackageX,
+  AlertTriangle,
 } from "lucide-react";
 
 function greeting(name: string) {
@@ -315,6 +317,69 @@ function NewPatientsHistoryModal({ onClose }: { onClose: () => void }) {
   );
 }
 
+function LowStockBanner({ items }: { items: LowStockItem[] }) {
+  const [open, setOpen] = useState(true);
+  if (!open || items.length === 0) return null;
+
+  const sinStock = items.filter((i) => i.status === "sin_stock");
+  const bajoStock = items.filter((i) => i.status === "bajo");
+
+  return (
+    <div className="rounded-xl border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20 p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div className="flex items-start gap-3 min-w-0">
+          <div className="shrink-0 mt-0.5 flex h-8 w-8 items-center justify-center rounded-lg bg-orange-100 dark:bg-orange-800/50">
+            <PackageX size={16} className="text-orange-600 dark:text-orange-400" />
+          </div>
+          <div className="min-w-0">
+            <p className="text-sm font-semibold text-orange-800 dark:text-orange-300">
+              {sinStock.length > 0 && bajoStock.length > 0
+                ? `${sinStock.length} material${sinStock.length !== 1 ? "es" : ""} agotado${sinStock.length !== 1 ? "s" : ""} · ${bajoStock.length} con stock bajo`
+                : sinStock.length > 0
+                ? `${sinStock.length} material${sinStock.length !== 1 ? "es" : ""} agotado${sinStock.length !== 1 ? "s" : ""} — necesita${sinStock.length === 1 ? "" : "n"} recompra`
+                : `${bajoStock.length} material${bajoStock.length !== 1 ? "es" : ""} con stock bajo`}
+            </p>
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
+              {items.slice(0, 6).map((item) => (
+                <div key={item.id} className="flex items-center gap-1.5 text-xs">
+                  {item.status === "sin_stock" ? (
+                    <AlertTriangle size={11} className="shrink-0 text-red-500" />
+                  ) : (
+                    <AlertTriangle size={11} className="shrink-0 text-amber-500" />
+                  )}
+                  <span className="text-orange-700 dark:text-orange-300 font-medium">{item.name}</span>
+                  <span className="text-orange-500 dark:text-orange-400">
+                    {item.status === "sin_stock"
+                      ? "agotado"
+                      : `${item.stock_qty}${item.unit ? ` ${item.unit}` : ""}`}
+                  </span>
+                </div>
+              ))}
+              {items.length > 6 && (
+                <span className="text-xs text-orange-500 dark:text-orange-400">+{items.length - 6} más</span>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link
+            href="/costos"
+            className="text-xs font-medium text-orange-700 dark:text-orange-300 hover:underline whitespace-nowrap"
+          >
+            Ver inventario
+          </Link>
+          <button
+            onClick={() => setOpen(false)}
+            className="text-orange-400 hover:text-orange-600 dark:hover:text-orange-300 transition-colors"
+          >
+            <X size={15} />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const RESOURCE_COLORS: Record<string, string> = {
   patient: "bg-blue-100 text-blue-700",
   appointment: "bg-purple-100 text-purple-700",
@@ -334,6 +399,7 @@ export default function DashboardPage() {
   const { data: stats, isLoading: loadingStats, refetch: refetchStats } = useDashboardStats();
   const { data: schedule, isLoading: loadingSchedule } = useTodaySchedule();
   const { data: auditData } = useAuditFeed({ per_page: 6 });
+  const { data: lowStockItems = [] } = useLowStock();
   const [monthlyModal, setMonthlyModal] = useState<ModalMode | null>(null);
   const [showNewPatientsHistory, setShowNewPatientsHistory] = useState(false);
   const { data: monthlyRows, isLoading: loadingMonthly } = useMonthlyPatients();
@@ -363,6 +429,9 @@ export default function DashboardPage() {
           Actualizar
         </button>
       </div>
+
+      {/* Low stock alert */}
+      {lowStockItems.length > 0 && <LowStockBanner items={lowStockItems} />}
 
       {/* Today's stats */}
       {loadingStats ? (

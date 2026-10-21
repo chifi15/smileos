@@ -86,3 +86,24 @@ export function useTodaySchedule() {
     refetchInterval: 60_000,
   });
 }
+
+export interface LowStockItem {
+  id: string;
+  name: string;
+  category: string;
+  stock_qty: number | null;
+  min_stock_qty: number | null;
+  unit: string | null;
+  status: "sin_stock" | "bajo";
+}
+
+export function useLowStock() {
+  return useQuery({
+    queryKey: ["dashboard", "low-stock"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: LowStockItem[] }>("/api/v1/dashboard/low-stock");
+      return data.data;
+    },
+    refetchInterval: 5 * 60_000,
+  });
+}

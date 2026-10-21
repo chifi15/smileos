@@ -79,3 +79,13 @@ async def get_todays_schedule(
     """Agenda del día de hoy (sin citas canceladas), ordenada por hora."""
     schedule = await dashboard_service.get_todays_schedule(db, user.clinic_id)
     return {"success": True, "data": schedule}
+
+
+@router.get("/low-stock")
+async def get_low_stock(
+    user: Annotated[object, require_permission("view_dashboard")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Productos con stock agotado o por debajo del mínimo configurado."""
+    items = await dashboard_service.get_low_stock_products(db, user.clinic_id)
+    return {"success": True, "data": items}

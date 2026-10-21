@@ -10,7 +10,7 @@ from zoneinfo import ZoneInfo
 logger = logging.getLogger("smileos")
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, case, and_, cast, Date, extract
+from sqlalchemy import select, func, case, and_, or_, cast, Date, extract
 from sqlalchemy.orm import selectinload
 
 from app.models.appointment import Appointment
@@ -18,6 +18,7 @@ from app.models.patient import Patient
 from app.models.treatment import TreatmentPlan
 from app.models.rewards import RewardsAccount
 from app.models.finance import FinanceTransaction
+from app.models.costos import CostProduct
 
 CLINIC_TZ = ZoneInfo("America/Managua")
 
@@ -494,3 +495,35 @@ async def get_todays_schedule(
         except Exception as exc:
             logger.error("Error serializando cita %s en dashboard: %s", appt.id, exc)
     return schedule
+
+
+async def get_low_stock_products(db: AsyncSession, clinic_id: uuid.UUID) -> list[dict]:
+    """Productos con stock agotado (≤ 0) o por debajo del mínimo configurado."""
+    result = await db.execute(
+        select(CostProduct).where(
+            CostProduct.clinic_id == clinic_id,
+            CostProduct.stock_qty.isnot(None),
+            or_(
+                CostProduct.stock_qty <= 0,
+                and_(
+                    CostProduct.min_stock_qty.isnot(None),
+                    CostProduct.stock_qty <= CostProduct.min_stock_qty,
+                ),
+            ),
+        ).order_by(CostProduct.stock_qty)
+    )
+    products = list(result.scalars().all())
+
+    rows = []
+    for p in products:
+        status = "sin_stock" if p.stock_qty <= 0 else "bajo"
+        rows.append({
+            "id": str(p.id),
+            "name": p.name,
+            "category": p.category,
+            "stock_qty": p.stock_qty,
+            "min_stock_qty": p.min_stock_qty,
+            "unit": p.presentation_unit,
+            "status": status,
+        })
+    return rows
