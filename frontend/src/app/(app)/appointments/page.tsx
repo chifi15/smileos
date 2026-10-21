@@ -75,9 +75,11 @@ export default function AppointmentsPage() {
       ? appointments
       : appointments.filter((a) => a.dentist_id === dentistFilter);
 
+  const dentists = users.filter((u) => u.role === "dentist" || u.role === "clinic_owner");
+
   const dentistOptions = [
     { value: "all", label: "Todos los dentistas" },
-    ...users.map((u) => ({ value: u.id, label: u.full_name })),
+    ...dentists.map((u) => ({ value: u.id, label: u.full_name })),
   ];
 
   const statusCounts = filteredAppointments.reduce(
@@ -103,7 +105,7 @@ export default function AppointmentsPage() {
           )}
         </div>
         <div className="flex items-center gap-3">
-          {users.length > 1 && (
+          {dentists.length > 1 && (
             <Select
               value={dentistFilter}
               onChange={(e) => setDentistFilter(e.target.value)}
