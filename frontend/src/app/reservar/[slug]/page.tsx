@@ -280,11 +280,11 @@ export default function BookingPage() {
                 </select>
               </div>
               <div>
-                <label className={`block text-xs font-medium mb-1 ${dark ? "text-gray-300" : "text-slate-600"}`}>Motivo (opcional)</label>
+                <label className={`block text-xs font-medium mb-1 ${dark ? "text-gray-300" : "text-slate-600"}`}>Motivo de consulta (opcional)</label>
                 <textarea
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
-                  placeholder="¿Qué te trae por aquí?"
+                  placeholder="¿Cuál es el motivo por el que acude a la clínica?"
                   rows={2}
                   className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 resize-none ${input}`}
                 />
