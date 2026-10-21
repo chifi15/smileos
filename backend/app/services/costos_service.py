@@ -824,11 +824,11 @@ async def get_fixed_costs(db: AsyncSession, clinic_id: uuid.UUID) -> FixedCostsC
     )
     config = result.scalar_one_or_none()
     if not config:
-        seed = SEED_FIXED_COSTS
         config = FixedCostsConfig(
             clinic_id=clinic_id,
-            patients_per_month=seed["patients_per_month"],
-            items=seed["items"],
+            patients_per_month=40,
+            items=[],
+            fee_per_hour=0.0,
         )
         db.add(config)
         await db.flush()
