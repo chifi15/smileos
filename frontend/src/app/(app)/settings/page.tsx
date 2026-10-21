@@ -4,12 +4,13 @@ import { useEffect, useRef, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { Building2, Users, Copy, CheckCircle2, UserPlus, Tag, Plus, Pencil, Check, X, Trash2, GripVertical, Link2, Unlink, Download, Shield, History, CalendarDays, RefreshCw, ExternalLink, Unplug } from "lucide-react";
+import { Building2, Users, Copy, CheckCircle2, UserPlus, Tag, Plus, Pencil, Check, X, Trash2, GripVertical, Link2, Unlink, Download, Shield, History, CalendarDays, RefreshCw, ExternalLink, Unplug, CreditCard, Zap } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import toast from "react-hot-toast";
 import { useClinicSettings, useUpdateSettings } from "@/hooks/useSettings";
+import { usePlanStatus } from "@/hooks/useBilling";
 import { useSyncCalendar, useCalendarStatus, useDisconnectGoogleOAuth } from "@/hooks/useCalendar";
 import apiClient, { getAccessToken } from "@/lib/api-client";
 import { useAllUsers, useCreateUser } from "@/hooks/useUsers";
@@ -236,6 +237,7 @@ function UserRow({ user }: { user: ClinicUser }) {
 function SettingsContent() {
   const { data: settings, isLoading: loadingSettings } = useClinicSettings();
   const { data: users = [], isLoading: loadingUsers } = useAllUsers();
+  const { data: planStatus } = usePlanStatus();
   const updateSettings = useUpdateSettings();
   const syncCalendar = useSyncCalendar();
   const disconnectOAuth = useDisconnectGoogleOAuth();
@@ -295,6 +297,94 @@ function SettingsContent() {
   return (
     <div className="p-6 space-y-6 max-w-3xl">
       <h1 className="text-xl font-semibold text-slate-800 dark:text-white">Configuración</h1>
+
+      {/* Plan */}
+      <section className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+        <div className="flex items-center gap-2 border-b border-slate-100 dark:border-gray-700 px-5 py-3">
+          <CreditCard size={15} className="text-slate-400" />
+          <h2 className="text-sm font-semibold text-slate-700 dark:text-gray-300">Plan de suscripción</h2>
+        </div>
+        <div className="p-5 space-y-4">
+          {!planStatus ? (
+            <Spinner size="sm" />
+          ) : (
+            <>
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-sm font-semibold
+                    bg-slate-100 text-slate-700 dark:bg-gray-700 dark:text-gray-200">
+                    <Zap size={13} />
+                    {planStatus.plan_name}
+                    {planStatus.price_usd > 0 && ` — $${planStatus.price_usd}/mes`}
+                  </span>
+                  {planStatus.is_expired && (
+                    <span className="ml-2 text-xs text-red-600 dark:text-red-400 font-medium">Expirado</span>
+                  )}
+                  {planStatus.plan_expires_at && !planStatus.is_expired && (
+                    <p className="mt-1 text-xs text-slate-400">
+                      Vence el {new Date(planStatus.plan_expires_at).toLocaleDateString("es-NI")}
+                    </p>
+                  )}
+                </div>
+              </div>
+
+              {/* Uso de pacientes */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-slate-600 dark:text-gray-400">Pacientes activos</span>
+                  <span className="font-medium text-slate-800 dark:text-white">
+                    {planStatus.patient_count}
+                    {planStatus.patient_limit !== null && ` / ${planStatus.patient_limit}`}
+                  </span>
+                </div>
+                {planStatus.patient_limit !== null && (
+                  <div className="h-2 w-full rounded-full bg-slate-100 dark:bg-gray-700 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full transition-all ${
+                        planStatus.patient_count >= planStatus.patient_limit
+                          ? "bg-red-500"
+                          : planStatus.patient_count / planStatus.patient_limit >= 0.7
+                            ? "bg-amber-400"
+                            : "bg-blue-500"
+                      }`}
+                      style={{ width: `${Math.min(100, (planStatus.patient_count / planStatus.patient_limit) * 100)}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Planes disponibles */}
+              <div className="grid grid-cols-3 gap-3 pt-1">
+                {[
+                  { key: "free", name: "Free", price: 0, patients: "30 pacientes" },
+                  { key: "pro", name: "Pro", price: 29, patients: "Ilimitados" },
+                  { key: "clinic", name: "Clinic", price: 59, patients: "Ilimitados" },
+                ].map((p) => (
+                  <div key={p.key} className={`rounded-xl border p-3 space-y-1 ${
+                    planStatus.plan === p.key
+                      ? "border-blue-500 bg-blue-50 dark:bg-blue-900/20"
+                      : "border-slate-200 dark:border-gray-600"
+                  }`}>
+                    <div className="flex items-center justify-between">
+                      <p className="text-sm font-semibold text-slate-800 dark:text-white">{p.name}</p>
+                      {planStatus.plan === p.key && (
+                        <span className="text-xs font-medium text-blue-600 dark:text-blue-400">Actual</span>
+                      )}
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-gray-400">{p.patients}</p>
+                    <p className="text-sm font-bold text-slate-700 dark:text-gray-300">
+                      {p.price === 0 ? "Gratis" : `$${p.price}/mes`}
+                    </p>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-slate-400 dark:text-gray-500">
+                Para cambiar de plan contacta a soporte: <a href="mailto:soporte@smileos.app" className="underline">soporte@smileos.app</a>
+              </p>
+            </>
+          )}
+        </div>
+      </section>
 
       {/* Clinic info */}
       <section className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">

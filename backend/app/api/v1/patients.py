@@ -264,6 +264,8 @@ async def reactivate_patient(
     user: Annotated[object, require_permission("manage_patients")],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    from app.services.patient_service import _check_patient_limit
+    await _check_patient_limit(db, user.clinic_id)
     patient = await patient_service.get_patient(db, user.clinic_id, patient_id)
     patient.is_active = True
     await db.commit()

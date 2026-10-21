@@ -22,13 +22,33 @@ from app.models.appointment import Appointment
 from app.models.clinical_record import ClinicalRecord
 from app.models.finance import FinanceTransaction
 from app.models.photo import PatientPhoto
+from app.models.clinic import Clinic
 from app.schemas.patient import PatientCreate, PatientUpdate
-from app.core.exceptions import NotFoundError, ConflictError
+from app.core.exceptions import NotFoundError, ConflictError, ValidationError
+from app.core.plans import get_patient_limit
+
+
+async def _check_patient_limit(db: AsyncSession, clinic_id: uuid.UUID) -> None:
+    clinic = await db.scalar(select(Clinic).where(Clinic.id == clinic_id))
+    plan = clinic.plan if clinic else "free"
+    limit = get_patient_limit(plan)
+    if limit is None:
+        return
+    count = await db.scalar(
+        select(func.count()).where(Patient.clinic_id == clinic_id, Patient.is_active == True)  # noqa: E712
+    )
+    if (count or 0) >= limit:
+        raise ValidationError(
+            f"Has alcanzado el límite de {limit} pacientes del plan Free. "
+            "Actualiza a Pro o Clinic para agregar más."
+        )
 
 
 async def create_patient(
     db: AsyncSession, clinic_id: uuid.UUID, data: PatientCreate
 ) -> Patient:
+    await _check_patient_limit(db, clinic_id)
+
     max_num = await db.scalar(
         select(func.max(Patient.patient_number)).where(Patient.clinic_id == clinic_id)
     )

@@ -9,6 +9,7 @@ import {
   Trash2, X, UserCheck, UserX, BarChart2,
 } from "lucide-react";
 import { usePatientList, useDeletePatientPermanent, useReactivatePatient } from "@/hooks/usePatients";
+import { usePlanStatus } from "@/hooks/useBilling";
 import {
   REWARDS_LEVEL_LABELS,
   REWARDS_LEVEL_COLORS,
@@ -83,6 +84,7 @@ function PatientsContent() {
   const [showInactive, setShowInactive] = useState(false);
   const [toDelete, setToDelete] = useState<PatientToDelete | null>(null);
   const reactivate = useReactivatePatient();
+  const { data: planStatus } = usePlanStatus();
 
   // Debounce la búsqueda directamente en estado local (no depende del URL)
   useEffect(() => {
@@ -122,6 +124,32 @@ function PatientsContent() {
 
   return (
     <div className="p-6 space-y-5">
+      {/* Plan limit banner */}
+      {planStatus && planStatus.patient_limit !== null && (() => {
+        const pct = planStatus.patient_count / planStatus.patient_limit;
+        const atLimit = planStatus.patient_count >= planStatus.patient_limit;
+        if (pct < 0.7 && !planStatus.is_expired) return null;
+        return (
+          <div className={cn(
+            "flex items-center gap-3 rounded-xl border px-4 py-3 text-sm",
+            atLimit || planStatus.is_expired
+              ? "border-red-200 bg-red-50 text-red-800 dark:border-red-800/40 dark:bg-red-900/20 dark:text-red-300"
+              : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800/40 dark:bg-amber-900/20 dark:text-amber-300"
+          )}>
+            <Users size={16} className="shrink-0" />
+            <span className="flex-1">
+              {planStatus.is_expired
+                ? "Tu plan expiró — estás en modo Free."
+                : atLimit
+                  ? `Límite alcanzado: ${planStatus.patient_count}/${planStatus.patient_limit} pacientes.`
+                  : `${planStatus.patient_count}/${planStatus.patient_limit} pacientes usados en el plan Free.`}
+              {" "}
+              <strong>Actualiza a Pro o Clinic para pacientes ilimitados.</strong>
+            </span>
+          </div>
+        );
+      })()}
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

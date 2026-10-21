@@ -15,6 +15,8 @@ class Clinic(UUIDMixin, TimestampMixin, Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     slug: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    plan: Mapped[str] = mapped_column(String(20), default="free", nullable=False, server_default="free")
+    plan_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # Relaciones
     settings: Mapped["ClinicSettings"] = relationship(back_populates="clinic", uselist=False)
