@@ -1,4 +1,5 @@
 import hashlib
+import re
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -12,9 +13,66 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
 )
+from app.models.clinic import Clinic, ClinicSettings
 from app.models.user import User, RefreshToken
 
 settings = get_settings()
+
+
+def _slugify(text: str) -> str:
+    text = text.lower().strip()
+    text = re.sub(r"[áàäâ]", "a", text)
+    text = re.sub(r"[éèëê]", "e", text)
+    text = re.sub(r"[íìïî]", "i", text)
+    text = re.sub(r"[óòöô]", "o", text)
+    text = re.sub(r"[úùüû]", "u", text)
+    text = re.sub(r"ñ", "n", text)
+    text = re.sub(r"[^a-z0-9\s-]", "", text)
+    text = re.sub(r"[\s-]+", "-", text).strip("-")
+    return text[:60]
+
+
+async def register_clinic(
+    db: AsyncSession,
+    clinic_name: str,
+    full_name: str,
+    email: str,
+    password: str,
+) -> User:
+    email = email.lower()
+
+    existing = await db.execute(select(User).where(User.email == email))
+    if existing.scalar_one_or_none():
+        from app.core.exceptions import ConflictError
+        raise ConflictError("Ya existe una cuenta con ese correo electrónico.")
+
+    base_slug = _slugify(clinic_name)
+    suffix = secrets.token_hex(3)
+    slug = f"{base_slug}-{suffix}"
+
+    clinic = Clinic(name=clinic_name, slug=slug, is_active=True)
+    db.add(clinic)
+    await db.flush()
+
+    clinic_settings = ClinicSettings(
+        clinic_id=clinic.id,
+        display_name=clinic_name,
+    )
+    db.add(clinic_settings)
+
+    user = User(
+        clinic_id=clinic.id,
+        email=email,
+        password_hash=hash_password(password),
+        full_name=full_name,
+        role="clinic_owner",
+        is_active=True,
+        must_change_password=False,
+    )
+    db.add(user)
+    await db.flush()
+
+    return user
 
 REFRESH_TOKEN_COOKIE = "smileos_refresh"
 

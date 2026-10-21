@@ -11,11 +11,11 @@ from app.core.dependencies import CurrentUser
 from app.core.exceptions import UnauthorizedError, ValidationError
 from app.schemas.auth import (
     LoginRequest, LoginResponse, RefreshResponse,
-    ChangePasswordRequest, UserOut,
+    ChangePasswordRequest, UserOut, RegisterRequest,
 )
 from app.services.auth_service import (
     authenticate_user, issue_tokens, rotate_refresh_token,
-    revoke_refresh_token, change_password, REFRESH_TOKEN_COOKIE,
+    revoke_refresh_token, change_password, register_clinic, REFRESH_TOKEN_COOKIE,
 )
 
 settings = get_settings()
@@ -38,6 +38,35 @@ def _set_refresh_cookie(response: Response, token: str) -> None:
 
 def _clear_refresh_cookie(response: Response) -> None:
     response.delete_cookie(key=REFRESH_TOKEN_COOKIE, path="/api/v1/auth")
+
+
+@router.post("/register", response_model=dict, status_code=201)
+async def register(
+    body: RegisterRequest,
+    response: Response,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    user = await register_clinic(
+        db,
+        clinic_name=body.clinic_name,
+        full_name=body.full_name,
+        email=body.email,
+        password=body.password,
+    )
+    await db.commit()
+    await db.refresh(user)
+
+    access_token, raw_refresh = await issue_tokens(db, user)
+    await db.commit()
+    _set_refresh_cookie(response, raw_refresh)
+
+    return {
+        "success": True,
+        "data": LoginResponse(
+            access_token=access_token,
+            user=UserOut.model_validate(user),
+        ).model_dump(),
+    }
 
 
 @router.post("/login", response_model=dict)

@@ -42,6 +42,41 @@ export function useLogin() {
   });
 }
 
+export function useRegister() {
+  const { setUser } = useAuthStore();
+  const router = useRouter();
+
+  return useMutation({
+    mutationFn: async (payload: {
+      clinic_name: string;
+      full_name: string;
+      email: string;
+      password: string;
+      confirm_password: string;
+    }) => {
+      const { data } = await apiClient.post<{
+        data: { access_token: string; user: AuthUser };
+      }>("/api/v1/auth/register", payload);
+      return data.data;
+    },
+    onSuccess: ({ access_token, user }) => {
+      setUser(user, access_token);
+      scheduleProactiveRefresh(access_token, () => {
+        clearAccessToken();
+        router.replace("/login");
+      });
+      router.replace("/dashboard");
+    },
+    onError: (err: any) => {
+      const msg =
+        err.response?.data?.detail?.message ||
+        err.response?.data?.detail ||
+        "No se pudo crear la cuenta. Intenta de nuevo.";
+      toast.error(msg);
+    },
+  });
+}
+
 export function useLogout() {
   const { logout } = useAuthStore();
   const router = useRouter();

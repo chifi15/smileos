@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { useAuthStore } from "@/stores/auth.store";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import Link from "next/link";
 import { useLogin } from "@/hooks/useAuth";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
@@ -72,8 +73,11 @@ export default function LoginPage() {
         </form>
       </div>
 
-      <p className="mt-6 text-center text-xs text-slate-400 dark:text-gray-600">
-        SmileOS v0.1 — Sistema exclusivo para uso interno
+      <p className="mt-4 text-center text-sm text-slate-500 dark:text-gray-400">
+        ¿No tienes cuenta?{" "}
+        <Link href="/register" className="text-blue-500 hover:text-blue-600 font-medium">
+          Regístrate gratis
+        </Link>
       </p>
     </div>
   );
