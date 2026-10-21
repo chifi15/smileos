@@ -21,6 +21,8 @@ import {
   ClipboardPaste,
   GripVertical,
   Link2,
+  Layers,
+  FolderPlus,
 } from "lucide-react";
 import {
   DndContext,
@@ -228,11 +230,13 @@ function AddMaterialModal({
   apt,
   onUpdateApt,
   onClose,
+  targetPhase,
 }: {
   products: ApiProduct[];
   apt: ApiAppointment;
   onUpdateApt: (data: { materials: ApiMaterial[] }) => void;
   onClose: () => void;
+  targetPhase?: string | null;
 }) {
   const [search, setSearch] = useState("");
   // productId → qty string
@@ -264,6 +268,7 @@ function AddMaterialModal({
     const newMaterials = Array.from(pending.entries()).map(([productId, q]) => ({
       productId,
       quantity: parseFloat(q) || 1,
+      ...(targetPhase !== undefined ? { phase: targetPhase } : {}),
     }));
     onUpdateApt({ materials: [...apt.materials, ...newMaterials] });
     onClose();
@@ -275,9 +280,13 @@ function AddMaterialModal({
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-700 px-6 py-4">
           <div>
             <h2 className="font-semibold text-slate-800 dark:text-white">Agregar materiales</h2>
-            {pending.size > 0 && (
+            {targetPhase ? (
+              <p className="text-xs text-indigo-600 dark:text-indigo-400 mt-0.5 flex items-center gap-1">
+                <Layers size={10} /> Fase: {targetPhase}
+              </p>
+            ) : pending.size > 0 ? (
               <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">{pending.size} seleccionado{pending.size !== 1 ? "s" : ""}</p>
-            )}
+            ) : null}
           </div>
           <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 dark:text-gray-500 hover:bg-slate-100 dark:hover:bg-gray-700">
             <X size={16} />
@@ -536,6 +545,9 @@ function SortableMaterialRow({
   onSetAltGroup,
   isSelected,
   onToggleSelect,
+  phase,
+  allPhases,
+  onSetPhase,
 }: {
   productId: string;
   rowIndex: number;
@@ -555,12 +567,18 @@ function SortableMaterialRow({
   onSetAltGroup: (g: string | null) => void;
   isSelected: boolean;
   onToggleSelect: (shiftKey: boolean) => void;
+  phase: string | null;
+  allPhases: string[];
+  onSetPhase: (p: string | null) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: productId });
   const [groupOpen, setGroupOpen] = useState(false);
+  const [phaseOpen, setPhaseOpen] = useState(false);
   const [menuStyle, setMenuStyle] = useState<React.CSSProperties>({});
+  const [phaseMenuStyle, setPhaseMenuStyle] = useState<React.CSSProperties>({});
   const groupBtnRef = useRef<HTMLButtonElement>(null);
+  const phaseBtnRef = useRef<HTMLButtonElement>(null);
 
   const openGroupMenu = useCallback(() => {
     if (groupBtnRef.current) {
@@ -577,6 +595,23 @@ function SortableMaterialRow({
       });
     }
     setGroupOpen(true);
+  }, []);
+
+  const openPhaseMenu = useCallback(() => {
+    if (phaseBtnRef.current) {
+      const rect = phaseBtnRef.current.getBoundingClientRect();
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const openUpward = spaceBelow < 200;
+      setPhaseMenuStyle({
+        position: "fixed",
+        ...(openUpward
+          ? { bottom: window.innerHeight - rect.top + 4 }
+          : { top: rect.bottom + 4 }),
+        right: window.innerWidth - rect.right,
+        zIndex: 9999,
+      });
+    }
+    setPhaseOpen(true);
   }, []);
 
   const style = {
@@ -715,6 +750,47 @@ function SortableMaterialRow({
               document.body
             )}
           </div>
+          {/* Botón de fase */}
+          <div className="relative">
+            <button
+              ref={phaseBtnRef}
+              title="Mover a fase"
+              onClick={() => phaseOpen ? setPhaseOpen(false) : openPhaseMenu()}
+              className={`rounded p-1 transition-colors ${phase ? "bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400" : "text-slate-300 hover:bg-indigo-50 hover:text-indigo-500"}`}
+            >
+              <Layers size={12} />
+            </button>
+            {phaseOpen && typeof window !== "undefined" && createPortal(
+              <>
+                <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => setPhaseOpen(false)} />
+                <div style={phaseMenuStyle} className="min-w-[160px] rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg overflow-hidden">
+                  <p className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wide border-b border-slate-100 dark:border-gray-700">
+                    Mover a fase
+                  </p>
+                  {allPhases.map((p) => (
+                    <button key={p}
+                      onClick={() => { onSetPhase(p); setPhaseOpen(false); }}
+                      className={`flex w-full items-center gap-2 px-3 py-2 text-sm hover:bg-slate-50 dark:hover:bg-gray-700 ${phase === p ? "font-semibold text-indigo-600 dark:text-indigo-400" : "text-slate-700 dark:text-gray-300"}`}
+                    >
+                      <Layers size={11} className="text-indigo-400 shrink-0" />
+                      {p}
+                      {phase === p && <Check size={11} className="text-green-500 ml-auto" />}
+                    </button>
+                  ))}
+                  {phase && (
+                    <button
+                      onClick={() => { onSetPhase(null); setPhaseOpen(false); }}
+                      className="flex w-full items-center gap-2 px-3 py-2 text-sm text-slate-500 hover:bg-slate-50 dark:hover:bg-gray-700 border-t border-slate-100 dark:border-gray-700"
+                    >
+                      <X size={11} />
+                      Sin fase
+                    </button>
+                  )}
+                </div>
+              </>,
+              document.body
+            )}
+          </div>
           <button onClick={onRemove} className="rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500">
             <Trash2 size={12} />
           </button>
@@ -769,6 +845,14 @@ function EditableAppointment({
   const [editQtyValue, setEditQtyValue] = useState("");
   const [selectedMaterials, setSelectedMaterials] = useState<Set<string>>(new Set());
   const [lastSelectedIndex, setLastSelectedIndex] = useState<number | null>(null);
+  // Phase management
+  const [pendingPhases, setPendingPhases] = useState<string[]>([]);
+  const [newPhaseInputOpen, setNewPhaseInputOpen] = useState(false);
+  const [newPhaseValue, setNewPhaseValue] = useState("");
+  const [collapsedPhases, setCollapsedPhases] = useState<Set<string>>(new Set());
+  const [editingPhase, setEditingPhase] = useState<string | null>(null);
+  const [editPhaseValue, setEditPhaseValue] = useState("");
+  const [activeAddPhase, setActiveAddPhase] = useState<string | null | undefined>(undefined);
 
   useEffect(() => { if (!open) { setSelectedMaterials(new Set()); setLastSelectedIndex(null); } }, [open]);
 
@@ -849,11 +933,53 @@ function EditableAppointment({
   // Groups currently used in this appointment
   const usedGroupsInHeader = [...new Set(apt.materials.filter(m => m.altGroup).map(m => m.altGroup as string))];
 
+  // ── Phase helpers ─────────────────────────────────────────────────────────
+  const namedPhases: string[] = (() => {
+    const fromMats: string[] = [];
+    apt.materials.forEach(m => { if (m.phase && !fromMats.includes(m.phase)) fromMats.push(m.phase); });
+    pendingPhases.forEach(p => { if (!fromMats.includes(p)) fromMats.push(p); });
+    return fromMats;
+  })();
+
+  function addPhase() {
+    const name = newPhaseValue.trim();
+    if (!name || namedPhases.includes(name)) { setNewPhaseInputOpen(false); setNewPhaseValue(""); return; }
+    setPendingPhases(prev => [...prev, name]);
+    setNewPhaseInputOpen(false);
+    setNewPhaseValue("");
+  }
+
+  function renamePhase(oldName: string) {
+    const newName = editPhaseValue.trim();
+    if (!newName || newName === oldName) { setEditingPhase(null); return; }
+    if (namedPhases.includes(newName)) { setEditingPhase(null); return; }
+    onUpdateApt({ materials: apt.materials.map(m => m.phase === oldName ? { ...m, phase: newName } : m) });
+    setPendingPhases(prev => prev.map(p => p === oldName ? newName : p));
+    setEditingPhase(null);
+  }
+
+  function deletePhase(name: string) {
+    if (!confirm(`¿Eliminar la fase "${name}"? Los materiales pasarán a "Sin fase".`)) return;
+    onUpdateApt({ materials: apt.materials.map(m => m.phase === name ? { ...m, phase: null } : m) });
+    setPendingPhases(prev => prev.filter(p => p !== name));
+  }
+
+  function setMaterialPhase(productId: string, phase: string | null) {
+    onUpdateApt({ materials: apt.materials.map(m => m.productId === productId ? { ...m, phase } : m) });
+  }
+
   function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = apt.materials.findIndex((m) => m.productId === String(active.id));
-    const newIndex = apt.materials.findIndex((m) => m.productId === String(over.id));
+    const activeId = String(active.id);
+    const overId = String(over.id);
+    const activeMat = apt.materials.find(m => m.productId === activeId);
+    const overMat = apt.materials.find(m => m.productId === overId);
+    if (!activeMat || !overMat) return;
+    // Only reorder within the same phase
+    if ((activeMat.phase ?? null) !== (overMat.phase ?? null)) return;
+    const oldIndex = apt.materials.findIndex((m) => m.productId === activeId);
+    const newIndex = apt.materials.findIndex((m) => m.productId === overId);
     if (oldIndex === -1 || newIndex === -1) return;
     onUpdateApt({ materials: arrayMove(apt.materials, oldIndex, newIndex) });
   }
@@ -1001,121 +1127,198 @@ function EditableAppointment({
 
       {open && (
         <div className="border-t border-slate-100 dark:border-gray-700">
-          {materials.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-8 text-center">
-              <Package size={24} className="text-slate-300 dark:text-gray-600" />
-              <p className="text-sm text-slate-500 dark:text-gray-400">Sin materiales en esta cita</p>
-            </div>
-          ) : (
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-gray-700/50 text-xs text-slate-500 dark:text-gray-400">
-                    <th className="pl-3 w-8 py-2.5">
-                      <input
-                        type="checkbox"
-                        checked={selectedMaterials.size === apt.materials.length && apt.materials.length > 0}
-                        onChange={(e) => e.target.checked ? selectAll() : clearSelection()}
-                        className="rounded border-slate-300 dark:border-gray-500 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer"
-                        title="Seleccionar todo"
-                      />
-                    </th>
-                    <th className="w-5 py-2.5" />
-                    <th className="w-6 py-2.5 text-center font-medium">#</th>
-                    <th className="px-5 py-2.5 text-left font-medium">Material</th>
-                    <th className="px-4 py-2.5 text-right font-medium">P. unitario</th>
-                    <th className="px-4 py-2.5 text-right font-medium">Cantidad</th>
-                    <th className="px-5 py-2.5 text-right font-medium">Total</th>
-                    <th className="w-10 py-2.5" />
-                  </tr>
-                </thead>
-                <SortableContext
-                  items={apt.materials.map((m) => m.productId)}
-                  strategy={verticalListSortingStrategy}
-                >
-                  <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
-                    {(() => {
-                      const usedGroups = [...new Set(materials.filter(m => m.altGroup).map(m => m.altGroup as string))];
-                      return materials.map(({ product, quantity, total, altGroup, countsInCost }, idx) => (
-                        <SortableMaterialRow
-                          key={product.id}
-                          productId={product.id}
-                          rowIndex={idx + 1}
-                          product={product}
-                          quantity={quantity}
-                          total={total}
-                          altGroup={altGroup}
-                          countsInCost={countsInCost}
-                          availableGroups={usedGroups}
-                          editQty={editQty}
-                          editQtyValue={editQtyValue}
-                          onEditQtyStart={() => { setEditQty(product.id); setEditQtyValue(String(quantity)); }}
-                          onEditQtyChange={setEditQtyValue}
-                          onEditQtySave={() => saveQty(product.id)}
-                          onEditQtyCancel={() => setEditQty(null)}
-                          onRemove={() => removeMaterial(product.id)}
-                          onSetAltGroup={(g) => setAltGroup(product.id, g)}
-                          isSelected={selectedMaterials.has(product.id)}
-                          onToggleSelect={(shiftKey) => toggleSelect(product.id, idx, shiftKey)}
-                        />
-                      ));
-                    })()}
-                  </tbody>
-                </SortableContext>
-                <tfoot>
-                  <tr className="border-t border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50">
-                    <td />
-                    <td />
-                    <td colSpan={3} className="px-5 py-3 text-sm font-medium text-slate-600 dark:text-gray-400">
-                      Subtotal cita {appointment.number}
-                    </td>
-                    <td className="px-5 py-3 text-right font-bold text-slate-800 dark:text-gray-200">
-                      {fmtC(materialCost)}
-                    </td>
-                    <td />
-                  </tr>
-                </tfoot>
-              </table>
-            </DndContext>
-          )}
+          {/* ── Phase sections ───────────────────────────────────────── */}
+          {(() => {
+            const usedGroups = [...new Set(materials.filter(m => m.altGroup).map(m => m.altGroup as string))];
+
+            // Build phase groups in order: named phases first, then sin-fase
+            const allGroups: Array<{ phase: string | null; items: typeof materials }> = [];
+            namedPhases.forEach(p => {
+              allGroups.push({
+                phase: p,
+                items: materials.filter(m => (apt.materials.find(am => am.productId === m.product.id)?.phase ?? null) === p),
+              });
+            });
+            const sinFaseItems = materials.filter(m => !(apt.materials.find(am => am.productId === m.product.id)?.phase));
+
+            // If no phases exist, render the classic flat view
+            if (namedPhases.length === 0) {
+              return (
+                <>
+                  {materials.length === 0 ? (
+                    <div className="flex flex-col items-center gap-2 py-8 text-center">
+                      <Package size={24} className="text-slate-300 dark:text-gray-600" />
+                      <p className="text-sm text-slate-500 dark:text-gray-400">Sin materiales en esta cita</p>
+                    </div>
+                  ) : (
+                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-slate-50 dark:bg-gray-700/50 text-xs text-slate-500 dark:text-gray-400">
+                            <th className="pl-3 w-8 py-2.5">
+                              <input type="checkbox" checked={selectedMaterials.size === apt.materials.length && apt.materials.length > 0} onChange={(e) => e.target.checked ? selectAll() : clearSelection()} className="rounded border-slate-300 dark:border-gray-500 text-blue-600 focus:ring-blue-500 focus:ring-offset-0 cursor-pointer" title="Seleccionar todo" />
+                            </th>
+                            <th className="w-5 py-2.5" />
+                            <th className="w-6 py-2.5 text-center font-medium">#</th>
+                            <th className="px-5 py-2.5 text-left font-medium">Material</th>
+                            <th className="px-4 py-2.5 text-right font-medium">P. unitario</th>
+                            <th className="px-4 py-2.5 text-right font-medium">Cantidad</th>
+                            <th className="px-5 py-2.5 text-right font-medium">Total</th>
+                            <th className="w-10 py-2.5" />
+                          </tr>
+                        </thead>
+                        <SortableContext items={apt.materials.map((m) => m.productId)} strategy={verticalListSortingStrategy}>
+                          <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
+                            {materials.map(({ product, quantity, total, altGroup, countsInCost }, idx) => (
+                              <SortableMaterialRow key={product.id} productId={product.id} rowIndex={idx + 1} product={product} quantity={quantity} total={total} altGroup={altGroup} countsInCost={countsInCost} availableGroups={usedGroups} editQty={editQty} editQtyValue={editQtyValue} onEditQtyStart={() => { setEditQty(product.id); setEditQtyValue(String(quantity)); }} onEditQtyChange={setEditQtyValue} onEditQtySave={() => saveQty(product.id)} onEditQtyCancel={() => setEditQty(null)} onRemove={() => removeMaterial(product.id)} onSetAltGroup={(g) => setAltGroup(product.id, g)} isSelected={selectedMaterials.has(product.id)} onToggleSelect={(shiftKey) => toggleSelect(product.id, idx, shiftKey)} phase={null} allPhases={namedPhases} onSetPhase={(p) => setMaterialPhase(product.id, p)} />
+                            ))}
+                          </tbody>
+                        </SortableContext>
+                        <tfoot>
+                          <tr className="border-t border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50">
+                            <td /><td />
+                            <td colSpan={3} className="px-5 py-3 text-sm font-medium text-slate-600 dark:text-gray-400">Subtotal cita {appointment.number}</td>
+                            <td className="px-5 py-3 text-right font-bold text-slate-800 dark:text-gray-200">{fmtC(materialCost)}</td>
+                            <td />
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </DndContext>
+                  )}
+                </>
+              );
+            }
+
+            // Phase view
+            const renderPhaseTable = (phaseItems: typeof materials, phase: string | null) => {
+              const phaseIds = apt.materials.filter(m => (m.phase ?? null) === phase).map(m => m.productId);
+              let rowNum = 0;
+              return (
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <table className="w-full text-sm">
+                    <colgroup>
+                      <col className="w-8" /><col className="w-5" /><col className="w-6" />
+                      <col /><col className="w-28" /><col className="w-24" /><col className="w-24" /><col className="w-10" />
+                    </colgroup>
+                    <SortableContext items={phaseIds} strategy={verticalListSortingStrategy}>
+                      <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
+                        {phaseItems.map(({ product, quantity, total, altGroup, countsInCost }) => {
+                          const globalIdx = apt.materials.findIndex(m => m.productId === product.id);
+                          rowNum++;
+                          return (
+                            <SortableMaterialRow key={product.id} productId={product.id} rowIndex={rowNum} product={product} quantity={quantity} total={total} altGroup={altGroup} countsInCost={countsInCost} availableGroups={usedGroups} editQty={editQty} editQtyValue={editQtyValue} onEditQtyStart={() => { setEditQty(product.id); setEditQtyValue(String(quantity)); }} onEditQtyChange={setEditQtyValue} onEditQtySave={() => saveQty(product.id)} onEditQtyCancel={() => setEditQty(null)} onRemove={() => removeMaterial(product.id)} onSetAltGroup={(g) => setAltGroup(product.id, g)} isSelected={selectedMaterials.has(product.id)} onToggleSelect={(shiftKey) => toggleSelect(product.id, globalIdx, shiftKey)} phase={phase} allPhases={namedPhases} onSetPhase={(p) => setMaterialPhase(product.id, p)} />
+                          );
+                        })}
+                      </tbody>
+                    </SortableContext>
+                  </table>
+                </DndContext>
+              );
+            };
+
+            return (
+              <>
+                {/* Named phases */}
+                {allGroups.map(({ phase, items }) => {
+                  const isCollapsed = collapsedPhases.has(phase!);
+                  const phaseCost = items.filter(m => m.countsInCost).reduce((s, m) => s + m.total, 0);
+                  return (
+                    <div key={phase!} className="border-b border-slate-100 dark:border-gray-700">
+                      {/* Phase header */}
+                      <div className="flex items-center gap-2 px-4 py-2 bg-indigo-50/60 dark:bg-indigo-900/15">
+                        <button onClick={() => setCollapsedPhases(prev => { const n = new Set(prev); n.has(phase!) ? n.delete(phase!) : n.add(phase!); return n; })} className="flex items-center gap-2 flex-1 text-left min-w-0">
+                          {isCollapsed ? <ChevronDown size={13} className="text-indigo-400 shrink-0" /> : <ChevronUp size={13} className="text-indigo-400 shrink-0" />}
+                          <Layers size={12} className="text-indigo-500 shrink-0" />
+                          {editingPhase === phase ? (
+                            <input autoFocus value={editPhaseValue} onChange={(e) => setEditPhaseValue(e.target.value)}
+                              onKeyDown={(e) => { if (e.key === "Enter") renamePhase(phase!); if (e.key === "Escape") setEditingPhase(null); }}
+                              onBlur={() => renamePhase(phase!)}
+                              onClick={(e) => e.stopPropagation()}
+                              className="rounded border border-indigo-400 ring-1 ring-indigo-200 dark:ring-indigo-700 px-2 py-0.5 text-xs font-semibold focus:outline-none dark:bg-gray-700 dark:text-white dark:border-indigo-500 w-32"
+                            />
+                          ) : (
+                            <span className="text-xs font-semibold text-indigo-700 dark:text-indigo-300 truncate">{phase}</span>
+                          )}
+                          <span className="text-[10px] text-indigo-500 dark:text-indigo-400 shrink-0">{items.length} mat. · {fmtC(phaseCost)}</span>
+                        </button>
+                        <div className="flex items-center gap-0.5 shrink-0">
+                          <button onClick={() => { setEditingPhase(phase!); setEditPhaseValue(phase!); }} title="Renombrar fase" className="rounded p-1 text-indigo-300 hover:text-indigo-600 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors"><Edit2 size={11} /></button>
+                          <button onClick={() => { setActiveAddPhase(phase!); setAddOpen(true); }} title="Agregar material en esta fase" className="rounded p-1 text-indigo-300 hover:text-indigo-600 hover:bg-indigo-100 dark:hover:bg-indigo-900/30 transition-colors"><Plus size={11} /></button>
+                          <button onClick={() => deletePhase(phase!)} title="Eliminar fase" className="rounded p-1 text-slate-300 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors"><Trash2 size={11} /></button>
+                        </div>
+                      </div>
+                      {!isCollapsed && (
+                        <>
+                          {items.length === 0 ? (
+                            <div className="py-4 text-center text-xs text-slate-400 dark:text-gray-500">Sin materiales en esta fase — <button onClick={() => { setActiveAddPhase(phase!); setAddOpen(true); }} className="text-indigo-500 hover:text-indigo-700">+ Agregar</button></div>
+                          ) : (
+                            renderPhaseTable(items, phase!)
+                          )}
+                        </>
+                      )}
+                    </div>
+                  );
+                })}
+
+                {/* Sin fase section */}
+                {sinFaseItems.length > 0 && (
+                  <div className="border-b border-slate-100 dark:border-gray-700">
+                    <div className="flex items-center gap-2 px-4 py-2 bg-slate-50/60 dark:bg-gray-700/20">
+                      <Package size={12} className="text-slate-400 shrink-0" />
+                      <span className="text-xs font-medium text-slate-500 dark:text-gray-400 flex-1">Sin fase</span>
+                      <span className="text-[10px] text-slate-400 dark:text-gray-500">{sinFaseItems.length} mat.</span>
+                    </div>
+                    {renderPhaseTable(sinFaseItems, null)}
+                  </div>
+                )}
+
+                {/* Total */}
+                <div className="px-5 py-2.5 flex justify-end border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/30">
+                  <span className="text-xs text-slate-500 dark:text-gray-400 mr-3">Subtotal cita {appointment.number}</span>
+                  <span className="text-sm font-bold text-slate-800 dark:text-gray-200">{fmtC(materialCost)}</span>
+                </div>
+              </>
+            );
+          })()}
 
           {selectedMaterials.size > 0 && (
             <div className="border-t border-blue-200 dark:border-blue-800/40 bg-blue-50 dark:bg-blue-900/20 px-5 py-2.5 flex items-center gap-4">
               <span className="text-xs font-semibold text-blue-700 dark:text-blue-400">
                 {selectedMaterials.size} seleccionado{selectedMaterials.size !== 1 ? "s" : ""}
               </span>
-              <button
-                onClick={copySelected}
-                className="flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300"
-              >
+              <button onClick={copySelected} className="flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-300">
                 <Copy size={12} /> Copiar seleccionados
               </button>
-              <button
-                onClick={deleteSelected}
-                className="flex items-center gap-1.5 text-xs font-medium text-red-500 hover:text-red-600"
-              >
+              <button onClick={deleteSelected} className="flex items-center gap-1.5 text-xs font-medium text-red-500 hover:text-red-600">
                 <Trash2 size={12} /> Eliminar seleccionados
               </button>
-              <button
-                onClick={clearSelection}
-                className="ml-auto text-xs text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300"
-              >
-                Cancelar
-              </button>
+              <button onClick={clearSelection} className="ml-auto text-xs text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300">Cancelar</button>
             </div>
           )}
 
-          <div className="border-t border-slate-100 dark:border-gray-700 px-5 py-3 flex items-center gap-4">
-            <button
-              onClick={() => setAddOpen(true)}
-              className="flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700"
-            >
+          <div className="border-t border-slate-100 dark:border-gray-700 px-5 py-3 flex items-center gap-3 flex-wrap">
+            {newPhaseInputOpen ? (
+              <div className="flex items-center gap-1.5">
+                <input
+                  autoFocus
+                  value={newPhaseValue}
+                  onChange={(e) => setNewPhaseValue(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") addPhase(); if (e.key === "Escape") { setNewPhaseInputOpen(false); setNewPhaseValue(""); } }}
+                  placeholder="Nombre de fase..."
+                  className="rounded-lg border border-indigo-400 ring-2 ring-indigo-100 dark:ring-indigo-800 px-2.5 py-1.5 text-xs focus:outline-none dark:bg-gray-700 dark:text-white dark:border-indigo-500 w-40"
+                />
+                <button onClick={addPhase} className="rounded p-1 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30"><Check size={13} /></button>
+                <button onClick={() => { setNewPhaseInputOpen(false); setNewPhaseValue(""); }} className="rounded p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-gray-700"><X size={13} /></button>
+              </div>
+            ) : (
+              <button onClick={() => setNewPhaseInputOpen(true)} className="flex items-center gap-1.5 text-xs font-medium text-indigo-600 dark:text-indigo-400 hover:text-indigo-700">
+                <FolderPlus size={13} /> Nueva fase
+              </button>
+            )}
+            <button onClick={() => { setActiveAddPhase(undefined); setAddOpen(true); }} className="flex items-center gap-1.5 text-xs font-medium text-blue-600 dark:text-blue-400 hover:text-blue-700">
               <Plus size={13} /> Agregar material
             </button>
-            <button
-              onClick={() => setAddCategoryOpen(true)}
-              className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300"
-            >
+            <button onClick={() => setAddCategoryOpen(true)} className="flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-300">
               <Plus size={13} /> Agregar por categoría
             </button>
           </div>
@@ -1127,7 +1330,8 @@ function EditableAppointment({
           products={products}
           apt={apt}
           onUpdateApt={onUpdateApt}
-          onClose={() => setAddOpen(false)}
+          onClose={() => { setAddOpen(false); setActiveAddPhase(undefined); }}
+          targetPhase={activeAddPhase}
         />
       )}
       {addCategoryOpen && (

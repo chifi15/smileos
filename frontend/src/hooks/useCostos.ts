@@ -27,6 +27,7 @@ export interface ApiMaterial {
   productId: string;
   quantity: number;
   altGroup?: string | null;
+  phase?: string | null;
 }
 
 export interface ApiAppointment {

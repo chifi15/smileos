@@ -72,6 +72,7 @@ export interface MaterialUsage {
   productId: string;
   quantity: number;
   altGroup?: string | null;
+  phase?: string | null;
 }
 
 export interface TreatmentAppointment {
