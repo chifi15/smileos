@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     frontend_url: str = "https://smileos-six.vercel.app"
 
+    # Platform admin secret (X-Admin-Secret header)
+    admin_secret: str = ""
+
     # WhatsApp Cloud API
     whatsapp_token: str = ""
     whatsapp_phone_number_id: str = ""
