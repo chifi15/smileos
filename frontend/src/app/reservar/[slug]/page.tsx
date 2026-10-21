@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { ChevronLeft, ChevronRight, Clock, CalendarCheck, CheckCircle2, Loader2, AlertCircle } from "lucide-react";
+import { ChevronLeft, ChevronRight, Clock, CalendarCheck, CheckCircle2, Loader2, AlertCircle, User } from "lucide-react";
 import axios from "axios";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "https://smileos.onrender.com";
@@ -28,6 +28,11 @@ const APPOINTMENT_TYPES = [
   { value: "otro", label: "Otro" },
 ];
 
+interface Dentist {
+  id: string;
+  name: string;
+}
+
 interface ClinicInfo {
   clinic_name: string;
   slug: string;
@@ -37,14 +42,14 @@ interface ClinicInfo {
   default_duration: number;
   slot_size: number;
   working_days: { day: number; is_working: boolean }[];
-  dentists: { id: string; name: string }[];
+  dentists: Dentist[];
 }
 
 interface SlotsData {
   slots: string[];
 }
 
-type Step = "calendar" | "slots" | "form" | "done";
+type Step = "doctor" | "calendar" | "slots" | "form" | "done";
 
 function isoDate(y: number, m: number, d: number) {
   return `${y}-${String(m + 1).padStart(2, "0")}-${String(d).padStart(2, "0")}`;
@@ -68,12 +73,15 @@ export default function BookingPage() {
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
 
+  const [selectedDentist, setSelectedDentist] = useState<Dentist | null>(null); // null = cualquier dentista
+  const [anyDentist, setAnyDentist] = useState(false);
+
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
   const [slots, setSlots] = useState<string[]>([]);
   const [loadingSlots, setLoadingSlots] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
 
-  const [step, setStep] = useState<Step>("calendar");
+  const [step, setStep] = useState<Step>("doctor");
 
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
@@ -112,13 +120,21 @@ export default function BookingPage() {
     return workingDaySet.has(dt.getDay());
   }
 
+  function handleChooseDentist(dentist: Dentist | null) {
+    setSelectedDentist(dentist);
+    setAnyDentist(dentist === null);
+    setStep("calendar");
+  }
+
   async function handleSelectDate(dateStr: string) {
     setSelectedDate(dateStr);
     setSelectedSlot(null);
     setLoadingSlots(true);
     setStep("slots");
     try {
-      const r = await http.get(`/api/v1/booking/${slug}/slots`, { params: { date: dateStr } });
+      const params: Record<string, string> = { date: dateStr };
+      if (selectedDentist) params.dentist_id = selectedDentist.id;
+      const r = await http.get(`/api/v1/booking/${slug}/slots`, { params });
       setSlots((r.data.data as SlotsData).slots);
     } catch {
       setSlots([]);
@@ -145,6 +161,7 @@ export default function BookingPage() {
         guest_phone: phone.trim(),
         appointment_type: apptType,
         reason: reason.trim(),
+        dentist_id: selectedDentist?.id ?? null,
       });
       setConfirmedData({
         dentist: r.data.data.dentist_name,
@@ -207,6 +224,7 @@ export default function BookingPage() {
   }
 
   const calendar = buildCalendar();
+  const dentistLabel = selectedDentist ? selectedDentist.name : "Cualquier dentista";
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-slate-100 flex flex-col items-center py-10 px-4">
@@ -260,11 +278,14 @@ export default function BookingPage() {
             >
               <ChevronLeft size={15} /> Volver
             </button>
-            <div className="bg-blue-50 rounded-xl px-4 py-3 mb-5 flex items-center gap-3">
-              <Clock size={16} className="text-blue-500 shrink-0" />
-              <div>
-                <p className="text-sm font-semibold text-blue-800">{formatDate(selectedDate!)}</p>
-                <p className="text-xs text-blue-600">{selectedSlot} · {clinic.default_duration} min</p>
+            <div className="bg-blue-50 rounded-xl px-4 py-3 mb-5 space-y-1">
+              <div className="flex items-center gap-2">
+                <Clock size={15} className="text-blue-500 shrink-0" />
+                <p className="text-sm font-semibold text-blue-800">{formatDate(selectedDate!)} · {selectedSlot}</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <User size={14} className="text-blue-400 shrink-0" />
+                <p className="text-xs text-blue-600">{dentistLabel}</p>
               </div>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
@@ -335,7 +356,10 @@ export default function BookingPage() {
             >
               <ChevronLeft size={15} /> Volver al calendario
             </button>
-            <p className="text-sm font-semibold text-slate-700 mb-4">{formatDate(selectedDate!)}</p>
+            <p className="text-sm font-semibold text-slate-700 mb-1">{formatDate(selectedDate!)}</p>
+            <p className="text-xs text-slate-400 mb-4 flex items-center gap-1">
+              <User size={12} /> {dentistLabel}
+            </p>
             {loadingSlots ? (
               <div className="flex justify-center py-8">
                 <Loader2 size={22} className="animate-spin text-blue-400" />
@@ -367,6 +391,16 @@ export default function BookingPage() {
         {/* Step: Calendar */}
         {step === "calendar" && (
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <button
+              onClick={() => setStep("doctor")}
+              className="flex items-center gap-1 text-sm text-slate-500 hover:text-slate-700 mb-4"
+            >
+              <ChevronLeft size={15} /> Cambiar dentista
+            </button>
+            <div className="flex items-center gap-2 text-xs text-blue-600 bg-blue-50 rounded-lg px-3 py-2 mb-4">
+              <User size={13} className="shrink-0" />
+              <span>{dentistLabel}</span>
+            </div>
             {/* Month nav */}
             <div className="flex items-center justify-between mb-5">
               <button
@@ -426,6 +460,46 @@ export default function BookingPage() {
             <p className="text-xs text-slate-400 text-center mt-4">
               Selecciona un día disponible para ver los horarios
             </p>
+          </div>
+        )}
+
+        {/* Step: Doctor selection */}
+        {step === "doctor" && clinic && (
+          <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+            <h2 className="text-base font-semibold text-slate-800 mb-1">¿Con quién deseas tu cita?</h2>
+            <p className="text-xs text-slate-400 mb-5">Elige un dentista o deja que asignemos uno disponible</p>
+            <div className="space-y-2">
+              {/* Cualquier dentista */}
+              <button
+                onClick={() => handleChooseDentist(null)}
+                className="w-full flex items-center gap-3 rounded-xl border-2 border-slate-200 hover:border-blue-400 hover:bg-blue-50 px-4 py-3 transition-colors text-left"
+              >
+                <div className="h-9 w-9 shrink-0 rounded-full bg-slate-100 flex items-center justify-center">
+                  <User size={17} className="text-slate-400" />
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-slate-700">Cualquier dentista disponible</p>
+                  <p className="text-xs text-slate-400">El primero disponible para tu horario</p>
+                </div>
+              </button>
+
+              {/* Dentistas específicos */}
+              {clinic.dentists.map((d) => {
+                const initials = d.name.split(" ").slice(0, 2).map(w => w[0]).join("").toUpperCase();
+                return (
+                  <button
+                    key={d.id}
+                    onClick={() => handleChooseDentist(d)}
+                    className="w-full flex items-center gap-3 rounded-xl border-2 border-slate-200 hover:border-blue-400 hover:bg-blue-50 px-4 py-3 transition-colors text-left"
+                  >
+                    <div className="h-9 w-9 shrink-0 rounded-full bg-blue-100 flex items-center justify-center text-sm font-bold text-blue-700">
+                      {initials}
+                    </div>
+                    <p className="text-sm font-medium text-slate-700">{d.name}</p>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
