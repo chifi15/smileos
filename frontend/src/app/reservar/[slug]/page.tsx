@@ -249,8 +249,8 @@ export default function BookingPage() {
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
               {[
-                { label: "Nombre completo *", type: "text",  value: name,  set: setName,  ph: "Tu nombre completo", req: true },
-                { label: "Teléfono",          type: "tel",   value: phone, set: setPhone, ph: "Ej: 8888-0000",      req: false },
+                { label: "Nombre completo", type: "text",  value: name,  set: setName,  ph: "Tu nombre completo", req: true },
+                { label: "Teléfono",        type: "tel",   value: phone, set: setPhone, ph: "Ej: 8888-0000",      req: true },
               ].map(({ label, type, value, set, ph, req }) => (
                 <div key={label}>
                   <label className={`block text-xs font-medium mb-1 ${dark ? "text-gray-300" : "text-slate-600"}`}>{label}</label>
@@ -280,8 +280,9 @@ export default function BookingPage() {
                 </select>
               </div>
               <div>
-                <label className={`block text-xs font-medium mb-1 ${dark ? "text-gray-300" : "text-slate-600"}`}>Motivo de consulta (opcional)</label>
+                <label className={`block text-xs font-medium mb-1 ${dark ? "text-gray-300" : "text-slate-600"}`}>Motivo de consulta</label>
                 <textarea
+                  required
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   placeholder="¿Cuál es el motivo por el que acude a la clínica?"
