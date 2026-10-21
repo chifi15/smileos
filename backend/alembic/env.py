@@ -55,7 +55,7 @@ async def run_async_migrations() -> None:
     _url = settings.database_url.split("?")[0]
     _connect_args: dict = {}
     if "localhost" not in _url and "127.0.0.1" not in _url:
-        _connect_args = {"ssl": "require"}
+        _connect_args = {"ssl": True}
 
     connectable = create_async_engine(_url, poolclass=pool.NullPool, connect_args=_connect_args)
     async with connectable.connect() as connection:
