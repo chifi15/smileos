@@ -106,7 +106,7 @@ async def get_booking_slots(
     )
     duration = settings.default_appointment_duration_minutes if settings else 60
     # Slots aparecen cada 'duration' minutos (ej. cada 60 min si la cita dura 60 min)
-    slot_size = duration
+    slot_size = 60  # pacientes ven horarios cada hora
 
     # Filtrar por dentista específico si se indica
     dentist_filter = [
@@ -215,7 +215,7 @@ async def create_booking_request(
         select(ClinicSettings).where(ClinicSettings.clinic_id == clinic.id)
     )
     duration = settings.default_appointment_duration_minutes if settings else 60
-    slot_size = duration
+    slot_size = 60  # pacientes ven horarios cada hora
 
     # Buscar dentistas disponibles (respetando preferencia del paciente)
     dentist_filter = [
