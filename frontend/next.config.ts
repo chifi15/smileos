@@ -9,6 +9,15 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: "/auth/google/callback",
+        destination: "/google-callback",
+        permanent: false,
+      },
+    ];
+  },
 };
 
 export default nextConfig;

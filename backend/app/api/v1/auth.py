@@ -17,9 +17,12 @@ from app.schemas.auth import (
 from app.services.auth_service import (
     authenticate_user, issue_tokens, rotate_refresh_token,
     revoke_refresh_token, change_password, register_clinic,
-    create_reset_token, reset_password_with_token, REFRESH_TOKEN_COOKIE,
+    create_reset_token, reset_password_with_token,
+    find_or_create_google_user, REFRESH_TOKEN_COOKIE,
 )
 from app.services.email_service import send_password_reset_email
+from app.services import google_oauth_service as google_oauth
+from fastapi.responses import RedirectResponse
 
 settings = get_settings()
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
@@ -137,6 +140,52 @@ async def me(user: CurrentUser):
         "success": True,
         "data": UserOut.model_validate(user).model_dump(),
     }
+
+
+@router.get("/google/authorize")
+async def google_authorize():
+    if not settings.google_client_id:
+        from app.core.exceptions import ValidationError
+        raise ValidationError("Google OAuth no configurado.")
+    url = google_oauth.build_login_auth_url()
+    return {"success": True, "data": {"url": url}}
+
+
+@router.get("/google/callback")
+async def google_callback(
+    code: str,
+    response: Response,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    frontend_url = settings.frontend_url
+    try:
+        tokens = await google_oauth.exchange_login_code(code)
+        user_info = await google_oauth.get_google_user_info(tokens["access_token"])
+        email = user_info.get("email")
+        name = user_info.get("name", email)
+        if not email:
+            return RedirectResponse(f"{frontend_url}/login?error=google")
+
+        user = await find_or_create_google_user(db, email, name)
+        await db.commit()
+        await db.refresh(user)
+
+        access_token, raw_refresh = await issue_tokens(db, user)
+        await db.commit()
+
+        redirect = RedirectResponse(f"{frontend_url}/auth/google/callback?access_token={access_token}")
+        redirect.set_cookie(
+            key=REFRESH_TOKEN_COOKIE,
+            value=raw_refresh,
+            httponly=True,
+            secure=settings.is_production,
+            samesite="lax",
+            max_age=_COOKIE_MAX_AGE,
+            path="/api/v1/auth",
+        )
+        return redirect
+    except Exception as e:
+        return RedirectResponse(f"{frontend_url}/login?error=google")
 
 
 @router.post("/forgot-password")

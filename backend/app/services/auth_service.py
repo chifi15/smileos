@@ -182,6 +182,40 @@ async def revoke_all_user_tokens(db: AsyncSession, user_id) -> None:
     )
 
 
+async def find_or_create_google_user(db: AsyncSession, email: str, full_name: str) -> User:
+    email = email.lower()
+    result = await db.execute(
+        select(User).where(User.email == email, User.is_active == True)
+    )
+    user = result.scalar_one_or_none()
+    if user:
+        return user
+
+    # Nueva cuenta — crear clínica + usuario
+    base_slug = _slugify(full_name)
+    suffix = secrets.token_hex(3)
+    slug = f"{base_slug}-{suffix}"
+
+    clinic = Clinic(name=full_name, slug=slug, is_active=True)
+    db.add(clinic)
+    await db.flush()
+
+    db.add(ClinicSettings(clinic_id=clinic.id, display_name=full_name))
+
+    user = User(
+        clinic_id=clinic.id,
+        email=email,
+        password_hash=hash_password(secrets.token_urlsafe(32)),
+        full_name=full_name,
+        role="clinic_owner",
+        is_active=True,
+        must_change_password=False,
+    )
+    db.add(user)
+    await db.flush()
+    return user
+
+
 async def create_reset_token(db: AsyncSession, email: str) -> tuple[str, User] | None:
     result = await db.execute(
         select(User).where(User.email == email.lower(), User.is_active == True)
