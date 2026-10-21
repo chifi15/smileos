@@ -221,6 +221,16 @@ async def update_user(
         if (active_owners or 0) <= 1:
             raise ValidationError("No se puede desactivar al único propietario activo de la clínica.")
 
+    # Verificar unicidad de email si se está cambiando
+    new_email = data.get("email")
+    if new_email and new_email.strip().lower() != user.email.lower():
+        existing = await db.scalar(
+            select(User.id).where(User.email == new_email.strip().lower())
+        )
+        if existing:
+            raise ValidationError("Ya existe un usuario con ese correo electrónico.")
+        data["email"] = new_email.strip().lower()
+
     for k, v in data.items():
         setattr(user, k, v)
 

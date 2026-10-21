@@ -13,7 +13,7 @@ import { useClinicSettings, useUpdateSettings, useWorkingHours, useUpdateWorking
 import { usePlanStatus } from "@/hooks/useBilling";
 import { useSyncCalendar, useCalendarStatus, useDisconnectGoogleOAuth } from "@/hooks/useCalendar";
 import apiClient, { getAccessToken } from "@/lib/api-client";
-import { useAllUsers, useCreateUser } from "@/hooks/useUsers";
+import { useAllUsers, useCreateUser, useUpdateUser } from "@/hooks/useUsers";
 import { useProcedures, useUpdateProcedurePrice, useCreateProcedure, useDeleteProcedure, useReorderProcedures, usePriceHistory, PriceHistoryEntry } from "@/hooks/useCatalog";
 import { ClinicUser, UserRole, Procedure } from "@/types";
 import { useCostTreatments, useCostProducts, useFixedCosts, useLinkCostProcedure } from "@/hooks/useCostos";
@@ -292,7 +292,63 @@ function CreateUserModal({ open, onClose }: CreateUserModalProps) {
   );
 }
 
+function EditUserModal({ user, onClose }: { user: ClinicUser; onClose: () => void }) {
+  const [fullName, setFullName] = useState(user.full_name);
+  const [email, setEmail] = useState(user.email);
+  const [role, setRole] = useState<UserRole>(user.role);
+  const [phone, setPhone] = useState(user.phone ?? "");
+  const update = useUpdateUser();
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    update.mutate(
+      { id: user.id, full_name: fullName.trim(), email: email.trim(), role, phone: phone.trim() || undefined },
+      { onSuccess: onClose }
+    );
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Editar usuario" size="sm">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <Input
+          label="Nombre completo *"
+          value={fullName}
+          onChange={(e) => setFullName(e.target.value)}
+          required
+          autoFocus
+        />
+        <Input
+          label="Correo electrónico *"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          required
+        />
+        <Select
+          label="Rol"
+          value={role}
+          onChange={(e) => setRole(e.target.value as UserRole)}
+          options={roleOptions}
+        />
+        <Input
+          label="Teléfono"
+          value={phone}
+          onChange={(e) => setPhone(e.target.value)}
+          placeholder="Opcional"
+        />
+        <div className="flex justify-end gap-3 pt-2">
+          <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
+          <Button type="submit" loading={update.isPending} disabled={!fullName.trim() || !email.trim()}>
+            Guardar cambios
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function UserRow({ user }: { user: ClinicUser }) {
+  const [editing, setEditing] = useState(false);
   const initials = user.full_name
     .split(" ")
     .slice(0, 2)
@@ -301,36 +357,43 @@ function UserRow({ user }: { user: ClinicUser }) {
     .toUpperCase();
 
   return (
-    <div className="flex items-center gap-4 px-5 py-3.5">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/40 text-sm font-semibold text-blue-700 dark:text-blue-300">
-        {initials}
+    <>
+      <div className="flex items-center gap-4 px-5 py-3.5">
+        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/40 text-sm font-semibold text-blue-700 dark:text-blue-300">
+          {initials}
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium text-slate-800 dark:text-white truncate">{user.full_name}</p>
+          <p className="text-xs text-slate-400 dark:text-gray-500 truncate">{user.email}</p>
+        </div>
+        <div className="shrink-0">
+          <Badge label={ROLE_LABELS[user.role]} className={ROLE_COLORS[user.role]} />
+        </div>
+        <div className="shrink-0 text-right">
+          {user.last_login_at ? (
+            <p className="text-xs text-slate-400 dark:text-gray-500">
+              {format(parseISO(user.last_login_at), "d MMM yyyy", { locale: es })}
+            </p>
+          ) : (
+            <p className="text-xs text-slate-300 dark:text-gray-600">Sin acceso</p>
+          )}
+        </div>
+        <div className="shrink-0">
+          <Badge
+            label={user.is_active ? "Activo" : "Inactivo"}
+            className={user.is_active ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300" : "bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-400"}
+          />
+        </div>
+        <button
+          onClick={() => setEditing(true)}
+          className="shrink-0 text-slate-300 hover:text-blue-500 transition-colors"
+          title="Editar usuario"
+        >
+          <Pencil size={15} />
+        </button>
       </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium text-slate-800 dark:text-white truncate">{user.full_name}</p>
-        <p className="text-xs text-slate-400 dark:text-gray-500 truncate">{user.email}</p>
-      </div>
-      <div className="shrink-0">
-        <Badge
-          label={ROLE_LABELS[user.role]}
-          className={ROLE_COLORS[user.role]}
-        />
-      </div>
-      <div className="shrink-0 text-right">
-        {user.last_login_at ? (
-          <p className="text-xs text-slate-400 dark:text-gray-500">
-            {format(parseISO(user.last_login_at), "d MMM yyyy", { locale: es })}
-          </p>
-        ) : (
-          <p className="text-xs text-slate-300 dark:text-gray-600">Sin acceso</p>
-        )}
-      </div>
-      <div className="shrink-0">
-        <Badge
-          label={user.is_active ? "Activo" : "Inactivo"}
-          className={user.is_active ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300" : "bg-slate-100 text-slate-400 dark:bg-slate-700 dark:text-slate-400"}
-        />
-      </div>
-    </div>
+      {editing && <EditUserModal user={user} onClose={() => setEditing(false)} />}
+    </>
   );
 }
 

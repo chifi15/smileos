@@ -26,6 +26,24 @@ export function useAllUsers() {
   });
 }
 
+export function useUpdateUser() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, ...values }: { id: string; full_name?: string; email?: string; role?: UserRole; phone?: string }) => {
+      const { data } = await apiClient.patch<{ data: ClinicUser }>(`/api/v1/users/${id}`, values);
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["users"] });
+      toast.success("Usuario actualizado.");
+    },
+    onError: (err: any) => {
+      const msg = err?.response?.data?.detail ?? "Error al actualizar el usuario.";
+      toast.error(msg);
+    },
+  });
+}
+
 export function useCreateUser(
   onSuccess?: (result: { user: ClinicUser; temp_password: string }) => void
 ) {
