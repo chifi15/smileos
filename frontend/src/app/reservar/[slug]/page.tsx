@@ -62,6 +62,7 @@ export default function BookingPage() {
   const [clinic, setClinic] = useState<ClinicInfo | null>(null);
   const [loadingClinic, setLoadingClinic] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
@@ -85,7 +86,18 @@ export default function BookingPage() {
   useEffect(() => {
     http.get(`/api/v1/booking/${slug}`)
       .then((r) => setClinic(r.data.data))
-      .catch(() => setNotFound(true))
+      .catch((err) => {
+        const status = err?.response?.status;
+        const detail = err?.response?.data?.detail;
+        if (status === 404) {
+          setErrorMsg(detail ?? "Clínica no encontrada");
+        } else if (!err?.response) {
+          setErrorMsg(`Error de red — no se pudo conectar al servidor (${API})`);
+        } else {
+          setErrorMsg(`Error ${status}: ${detail ?? err.message}`);
+        }
+        setNotFound(true);
+      })
       .finally(() => setLoadingClinic(false));
   }, [slug]);
 
@@ -184,7 +196,12 @@ export default function BookingPage() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 gap-3 p-6">
         <AlertCircle size={40} className="text-slate-300" />
-        <p className="text-slate-500 text-center">Enlace de reserva no encontrado.</p>
+        <p className="text-slate-500 text-center font-medium">Enlace de reserva no encontrado.</p>
+        {errorMsg && (
+          <p className="text-xs text-slate-400 text-center max-w-xs bg-slate-100 rounded-lg px-3 py-2 font-mono">
+            {errorMsg}
+          </p>
+        )}
       </div>
     );
   }
