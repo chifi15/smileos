@@ -3,10 +3,10 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import require_permission
+from app.core.dependencies import require_permission, RequirePaidPlan
 from app.services import reports_service
 
-router = APIRouter(prefix="/reports", tags=["Reportes"])
+router = APIRouter(prefix="/reports", tags=["Reportes"], dependencies=[RequirePaidPlan])
 
 
 @router.get("/finances/summary")

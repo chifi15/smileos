@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Star, Settings } from "lucide-react";
 import PatientSearch from "@/components/ui/PatientSearch";
+import PlanGate from "@/components/ui/PlanGate";
 
 export default function RewardsPage() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function RewardsPage() {
   }
 
   return (
+    <PlanGate feature="Smile Rewards">
     <div className="flex h-full flex-col items-center justify-center p-6">
       <div className="w-full max-w-md text-center">
         <div className="mb-4 flex justify-center">
@@ -44,5 +46,6 @@ export default function RewardsPage() {
         </div>
       </div>
     </div>
+    </PlanGate>
   );
 }

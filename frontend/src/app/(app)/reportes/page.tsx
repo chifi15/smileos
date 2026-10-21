@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { categoryLabel, categoryColor } from "@/types/costos";
 import Spinner from "@/components/ui/Spinner";
+import PlanGate from "@/components/ui/PlanGate";
 import { useUiPreferences, useUpdateUiPreference } from "@/hooks/useSettings";
 import { useFixedCosts, useCostProducts } from "@/hooks/useCostos";
 import { useIncomeByPatient } from "@/hooks/useFinances";
@@ -529,6 +530,7 @@ export default function ReportesPage() {
   }
 
   return (
+    <PlanGate feature="Reportes financieros">
     <div className="p-6 space-y-6 max-w-screen-2xl">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
@@ -1226,5 +1228,6 @@ export default function ReportesPage() {
         </TableCard>
       </div>
     </div>
+    </PlanGate>
   );
 }

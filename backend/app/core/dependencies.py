@@ -14,6 +14,7 @@ from app.core.security import decode_token
 from app.core.permissions import has_permission
 from app.core.exceptions import UnauthorizedError, ForbiddenError
 from app.models.user import User
+from app.models.clinic import Clinic
 
 settings = get_settings()
 _bearer = HTTPBearer(auto_error=False)
@@ -61,3 +62,20 @@ def require_permission(permission: str):
         return user
 
     return Depends(_check)
+
+
+async def _require_paid_plan_dep(
+    user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> User:
+    from app.core.plans import DEFAULT_PLAN
+    clinic = await db.scalar(select(Clinic).where(Clinic.id == user.clinic_id))
+    plan = (clinic.plan if clinic else DEFAULT_PLAN) or DEFAULT_PLAN
+    if plan == "free":
+        raise ForbiddenError()
+    if clinic and clinic.plan_expires_at and clinic.plan_expires_at < datetime.now(timezone.utc):
+        raise ForbiddenError()
+    return user
+
+
+RequirePaidPlan = Depends(_require_paid_plan_dep)

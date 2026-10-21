@@ -20,6 +20,7 @@ import {
 import { REWARDS_LEVEL_LABELS } from "@/types";
 import Button from "@/components/ui/Button";
 import Spinner from "@/components/ui/Spinner";
+import PlanGate from "@/components/ui/PlanGate";
 
 // ─── Tipos locales ────────────────────────────────────────────────────────────
 
@@ -346,6 +347,7 @@ export default function RewardsConfigPage() {
   const manualTypes = points.filter((e) => e.trigger === "manual");
 
   return (
+    <PlanGate feature="Smile Rewards">
     <div className="p-6 max-w-2xl mx-auto space-y-6">
       {/* Header */}
       <div className="flex items-start justify-between">
@@ -483,6 +485,7 @@ export default function RewardsConfigPage() {
         </>
       )}
     </div>
+    </PlanGate>
   );
 }
 

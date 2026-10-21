@@ -6,11 +6,11 @@ from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.core.dependencies import CurrentUser, require_permission
+from app.core.dependencies import CurrentUser, require_permission, RequirePaidPlan
 from app.schemas.rewards import GrantBonusRequest, ManualAdjustRequest, RewardsConfigUpdate
 from app.services import rewards_service, audit_service
 
-router = APIRouter(prefix="/patients/{patient_id}/rewards", tags=["Smile Rewards"])
+router = APIRouter(prefix="/patients/{patient_id}/rewards", tags=["Smile Rewards"], dependencies=[RequirePaidPlan])
 
 
 def _iso(dt):
@@ -168,7 +168,7 @@ async def manual_adjust(
 
 # ─── Endpoints globales del programa ─────────────────────────────────────────
 
-levels_router = APIRouter(prefix="/rewards", tags=["Smile Rewards"])
+levels_router = APIRouter(prefix="/rewards", tags=["Smile Rewards"], dependencies=[RequirePaidPlan])
 
 
 @levels_router.get("/config")
