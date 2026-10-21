@@ -1,7 +1,10 @@
 import hashlib
+import logging
 import re
 import secrets
 from datetime import datetime, timedelta, timezone
+
+logger = logging.getLogger(__name__)
 
 import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -203,6 +206,7 @@ async def create_reset_token(db: AsyncSession, email: str) -> tuple[str, User] |
 
 async def reset_password_with_token(db: AsyncSession, raw_token: str, new_password: str) -> bool:
     token_hash = _hash_token(raw_token)
+    logger.info(f"Buscando token hash: {token_hash[:16]}...")
 
     result = await db.execute(
         sa.text(
@@ -214,10 +218,17 @@ async def reset_password_with_token(db: AsyncSession, raw_token: str, new_passwo
     row = result.mappings().one_or_none()
 
     if not row:
+        logger.error("Token no encontrado en DB")
         return False
     if row["used"]:
+        logger.error("Token ya fue usado")
         return False
-    if row["expires_at"].replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+
+    expires_at = row["expires_at"]
+    if expires_at.tzinfo is None:
+        expires_at = expires_at.replace(tzinfo=timezone.utc)
+    if expires_at < datetime.now(timezone.utc):
+        logger.error(f"Token expirado: {expires_at}")
         return False
 
     await db.execute(
