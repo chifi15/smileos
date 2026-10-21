@@ -3,7 +3,7 @@
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
-import { CalendarPlus, RefreshCw, Trash2, RotateCcw, X, Link2, Check } from "lucide-react";
+import { CalendarPlus, RefreshCw, Trash2, RotateCcw, X, Link2, Check, Copy } from "lucide-react";
 import { useAppointments, useDeletedAppointments, useRestoreAppointment } from "@/hooks/useAppointments";
 import { useClinicUsers } from "@/hooks/useUsers";
 import { useCalendarEvents, useSyncCalendar, useCalendarStatus } from "@/hooks/useCalendar";
