@@ -339,7 +339,8 @@ function SettingsContent() {
   const { data: users = [], isLoading: loadingUsers } = useAllUsers();
   const { data: planStatus } = usePlanStatus();
   const updateSettings = useUpdateSettings();
-  const syncCalendar = useSyncCalendar();
+  const syncCalendar = useSyncCalendar(true);   // quick
+  const syncCalendarFull = useSyncCalendar(false); // completo
   const disconnectOAuth = useDisconnectGoogleOAuth();
   const { data: calendarStatus, refetch: refetchStatus } = useCalendarStatus();
   const [showCreateUser, setShowCreateUser] = useState(false);
@@ -583,9 +584,21 @@ function SettingsContent() {
                       size="sm"
                       onClick={() => syncCalendar.mutate()}
                       loading={syncCalendar.isPending}
+                      title="Sincroniza los últimos 7 días + próximos 60 días (rápido)"
                     >
                       <RefreshCw size={14} />
-                      Sincronizar
+                      Sync rápido
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="secondary"
+                      size="sm"
+                      onClick={() => syncCalendarFull.mutate()}
+                      loading={syncCalendarFull.isPending}
+                      title="Sincroniza el último año completo (puede tardar)"
+                    >
+                      <RefreshCw size={14} />
+                      Sync completo
                     </Button>
                     <Button
                       type="button"

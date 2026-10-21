@@ -68,7 +68,7 @@ export default function AppointmentsPage() {
   const { data: users = [] } = useClinicUsers();
   const { data: calendarStatus } = useCalendarStatus();
   const { data: gcalEvents = [] } = useCalendarEvents(range.from, range.to, calendarStatus?.configured ?? false);
-  const syncCalendar = useSyncCalendar();
+  const syncCalendar = useSyncCalendar(true); // quick=true en Agenda: solo 60 días
 
   const filteredAppointments =
     dentistFilter === "all"

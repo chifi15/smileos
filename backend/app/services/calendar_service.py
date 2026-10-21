@@ -144,7 +144,7 @@ def _resolve_color(raw: str | None) -> str | None:
 SYNC_COOLDOWN_MINUTES = 15
 
 
-async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, pg_insert) -> dict:
+async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, pg_insert, quick: bool = False) -> dict:
     """Sincroniza desde Google Calendar API. Obtiene colorId por evento."""
     from app.services import google_oauth_service as oauth
 
@@ -162,8 +162,13 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
     cal_id = settings.google_calendar_id or "primary"
 
     now = datetime.now(timezone.utc)
-    time_min = now - timedelta(days=365)  # último año
-    time_max = now + timedelta(days=180)  # próximos 6 meses
+    if quick:
+        # Sync rápido: solo 7 días atrás + 60 días adelante
+        time_min = now - timedelta(days=7)
+        time_max = now + timedelta(days=60)
+    else:
+        time_min = now - timedelta(days=365)  # último año
+        time_max = now + timedelta(days=180)  # próximos 6 meses
 
     try:
         gcal_items = await oauth.list_google_events(access_token, cal_id, time_min, time_max)
@@ -270,8 +275,19 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
             "updated_at": now,
         })
 
-    # Delete completo + insert limpio (elimina datos viejos de iCal con colores incorrectos)
-    await db.execute(delete(CalendarEvent).where(CalendarEvent.clinic_id == clinic_id))
+    if quick:
+        # Solo reemplaza el rango reciente, deja intactos los eventos históricos
+        await db.execute(
+            delete(CalendarEvent).where(
+                CalendarEvent.clinic_id == clinic_id,
+                CalendarEvent.start_at >= time_min,
+                CalendarEvent.start_at <= time_max,
+            )
+        )
+    else:
+        # Sync completo: borra todo y reinserta
+        await db.execute(delete(CalendarEvent).where(CalendarEvent.clinic_id == clinic_id))
+
     if rows:
         await db.execute(pg_insert(CalendarEvent).values(rows))
 
@@ -283,6 +299,7 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
         "matched_patients": matched,
         "colors_found": colors_found,
         "source": "google_api",
+        "quick": quick,
         "synced_at": now.isoformat(),
     }
 
@@ -320,10 +337,11 @@ async def get_sync_status(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
     }
 
 
-async def sync_calendar(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
+async def sync_calendar(db: AsyncSession, clinic_id: uuid.UUID, quick: bool = False) -> dict:
     """
     Sincroniza desde Google Calendar API (si hay OAuth) o desde iCal.
-    Usa bulk upsert para manejar miles de eventos sin timeout.
+    quick=True: solo 7 días atrás + 60 días adelante (mucho más rápido).
+    quick=False: sync completo — último año + 6 meses adelante.
     """
     from sqlalchemy.dialects.postgresql import insert as pg_insert
     from app.services import google_oauth_service as oauth
@@ -338,7 +356,7 @@ async def sync_calendar(db: AsyncSession, clinic_id: uuid.UUID) -> dict:
 
     # Si hay OAuth conectado, sincronizar desde la API de Google Calendar (con colores)
     if settings.google_refresh_token:
-        return await _sync_from_gcal_api(db, settings, clinic_id, pg_insert)
+        return await _sync_from_gcal_api(db, settings, clinic_id, pg_insert, quick=quick)
 
     if not settings.ical_url:
         return {"error": "No hay URL de iCal configurada."}

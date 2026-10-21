@@ -75,18 +75,19 @@ export function useGcalEventColors() {
   });
 }
 
-export function useSyncCalendar() {
+export function useSyncCalendar(quick = false) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => apiClient.post("/api/v1/calendar/sync"),
+    mutationFn: () => apiClient.post(`/api/v1/calendar/sync?quick=${quick}`),
     onSuccess: (res) => {
       const d = (res.data as any).data;
       if (d.error) {
         toast.error(d.error);
       } else {
-        const colorMsg = d.colors_found > 0 ? `, ${d.colors_found} con color` : ", sin colores (Google no los exporta)";
+        const colorMsg = d.colors_found > 0 ? `, ${d.colors_found} con color` : "";
+        const rangeMsg = d.quick ? " (últimos 7 días + próximos 60)" : "";
         toast.success(
-          `Sincronizado: ${d.total_events} eventos, ${d.matched_patients} vinculados a un paciente${colorMsg}.`
+          `Sincronizado${rangeMsg}: ${d.total_events} eventos${colorMsg}.`
         );
         qc.invalidateQueries({ queryKey: ["calendar"] });
         qc.invalidateQueries({ queryKey: ["patients", "segments"] });

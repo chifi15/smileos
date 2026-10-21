@@ -134,8 +134,9 @@ async def get_event_colors(
 async def trigger_sync(
     user: Annotated[object, require_permission("manage_patients")],
     db: Annotated[AsyncSession, Depends(get_db)],
+    quick: bool = Query(default=False),
 ):
-    result = await calendar_service.sync_calendar(db, user.clinic_id)
+    result = await calendar_service.sync_calendar(db, user.clinic_id, quick=quick)
     return {"success": True, "data": result}
 
 
