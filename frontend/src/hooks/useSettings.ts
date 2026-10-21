@@ -87,6 +87,23 @@ export function useUiPreferences() {
   });
 }
 
+export function useUpdateBookingAppointmentTypes() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (types: { value: string; label: string }[]) => {
+      const { data } = await apiClient.put<{ data: { value: string; label: string }[] }>(
+        "/api/v1/settings/booking-appointment-types", types
+      );
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["settings"] });
+      toast.success("Tipos de consulta guardados.");
+    },
+    onError: () => toast.error("Error al guardar los tipos de consulta."),
+  });
+}
+
 export function useUpdateUiPreference() {
   const qc = useQueryClient();
   return useMutation({

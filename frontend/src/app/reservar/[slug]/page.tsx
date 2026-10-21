@@ -17,14 +17,6 @@ const MONTHS_ES = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
-const APPOINTMENT_TYPES = [
-  { value: "primera_consulta", label: "Consulta" },
-  { value: "control",          label: "Control" },
-  { value: "limpieza",         label: "Profilaxis" },
-  { value: "extraccion",       label: "Extracción" },
-  { value: "emergencia",       label: "Emergencia" },
-];
-
 interface Dentist  { id: string; name: string }
 interface ClinicInfo {
   clinic_name: string; slug: string; phone: string | null;
@@ -32,6 +24,7 @@ interface ClinicInfo {
   default_duration: number; slot_size: number;
   working_days: { day: number; is_working: boolean }[];
   dentists: Dentist[];
+  appointment_types: { value: string; label: string }[];
 }
 interface SlotsData { slots: string[] }
 type Step = "doctor" | "calendar" | "slots" | "form" | "done";
@@ -278,7 +271,7 @@ export default function BookingPage() {
                   onChange={(e) => setApptType(e.target.value)}
                   className={`w-full h-10 rounded-lg border px-3 text-sm focus:outline-none focus:ring-2 ${input}`}
                 >
-                  {APPOINTMENT_TYPES.map((t) => (
+                  {(clinic.appointment_types ?? []).map((t) => (
                     <option key={t.value} value={t.value}
                       className={dark ? "bg-gray-800 text-white" : "bg-white text-slate-800"}>
                       {t.label}

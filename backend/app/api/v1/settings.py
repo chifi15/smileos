@@ -19,6 +19,18 @@ settings_router = APIRouter(prefix="/settings", tags=["Configuración de Clínic
 users_router = APIRouter(prefix="/users", tags=["Gestión de Usuarios"])
 
 
+# ─── Defaults ─────────────────────────────────────────────────────────────────
+
+def _default_appt_types() -> list[dict]:
+    return [
+        {"value": "primera_consulta", "label": "Consulta"},
+        {"value": "control",          "label": "Control"},
+        {"value": "limpieza",         "label": "Profilaxis"},
+        {"value": "extraccion",       "label": "Extracción"},
+        {"value": "emergencia",       "label": "Emergencia"},
+    ]
+
+
 # ─── Serializers ──────────────────────────────────────────────────────────────
 
 def _serialize_settings(s) -> dict:
@@ -42,6 +54,7 @@ def _serialize_settings(s) -> dict:
         "ical_url": s.ical_url,
         "calendar_last_synced_at": s.calendar_last_synced_at.isoformat() if s.calendar_last_synced_at else None,
         "updated_at": s.updated_at.isoformat() if s.updated_at else None,
+        "booking_appointment_types": s.booking_appointment_types or _default_appt_types(),
     }
 
 
@@ -150,6 +163,25 @@ async def update_ui_preferences(
     from sqlalchemy.orm.attributes import flag_modified
     flag_modified(settings, "ui_preferences")
     return {"success": True, "data": settings.ui_preferences}
+
+
+@settings_router.put("/booking-appointment-types")
+async def update_booking_appointment_types(
+    body: list,
+    user: Annotated[object, require_permission("manage_settings")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from sqlalchemy import select as _select
+    from app.models.clinic import ClinicSettings
+    from sqlalchemy.orm.attributes import flag_modified
+    settings = await db.scalar(_select(ClinicSettings).where(ClinicSettings.clinic_id == user.clinic_id))
+    if not settings:
+        from app.core.exceptions import NotFoundError
+        raise NotFoundError("Configuración de clínica")
+    settings.booking_appointment_types = body
+    flag_modified(settings, "booking_appointment_types")
+    await db.commit()
+    return {"success": True, "data": body}
 
 
 @settings_router.put("/working-hours")

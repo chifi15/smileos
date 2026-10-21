@@ -53,6 +53,15 @@ async def get_booking_info(
         ).order_by(User.full_name)
     )).scalars().all()
 
+    default_types = [
+        {"value": "primera_consulta", "label": "Consulta"},
+        {"value": "control",          "label": "Control"},
+        {"value": "limpieza",         "label": "Profilaxis"},
+        {"value": "extraccion",       "label": "Extracción"},
+        {"value": "emergencia",       "label": "Emergencia"},
+    ]
+    appt_types = (settings.booking_appointment_types if settings and settings.booking_appointment_types else default_types)
+
     return {
         "success": True,
         "data": {
@@ -63,6 +72,7 @@ async def get_booking_info(
             "city": settings.city if settings else None,
             "default_duration": settings.default_appointment_duration_minutes if settings else 60,
             "slot_size": settings.appointment_slot_size_minutes if settings else 60,
+            "appointment_types": appt_types,
             "working_days": [
                 {
                     "day": wh.day_of_week,

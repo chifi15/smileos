@@ -9,7 +9,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import toast from "react-hot-toast";
-import { useClinicSettings, useUpdateSettings, useWorkingHours, useUpdateWorkingHours, WorkingHour } from "@/hooks/useSettings";
+import { useClinicSettings, useUpdateSettings, useWorkingHours, useUpdateWorkingHours, useUpdateBookingAppointmentTypes, WorkingHour } from "@/hooks/useSettings";
 import { usePlanStatus } from "@/hooks/useBilling";
 import { useSyncCalendar, useCalendarStatus, useDisconnectGoogleOAuth } from "@/hooks/useCalendar";
 import apiClient, { getAccessToken } from "@/lib/api-client";
@@ -741,6 +741,8 @@ function SettingsContent() {
 
       <WorkingHoursSection />
 
+      <BookingTypesSection />
+
       <PriceCatalogSection />
 
       <BackupSection />
@@ -884,6 +886,110 @@ function WorkingHoursSection() {
           ))}
         </div>
       )}
+    </section>
+  );
+}
+
+// ─── Tipos de consulta para reservas ─────────────────────────────────────────
+
+const DEFAULT_APPT_TYPES = [
+  { value: "primera_consulta", label: "Consulta" },
+  { value: "control",          label: "Control" },
+  { value: "limpieza",         label: "Profilaxis" },
+  { value: "extraccion",       label: "Extracción" },
+  { value: "emergencia",       label: "Emergencia" },
+];
+
+function BookingTypesSection() {
+  const { data: settings } = useClinicSettings();
+  const saveTypes = useUpdateBookingAppointmentTypes();
+
+  const [types, setTypes] = useState<{ value: string; label: string }[]>([]);
+  const [dirty, setDirty] = useState(false);
+  const [newLabel, setNewLabel] = useState("");
+
+  useEffect(() => {
+    const saved = (settings as any)?.booking_appointment_types;
+    setTypes(saved?.length ? saved : DEFAULT_APPT_TYPES);
+  }, [settings]);
+
+  function updateLabel(idx: number, label: string) {
+    setTypes(prev => prev.map((t, i) => i === idx ? { ...t, label } : t));
+    setDirty(true);
+  }
+
+  function remove(idx: number) {
+    setTypes(prev => prev.filter((_, i) => i !== idx));
+    setDirty(true);
+  }
+
+  function addType() {
+    const trimmed = newLabel.trim();
+    if (!trimmed) return;
+    const value = trimmed.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+    setTypes(prev => [...prev, { value, label: trimmed }]);
+    setNewLabel("");
+    setDirty(true);
+  }
+
+  function save() {
+    saveTypes.mutate(types, { onSuccess: () => setDirty(false) });
+  }
+
+  return (
+    <section className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-gray-700">
+        <div>
+          <h2 className="font-semibold text-slate-800 dark:text-white">Tipos de consulta</h2>
+          <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">Opciones que ven los pacientes al reservar una cita en línea</p>
+        </div>
+        {dirty && (
+          <button
+            onClick={save}
+            disabled={saveTypes.isPending}
+            className="shrink-0 flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60 transition-colors"
+          >
+            {saveTypes.isPending ? "Guardando..." : "Guardar"}
+          </button>
+        )}
+      </div>
+
+      <div className="p-6 space-y-3">
+        {types.map((t, idx) => (
+          <div key={idx} className="flex items-center gap-3">
+            <input
+              value={t.label}
+              onChange={(e) => updateLabel(idx, e.target.value)}
+              className="flex-1 h-9 rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+            <button
+              onClick={() => remove(idx)}
+              className="shrink-0 text-slate-300 hover:text-red-500 transition-colors"
+              title="Eliminar"
+            >
+              <X size={16} />
+            </button>
+          </div>
+        ))}
+
+        {/* Agregar nuevo */}
+        <div className="flex items-center gap-3 pt-1">
+          <input
+            value={newLabel}
+            onChange={(e) => setNewLabel(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && addType()}
+            placeholder="Nombre del nuevo tipo..."
+            className="flex-1 h-9 rounded-lg border border-dashed border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder:text-slate-400"
+          />
+          <button
+            onClick={addType}
+            disabled={!newLabel.trim()}
+            className="shrink-0 flex items-center gap-1 rounded-lg border border-slate-200 dark:border-gray-600 px-3 py-2 text-xs font-medium text-slate-500 dark:text-gray-400 hover:border-blue-400 hover:text-blue-600 disabled:opacity-40 transition-colors"
+          >
+            <Plus size={14} /> Agregar
+          </button>
+        </div>
+      </div>
     </section>
   );
 }
