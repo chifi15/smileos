@@ -42,7 +42,7 @@ class Settings(BaseSettings):
 
     # Email (Resend)
     resend_api_key: str = ""
-    resend_from: str = "SmileOS <noreply@smileos.app>"
+    resend_from: str = "SmileOS <onboarding@resend.dev>"
 
     # Google OAuth
     google_client_id: str = ""
