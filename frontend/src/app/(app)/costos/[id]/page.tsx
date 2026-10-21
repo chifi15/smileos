@@ -235,17 +235,37 @@ function AddMaterialModal({
   onClose: () => void;
 }) {
   const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState<string | null>(null);
-  const [qty, setQty] = useState("1");
+  // productId → qty string
+  const [pending, setPending] = useState<Map<string, string>>(new Map());
 
   const existingIds = new Set(apt.materials.map((m) => m.productId));
   const filtered = products
     .filter((p) => !existingIds.has(p.id))
     .filter((p) => normalizeSearch(p.name).includes(normalizeSearch(search)));
 
+  function toggleProduct(id: string) {
+    setPending((prev) => {
+      const next = new Map(prev);
+      next.has(id) ? next.delete(id) : next.set(id, "1");
+      return next;
+    });
+  }
+
+  function setQty(id: string, val: string) {
+    setPending((prev) => {
+      const next = new Map(prev);
+      next.set(id, val);
+      return next;
+    });
+  }
+
   function handleAdd() {
-    if (!selected) return;
-    onUpdateApt({ materials: [...apt.materials, { productId: selected, quantity: parseFloat(qty) || 1 }] });
+    if (pending.size === 0) return;
+    const newMaterials = Array.from(pending.entries()).map(([productId, q]) => ({
+      productId,
+      quantity: parseFloat(q) || 1,
+    }));
+    onUpdateApt({ materials: [...apt.materials, ...newMaterials] });
     onClose();
   }
 
@@ -253,7 +273,12 @@ function AddMaterialModal({
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
       <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-800 shadow-xl">
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-700 px-6 py-4">
-          <h2 className="font-semibold text-slate-800 dark:text-white">Agregar material</h2>
+          <div>
+            <h2 className="font-semibold text-slate-800 dark:text-white">Agregar materiales</h2>
+            {pending.size > 0 && (
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-0.5">{pending.size} seleccionado{pending.size !== 1 ? "s" : ""}</p>
+            )}
+          </div>
           <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 dark:text-gray-500 hover:bg-slate-100 dark:hover:bg-gray-700">
             <X size={16} />
           </button>
@@ -265,46 +290,51 @@ function AddMaterialModal({
             onChange={(e) => setSearch(e.target.value)}
             autoFocus
           />
-          <div className="max-h-52 overflow-y-auto rounded-lg border border-slate-200 dark:border-gray-600 divide-y divide-slate-100 dark:divide-gray-700">
+          <div className="max-h-72 overflow-y-auto rounded-lg border border-slate-200 dark:border-gray-600 divide-y divide-slate-100 dark:divide-gray-700">
             {filtered.length === 0 && (
               <p className="px-4 py-8 text-center text-sm text-slate-400 dark:text-gray-500">Sin resultados</p>
             )}
-            {filtered.map((p) => (
-              <button
-                key={p.id}
-                onClick={() => setSelected(p.id)}
-                className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors ${selected === p.id ? "bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-400" : "text-slate-700 dark:text-gray-300"}`}
-              >
-                <div>
-                  <p className="font-medium">{p.name}</p>
-                  <p className="text-xs text-slate-400 dark:text-gray-500">{fmtC(p.unit_price)} / {p.portion_description}</p>
+            {filtered.map((p) => {
+              const isSelected = pending.has(p.id);
+              return (
+                <div
+                  key={p.id}
+                  className={`flex items-center gap-3 px-4 py-3 transition-colors ${isSelected ? "bg-blue-50 dark:bg-blue-900/20" : "hover:bg-slate-50 dark:hover:bg-gray-700/50"}`}
+                >
+                  <button
+                    onClick={() => toggleProduct(p.id)}
+                    className="flex flex-1 items-center gap-3 text-left min-w-0"
+                  >
+                    <div className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition-colors ${isSelected ? "border-blue-500 bg-blue-500" : "border-slate-300 dark:border-gray-600"}`}>
+                      {isSelected && <Check size={10} className="text-white" strokeWidth={3} />}
+                    </div>
+                    <div className="min-w-0">
+                      <p className={`text-sm font-medium truncate ${isSelected ? "text-blue-700 dark:text-blue-400" : "text-slate-700 dark:text-gray-300"}`}>{p.name}</p>
+                      <p className="text-xs text-slate-400 dark:text-gray-500">{fmtC(p.unit_price)} / {p.portion_description}</p>
+                    </div>
+                  </button>
+                  {isSelected && (
+                    <input
+                      type="number"
+                      min={0.1}
+                      step={0.5}
+                      value={pending.get(p.id) ?? "1"}
+                      onChange={(e) => setQty(p.id, e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      className="w-20 shrink-0 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    />
+                  )}
                 </div>
-                {selected === p.id && <Check size={14} className="text-blue-600 shrink-0" />}
-              </button>
-            ))}
+              );
+            })}
           </div>
-          {selected && (
-            <div className="flex items-center gap-3">
-              <label className="text-sm font-medium text-slate-700 dark:text-gray-300 whitespace-nowrap">
-                Cantidad (porciones):
-              </label>
-              <input
-                type="number"
-                min={0.1}
-                step={0.5}
-                className="w-24 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={qty}
-                onChange={(e) => setQty(e.target.value)}
-              />
-            </div>
-          )}
         </div>
         <div className="flex gap-3 border-t border-slate-100 dark:border-gray-700 px-6 py-4">
           <Button variant="secondary" className="flex-1" onClick={onClose}>
             Cancelar
           </Button>
-          <Button className="flex-1" onClick={handleAdd} disabled={!selected}>
-            Agregar
+          <Button className="flex-1" onClick={handleAdd} disabled={pending.size === 0}>
+            Agregar{pending.size > 0 ? ` (${pending.size})` : ""}
           </Button>
         </div>
       </div>
