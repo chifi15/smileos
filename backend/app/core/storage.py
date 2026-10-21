@@ -42,8 +42,11 @@ def save_file(storage_path: str, data: bytes) -> None:
 
 def read_file(storage_path: str) -> bytes:
     if _use_s3():
-        obj = _s3().get_object(Bucket=_bucket(), Key=storage_path)
-        return obj["Body"].read()
+        try:
+            obj = _s3().get_object(Bucket=_bucket(), Key=storage_path)
+            return obj["Body"].read()
+        except Exception as e:
+            raise FileNotFoundError(storage_path) from e
     return (MEDIA_ROOT / storage_path).read_bytes()
 
 
