@@ -12,6 +12,7 @@ from app.schemas.settings import (
     HolidayCreate,
     UserCreate,
     UserUpdate,
+    BookingAppointmentType,
 )
 from app.services import settings_service, audit_service
 
@@ -167,7 +168,7 @@ async def update_ui_preferences(
 
 @settings_router.put("/booking-appointment-types")
 async def update_booking_appointment_types(
-    body: list,
+    body: list[BookingAppointmentType],
     user: Annotated[object, require_permission("manage_settings")],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
@@ -178,10 +179,11 @@ async def update_booking_appointment_types(
     if not settings:
         from app.core.exceptions import NotFoundError
         raise NotFoundError("Configuración de clínica")
-    settings.booking_appointment_types = body
+    data = [t.model_dump() for t in body]
+    settings.booking_appointment_types = data
     flag_modified(settings, "booking_appointment_types")
     await db.commit()
-    return {"success": True, "data": body}
+    return {"success": True, "data": data}
 
 
 @settings_router.put("/working-hours")

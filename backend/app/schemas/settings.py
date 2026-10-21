@@ -87,3 +87,8 @@ class UserUpdate(BaseModel):
     role: AnyRole | None = None
     phone: str | None = None
     is_active: bool | None = None
+
+
+class BookingAppointmentType(BaseModel):
+    value: str
+    label: str
