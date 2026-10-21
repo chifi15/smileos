@@ -1,8 +1,13 @@
 import logging
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
+
 import resend
 from app.core.config import get_settings
 
 logger = logging.getLogger(__name__)
+
+CLINIC_TZ = ZoneInfo("America/Managua")
 
 
 def send_password_reset_email(to_email: str, to_name: str, reset_url: str) -> bool:
@@ -46,4 +51,114 @@ def send_password_reset_email(to_email: str, to_name: str, reset_url: str) -> bo
         return True
     except Exception as e:
         logger.error(f"Error enviando email: {e}")
+        return False
+
+
+DAYS_ES = ["domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado"]
+MONTHS_ES = ["enero", "febrero", "marzo", "abril", "mayo", "junio",
+             "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"]
+
+
+def send_booking_notification_email(
+    to_email: str,
+    clinic_name: str,
+    guest_name: str,
+    guest_phone: str,
+    scheduled_at_utc: datetime,
+    duration_minutes: int,
+    dentist_name: str,
+    appointment_type: str,
+    reason: str,
+) -> bool:
+    settings = get_settings()
+    if not settings.resend_api_key:
+        logger.warning("RESEND_API_KEY no configurada — no se envió notificación de reserva")
+        return False
+
+    resend.api_key = settings.resend_api_key
+
+    # Convertir a hora local de la clínica
+    local_dt = scheduled_at_utc.replace(tzinfo=timezone.utc).astimezone(CLINIC_TZ)
+    day_name = DAYS_ES[local_dt.weekday() if local_dt.weekday() < 6 else 6]
+    # Python weekday: 0=lun, 6=dom — ajustar
+    dow = local_dt.isoweekday() % 7  # 0=dom, 1=lun ... 6=sab
+    day_name = DAYS_ES[dow]
+    date_str = f"{day_name.capitalize()} {local_dt.day} de {MONTHS_ES[local_dt.month - 1]} {local_dt.year}"
+    time_str = local_dt.strftime("%H:%M")
+
+    appt_type_labels = {
+        "primera_consulta": "Primera consulta",
+        "control": "Control",
+        "limpieza": "Limpieza",
+        "extraccion": "Extracción",
+        "endodoncia": "Endodoncia",
+        "ortodoncia": "Ortodoncia",
+        "protesis": "Prótesis",
+        "cirugia": "Cirugía",
+        "emergencia": "Emergencia",
+        "otro": "Otro",
+    }
+    appt_label = appt_type_labels.get(appointment_type, appointment_type)
+
+    reason_row = f"""
+      <tr>
+        <td style="padding:6px 0; color:#6b7280; font-size:14px;">Motivo</td>
+        <td style="padding:6px 0; font-size:14px; font-weight:600;">{reason}</td>
+      </tr>""" if reason else ""
+
+    phone_row = f"""
+      <tr>
+        <td style="padding:6px 0; color:#6b7280; font-size:14px;">Teléfono</td>
+        <td style="padding:6px 0; font-size:14px; font-weight:600;">{guest_phone}</td>
+      </tr>""" if guest_phone else ""
+
+    html = f"""
+    <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #f8fafc; padding: 24px; border-radius: 12px;">
+      <div style="background: #2563eb; border-radius: 8px 8px 0 0; padding: 18px 24px;">
+        <h2 style="margin:0; color:white; font-size:18px;">📅 Nueva reserva de paciente</h2>
+        <p style="margin:4px 0 0; color:#bfdbfe; font-size:13px;">{clinic_name}</p>
+      </div>
+      <div style="background:white; border-radius: 0 0 8px 8px; padding: 24px; border: 1px solid #e2e8f0; border-top:none;">
+        <table style="width:100%; border-collapse:collapse;">
+          <tr>
+            <td style="padding:6px 0; color:#6b7280; font-size:14px; width:120px;">Paciente</td>
+            <td style="padding:6px 0; font-size:14px; font-weight:600;">{guest_name}</td>
+          </tr>
+          {phone_row}
+          <tr>
+            <td style="padding:6px 0; color:#6b7280; font-size:14px;">Fecha</td>
+            <td style="padding:6px 0; font-size:14px; font-weight:600;">{date_str}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0; color:#6b7280; font-size:14px;">Hora</td>
+            <td style="padding:6px 0; font-size:14px; font-weight:600;">{time_str} ({duration_minutes} min)</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0; color:#6b7280; font-size:14px;">Dentista</td>
+            <td style="padding:6px 0; font-size:14px; font-weight:600;">{dentist_name}</td>
+          </tr>
+          <tr>
+            <td style="padding:6px 0; color:#6b7280; font-size:14px;">Tipo</td>
+            <td style="padding:6px 0; font-size:14px; font-weight:600;">{appt_label}</td>
+          </tr>
+          {reason_row}
+        </table>
+        <p style="margin:20px 0 0; font-size:12px; color:#9ca3af;">
+          Esta cita fue creada desde el enlace de reserva en línea y aparece en tu agenda con estado <strong>Programada</strong>.
+        </p>
+      </div>
+    </div>
+    """
+
+    try:
+        resend.Emails.send({
+            "from": settings.resend_from,
+            "to": [to_email],
+            "subject": f"Nueva reserva: {guest_name} — {date_str} {time_str}",
+            "html": html,
+        })
+        logger.info(f"Notificación de reserva enviada a {to_email}")
+        return True
+    except Exception as e:
+        logger.error(f"Error enviando notificación de reserva: {e}")
         return False

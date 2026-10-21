@@ -276,6 +276,27 @@ async def create_booking_request(
     await db.commit()
     await db.refresh(appointment)
 
+    # Notificar por email a la clínica
+    notify_email = (settings.email if settings and settings.email else None) or owner.email
+    if notify_email:
+        from app.services.email_service import send_booking_notification_email
+        from datetime import timezone as _tz
+        import asyncio
+        scheduled_utc = appointment.scheduled_at.replace(tzinfo=_tz.utc)
+        asyncio.get_event_loop().run_in_executor(
+            None,
+            send_booking_notification_email,
+            notify_email,
+            settings.display_name if settings and settings.display_name else clinic.name,
+            body.guest_name.strip(),
+            body.guest_phone,
+            scheduled_utc,
+            duration,
+            available_dentist.full_name,
+            body.appointment_type,
+            body.reason.strip(),
+        )
+
     return {
         "success": True,
         "data": {
