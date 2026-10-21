@@ -1,15 +1,15 @@
 """add password_reset_tokens
 
-Revision ID: a1b2c3d4e5f6
-Revises: z6a7b8c9d0e1
+Revision ID: pw01reset2026
+Revises: wa01whatsapp2026
 Create Date: 2026-10-20
 """
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects.postgresql import UUID
 
-revision = "a1b2c3d4e5f6"
-down_revision = "z6a7b8c9d0e1"
+revision = "pw01reset2026"
+down_revision = "wa01whatsapp2026"
 branch_labels = None
 depends_on = None
 
