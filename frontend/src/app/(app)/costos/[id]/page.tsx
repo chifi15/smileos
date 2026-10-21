@@ -1358,7 +1358,7 @@ export default function TreatmentDetailPage({
                   apt={apt}
                   allApts={treatment.appointments}
                   products={apiProducts}
-                  defaultOpen={i === 0}
+                  defaultOpen={false}
                   clipboard={clipboard}
                   onCopy={(mats, name, sourceAptId) => setClipboard({ materials: mats, name, sourceAptId })}
                   onPaste={handlePaste}
