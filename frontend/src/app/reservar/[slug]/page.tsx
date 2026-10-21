@@ -18,16 +18,11 @@ const MONTHS_ES = [
 ];
 
 const APPOINTMENT_TYPES = [
-  { value: "primera_consulta", label: "Primera Consulta" },
+  { value: "primera_consulta", label: "Consulta" },
   { value: "control",          label: "Control" },
-  { value: "limpieza",         label: "Limpieza" },
+  { value: "limpieza",         label: "Profilaxis" },
   { value: "extraccion",       label: "Extracción" },
-  { value: "endodoncia",       label: "Endodoncia" },
-  { value: "ortodoncia",       label: "Ortodoncia" },
-  { value: "protesis",         label: "Prótesis" },
-  { value: "cirugia",          label: "Cirugía" },
   { value: "emergencia",       label: "Emergencia" },
-  { value: "otro",             label: "Otro" },
 ];
 
 interface Dentist  { id: string; name: string }
