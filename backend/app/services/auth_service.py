@@ -3,6 +3,7 @@ import re
 import secrets
 from datetime import datetime, timedelta, timezone
 
+import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, update
 
@@ -176,6 +177,60 @@ async def revoke_all_user_tokens(db: AsyncSession, user_id) -> None:
         .where(RefreshToken.user_id == user_id, RefreshToken.revoked == False)
         .values(revoked=True)
     )
+
+
+async def create_reset_token(db: AsyncSession, email: str) -> tuple[str, User] | None:
+    result = await db.execute(
+        select(User).where(User.email == email.lower(), User.is_active == True)
+    )
+    user = result.scalar_one_or_none()
+    if not user:
+        return None
+
+    raw_token = secrets.token_urlsafe(48)
+    token_hash = _hash_token(raw_token)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=30)
+
+    await db.execute(
+        sa.text(
+            "INSERT INTO password_reset_tokens (id, user_id, token_hash, expires_at, used) "
+            "VALUES (gen_random_uuid(), :user_id, :token_hash, :expires_at, false)"
+        ),
+        {"user_id": user.id, "token_hash": token_hash, "expires_at": expires_at},
+    )
+    return raw_token, user
+
+
+async def reset_password_with_token(db: AsyncSession, raw_token: str, new_password: str) -> bool:
+    token_hash = _hash_token(raw_token)
+
+    result = await db.execute(
+        sa.text(
+            "SELECT id, user_id, expires_at, used FROM password_reset_tokens "
+            "WHERE token_hash = :token_hash"
+        ),
+        {"token_hash": token_hash},
+    )
+    row = result.mappings().one_or_none()
+
+    if not row:
+        return False
+    if row["used"]:
+        return False
+    if row["expires_at"].replace(tzinfo=timezone.utc) < datetime.now(timezone.utc):
+        return False
+
+    await db.execute(
+        sa.text("UPDATE password_reset_tokens SET used = true WHERE id = :id"),
+        {"id": row["id"]},
+    )
+    await db.execute(
+        update(User)
+        .where(User.id == row["user_id"])
+        .values(password_hash=hash_password(new_password))
+    )
+    await revoke_all_user_tokens(db, row["user_id"])
+    return True
 
 
 async def change_password(

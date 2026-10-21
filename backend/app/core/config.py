@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     # OpenAI (v1.0)
     openai_api_key: str = ""
 
+    # Email (Resend)
+    resend_api_key: str = ""
+    resend_from: str = "SmileOS <noreply@smileos.app>"
+
     # Google OAuth
     google_client_id: str = ""
     google_client_secret: str = ""

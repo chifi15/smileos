@@ -12,11 +12,14 @@ from app.core.exceptions import UnauthorizedError, ValidationError
 from app.schemas.auth import (
     LoginRequest, LoginResponse, RefreshResponse,
     ChangePasswordRequest, UserOut, RegisterRequest,
+    ForgotPasswordRequest, ResetPasswordRequest,
 )
 from app.services.auth_service import (
     authenticate_user, issue_tokens, rotate_refresh_token,
-    revoke_refresh_token, change_password, register_clinic, REFRESH_TOKEN_COOKIE,
+    revoke_refresh_token, change_password, register_clinic,
+    create_reset_token, reset_password_with_token, REFRESH_TOKEN_COOKIE,
 )
+from app.services.email_service import send_password_reset_email
 
 settings = get_settings()
 router = APIRouter(prefix="/auth", tags=["Autenticación"])
@@ -134,6 +137,34 @@ async def me(user: CurrentUser):
         "success": True,
         "data": UserOut.model_validate(user).model_dump(),
     }
+
+
+@router.post("/forgot-password")
+async def forgot_password(
+    body: ForgotPasswordRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    result = await create_reset_token(db, body.email)
+    if result:
+        raw_token, user = result
+        reset_url = f"{settings.frontend_url}/reset-password?token={raw_token}"
+        send_password_reset_email(user.email, user.full_name, reset_url)
+        await db.commit()
+    # Siempre responder igual para no revelar si el email existe
+    return {"success": True, "data": {"message": "Si el correo existe, recibirás un enlace en breve."}}
+
+
+@router.post("/reset-password")
+async def reset_password(
+    body: ResetPasswordRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    success = await reset_password_with_token(db, body.token, body.new_password)
+    if not success:
+        from app.core.exceptions import ValidationError
+        raise ValidationError("El enlace es inválido o ya expiró.")
+    await db.commit()
+    return {"success": True, "data": {"message": "Contraseña actualizada. Ya puedes iniciar sesión."}}
 
 
 @router.post("/change-password")

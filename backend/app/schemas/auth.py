@@ -76,6 +76,36 @@ class RefreshResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+    confirm_password: str
+
+    @field_validator("new_password")
+    @classmethod
+    def validate_password_strength(cls, v: str) -> str:
+        if len(v) < 8:
+            raise ValueError("La contraseña debe tener al menos 8 caracteres.")
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("La contraseña debe contener al menos una letra mayúscula.")
+        if not re.search(r"[a-z]", v):
+            raise ValueError("La contraseña debe contener al menos una letra minúscula.")
+        if not re.search(r"\d", v):
+            raise ValueError("La contraseña debe contener al menos un número.")
+        return v
+
+    @field_validator("confirm_password")
+    @classmethod
+    def passwords_match(cls, v: str, info) -> str:
+        if "new_password" in info.data and v != info.data["new_password"]:
+            raise ValueError("Las contraseñas no coinciden.")
+        return v
+
+
 class ChangePasswordRequest(BaseModel):
     current_password: str
     new_password: str
