@@ -33,10 +33,10 @@ function ResetPasswordForm() {
       toast.success("Contraseña actualizada. Ya puedes iniciar sesión.");
       router.replace("/login");
     } catch (err: any) {
-      const msg =
-        err.response?.data?.detail?.message ||
-        err.response?.data?.detail ||
-        "El enlace es inválido o ya expiró.";
+      const detail = err.response?.data?.detail;
+      const msg = Array.isArray(detail)
+        ? detail.map((e: any) => e.msg).join(" ")
+        : detail?.message || detail || "El enlace es inválido o ya expiró.";
       toast.error(msg);
     } finally {
       setLoading(false);
