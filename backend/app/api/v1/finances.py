@@ -656,6 +656,86 @@ async def delete_expense_category(
 
 # ─── Must be last: wildcard single-segment route ───────────────────────────────
 
+@router.get("/deleted")
+async def list_deleted_transactions(
+    user: Annotated[object, require_permission("view_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    year: int = Query(...),
+    month: int = Query(...),
+):
+    from app.services.finance_service import _LOAD
+    from sqlalchemy import extract
+    result = await db.execute(
+        select(FinanceTransaction)
+        .where(
+            FinanceTransaction.clinic_id == user.clinic_id,
+            FinanceTransaction.deleted_at.is_not(None),
+            extract("year", FinanceTransaction.transaction_date) == year,
+            extract("month", FinanceTransaction.transaction_date) == month,
+        )
+        .options(*_LOAD)
+        .order_by(FinanceTransaction.deleted_at.desc())
+    )
+    txs = result.scalars().all()
+    return {"success": True, "data": [_serialize(t) for t in txs]}
+
+
+@router.post("/{tx_id}/restore")
+async def restore_transaction(
+    tx_id: uuid.UUID,
+    user: Annotated[object, require_permission("manage_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from app.services.finance_service import _LOAD
+    from sqlalchemy import select as sa_select
+    result = await db.execute(
+        sa_select(FinanceTransaction)
+        .where(
+            FinanceTransaction.id == tx_id,
+            FinanceTransaction.clinic_id == user.clinic_id,
+            FinanceTransaction.deleted_at.is_not(None),
+        )
+        .options(*_LOAD)
+    )
+    tx = result.scalar_one_or_none()
+    if not tx:
+        raise NotFoundError("Transacción eliminada")
+
+    # Re-deducir inventario (se devolvió al stock cuando se eliminó)
+    if tx.deducted_materials:
+        from app.services import costos_service
+        from app.models.costos import CostProduct
+        procedure_qty = tx.procedure_quantity or 1
+        aggregated: dict[str, float] = {}
+        for m in tx.deducted_materials:
+            pid = m.get("productId")
+            qty = float(m.get("qty") or 0)
+            if pid and qty > 0:
+                aggregated[pid] = aggregated.get(pid, 0) + qty
+        for product_id, used_portions in aggregated.items():
+            product = await db.scalar(
+                sa_select(CostProduct).where(
+                    CostProduct.id == uuid.UUID(product_id),
+                    CostProduct.clinic_id == user.clinic_id,
+                )
+            )
+            if product:
+                deduct_qty = used_portions * (product.portion_qty or 1) * procedure_qty
+                await costos_service.update_product_stock(
+                    db, user.clinic_id, uuid.UUID(product_id), deduct_qty, "subtract"
+                )
+
+    tx.deleted_at = None
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="finance.restored", resource_type="finance", resource_id=str(tx_id),
+        description=f"Restauró transacción: {tx.description}",
+        patient_id=tx.patient_id,
+    )
+    await db.commit()
+    return {"success": True, "data": _serialize(tx)}
+
+
 @router.get("/{tx_id}")
 async def get_transaction(
     tx_id: uuid.UUID,

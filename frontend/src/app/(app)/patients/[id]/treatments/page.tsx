@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, Plus, ClipboardList, Trash2 } from "lucide-react";
+import { ChevronLeft, Plus, ClipboardList, Trash2, RotateCcw } from "lucide-react";
 import { usePatient } from "@/hooks/usePatients";
-import { usePatientPlans, useDeletePlan } from "@/hooks/useTreatments";
+import { usePatientPlans, useDeletePlan, useDeletedPlans, useRestorePlan } from "@/hooks/useTreatments";
 import {
   TreatmentPlan,
   PLAN_STATUS_LABELS,
@@ -128,7 +128,10 @@ export default function PatientTreatmentsPage() {
   const { id } = useParams<{ id: string }>();
   const { data: patient } = usePatient(id);
   const { data: plans = [], isLoading } = usePatientPlans(id);
+  const { data: deletedPlans = [] } = useDeletedPlans(id);
+  const restore = useRestorePlan(id);
   const [planToDelete, setPlanToDelete] = useState<TreatmentPlan | null>(null);
+  const [showTrash, setShowTrash] = useState(false);
 
   const active = plans.filter((p) => p.status === "active");
   const rest = plans.filter((p) => p.status !== "active");
@@ -148,15 +151,57 @@ export default function PatientTreatmentsPage() {
             Planes de Tratamiento
           </h1>
         </div>
-        <Link href={`/patients/${id}/treatments/new`}>
-          <Button>
-            <Plus size={16} />
-            Nuevo plan
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowTrash((v) => !v)}
+            className={`flex items-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+              showTrash
+                ? "border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-700"
+                : "border-slate-200 dark:border-gray-600 text-slate-500 dark:text-gray-400 hover:border-slate-300"
+            }`}
+          >
+            {showTrash ? <RotateCcw size={15} /> : <Trash2 size={15} />}
+            {showTrash ? "Ver activos" : `Papelera${deletedPlans.length > 0 ? ` (${deletedPlans.length})` : ""}`}
+          </button>
+          {!showTrash && (
+            <Link href={`/patients/${id}/treatments/new`}>
+              <Button>
+                <Plus size={16} />
+                Nuevo plan
+              </Button>
+            </Link>
+          )}
+        </div>
       </div>
 
-      {isLoading ? (
+      {showTrash ? (
+        deletedPlans.length === 0 ? (
+          <div className="flex flex-col items-center gap-3 py-16 text-slate-400">
+            <Trash2 size={36} strokeWidth={1.2} />
+            <p className="text-sm">No hay planes eliminados.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <p className="text-xs text-slate-500 dark:text-gray-400 uppercase tracking-wide font-semibold">Planes eliminados</p>
+            {deletedPlans.map((p) => (
+              <div key={p.id} className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 px-4 py-3 opacity-70 hover:opacity-100 transition-opacity">
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-gray-200">{p.title}</p>
+                  {p.diagnosis && <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">{p.diagnosis}</p>}
+                </div>
+                <button
+                  onClick={() => restore.mutate(p.id)}
+                  disabled={restore.isPending}
+                  className="flex items-center gap-1.5 rounded-lg border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300 hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                >
+                  <RotateCcw size={12} />
+                  Restaurar
+                </button>
+              </div>
+            ))}
+          </div>
+        )
+      ) : isLoading ? (
         <div className="flex justify-center py-16"><Spinner /></div>
       ) : plans.length === 0 ? (
         <div className="flex flex-col items-center gap-3 py-16 text-slate-400">

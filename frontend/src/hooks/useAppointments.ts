@@ -168,3 +168,25 @@ export function useDeleteAppointment(onSuccess?: () => void) {
     },
   });
 }
+
+export function useDeletedAppointments() {
+  return useQuery({
+    queryKey: ["appointments", "deleted"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: AppointmentFull[] }>("/api/v1/appointments/deleted");
+      return data.data;
+    },
+  });
+}
+
+export function useRestoreAppointment() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => apiClient.post(`/api/v1/appointments/${id}/restore`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["appointments"] });
+      toast.success("Cita restaurada.");
+    },
+    onError: () => toast.error("Error al restaurar la cita."),
+  });
+}

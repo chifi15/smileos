@@ -23,6 +23,7 @@ import {
   Search,
   Eye,
   EyeOff,
+  RotateCcw,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import apiClient from "@/lib/api-client";
@@ -46,6 +47,8 @@ import {
   useHonorarios,
   useDoctors,
   useGananciaBreakdown,
+  useDeletedTransactions,
+  useRestoreTransaction,
   type ExpenseCategoryItem,
   type HonorariosProcedure,
   type HonorariosDoctor,
@@ -1584,7 +1587,9 @@ function ExchangeRateEditor({ rate }: { rate: number }) {
 function TransactionsTab({ year, month }: { year: number; month: number }) {
   const [tab, setTab] = useState<"all" | "ingreso" | "egreso">("all");
   const [searchQuery, setSearchQuery] = useState("");
+  const [showTrash, setShowTrash] = useState(false);
   const { data: txs = [], isLoading } = useTransactions(year, month, tab === "all" ? undefined : tab);
+  const { data: deletedTxs = [], isLoading: loadingDeleted } = useDeletedTransactions(year, month);
   const { data: apiTreatments = [] } = useCostTreatments();
   const { data: exchangeRate = 37 } = useExchangeRate();
   const { data: expenseCats = [] } = useExpenseCategories();
@@ -1595,6 +1600,7 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [confirmBulk, setConfirmBulk] = useState(false);
   const bulkDelete = useBulkDeleteTransactions(year, month);
+  const restore = useRestoreTransaction(year, month);
 
   // Clear selection when tab changes
   const prevTab = useRef(tab);
@@ -1661,24 +1667,38 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
             ))}
           </div>
 
-          {someSelected && (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-slate-500 dark:text-gray-400">{selectedIds.size} seleccionada{selectedIds.size !== 1 ? "s" : ""}</span>
-              <button
-                onClick={() => setConfirmBulk(true)}
-                className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
-              >
-                <Trash2 size={12} /> Eliminar seleccionadas
-              </button>
-              <button
-                onClick={() => setSelectedIds(new Set())}
-                className="text-slate-400 hover:text-slate-600"
-                title="Cancelar selección"
-              >
-                <X size={14} />
-              </button>
-            </div>
-          )}
+          <div className="flex items-center gap-2 pr-1">
+            {someSelected && !showTrash && (
+              <>
+                <span className="text-xs text-slate-500 dark:text-gray-400">{selectedIds.size} seleccionada{selectedIds.size !== 1 ? "s" : ""}</span>
+                <button
+                  onClick={() => setConfirmBulk(true)}
+                  className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-red-700"
+                >
+                  <Trash2 size={12} /> Eliminar seleccionadas
+                </button>
+                <button
+                  onClick={() => setSelectedIds(new Set())}
+                  className="text-slate-400 hover:text-slate-600"
+                  title="Cancelar selección"
+                >
+                  <X size={14} />
+                </button>
+              </>
+            )}
+            <button
+              onClick={() => setShowTrash((v) => !v)}
+              title={showTrash ? "Ver transacciones activas" : "Ver eliminadas"}
+              className={`flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
+                showTrash
+                  ? "border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-900/20 dark:text-amber-300 dark:border-amber-700"
+                  : "border-slate-200 dark:border-gray-600 text-slate-500 dark:text-gray-400 hover:border-slate-300 dark:hover:border-gray-500"
+              }`}
+            >
+              {showTrash ? <RotateCcw size={12} /> : <Trash2 size={12} />}
+              {showTrash ? "Ver activas" : `Papelera${deletedTxs.length > 0 ? ` (${deletedTxs.length})` : ""}`}
+            </button>
+          </div>
         </div>
 
         {/* Search bar */}
@@ -1708,7 +1728,46 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
           )}
         </div>
 
-        {isLoading ? (
+        {showTrash ? (
+          <div>
+            {loadingDeleted ? (
+              <div className="p-8 text-center text-slate-400 dark:text-gray-500 text-sm">Cargando…</div>
+            ) : deletedTxs.length === 0 ? (
+              <div className="p-12 text-center text-slate-400 dark:text-gray-500">
+                <Trash2 size={36} className="mx-auto mb-3 opacity-30" />
+                <p className="font-medium">Papelera vacía</p>
+                <p className="text-sm mt-1">No hay transacciones eliminadas este mes.</p>
+              </div>
+            ) : (
+              <div className="divide-y divide-slate-100 dark:divide-gray-700">
+                {deletedTxs.map((tx) => (
+                  <div key={tx.id} className="flex items-center justify-between px-4 py-3 opacity-70 hover:opacity-100 transition-opacity">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className={`text-xs font-semibold px-1.5 py-0.5 rounded ${tx.type === "ingreso" ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"}`}>
+                          {tx.type === "ingreso" ? "Ingreso" : "Egreso"}
+                        </span>
+                        <span className="text-sm font-medium text-slate-700 dark:text-gray-200 truncate">{tx.description}</span>
+                      </div>
+                      <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">
+                        {tx.patient?.full_name && <span>{tx.patient.full_name} · </span>}
+                        {new Date(tx.transaction_date).toLocaleDateString("es-NI")} · C${tx.amount_cordobas.toLocaleString()}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => restore.mutate(tx.id)}
+                      disabled={restore.isPending}
+                      className="ml-3 flex items-center gap-1.5 rounded-lg border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900/40 disabled:opacity-50 transition-colors shrink-0"
+                    >
+                      <RotateCcw size={12} />
+                      Restaurar
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        ) : isLoading ? (
           <div className="p-8 text-center text-slate-400 dark:text-gray-500 text-sm">Cargando transacciones…</div>
         ) : filteredTxs.length === 0 ? (
           <div className="p-12 text-center text-slate-400 dark:text-gray-500">

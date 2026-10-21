@@ -285,3 +285,29 @@ export function useDeletePayment(patientId: string, planId: string) {
     },
   });
 }
+
+export function useDeletedPlans(patientId: string) {
+  return useQuery({
+    queryKey: ["treatments", patientId, "deleted"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: TreatmentPlan[] }>(
+        `${base(patientId)}/deleted`
+      );
+      return data.data;
+    },
+    enabled: !!patientId,
+  });
+}
+
+export function useRestorePlan(patientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (planId: string) =>
+      apiClient.post(`${base(patientId)}/${planId}/restore`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["treatments", patientId] });
+      toast.success("Plan restaurado.");
+    },
+    onError: () => toast.error("Error al restaurar el plan."),
+  });
+}

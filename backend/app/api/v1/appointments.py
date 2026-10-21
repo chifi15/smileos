@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import CurrentUser, require_permission
+from app.core.exceptions import NotFoundError
 from app.schemas.appointment import AppointmentCreate, AppointmentUpdate, CancelRequest
 from app.services import appointment_service, audit_service
 from app.models.clinic import ClinicSettings
@@ -119,6 +120,58 @@ async def list_appointments(
         status=status,
     )
     return {"success": True, "data": [_serialize(a) for a in appointments]}
+
+
+@router.get("/deleted")
+async def list_deleted_appointments(
+    user: Annotated[object, require_permission("view_appointments")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from app.models.appointment import Appointment as ApptModel
+    from app.services.appointment_service import _load_options
+    result = await db.execute(
+        select(ApptModel)
+        .where(
+            ApptModel.clinic_id == user.clinic_id,
+            ApptModel.deleted_at.is_not(None),
+        )
+        .options(*_load_options())
+        .order_by(ApptModel.deleted_at.desc())
+        .limit(100)
+    )
+    appts = result.scalars().all()
+    return {"success": True, "data": [_serialize(a) for a in appts]}
+
+
+@router.post("/{appointment_id}/restore")
+async def restore_appointment(
+    appointment_id: uuid.UUID,
+    user: Annotated[object, require_permission("manage_appointments")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from app.models.appointment import Appointment as ApptModel
+    from app.services.appointment_service import _load_options
+    result = await db.execute(
+        select(ApptModel)
+        .where(
+            ApptModel.id == appointment_id,
+            ApptModel.clinic_id == user.clinic_id,
+            ApptModel.deleted_at.is_not(None),
+        )
+        .options(*_load_options())
+    )
+    appt = result.scalar_one_or_none()
+    if not appt:
+        raise NotFoundError("Cita eliminada")
+    appt.deleted_at = None
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="appointment.restored", resource_type="appointment", resource_id=str(appointment_id),
+        description=f"Restauró cita del {appt.scheduled_at.strftime('%d/%m/%Y')}",
+        patient_id=appt.patient_id,
+    )
+    await db.commit()
+    return {"success": True, "data": _serialize(appt)}
 
 
 @router.get("/availability")

@@ -2,9 +2,9 @@
 
 import dynamic from "next/dynamic";
 import { useState } from "react";
-import { format } from "date-fns";
-import { CalendarPlus, RefreshCw } from "lucide-react";
-import { useAppointments } from "@/hooks/useAppointments";
+import { format, parseISO } from "date-fns";
+import { CalendarPlus, RefreshCw, Trash2, RotateCcw, X } from "lucide-react";
+import { useAppointments, useDeletedAppointments, useRestoreAppointment } from "@/hooks/useAppointments";
 import { useClinicUsers } from "@/hooks/useUsers";
 import { useCalendarEvents, useSyncCalendar, useCalendarStatus } from "@/hooks/useCalendar";
 import { AppointmentFull } from "@/types";
@@ -44,6 +44,9 @@ export default function AppointmentsPage() {
   const [selectedAppt, setSelectedAppt] = useState<AppointmentFull | null>(null);
   const [newApptDateStr, setNewApptDateStr] = useState<string | null>(null);
   const [dentistFilter, setDentistFilter] = useState("all");
+  const [showTrash, setShowTrash] = useState(false);
+  const { data: deletedAppts = [] } = useDeletedAppointments();
+  const restore = useRestoreAppointment();
 
   const { data: appointments = [] } = useAppointments(range.from, range.to);
   const { data: users = [] } = useClinicUsers();
@@ -103,6 +106,14 @@ export default function AppointmentsPage() {
               Google Calendar
             </Button>
           )}
+          <button
+            onClick={() => setShowTrash(true)}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-gray-600 px-3 py-2 text-sm font-medium text-slate-500 dark:text-gray-400 hover:border-slate-300 transition-colors"
+            title="Ver citas eliminadas"
+          >
+            <Trash2 size={15} />
+            {deletedAppts.length > 0 && <span className="text-xs">({deletedAppts.length})</span>}
+          </button>
           <Button onClick={() => setNewApptDateStr(format(new Date(), "yyyy-MM-dd") + "T09:00:00")}>
             <CalendarPlus size={16} />
             Nueva cita
@@ -147,6 +158,47 @@ export default function AppointmentsPage() {
         dateStr={newApptDateStr}
         onClose={() => setNewApptDateStr(null)}
       />
+
+      {/* Papelera modal */}
+      {showTrash && (
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-800 shadow-2xl max-h-[80vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-100 dark:border-gray-700">
+              <h3 className="font-semibold text-slate-800 dark:text-white">Citas eliminadas</h3>
+              <button onClick={() => setShowTrash(false)} className="text-slate-400 hover:text-slate-600 dark:hover:text-gray-300"><X size={18} /></button>
+            </div>
+            <div className="overflow-y-auto flex-1">
+              {deletedAppts.length === 0 ? (
+                <div className="flex flex-col items-center gap-3 py-12 text-slate-400">
+                  <Trash2 size={36} strokeWidth={1.2} />
+                  <p className="text-sm">No hay citas eliminadas.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100 dark:divide-gray-700">
+                  {deletedAppts.map((appt) => (
+                    <div key={appt.id} className="flex items-center justify-between px-5 py-3">
+                      <div>
+                        <p className="text-sm font-medium text-slate-700 dark:text-gray-200">{appt.patient_name || "Sin paciente"}</p>
+                        <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">
+                          {format(parseISO(appt.scheduled_at), "dd/MM/yyyy HH:mm")} · {appt.dentist_name}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => restore.mutate(appt.id, { onSuccess: () => {} })}
+                        disabled={restore.isPending}
+                        className="flex items-center gap-1.5 rounded-lg border border-blue-200 dark:border-blue-700 bg-blue-50 dark:bg-blue-900/20 px-3 py-1.5 text-xs font-semibold text-blue-700 dark:text-blue-300 hover:bg-blue-100 disabled:opacity-50 transition-colors"
+                      >
+                        <RotateCcw size={12} />
+                        Restaurar
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

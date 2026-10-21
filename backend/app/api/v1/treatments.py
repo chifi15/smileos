@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.core.dependencies import require_permission
+from app.core.exceptions import NotFoundError
 from app.schemas.treatment import (
     TreatmentPlanCreate,
     TreatmentPlanUpdate,
@@ -83,6 +84,63 @@ def _serialize_plan(plan) -> dict:
 
 
 # ─── Planes ───────────────────────────────────────────────────────────────────
+
+@router.get("/deleted")
+async def list_deleted_plans(
+    patient_id: uuid.UUID,
+    user: Annotated[object, require_permission("view_treatments")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from sqlalchemy import select
+    from app.models.treatment import TreatmentPlan
+    from app.services.treatment_service import _plan_load_options
+    result = await db.execute(
+        select(TreatmentPlan)
+        .where(
+            TreatmentPlan.clinic_id == user.clinic_id,
+            TreatmentPlan.patient_id == patient_id,
+            TreatmentPlan.deleted_at.is_not(None),
+        )
+        .options(*_plan_load_options())
+        .order_by(TreatmentPlan.deleted_at.desc())
+    )
+    plans = result.scalars().all()
+    return {"success": True, "data": [_serialize_plan(p) for p in plans]}
+
+
+@router.post("/{plan_id}/restore")
+async def restore_plan(
+    patient_id: uuid.UUID,
+    plan_id: uuid.UUID,
+    user: Annotated[object, require_permission("manage_treatments")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from sqlalchemy import select
+    from app.models.treatment import TreatmentPlan
+    from app.services.treatment_service import _plan_load_options
+    result = await db.execute(
+        select(TreatmentPlan)
+        .where(
+            TreatmentPlan.id == plan_id,
+            TreatmentPlan.clinic_id == user.clinic_id,
+            TreatmentPlan.patient_id == patient_id,
+            TreatmentPlan.deleted_at.is_not(None),
+        )
+        .options(*_plan_load_options())
+    )
+    plan = result.scalar_one_or_none()
+    if not plan:
+        raise NotFoundError("Plan eliminado")
+    plan.deleted_at = None
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="treatment_plan.restored", resource_type="treatment_plan", resource_id=str(plan_id),
+        description=f'Restauró plan de tratamiento "{plan.title}"',
+        patient_id=patient_id,
+    )
+    await db.commit()
+    return {"success": True, "data": _serialize_plan(plan)}
+
 
 @router.get("")
 async def list_plans(

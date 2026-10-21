@@ -366,3 +366,29 @@ export function useDeleteReceipt(year: number, month: number) {
     onError: () => toast.error("Error al eliminar el comprobante."),
   });
 }
+
+export function useDeletedTransactions(year: number, month: number) {
+  return useQuery({
+    queryKey: ["finances", "deleted", year, month],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: FinanceTransaction[] }>(
+        "/api/v1/finances/deleted",
+        { params: { year, month } }
+      );
+      return data.data;
+    },
+  });
+}
+
+export function useRestoreTransaction(year: number, month: number) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (txId: string) => apiClient.post(`/api/v1/finances/${txId}/restore`),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["finances", year, month] });
+      qc.invalidateQueries({ queryKey: ["finances", "deleted", year, month] });
+      toast.success("Transacción restaurada.");
+    },
+    onError: () => toast.error("Error al restaurar la transacción."),
+  });
+}
