@@ -48,7 +48,7 @@ async def get_booking_info(
         select(User).where(
             User.clinic_id == clinic.id,
             User.role.in_(["dentist", "clinic_owner", "admin"]),
-            User.deleted_at.is_(None),
+            User.is_active == True,  # noqa: E712
         ).order_by(User.full_name)
     )).scalars().all()
 
@@ -109,7 +109,7 @@ async def get_booking_slots(
         select(User).where(
             User.clinic_id == clinic.id,
             User.role.in_(["dentist", "clinic_owner", "admin"]),
-            User.deleted_at.is_(None),
+            User.is_active == True,  # noqa: E712
         )
     )).scalars().all()
 
@@ -186,7 +186,7 @@ async def create_booking_request(
         select(User).where(
             User.clinic_id == clinic.id,
             User.role.in_(["dentist", "clinic_owner", "admin"]),
-            User.deleted_at.is_(None),
+            User.is_active == True,  # noqa: E712
         )
     )).scalars().all()
 
