@@ -9,7 +9,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import toast from "react-hot-toast";
-import { useClinicSettings, useUpdateSettings } from "@/hooks/useSettings";
+import { useClinicSettings, useUpdateSettings, useWorkingHours, useUpdateWorkingHours, WorkingHour } from "@/hooks/useSettings";
 import { usePlanStatus } from "@/hooks/useBilling";
 import { useSyncCalendar, useCalendarStatus, useDisconnectGoogleOAuth } from "@/hooks/useCalendar";
 import apiClient, { getAccessToken } from "@/lib/api-client";
@@ -660,10 +660,116 @@ function SettingsContent() {
         onClose={() => setShowCreateUser(false)}
       />
 
+      <WorkingHoursSection />
+
       <PriceCatalogSection />
 
       <BackupSection />
     </div>
+  );
+}
+
+// ─── Horario de atención ─────────────────────────────────────────────────────
+
+const DAY_NAMES = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+
+const DEFAULT_HOURS: WorkingHour[] = [0, 1, 2, 3, 4, 5, 6].map((day) => ({
+  day_of_week: day,
+  is_working_day: day >= 1 && day <= 5,
+  morning_open: "08:00",
+  morning_close: "12:00",
+  afternoon_open: "14:00",
+  afternoon_close: "18:00",
+}));
+
+function WorkingHoursSection() {
+  const { data: savedHours, isLoading } = useWorkingHours();
+  const updateHours = useUpdateWorkingHours();
+  const [hours, setHours] = useState<WorkingHour[]>([]);
+  const [dirty, setDirty] = useState(false);
+
+  useEffect(() => {
+    if (savedHours && savedHours.length > 0) {
+      const sorted = [...savedHours].sort((a, b) => a.day_of_week - b.day_of_week);
+      setHours(sorted);
+    } else if (!isLoading) {
+      setHours(DEFAULT_HOURS);
+    }
+  }, [savedHours, isLoading]);
+
+  function update(day: number, patch: Partial<WorkingHour>) {
+    setHours((prev) => prev.map((h) => h.day_of_week === day ? { ...h, ...patch } : h));
+    setDirty(true);
+  }
+
+  function save() {
+    updateHours.mutate(hours, { onSuccess: () => setDirty(false) });
+  }
+
+  return (
+    <section className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+      <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-gray-700">
+        <div>
+          <h2 className="font-semibold text-slate-800 dark:text-white">Horario de atención</h2>
+          <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">Define los días y horarios disponibles para reservas de pacientes</p>
+        </div>
+        {dirty && (
+          <button
+            onClick={save}
+            disabled={updateHours.isPending}
+            className="flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60 transition-colors"
+          >
+            {updateHours.isPending ? "Guardando..." : "Guardar horario"}
+          </button>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="p-6 text-sm text-slate-400">Cargando...</div>
+      ) : (
+        <div className="divide-y divide-slate-100 dark:divide-gray-700">
+          {hours.map((h) => (
+            <div key={h.day_of_week} className={`px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-3 ${!h.is_working_day ? "opacity-50" : ""}`}>
+              {/* Toggle + day name */}
+              <div className="flex items-center gap-3 w-36 shrink-0">
+                <button
+                  onClick={() => update(h.day_of_week, { is_working_day: !h.is_working_day })}
+                  className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${h.is_working_day ? "bg-blue-600" : "bg-slate-300 dark:bg-gray-600"}`}
+                >
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${h.is_working_day ? "translate-x-4" : "translate-x-0"}`} />
+                </button>
+                <span className="text-sm font-medium text-slate-700 dark:text-gray-200">{DAY_NAMES[h.day_of_week]}</span>
+              </div>
+
+              {/* Time ranges */}
+              {h.is_working_day && (
+                <div className="flex flex-wrap items-center gap-4">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500 dark:text-gray-400 w-16">Mañana</span>
+                    <input type="time" value={h.morning_open ?? ""} onChange={(e) => update(h.day_of_week, { morning_open: e.target.value || null })}
+                      className="h-8 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    <span className="text-xs text-slate-400">—</span>
+                    <input type="time" value={h.morning_close ?? ""} onChange={(e) => update(h.day_of_week, { morning_close: e.target.value || null })}
+                      className="h-8 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-slate-500 dark:text-gray-400 w-16">Tarde</span>
+                    <input type="time" value={h.afternoon_open ?? ""} onChange={(e) => update(h.day_of_week, { afternoon_open: e.target.value || null })}
+                      className="h-8 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                    <span className="text-xs text-slate-400">—</span>
+                    <input type="time" value={h.afternoon_close ?? ""} onChange={(e) => update(h.day_of_week, { afternoon_close: e.target.value || null })}
+                      className="h-8 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400" />
+                  </div>
+                </div>
+              )}
+              {!h.is_working_day && (
+                <span className="text-xs text-slate-400 dark:text-gray-500">No disponible</span>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

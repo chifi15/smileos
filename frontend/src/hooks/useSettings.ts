@@ -3,14 +3,58 @@ import toast from "react-hot-toast";
 import apiClient from "@/lib/api-client";
 import { ClinicSettings } from "@/types";
 
+export interface WorkingHour {
+  id?: string;
+  day_of_week: number;
+  is_working_day: boolean;
+  morning_open: string | null;
+  morning_close: string | null;
+  afternoon_open: string | null;
+  afternoon_close: string | null;
+}
+
 export function useClinicSettings() {
   return useQuery({
     queryKey: ["settings"],
     queryFn: async () => {
-      const { data } = await apiClient.get<{ data: { settings: ClinicSettings } }>("/api/v1/settings");
+      const { data } = await apiClient.get<{ data: { settings: ClinicSettings; working_hours: WorkingHour[] } }>("/api/v1/settings");
       return data.data.settings;
     },
     staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useWorkingHours() {
+  return useQuery({
+    queryKey: ["working-hours"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: { working_hours: WorkingHour[] } }>("/api/v1/settings");
+      return data.data.working_hours;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useUpdateWorkingHours() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (hours: WorkingHour[]) => {
+      const entries = hours.map((h) => ({
+        day_of_week: h.day_of_week,
+        is_working_day: h.is_working_day,
+        morning_open: h.morning_open,
+        morning_close: h.morning_close,
+        afternoon_open: h.afternoon_open,
+        afternoon_close: h.afternoon_close,
+      }));
+      const { data } = await apiClient.put<{ data: WorkingHour[] }>("/api/v1/settings/working-hours", { working_hours: entries });
+      return data.data;
+    },
+    onSuccess: (updated) => {
+      qc.setQueryData(["working-hours"], updated);
+      toast.success("Horario guardado.");
+    },
+    onError: () => toast.error("Error al guardar el horario."),
   });
 }
 
