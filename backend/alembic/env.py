@@ -48,18 +48,14 @@ def do_run_migrations(connection: Connection) -> None:
 
 
 async def run_async_migrations() -> None:
-    import ssl as _ssl
     from sqlalchemy.ext.asyncio import create_async_engine
     from app.core.config import get_settings
     settings = get_settings()
 
-    _url = settings.database_url
+    _url = settings.database_url.split("?")[0]
     _connect_args: dict = {}
     if "localhost" not in _url and "127.0.0.1" not in _url:
-        _ssl_ctx = _ssl.create_default_context()
-        _ssl_ctx.check_hostname = False
-        _ssl_ctx.verify_mode = _ssl.CERT_NONE
-        _connect_args = {"ssl": _ssl_ctx}
+        _connect_args = {"ssl": "require"}
 
     connectable = create_async_engine(_url, poolclass=pool.NullPool, connect_args=_connect_args)
     async with connectable.connect() as connection:
