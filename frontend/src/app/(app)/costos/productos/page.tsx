@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ArrowLeft, Plus, Trash2, Search, X, Edit2, Package, Calculator, ChevronRight, GripVertical, ImagePlus, Users, Loader2, Check } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Search, X, Edit2, Package, Calculator, ChevronRight, GripVertical, ImagePlus, Users, Loader2, Check, Settings2 } from "lucide-react";
 import Link from "next/link";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -104,7 +104,84 @@ function compressImage(file: File, maxSize = 400): Promise<string> {
 
 const CUSTOM_SENTINEL = "__custom__";
 
-function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?: ApiProduct; extraCategories: string[]; onSave: (data: Omit<ApiProduct, "id" | "sort_order" | "stock_qty" | "min_stock_qty">) => void; onClose: () => void }) {
+function ManageCategoriesModal({ categories, onClose }: { categories: string[]; onClose: () => void }) {
+  useEscapeKey(onClose);
+  const renameCategory = useRenameCostCategory();
+  const deleteCategory = useDeleteCostCategory();
+  const [editingCat, setEditingCat] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+
+  function handleRename(oldCat: string) {
+    const newCat = editValue.trim();
+    if (!newCat || newCat === oldCat) { setEditingCat(null); return; }
+    renameCategory.mutate({ from_category: oldCat, to_category: newCat }, {
+      onSuccess: () => setEditingCat(null),
+    });
+  }
+
+  function handleDelete(cat: string) {
+    const msg = `¿Eliminar la categoría "${categoryLabel(cat)}"? Los productos se moverán a "Otros".`;
+    if (!confirm(msg)) return;
+    deleteCategory.mutate({ category: cat });
+  }
+
+  return (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-800 shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-700 px-6 py-4">
+          <h2 className="font-semibold text-slate-800 dark:text-white">Gestionar categorías</h2>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 dark:text-gray-500 hover:bg-slate-100 dark:hover:bg-gray-700"><X size={16} /></button>
+        </div>
+        <div className="px-4 py-3 max-h-80 overflow-y-auto divide-y divide-slate-100 dark:divide-gray-700">
+          {categories.length === 0 && (
+            <p className="py-6 text-center text-sm text-slate-400 dark:text-gray-500">No hay categorías</p>
+          )}
+          {categories.map((cat) => (
+            <div key={cat} className="flex items-center gap-2 py-2.5">
+              {editingCat === cat ? (
+                <>
+                  <input
+                    autoFocus
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleRename(cat); if (e.key === "Escape") setEditingCat(null); }}
+                    className="flex-1 rounded-lg border border-blue-400 ring-2 ring-blue-100 dark:ring-blue-800 px-2 py-1.5 text-sm focus:outline-none dark:bg-gray-700 dark:text-white dark:border-blue-500"
+                  />
+                  <button onClick={() => handleRename(cat)} className="rounded p-1.5 text-green-600 hover:bg-green-50 dark:hover:bg-green-900/30"><Check size={13} /></button>
+                  <button onClick={() => setEditingCat(null)} className="rounded p-1.5 text-slate-400 hover:bg-slate-100 dark:hover:bg-gray-700"><X size={13} /></button>
+                </>
+              ) : (
+                <>
+                  <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${categoryColor(cat)}`}>{categoryLabel(cat)}</span>
+                  <div className="ml-auto flex items-center gap-1">
+                    <button
+                      onClick={() => { setEditingCat(cat); setEditValue(cat); }}
+                      className="rounded p-1.5 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30"
+                      title="Renombrar"
+                    ><Edit2 size={13} /></button>
+                    <button
+                      onClick={() => handleDelete(cat)}
+                      disabled={deleteCategory.isPending}
+                      className="rounded p-1.5 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-40"
+                      title="Eliminar"
+                    ><Trash2 size={13} /></button>
+                  </div>
+                </>
+              )}
+            </div>
+          ))}
+        </div>
+        <div className="border-t border-slate-100 dark:border-gray-700 px-6 py-4">
+          <button onClick={onClose} className="w-full rounded-xl border border-slate-200 dark:border-gray-600 py-2 text-sm text-slate-600 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ProductModal({ initial, extraCategories, onSave, onClose, onManageCategories }: { initial?: ApiProduct; extraCategories: string[]; onSave: (data: Omit<ApiProduct, "id" | "sort_order" | "stock_qty" | "min_stock_qty">) => void; onClose: () => void; onManageCategories: () => void }) {
   useEscapeKey(onClose);
   const [form, setForm] = useState<ProductFormState>(initial ? productToForm(initial) : EMPTY_FORM);
   const f = (key: keyof ProductFormState) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
@@ -188,21 +265,31 @@ function ProductModal({ initial, extraCategories, onSave, onClose }: { initial?:
                     </button>
                   </div>
                 ) : (
-                  <select
-                    value={form.category}
-                    onChange={(e) => {
-                      if (e.target.value === CUSTOM_SENTINEL) { setShowCustomInput(true); setForm((s) => ({ ...s, category: "" })); }
-                      else { setForm((s) => ({ ...s, category: e.target.value })); }
-                    }}
-                    className="w-full h-9 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  >
-                    {allSelectableCategories.map((c) => (
-                      <option key={c} value={c}>
-                        {PRODUCT_CATEGORY_LABELS[c] ?? c.charAt(0).toUpperCase() + c.slice(1)}
-                      </option>
-                    ))}
-                    <option value={CUSTOM_SENTINEL}>+ Nueva categoría…</option>
-                  </select>
+                  <div className="flex gap-1">
+                    <select
+                      value={form.category}
+                      onChange={(e) => {
+                        if (e.target.value === CUSTOM_SENTINEL) { setShowCustomInput(true); setForm((s) => ({ ...s, category: "" })); }
+                        else { setForm((s) => ({ ...s, category: e.target.value })); }
+                      }}
+                      className="flex-1 h-9 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    >
+                      {allSelectableCategories.map((c) => (
+                        <option key={c} value={c}>
+                          {PRODUCT_CATEGORY_LABELS[c] ?? c.charAt(0).toUpperCase() + c.slice(1)}
+                        </option>
+                      ))}
+                      <option value={CUSTOM_SENTINEL}>+ Nueva categoría…</option>
+                    </select>
+                    <button
+                      type="button"
+                      onClick={onManageCategories}
+                      title="Gestionar categorías"
+                      className="shrink-0 h-9 rounded-lg border border-slate-200 dark:border-gray-600 px-2 text-slate-400 dark:text-gray-500 hover:text-blue-500 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors"
+                    >
+                      <Settings2 size={14} />
+                    </button>
+                  </div>
                 )}
               </div>
               <div>
@@ -532,6 +619,7 @@ export default function ProductosPage() {
   const [category, setCategory] = useState<string>("all");
   const [showNew, setShowNew] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
+  const [showManageCategories, setShowManageCategories] = useState(false);
   const [usageProduct, setUsageProduct] = useState<ApiProduct | null>(null);
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editCategoryValue, setEditCategoryValue] = useState("");
@@ -784,6 +872,7 @@ export default function ProductosPage() {
           extraCategories={allCategoriesInUse}
           onSave={(data) => createProduct.mutate(data)}
           onClose={() => setShowNew(false)}
+          onManageCategories={() => setShowManageCategories(true)}
         />
       )}
       {editingProduct && (
@@ -792,6 +881,13 @@ export default function ProductosPage() {
           extraCategories={allCategoriesInUse}
           onSave={(data) => updateProduct.mutate({ id: editingProduct.id, ...data })}
           onClose={() => setEditingProduct(null)}
+          onManageCategories={() => setShowManageCategories(true)}
+        />
+      )}
+      {showManageCategories && (
+        <ManageCategoriesModal
+          categories={allCategoriesInUse}
+          onClose={() => setShowManageCategories(false)}
         />
       )}
       {usageProduct && (
