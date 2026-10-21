@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { ArrowLeft, Plus, Trash2, Search, X, Edit2, Package, Calculator, ChevronRight, GripVertical, ImagePlus, Users, Loader2, Check, Settings2 } from "lucide-react";
+import { useSearchParams } from "next/navigation";
+import { ArrowLeft, Plus, Trash2, Search, X, Edit2, Package, Calculator, ChevronRight, GripVertical, ImagePlus, Users, Loader2, Check, Settings2, AlertTriangle } from "lucide-react";
 import Link from "next/link";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -615,8 +616,12 @@ export default function ProductosPage() {
   const updateProduct = useUpdateCostProduct();
   const reorderProducts = useReorderCostProducts();
 
+  const searchParams = useSearchParams();
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string>("all");
+  const [stockFilter, setStockFilter] = useState<"bajo" | null>(
+    () => searchParams.get("stock") === "bajo" ? "bajo" : null
+  );
   const [showNew, setShowNew] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
   const [showManageCategories, setShowManageCategories] = useState(false);
@@ -632,7 +637,10 @@ export default function ProductosPage() {
   const filtered = products.filter((p) => {
     const matchSearch = normalizeSearch(p.name).includes(normalizeSearch(search)) || normalizeSearch(p.supplier ?? "").includes(normalizeSearch(search));
     const matchCat = category === "all" || p.category === category;
-    return matchSearch && matchCat;
+    const matchStock = stockFilter !== "bajo" || (
+      p.stock_qty != null && (p.stock_qty <= 0 || (p.min_stock_qty != null && p.stock_qty <= p.min_stock_qty))
+    );
+    return matchSearch && matchCat && matchStock;
   });
 
   const allSelected = filtered.length > 0 && filtered.every((p) => selectedIds.has(p.id));
@@ -690,8 +698,8 @@ export default function ProductosPage() {
     });
   }
 
-  const hasFilter = search.trim() !== "" || category !== "all";
-  const isDragDisabled = search.trim() !== "";
+  const hasFilter = search.trim() !== "" || category !== "all" || stockFilter !== null;
+  const isDragDisabled = search.trim() !== "" || stockFilter !== null;
 
   const allCategoriesInUse: string[] = [
     ...ALL_CATEGORIES.filter((c) => products.some((p) => p.category === c)),
@@ -738,6 +746,21 @@ export default function ProductosPage() {
       </div>
 
       <div className="mb-4 flex flex-col gap-3">
+        {stockFilter === "bajo" && (
+          <div className="flex items-center gap-2 rounded-lg border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20 px-3 py-2">
+            <AlertTriangle size={13} className="text-orange-500 shrink-0" />
+            <span className="text-xs font-medium text-orange-700 dark:text-orange-300 flex-1">
+              Mostrando solo materiales agotados o con stock bajo ({filtered.length})
+            </span>
+            <button
+              onClick={() => setStockFilter(null)}
+              className="text-orange-400 hover:text-orange-600 dark:hover:text-orange-300 transition-colors"
+              title="Quitar filtro"
+            >
+              <X size={13} />
+            </button>
+          </div>
+        )}
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 dark:text-gray-500" />
           <input type="text" placeholder="Buscar producto o proveedor..." value={search} onChange={(e) => setSearch(e.target.value)}
