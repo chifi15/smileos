@@ -3,11 +3,12 @@
 import dynamic from "next/dynamic";
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
-import { CalendarPlus, RefreshCw, Trash2, RotateCcw, X } from "lucide-react";
+import { CalendarPlus, RefreshCw, Trash2, RotateCcw, X, Link2, Check } from "lucide-react";
 import { useAppointments, useDeletedAppointments, useRestoreAppointment } from "@/hooks/useAppointments";
 import { useClinicUsers } from "@/hooks/useUsers";
 import { useCalendarEvents, useSyncCalendar, useCalendarStatus } from "@/hooks/useCalendar";
 import { AppointmentFull } from "@/types";
+import { useAuthStore } from "@/stores/auth.store";
 import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
 import Spinner from "@/components/ui/Spinner";
@@ -45,6 +46,17 @@ export default function AppointmentsPage() {
   const [newApptDateStr, setNewApptDateStr] = useState<string | null>(null);
   const [dentistFilter, setDentistFilter] = useState("all");
   const [showTrash, setShowTrash] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const user = useAuthStore((s) => s.user);
+
+  function copyBookingLink() {
+    if (!user?.clinic_slug) return;
+    const url = `${window.location.origin}/reservar/${user.clinic_slug}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }
   const { data: deletedAppts = [] } = useDeletedAppointments();
   const restore = useRestoreAppointment();
 
@@ -106,6 +118,14 @@ export default function AppointmentsPage() {
               Google Calendar
             </Button>
           )}
+          <button
+            onClick={copyBookingLink}
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-gray-600 px-3 py-2 text-sm font-medium transition-colors text-slate-500 dark:text-gray-400 hover:border-blue-300 hover:text-blue-600 dark:hover:text-blue-400"
+            title="Copiar enlace de reserva para pacientes"
+          >
+            {copied ? <Check size={15} className="text-green-500" /> : <Link2 size={15} />}
+            {copied ? "¡Copiado!" : "Enlace de reserva"}
+          </button>
           <button
             onClick={() => setShowTrash(true)}
             className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-gray-600 px-3 py-2 text-sm font-medium text-slate-500 dark:text-gray-400 hover:border-slate-300 transition-colors"

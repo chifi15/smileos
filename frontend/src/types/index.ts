@@ -5,6 +5,7 @@ export type UserRole = "clinic_owner" | "admin" | "dentist" | "receptionist" | "
 export interface AuthUser {
   id: string;
   clinic_id: string;
+  clinic_slug: string;
   email: string;
   full_name: string;
   role: UserRole;

@@ -57,6 +57,7 @@ class RegisterRequest(BaseModel):
 class UserOut(BaseModel):
     id: uuid.UUID
     clinic_id: uuid.UUID
+    clinic_slug: str = ""
     email: str
     full_name: str
     role: str

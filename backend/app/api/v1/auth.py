@@ -140,11 +140,16 @@ async def logout(
 
 
 @router.get("/me", response_model=dict)
-async def me(user: CurrentUser):
-    return {
-        "success": True,
-        "data": UserOut.model_validate(user).model_dump(),
-    }
+async def me(
+    user: CurrentUser,
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from sqlalchemy import select as _select
+    from app.models.clinic import Clinic
+    clinic = await db.scalar(_select(Clinic).where(Clinic.id == user.clinic_id))
+    data = UserOut.model_validate(user).model_dump()
+    data["clinic_slug"] = clinic.slug if clinic else ""
+    return {"success": True, "data": data}
 
 
 @router.get("/google/authorize")
