@@ -1,13 +1,17 @@
+import logging
 import resend
 from app.core.config import get_settings
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 def send_password_reset_email(to_email: str, to_name: str, reset_url: str) -> bool:
     if not settings.resend_api_key:
+        logger.error("RESEND_API_KEY no configurada")
         return False
 
+    logger.info(f"Enviando email a {to_email}, key prefix: {settings.resend_api_key[:8]}")
     resend.api_key = settings.resend_api_key
 
     html = f"""
@@ -31,12 +35,14 @@ def send_password_reset_email(to_email: str, to_name: str, reset_url: str) -> bo
     """
 
     try:
-        resend.Emails.send({
+        result = resend.Emails.send({
             "from": settings.resend_from,
             "to": [to_email],
             "subject": "Restablecer contraseña — SmileOS",
             "html": html,
         })
+        logger.info(f"Email enviado: {result}")
         return True
-    except Exception:
+    except Exception as e:
+        logger.error(f"Error enviando email: {e}")
         return False
