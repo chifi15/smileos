@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { Clock, User, Stethoscope, Pencil, Trash2 } from "lucide-react";
+import { Clock, User, Stethoscope, Pencil, Trash2, Phone } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
@@ -305,6 +305,20 @@ export default function AppointmentDetailModal({ appointment: appt, onClose }: P
                 {APPOINTMENT_TYPE_LABELS[appt.appointment_type]}
               </span>
             </div>
+
+            {appt.guest_phone && (
+              <div className="flex items-center gap-3">
+                <Phone size={15} className="shrink-0 text-slate-400 dark:text-gray-500" />
+                <a
+                  href={`https://wa.me/${appt.guest_phone.replace(/\D/g, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 dark:text-blue-400 hover:underline"
+                >
+                  {appt.guest_phone}
+                </a>
+              </div>
+            )}
 
             {appt.reason && (
               <div className="border-t border-slate-200 dark:border-gray-600 pt-3">

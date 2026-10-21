@@ -68,7 +68,8 @@ export default function AppointmentsPage() {
   const { data: users = [] } = useClinicUsers();
   const { data: calendarStatus } = useCalendarStatus();
   const { data: gcalEvents = [] } = useCalendarEvents(range.from, range.to, calendarStatus?.configured ?? false);
-  const syncCalendar = useSyncCalendar(true); // quick=true en Agenda: solo 60 días
+  const syncCalendar = useSyncCalendar(true);
+  const syncCalendarFull = useSyncCalendar(false);
 
   const filteredAppointments =
     dentistFilter === "all"
@@ -114,15 +115,26 @@ export default function AppointmentsPage() {
             />
           )}
           {calendarStatus?.configured && (
-            <Button
-              variant="secondary"
-              onClick={() => syncCalendar.mutate()}
-              loading={syncCalendar.isPending}
-              title="Sincronizar Google Calendar"
-            >
-              <RefreshCw size={15} />
-              Google Calendar
-            </Button>
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => syncCalendar.mutate()}
+                loading={syncCalendar.isPending}
+                title="Sync rápido: últimos 7 días + próximos 60 días"
+              >
+                <RefreshCw size={15} />
+                Sync rápido
+              </Button>
+              <Button
+                variant="secondary"
+                onClick={() => syncCalendarFull.mutate()}
+                loading={syncCalendarFull.isPending}
+                title="Sync completo: último año + próximos 6 meses"
+              >
+                <RefreshCw size={15} />
+                Sync completo
+              </Button>
+            </>
           )}
           {clinicSlug && (
             <a

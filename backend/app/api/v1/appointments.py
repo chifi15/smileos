@@ -31,6 +31,7 @@ def _serialize(appt) -> dict:
         "clinic_id": str(appt.clinic_id),
         "patient_id": str(appt.patient_id),
         "patient_name": patient.full_name if patient else (appt.guest_name or ""),
+        "guest_phone": appt.guest_phone if not patient else None,
         "patient_rewards_level": rewards.level if rewards else None,
         "dentist_id": str(appt.dentist_id),
         "dentist_name": dentist.full_name if dentist else "",

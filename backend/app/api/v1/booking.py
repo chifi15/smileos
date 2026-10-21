@@ -279,6 +279,7 @@ async def create_booking_request(
         duration_minutes=duration,
         appointment_type=body.appointment_type,
         guest_name=body.guest_name.strip(),
+        guest_phone=body.guest_phone.strip() or None,
         reason=body.reason.strip() or None,
         status="scheduled",
     )

@@ -418,6 +418,7 @@ export interface AppointmentFull {
   clinic_id: string;
   patient_id: string;
   patient_name: string;
+  guest_phone: string | null;
   patient_rewards_level: RewardsLevel | null;
   dentist_id: string;
   dentist_name: string;
