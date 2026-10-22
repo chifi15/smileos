@@ -84,11 +84,12 @@ export function useSyncCalendar(quick = false) {
       if (d.error) {
         toast.error(d.error);
       } else {
-        const colorMsg = d.colors_found > 0 ? `, ${d.colors_found} con color` : "";
-        const rangeMsg = d.quick ? " (últimos 7 días + próximos 60)" : "";
-        toast.success(
-          `Sincronizado${rangeMsg}: ${d.total_events} eventos${colorMsg}.`
-        );
+        const isIncremental = d.source === "incremental";
+        if (isIncremental) {
+          toast.success(`Sync incremental: ${d.total_events} eventos nuevos/modificados.`);
+        } else {
+          toast.success(`Sync completo del mes: ${d.total_events} eventos cargados.`);
+        }
         qc.invalidateQueries({ queryKey: ["calendar"] });
         qc.invalidateQueries({ queryKey: ["patients", "segments"] });
       }
