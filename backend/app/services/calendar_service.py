@@ -198,7 +198,7 @@ def _build_event_row(item: dict, clinic_id: uuid.UUID, event_colors: dict,
     return {
         "id": uuid.uuid4(),
         "clinic_id": clinic_id,
-        "ical_uid": item.get("iCalUID", event_id),
+        "ical_uid": event_id,
         "google_event_id": event_id,
         "title": summary,
         "start_at": start_at,
@@ -359,7 +359,8 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
         await db.execute(delete(CalendarEvent).where(CalendarEvent.clinic_id == clinic_id))
 
     if rows:
-        await db.execute(pg_insert(CalendarEvent).values(rows))
+        stmt = pg_insert(CalendarEvent).values(rows)
+        await db.execute(stmt.on_conflict_do_nothing(constraint="uq_calendar_events_clinic_ical_uid"))
 
     settings.calendar_last_synced_at = now
     if new_sync_token:
