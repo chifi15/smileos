@@ -32,7 +32,8 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isInitializing) return;
     if (!isAuthenticated) {
-      router.replace("/login");
+      const next = encodeURIComponent(window.location.pathname + window.location.search);
+      router.replace(`/login?next=${next}`);
       return;
     }
     if (user?.must_change_password) {

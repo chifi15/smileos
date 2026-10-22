@@ -8,7 +8,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import { scheduleProactiveRefresh, clearProactiveRefresh } from "@/providers/AuthProvider";
 import { AuthUser } from "@/types";
 
-export function useLogin() {
+export function useLogin(redirectTo = "/dashboard") {
   const { setUser, logout } = useAuthStore();
   const router = useRouter();
 
@@ -29,7 +29,7 @@ export function useLogin() {
       if (user.must_change_password) {
         router.replace("/change-password");
       } else {
-        router.replace("/dashboard");
+        router.replace(redirectTo);
       }
     },
     onError: (err: any) => {

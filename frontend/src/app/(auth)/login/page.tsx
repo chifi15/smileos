@@ -1,26 +1,37 @@
 "use client";
 
-import { FormEvent, useState } from "react";
+import { FormEvent, useState, Suspense } from "react";
 import { useAuthStore } from "@/stores/auth.store";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect } from "react";
 import Link from "next/link";
 import { useLogin } from "@/hooks/useAuth";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
 
-export default function LoginPage() {
+function safeRedirect(next: string | null): string {
+  if (!next) return "/dashboard";
+  try {
+    const decoded = decodeURIComponent(next);
+    if (decoded.startsWith("/") && !decoded.startsWith("//")) return decoded;
+  } catch {}
+  return "/dashboard";
+}
+
+function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const { isAuthenticated, isInitializing } = useAuthStore();
   const router = useRouter();
-  const login = useLogin();
+  const searchParams = useSearchParams();
+  const redirectTo = safeRedirect(searchParams.get("next"));
+  const login = useLogin(redirectTo);
 
   useEffect(() => {
     if (!isInitializing && isAuthenticated) {
-      router.replace("/dashboard");
+      router.replace(redirectTo);
     }
-  }, [isAuthenticated, isInitializing, router]);
+  }, [isAuthenticated, isInitializing, router, redirectTo]);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -110,5 +121,13 @@ export default function LoginPage() {
         </Link>
       </p>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense>
+      <LoginForm />
+    </Suspense>
   );
 }
