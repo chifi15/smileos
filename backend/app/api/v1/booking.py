@@ -149,6 +149,20 @@ async def get_booking_slots(
         )
     )).all()
 
+    # Todas las citas de la clínica ese día (cualquier doctor) — la clínica
+    # comparte una sola sala, por lo que si algún doctor está ocupado ese slot
+    # no está disponible para nadie más.
+    all_clinic_appts = (await db.execute(
+        select(Appointment.scheduled_at, Appointment.duration_minutes).where(
+            Appointment.clinic_id == clinic.id,
+            Appointment.scheduled_at >= day_start_utc,
+            Appointment.scheduled_at < day_end_utc,
+            Appointment.status.not_in(["cancelled", "no_show"]),
+            Appointment.deleted_at.is_(None),
+        )
+    )).all()
+    clinic_booked = [(r.scheduled_at, r.duration_minutes) for r in all_clinic_appts]
+
     all_slots: set[str] = set()
     slot_dentist: dict[str, str] = {}
 
@@ -157,7 +171,6 @@ async def get_booking_slots(
             db, clinic.id, dentist.id, slot_date, duration, slot_size
         )
         for s in dentist_slots:
-            # Verificar conflicto con eventos de Google Calendar
             h, m = map(int, s.split(":"))
             slot_start = datetime(
                 slot_date.year, slot_date.month, slot_date.day, h, m, tzinfo=CLINIC_TZ
@@ -169,7 +182,13 @@ async def get_booking_slots(
                 for ev_start, ev_end in gcal_events
             )
 
-            if not gcal_conflict:
+            # Bloquear si cualquier doctor de la clínica ya tiene cita en ese slot
+            clinic_conflict = any(
+                slot_start < b_start + timedelta(minutes=b_dur) and slot_end > b_start
+                for b_start, b_dur in clinic_booked
+            )
+
+            if not gcal_conflict and not clinic_conflict:
                 all_slots.add(s)
                 if s not in slot_dentist:
                     slot_dentist[s] = str(dentist.id)
