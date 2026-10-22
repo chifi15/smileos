@@ -111,6 +111,20 @@ export default function BookingPage() {
 
   function handleSelectSlot(slot: string) { setSelectedSlot(slot); setStep("form"); }
 
+  function handleNewBooking() {
+    setSelectedDentist(null);
+    setSelectedDate(null);
+    setSelectedSlot(null);
+    setSlots([]);
+    setName("");
+    setPhone("");
+    setApptType("primera_consulta");
+    setReason("");
+    setSubmitError("");
+    setConfirmed(null);
+    setStep("doctor");
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!name.trim()) return;
@@ -240,6 +254,12 @@ export default function BookingPage() {
                 ¿Necesitas cambiar? Escríbenos al {clinic.phone}
               </a>
             )}
+            <button
+              onClick={handleNewBooking}
+              className="mt-6 w-full h-11 rounded-xl border-2 font-semibold text-sm transition-colors border-blue-500 text-blue-500 hover:bg-blue-500 hover:text-white"
+            >
+              Reservar otra cita
+            </button>
           </div>
         )}
 
