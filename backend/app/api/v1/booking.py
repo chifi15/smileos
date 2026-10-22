@@ -306,25 +306,54 @@ async def create_booking_request(
     await db.commit()
     await db.refresh(appointment)
 
+    # Crear evento en Google Calendar si hay OAuth conectado
+    try:
+        if settings and settings.google_refresh_token:
+            from app.services import google_oauth_service as oauth
+            from zoneinfo import ZoneInfo
+            _CLINIC_TZ = ZoneInfo("America/Managua")
+            from datetime import timezone as _tz
+            access_token = await oauth.refresh_access_token(settings.google_refresh_token)
+            cal_id = settings.google_calendar_id or "primary"
+            scheduled_utc = appointment.scheduled_at
+            if scheduled_utc.tzinfo is None:
+                scheduled_utc = scheduled_utc.replace(tzinfo=_tz.utc)
+            start_local = scheduled_utc.astimezone(_CLINIC_TZ)
+            end_local = (scheduled_utc + timedelta(minutes=duration)).astimezone(_CLINIC_TZ)
+            gcal_event = await oauth.create_google_event(
+                access_token, cal_id,
+                summary=body.guest_name.strip(),
+                start_dt=start_local,
+                end_dt=end_local,
+                description=body.reason.strip() if body.reason else "",
+            )
+            appointment.google_event_id = gcal_event.get("id")
+            await db.commit()
+    except Exception:
+        import traceback
+        traceback.print_exc()
+
     # Notificar por email a la clínica
     notify_email = (settings.email if settings and settings.email else None) or owner.email
     if notify_email:
         from app.services.email_service import send_booking_notification_email
-        from datetime import timezone as _tz
+        from datetime import timezone as _tz2
         import asyncio
-        scheduled_utc = appointment.scheduled_at.replace(tzinfo=_tz.utc)
-        asyncio.get_event_loop().run_in_executor(
+        scheduled_utc_mail = appointment.scheduled_at
+        if scheduled_utc_mail.tzinfo is None:
+            scheduled_utc_mail = scheduled_utc_mail.replace(tzinfo=_tz2.utc)
+        asyncio.get_running_loop().run_in_executor(
             None,
             send_booking_notification_email,
             notify_email,
             settings.display_name if settings and settings.display_name else clinic.name,
             body.guest_name.strip(),
             body.guest_phone,
-            scheduled_utc,
+            scheduled_utc_mail,
             duration,
             available_dentist.full_name,
             body.appointment_type,
-            body.reason.strip(),
+            body.reason.strip() if body.reason else "",
         )
 
     return {
