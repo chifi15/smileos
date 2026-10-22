@@ -4,6 +4,7 @@ No requiere OAuth — solo la URL secreta .ics de Google Calendar.
 """
 import re
 import uuid
+import asyncio
 import unicodedata
 from datetime import datetime, timezone, timedelta
 from difflib import SequenceMatcher
@@ -144,14 +145,82 @@ def _resolve_color(raw: str | None) -> str | None:
 SYNC_COOLDOWN_MINUTES = 15
 
 
+async def _fetch_colors_and_calendar(access_token: str, cal_id: str):
+    """Obtiene colores de eventos y color por defecto del calendario en paralelo."""
+    import httpx as _httpx
+    from app.services import google_oauth_service as oauth
+
+    async def _get_event_colors():
+        try:
+            return await oauth.get_event_colors(access_token)
+        except Exception:
+            return {}
+
+    async def _get_cal_color():
+        try:
+            async with _httpx.AsyncClient() as c:
+                r = await c.get(
+                    "https://www.googleapis.com/calendar/v3/users/me/calendarList",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                )
+                if r.is_success:
+                    for cal in r.json().get("items", []):
+                        if cal.get("primary") or cal.get("id") == cal_id:
+                            return cal.get("backgroundColor")
+        except Exception:
+            pass
+        return None
+
+    return await asyncio.gather(_get_event_colors(), _get_cal_color())
+
+
+def _build_event_row(item: dict, clinic_id: uuid.UUID, event_colors: dict,
+                     calendar_default_color, smileos_times: set, patients: list, now: datetime):
+    """Convierte un item de Google Calendar en fila para insertar. Retorna None si debe omitirse."""
+    if item.get("extendedProperties", {}).get("private", {}).get("smileos") == "1":
+        return None
+    event_id = item.get("id", "")
+    summary = (item.get("summary") or "").strip()
+    if not event_id or not summary:
+        return None
+    start_at = _parse_gcal_dt(item.get("start", {}))
+    end_at = _parse_gcal_dt(item.get("end", {}))
+    if not start_at:
+        return None
+    if not end_at:
+        end_at = start_at + timedelta(hours=1)
+    if any(abs((start_at - t).total_seconds()) < 600 for t in smileos_times):
+        return None
+    color_id = item.get("colorId")
+    hex_color = (event_colors.get(str(color_id)) if color_id else None) or calendar_default_color
+    patient_name = _extract_name(summary)
+    patient_id, confidence = _match_patient_rows(patient_name, patients)
+    return {
+        "id": uuid.uuid4(),
+        "clinic_id": clinic_id,
+        "ical_uid": item.get("iCalUID", event_id),
+        "google_event_id": event_id,
+        "title": summary,
+        "start_at": start_at,
+        "end_at": end_at,
+        "patient_id": patient_id,
+        "match_confidence": confidence if patient_id else None,
+        "gcal_color": hex_color,
+        "created_at": now,
+        "updated_at": now,
+    }
+
+
 async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, pg_insert, quick: bool = False) -> dict:
-    """Sincroniza desde Google Calendar API. Obtiene colorId por evento."""
+    """Sincroniza desde Google Calendar API.
+    quick=True: usa sync incremental (solo cambios). Si no hay token previo, hace range del mes.
+    quick=False: sync completo del último año + 6 meses.
+    """
     from app.services import google_oauth_service as oauth
 
     try:
         access_token = await oauth.refresh_access_token(settings.google_refresh_token)
     except oauth.TokenExpiredError as e:
-        # Token expirado (app en Testing) o revocado → limpiar para que el UI muestre "desconectado"
         settings.google_refresh_token = None
         settings.google_calendar_id = None
         await db.commit()
@@ -160,68 +229,110 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
         return {"error": f"No se pudo obtener access_token: {str(e)}"}
 
     cal_id = settings.google_calendar_id or "primary"
-
     now = datetime.now(timezone.utc)
+
+    # ── Sync incremental (quick + token disponible) ───────────────────────────
+    if quick and settings.google_sync_token:
+        try:
+            gcal_items, new_sync_token = await oauth.list_google_events_incremental(
+                access_token, cal_id, settings.google_sync_token
+            )
+        except oauth.SyncTokenExpiredError:
+            # Token expirado → limpiar y caer en sync de rango
+            settings.google_sync_token = None
+        else:
+            if not gcal_items:
+                settings.calendar_last_synced_at = now
+                if new_sync_token:
+                    settings.google_sync_token = new_sync_token
+                await db.commit()
+                return {"total_events": 0, "source": "incremental", "synced_at": now.isoformat()}
+
+            event_colors, calendar_default_color = await _fetch_colors_and_calendar(access_token, cal_id)
+
+            appts_result = await db.execute(
+                select(Appointment.scheduled_at).where(
+                    Appointment.clinic_id == clinic_id, Appointment.cancelled_at.is_(None)
+                )
+            )
+            smileos_times = {
+                r.scheduled_at.replace(tzinfo=timezone.utc) if r.scheduled_at.tzinfo is None
+                else r.scheduled_at.astimezone(timezone.utc)
+                for r in appts_result.fetchall()
+            }
+            patients_result = await db.execute(
+                select(Patient.id, Patient.first_name, Patient.last_name)
+                .where(Patient.clinic_id == clinic_id, Patient.is_active == True)  # noqa
+            )
+            patients = list(patients_result.fetchall())
+
+            cancelled_ids = [i["id"] for i in gcal_items if i.get("status") == "cancelled"]
+            active_items = [i for i in gcal_items if i.get("status") != "cancelled"]
+
+            if cancelled_ids:
+                await db.execute(
+                    delete(CalendarEvent).where(
+                        CalendarEvent.clinic_id == clinic_id,
+                        CalendarEvent.google_event_id.in_(cancelled_ids),
+                    )
+                )
+
+            rows = []
+            for item in active_items:
+                event_id = item.get("id", "")
+                await db.execute(
+                    delete(CalendarEvent).where(
+                        CalendarEvent.clinic_id == clinic_id,
+                        CalendarEvent.google_event_id == event_id,
+                    )
+                )
+                row = _build_event_row(item, clinic_id, event_colors, calendar_default_color, smileos_times, patients, now)
+                if row:
+                    rows.append(row)
+
+            if rows:
+                await db.execute(pg_insert(CalendarEvent).values(rows))
+
+            settings.calendar_last_synced_at = now
+            if new_sync_token:
+                settings.google_sync_token = new_sync_token
+            await db.commit()
+
+            return {
+                "total_events": len(rows),
+                "deleted_events": len(cancelled_ids),
+                "source": "incremental",
+                "synced_at": now.isoformat(),
+            }
+
+    # ── Sync de rango (completo o primera vez quick) ─────────────────────────
     if quick:
-        # Sync rápido: solo el mes actual
-        time_min = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         import calendar as _cal
+        time_min = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
         last_day = _cal.monthrange(now.year, now.month)[1]
         time_max = now.replace(day=last_day, hour=23, minute=59, second=59, microsecond=0)
     else:
-        time_min = now - timedelta(days=365)  # último año
-        time_max = now + timedelta(days=180)  # próximos 6 meses
-
-    import asyncio as _asyncio
-    import httpx as _httpx
-
-    async def _fetch_cal_default_color() -> str | None:
-        try:
-            async with _httpx.AsyncClient() as _client:
-                _resp = await _client.get(
-                    "https://www.googleapis.com/calendar/v3/users/me/calendarList",
-                    headers={"Authorization": f"Bearer {access_token}"},
-                )
-                if _resp.is_success:
-                    for _cal in _resp.json().get("items", []):
-                        if _cal.get("primary") or _cal.get("id") == cal_id:
-                            return _cal.get("backgroundColor")
-        except Exception:
-            pass
-        return None
-
-    async def _fetch_event_colors() -> dict[str, str]:
-        try:
-            return await oauth.get_event_colors(access_token)
-        except Exception:
-            return {}
-
-    async def _fetch_events():
-        return await oauth.list_google_events(access_token, cal_id, time_min, time_max)
+        time_min = now - timedelta(days=365)
+        time_max = now + timedelta(days=180)
 
     try:
-        gcal_items, event_colors, calendar_default_color = await _asyncio.gather(
-            _fetch_events(),
-            _fetch_event_colors(),
-            _fetch_cal_default_color(),
+        (gcal_items, new_sync_token), (event_colors, calendar_default_color) = await asyncio.gather(
+            oauth.list_google_events(access_token, cal_id, time_min, time_max),
+            _fetch_colors_and_calendar(access_token, cal_id),
         )
     except Exception as e:
         return {"error": f"Error leyendo Google Calendar API: {str(e)}"}
 
-    # Cargar horarios de citas SmileOS para excluirlos del sync (evita duplicados)
     appts_result = await db.execute(
         select(Appointment.scheduled_at).where(
-            Appointment.clinic_id == clinic_id,
-            Appointment.cancelled_at.is_(None),
+            Appointment.clinic_id == clinic_id, Appointment.cancelled_at.is_(None)
         )
     )
     smileos_times = {
-        row.scheduled_at.replace(tzinfo=timezone.utc) if row.scheduled_at.tzinfo is None
-        else row.scheduled_at.astimezone(timezone.utc)
-        for row in appts_result.fetchall()
+        r.scheduled_at.replace(tzinfo=timezone.utc) if r.scheduled_at.tzinfo is None
+        else r.scheduled_at.astimezone(timezone.utc)
+        for r in appts_result.fetchall()
     }
-
-    # Cargar pacientes para matching
     patients_result = await db.execute(
         select(Patient.id, Patient.first_name, Patient.last_name)
         .where(Patient.clinic_id == clinic_id, Patient.is_active == True)  # noqa
@@ -229,63 +340,14 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
     patients = list(patients_result.fetchall())
 
     rows = []
-    matched = 0
-    colors_found = 0
-
     for item in gcal_items:
         if item.get("status") == "cancelled":
             continue
-        # Saltar eventos creados por SmileOS (tienen tag extendedProperties)
-        if item.get("extendedProperties", {}).get("private", {}).get("smileos") == "1":
-            continue
-
-        event_id = item.get("id", "")
-        summary = (item.get("summary") or "").strip()
-        if not event_id or not summary:
-            continue
-
-        start_raw = item.get("start", {})
-        end_raw = item.get("end", {})
-        start_at = _parse_gcal_dt(start_raw)
-        end_at = _parse_gcal_dt(end_raw)
-        if not start_at:
-            continue
-        if not end_at:
-            end_at = start_at + timedelta(hours=1)
-
-        # Saltar si coincide con cita de SmileOS (±10 min) → evita duplicado visual
-        if any(abs((start_at - t).total_seconds()) < 600 for t in smileos_times):
-            continue
-
-        # Color: usar colores exactos de la API, luego fallback al color del calendario
-        color_id = item.get("colorId")
-        hex_color = (event_colors.get(str(color_id)) if color_id else None) or calendar_default_color
-        if hex_color:
-            colors_found += 1
-
-        # Match paciente
-        patient_name = _extract_name(summary)
-        patient_id, confidence = _match_patient_rows(patient_name, patients)
-        if patient_id:
-            matched += 1
-
-        rows.append({
-            "id": uuid.uuid4(),
-            "clinic_id": clinic_id,
-            "ical_uid": item.get("iCalUID", event_id),
-            "google_event_id": event_id,
-            "title": summary,
-            "start_at": start_at,
-            "end_at": end_at,
-            "patient_id": patient_id,
-            "match_confidence": confidence if patient_id else None,
-            "gcal_color": hex_color,
-            "created_at": now,
-            "updated_at": now,
-        })
+        row = _build_event_row(item, clinic_id, event_colors, calendar_default_color, smileos_times, patients, now)
+        if row:
+            rows.append(row)
 
     if quick:
-        # Solo reemplaza el rango reciente, deja intactos los eventos históricos
         await db.execute(
             delete(CalendarEvent).where(
                 CalendarEvent.clinic_id == clinic_id,
@@ -294,19 +356,18 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
             )
         )
     else:
-        # Sync completo: borra todo y reinserta
         await db.execute(delete(CalendarEvent).where(CalendarEvent.clinic_id == clinic_id))
 
     if rows:
         await db.execute(pg_insert(CalendarEvent).values(rows))
 
     settings.calendar_last_synced_at = now
+    if new_sync_token:
+        settings.google_sync_token = new_sync_token
     await db.commit()
 
     return {
         "total_events": len(rows),
-        "matched_patients": matched,
-        "colors_found": colors_found,
         "source": "google_api",
         "quick": quick,
         "synced_at": now.isoformat(),

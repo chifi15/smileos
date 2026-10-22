@@ -65,6 +65,7 @@ class ClinicSettings(UUIDMixin, TimestampMixin, Base):
     # Google Calendar OAuth
     google_refresh_token: Mapped[str | None] = mapped_column(Text, nullable=True)
     google_calendar_id: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    google_sync_token: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     ui_preferences: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     booking_appointment_types: Mapped[list | None] = mapped_column(JSONB, nullable=True)

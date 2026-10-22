@@ -234,8 +234,9 @@ async def list_google_events(
     calendar_id: str,
     time_min: datetime,
     time_max: datetime,
-) -> list[dict]:
-    """Lista eventos de Google Calendar en un rango de fechas."""
+) -> tuple[list[dict], str | None]:
+    """Lista eventos de Google Calendar en un rango de fechas.
+    Retorna (items, nextSyncToken)."""
     params = {
         "timeMin": time_min.isoformat(),
         "timeMax": time_max.isoformat(),
@@ -255,7 +256,43 @@ async def list_google_events(
                 request=resp.request,
                 response=resp,
             )
-        return resp.json().get("items", [])
+        body = resp.json()
+        return body.get("items", []), body.get("nextSyncToken")
+
+
+async def list_google_events_incremental(
+    access_token: str,
+    calendar_id: str,
+    sync_token: str,
+) -> tuple[list[dict], str | None]:
+    """Sync incremental: solo devuelve eventos cambiados desde el último sync.
+    Retorna (items, nextSyncToken). Si el token expiró lanza GoneSyncToken."""
+    params = {
+        "syncToken": sync_token,
+        "singleEvents": "true",
+        "maxResults": 2500,
+        "showDeleted": "true",
+    }
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            f"{GOOGLE_CALENDAR_API}/calendars/{calendar_id}/events",
+            headers={"Authorization": f"Bearer {access_token}"},
+            params=params,
+        )
+        if resp.status_code == 410:
+            raise SyncTokenExpiredError("Sync token expirado, necesita full sync")
+        if not resp.is_success:
+            raise httpx.HTTPStatusError(
+                f"{resp.status_code} {resp.reason_phrase}: {resp.text}",
+                request=resp.request,
+                response=resp,
+            )
+        body = resp.json()
+        return body.get("items", []), body.get("nextSyncToken")
+
+
+class SyncTokenExpiredError(Exception):
+    pass
 
 
 # ─── Color mapping ─────────────────────────────────────────────────────────────
