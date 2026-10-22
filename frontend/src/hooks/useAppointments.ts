@@ -53,16 +53,20 @@ export function useCreateAppointment(onSuccess?: () => void) {
       notes: string | null;
       gcal_color_id?: string | null;
     }) => {
-      const { data } = await apiClient.post<{ data: AppointmentFull }>(
+      const { data } = await apiClient.post<{ data: AppointmentFull; gcal_warning?: string | null }>(
         "/api/v1/appointments",
         body
       );
-      return data.data;
+      return data;
     },
-    onSuccess: () => {
+    onSuccess: (res) => {
       qc.invalidateQueries({ queryKey: ["appointments"] });
       qc.invalidateQueries({ queryKey: ["dashboard"] });
-      toast.success("Cita creada.");
+      if (res.gcal_warning) {
+        toast.error(res.gcal_warning, { duration: 6000 });
+      } else {
+        toast.success("Cita creada.");
+      }
       onSuccess?.();
     },
     onError: (err: any) => {

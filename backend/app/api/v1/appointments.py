@@ -68,7 +68,8 @@ async def create_appointment(
         patient_id=appt.patient_id,
     )
 
-    # Crear en Google Calendar si hay OAuth conectado (fallo silencioso)
+    # Crear en Google Calendar si hay OAuth conectado
+    gcal_warning: str | None = None
     try:
         settings_row = await db.execute(
             select(ClinicSettings.google_refresh_token, ClinicSettings.google_calendar_id)
@@ -77,25 +78,29 @@ async def create_appointment(
         cfg = settings_row.one_or_none()
         if cfg and cfg.google_refresh_token:
             from app.services import google_oauth_service as oauth
+            from zoneinfo import ZoneInfo
+            CLINIC_TZ_GCal = ZoneInfo("America/Managua")
             access_token = await oauth.refresh_access_token(cfg.google_refresh_token)
             cal_id = cfg.google_calendar_id or "primary"
             patient_name = appt.patient.full_name if appt.patient else (appt.guest_name or "")
-            end_at = appt.scheduled_at + timedelta(minutes=appt.duration_minutes)
+            start_local = appt.scheduled_at.astimezone(CLINIC_TZ_GCal)
+            end_local = (appt.scheduled_at + timedelta(minutes=appt.duration_minutes)).astimezone(CLINIC_TZ_GCal)
             gcal_event = await oauth.create_google_event(
                 access_token, cal_id,
                 summary=patient_name,
-                start_dt=appt.scheduled_at,
-                end_dt=end_at,
+                start_dt=start_local,
+                end_dt=end_local,
                 description=appt.reason or "",
                 color_id=appt.gcal_color_id,
             )
-            # Guardar el ID del evento de GCal para poder actualizarlo luego
             appt.google_event_id = gcal_event.get("id")
             await db.flush()
-    except Exception:
-        pass  # Google Calendar no disponible; la cita igual está en SmileOS
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        gcal_warning = f"Cita guardada, pero no se pudo crear en Google Calendar: {str(e)[:120]}"
 
-    return {"success": True, "data": _serialize(appt)}
+    return {"success": True, "data": _serialize(appt), "gcal_warning": gcal_warning}
 
 
 @router.get("")
