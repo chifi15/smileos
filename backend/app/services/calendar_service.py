@@ -163,9 +163,11 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
 
     now = datetime.now(timezone.utc)
     if quick:
-        # Sync rápido: solo 7 días atrás + 60 días adelante
-        time_min = now - timedelta(days=7)
-        time_max = now + timedelta(days=60)
+        # Sync rápido: solo el mes actual
+        time_min = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        import calendar as _cal
+        last_day = _cal.monthrange(now.year, now.month)[1]
+        time_max = now.replace(day=last_day, hour=23, minute=59, second=59, microsecond=0)
     else:
         time_min = now - timedelta(days=365)  # último año
         time_max = now + timedelta(days=180)  # próximos 6 meses
