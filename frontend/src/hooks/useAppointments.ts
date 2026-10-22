@@ -14,7 +14,7 @@ export function useAppointments(dateFrom: string, dateTo: string) {
       return data.data;
     },
     enabled: !!dateFrom && !!dateTo,
-    refetchInterval: 60_000,
+    refetchInterval: 15_000,
   });
 }
 
