@@ -977,8 +977,12 @@ function BookingTypesSection() {
                 type="number"
                 min="5"
                 step="5"
-                value={t.duration_minutes}
-                onChange={(e) => updateDuration(idx, Math.max(5, parseInt(e.target.value) || 5))}
+                value={t.duration_minutes === 0 ? "" : t.duration_minutes}
+                onChange={(e) => updateDuration(idx, e.target.value === "" ? 0 : parseInt(e.target.value) || 0)}
+                onBlur={(e) => {
+                  const v = parseInt(e.target.value);
+                  if (!v || v < 5) updateDuration(idx, 5);
+                }}
                 className="w-full h-9 rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
               />
               <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">min</span>
