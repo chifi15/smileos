@@ -87,6 +87,7 @@ class UserUpdate(BaseModel):
     role: AnyRole | None = None
     phone: str | None = None
     is_active: bool | None = None
+    gcal_color_id: str | None = None
 
 
 class BookingAppointmentType(BaseModel):

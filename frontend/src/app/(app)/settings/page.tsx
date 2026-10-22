@@ -11,7 +11,7 @@ import { CSS } from "@dnd-kit/utilities";
 import toast from "react-hot-toast";
 import { useClinicSettings, useUpdateSettings, useWorkingHours, useUpdateWorkingHours, useUpdateBookingAppointmentTypes, WorkingHour } from "@/hooks/useSettings";
 import { usePlanStatus } from "@/hooks/useBilling";
-import { useSyncCalendar, useCalendarStatus, useDisconnectGoogleOAuth } from "@/hooks/useCalendar";
+import { useSyncCalendar, useCalendarStatus, useDisconnectGoogleOAuth, useGcalEventColors, GCAL_COLOR_NAMES } from "@/hooks/useCalendar";
 import apiClient, { getAccessToken } from "@/lib/api-client";
 import { useAllUsers, useCreateUser, useUpdateUser } from "@/hooks/useUsers";
 import { useProcedures, useUpdateProcedurePrice, useCreateProcedure, useDeleteProcedure, useReorderProcedures, usePriceHistory, PriceHistoryEntry } from "@/hooks/useCatalog";
@@ -297,12 +297,23 @@ function EditUserModal({ user, onClose }: { user: ClinicUser; onClose: () => voi
   const [email, setEmail] = useState(user.email);
   const [role, setRole] = useState<UserRole>(user.role);
   const [phone, setPhone] = useState(user.phone ?? "");
+  const [gcalColorId, setGcalColorId] = useState<string | null>(user.gcal_color_id ?? null);
+  const { data: gcalColors = {} } = useGcalEventColors();
   const update = useUpdateUser();
+
+  const isDentist = role === "dentist" || role === "clinic_owner";
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     update.mutate(
-      { id: user.id, full_name: fullName.trim(), email: email.trim(), role, phone: phone.trim() || undefined },
+      {
+        id: user.id,
+        full_name: fullName.trim(),
+        email: email.trim(),
+        role,
+        phone: phone.trim() || undefined,
+        gcal_color_id: isDentist ? gcalColorId : null,
+      },
       { onSuccess: onClose }
     );
   }
@@ -336,6 +347,38 @@ function EditUserModal({ user, onClose }: { user: ClinicUser; onClose: () => voi
           onChange={(e) => setPhone(e.target.value)}
           placeholder="Opcional"
         />
+        {isDentist && Object.keys(gcalColors).length > 0 && (
+          <div>
+            <label className="mb-1.5 block text-sm font-medium text-slate-700 dark:text-gray-300">
+              Color en Google Calendar
+            </label>
+            <div className="flex items-center gap-1.5 flex-wrap">
+              <button
+                type="button"
+                onClick={() => setGcalColorId(null)}
+                title="Predeterminado"
+                className={`w-6 h-6 rounded-full border-2 transition-transform ${
+                  gcalColorId === null ? "border-blue-500 scale-125" : "border-slate-300 dark:border-gray-600"
+                } bg-slate-200 dark:bg-gray-600`}
+              />
+              {Object.entries(gcalColors).map(([id, hex]) => (
+                <button
+                  key={id}
+                  type="button"
+                  onClick={() => setGcalColorId(id)}
+                  title={GCAL_COLOR_NAMES[id] ?? id}
+                  className={`w-6 h-6 rounded-full border-2 transition-transform ${
+                    gcalColorId === id ? "border-blue-500 scale-125" : "border-transparent"
+                  }`}
+                  style={{ backgroundColor: hex as string }}
+                />
+              ))}
+            </div>
+            <p className="mt-1 text-xs text-slate-400 dark:text-gray-500">
+              Color que usarán los eventos de este doctor en Google Calendar
+            </p>
+          </div>
+        )}
         <div className="flex justify-end gap-3 pt-2">
           <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
           <Button type="submit" loading={update.isPending} disabled={!fullName.trim() || !email.trim()}>

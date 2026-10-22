@@ -451,6 +451,7 @@ export interface ClinicUser {
   must_change_password: boolean;
   last_login_at: string | null;
   created_at: string | null;
+  gcal_color_id: string | null;
 }
 
 // ─── Photos ───────────────────────────────────────────────────────────────────

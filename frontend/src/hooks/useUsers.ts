@@ -29,7 +29,7 @@ export function useAllUsers() {
 export function useUpdateUser() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, ...values }: { id: string; full_name?: string; email?: string; role?: UserRole; phone?: string }) => {
+    mutationFn: async ({ id, ...values }: { id: string; full_name?: string; email?: string; role?: UserRole; phone?: string; gcal_color_id?: string | null }) => {
       const { data } = await apiClient.patch<{ data: ClinicUser }>(`/api/v1/users/${id}`, values);
       return data.data;
     },

@@ -326,6 +326,7 @@ async def create_booking_request(
                 start_dt=start_local,
                 end_dt=end_local,
                 description=body.reason.strip() if body.reason else "",
+                color_id=available_dentist.gcal_color_id,
             )
             appointment.google_event_id = gcal_event.get("id")
             await db.commit()

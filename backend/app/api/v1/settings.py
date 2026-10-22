@@ -91,6 +91,7 @@ def _serialize_user(u, temp_password: str | None = None) -> dict:
         "must_change_password": u.must_change_password,
         "last_login_at": u.last_login_at.isoformat() if u.last_login_at else None,
         "created_at": u.created_at.isoformat() if u.created_at else None,
+        "gcal_color_id": u.gcal_color_id,
     }
     if temp_password is not None:
         out["temp_password"] = temp_password
