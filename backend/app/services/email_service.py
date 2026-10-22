@@ -100,6 +100,11 @@ def send_booking_notification_email(
     }
     appt_label = appt_type_labels.get(appointment_type, appointment_type)
 
+    date_iso = local_dt.strftime("%Y-%m-%d")
+    agenda_url = f"{settings.frontend_url}/appointments?date={date_iso}"
+    wa_digits = "".join(c for c in (guest_phone or "") if c.isdigit())
+    wa_url = f"https://wa.me/{wa_digits}" if wa_digits else None
+
     reason_row = f"""
       <tr>
         <td style="padding:6px 0; color:#6b7280; font-size:14px;">Motivo</td>
@@ -111,6 +116,11 @@ def send_booking_notification_email(
         <td style="padding:6px 0; color:#6b7280; font-size:14px;">Teléfono</td>
         <td style="padding:6px 0; font-size:14px; font-weight:600;">{guest_phone}</td>
       </tr>""" if guest_phone else ""
+
+    wa_button = f"""
+        <a href="{wa_url}" style="display:inline-block; background:#25d366; color:white; text-decoration:none; padding:11px 22px; border-radius:8px; font-size:14px; font-weight:600;">
+          💬 WhatsApp {guest_phone}
+        </a>""" if wa_url else ""
 
     html = f"""
     <div style="font-family: Arial, sans-serif; max-width: 520px; margin: 0 auto; background: #f8fafc; padding: 24px; border-radius: 12px;">
@@ -143,6 +153,12 @@ def send_booking_notification_email(
           </tr>
           {reason_row}
         </table>
+        <div style="margin-top:24px; display:flex; gap:10px; flex-wrap:wrap;">
+          <a href="{agenda_url}" style="display:inline-block; background:#2563eb; color:white; text-decoration:none; padding:11px 22px; border-radius:8px; font-size:14px; font-weight:600;">
+            📅 Ver en agenda
+          </a>
+          {wa_button}
+        </div>
         <p style="margin:20px 0 0; font-size:12px; color:#9ca3af;">
           Esta cita fue creada desde el enlace de reserva en línea y aparece en tu agenda con estado <strong>Programada</strong>.
         </p>

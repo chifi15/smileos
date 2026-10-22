@@ -33,6 +33,7 @@ interface Props {
   onEventClick: (appt: AppointmentFull) => void;
   onDateClick: (dateStr: string) => void;
   onDatesSet: (dateFrom: string, dateTo: string) => void;
+  initialDate?: string;
 }
 
 function EventContent({ arg }: { arg: EventContentArg }) {
@@ -54,6 +55,7 @@ export default function AppointmentCalendar({
   onEventClick,
   onDateClick,
   onDatesSet,
+  initialDate,
 }: Props) {
   const { data: gcalColorMap = {} } = useGcalEventColors();
 
@@ -94,6 +96,7 @@ export default function AppointmentCalendar({
       <FullCalendar
         plugins={[timeGridPlugin, dayGridPlugin, interactionPlugin]}
         initialView="timeGridWeek"
+        initialDate={initialDate || undefined}
         headerToolbar={{
           left: "prev,next today",
           center: "title",

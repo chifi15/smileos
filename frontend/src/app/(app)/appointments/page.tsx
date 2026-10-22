@@ -1,7 +1,8 @@
 "use client";
 
 import dynamic from "next/dynamic";
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { CalendarPlus, RefreshCw, Trash2, RotateCcw, X, Link2, Check, Copy } from "lucide-react";
 import { useAppointments, useDeletedAppointments, useRestoreAppointment } from "@/hooks/useAppointments";
@@ -41,8 +42,21 @@ function currentWeekRange() {
   };
 }
 
-export default function AppointmentsPage() {
-  const [range, setRange] = useState(currentWeekRange);
+function AppointmentsPageInner() {
+  const searchParams = useSearchParams();
+  const initialDate = searchParams.get("date") || undefined;
+  const [range, setRange] = useState(() => {
+    if (initialDate) {
+      const d = new Date(initialDate);
+      const dow = d.getDay();
+      const monday = new Date(d);
+      monday.setDate(d.getDate() - dow + (dow === 0 ? -6 : 1));
+      const sunday = new Date(monday);
+      sunday.setDate(monday.getDate() + 6);
+      return { from: format(monday, "yyyy-MM-dd"), to: format(sunday, "yyyy-MM-dd") };
+    }
+    return currentWeekRange();
+  });
   const [selectedAppt, setSelectedAppt] = useState<AppointmentFull | null>(null);
   const [newApptDateStr, setNewApptDateStr] = useState<string | null>(null);
   const [dentistFilter, setDentistFilter] = useState("all");
@@ -197,6 +211,7 @@ export default function AppointmentsPage() {
           onEventClick={setSelectedAppt}
           onDateClick={setNewApptDateStr}
           onDatesSet={(from, to) => setRange({ from, to })}
+          initialDate={initialDate}
         />
       </div>
 
@@ -251,5 +266,13 @@ export default function AppointmentsPage() {
         </div>
       )}
     </div>
+  );
+}
+
+export default function AppointmentsPage() {
+  return (
+    <Suspense>
+      <AppointmentsPageInner />
+    </Suspense>
   );
 }
