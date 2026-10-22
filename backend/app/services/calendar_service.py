@@ -170,34 +170,41 @@ async def _sync_from_gcal_api(db: AsyncSession, settings, clinic_id: uuid.UUID, 
         time_min = now - timedelta(days=365)  # último año
         time_max = now + timedelta(days=180)  # próximos 6 meses
 
+    import asyncio as _asyncio
+    import httpx as _httpx
+
+    async def _fetch_cal_default_color() -> str | None:
+        try:
+            async with _httpx.AsyncClient() as _client:
+                _resp = await _client.get(
+                    "https://www.googleapis.com/calendar/v3/users/me/calendarList",
+                    headers={"Authorization": f"Bearer {access_token}"},
+                )
+                if _resp.is_success:
+                    for _cal in _resp.json().get("items", []):
+                        if _cal.get("primary") or _cal.get("id") == cal_id:
+                            return _cal.get("backgroundColor")
+        except Exception:
+            pass
+        return None
+
+    async def _fetch_event_colors() -> dict[str, str]:
+        try:
+            return await oauth.get_event_colors(access_token)
+        except Exception:
+            return {}
+
+    async def _fetch_events():
+        return await oauth.list_google_events(access_token, cal_id, time_min, time_max)
+
     try:
-        gcal_items = await oauth.list_google_events(access_token, cal_id, time_min, time_max)
+        gcal_items, event_colors, calendar_default_color = await _asyncio.gather(
+            _fetch_events(),
+            _fetch_event_colors(),
+            _fetch_cal_default_color(),
+        )
     except Exception as e:
         return {"error": f"Error leyendo Google Calendar API: {str(e)}"}
-
-    # Obtener definiciones de colores exactas desde la API de Google
-    event_colors: dict[str, str] = {}
-    try:
-        event_colors = await oauth.get_event_colors(access_token)
-    except Exception:
-        pass
-
-    # Color por defecto del calendario (para eventos sin colorId)
-    calendar_default_color: str | None = None
-    try:
-        import httpx as _httpx
-        async with _httpx.AsyncClient() as _client:
-            _resp = await _client.get(
-                "https://www.googleapis.com/calendar/v3/users/me/calendarList",
-                headers={"Authorization": f"Bearer {access_token}"},
-            )
-            if _resp.is_success:
-                for _cal in _resp.json().get("items", []):
-                    if _cal.get("primary") or _cal.get("id") == cal_id:
-                        calendar_default_color = _cal.get("backgroundColor")
-                        break
-    except Exception:
-        pass
 
     # Cargar horarios de citas SmileOS para excluirlos del sync (evita duplicados)
     appts_result = await db.execute(
@@ -477,7 +484,7 @@ async def get_events(
                 > timedelta(minutes=SYNC_COOLDOWN_MINUTES)
             )
             if stale:
-                await sync_calendar(db, clinic_id)
+                await sync_calendar(db, clinic_id, quick=True)
 
     from sqlalchemy import and_
     from datetime import date as _date
