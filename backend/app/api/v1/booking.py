@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models.calendar import CalendarEvent
-from app.models.clinic import Clinic, ClinicSettings, WorkingHours
+from app.models.clinic import Clinic, ClinicSettings, WorkingHours, ClinicHoliday
 from app.models.user import User
 from app.models.appointment import Appointment
 from app.services.appointment_service import get_available_slots, CLINIC_TZ
@@ -200,6 +200,133 @@ async def get_booking_slots(
             "date": date_str,
             "slots": sorted_slots,
             "slot_dentist": slot_dentist,
+        },
+    }
+
+
+# ─── Días disponibles del mes ────────────────────────────────────────────────
+
+@router.get("/{clinic_slug}/available-days")
+async def get_available_days(
+    clinic_slug: str,
+    month: str = Query(..., description="YYYY-MM"),
+    dentist_id: str | None = Query(default=None),
+    db: AsyncSession = Depends(get_db),
+):
+    import calendar as _cal
+    from collections import defaultdict
+    from zoneinfo import ZoneInfo
+
+    clinic = await _get_clinic(clinic_slug, db)
+
+    try:
+        year, mon = map(int, month.split("-"))
+    except ValueError:
+        raise HTTPException(status_code=422, detail="month debe ser YYYY-MM")
+
+    settings = await db.scalar(select(ClinicSettings).where(ClinicSettings.clinic_id == clinic.id))
+    duration = settings.default_appointment_duration_minutes if settings else 60
+    slot_size = 60
+
+    wh_rows = (await db.execute(
+        select(WorkingHours).where(WorkingHours.clinic_id == clinic.id)
+    )).scalars().all()
+    wh_map = {wh.day_of_week: wh for wh in wh_rows}
+
+    days_in_month = _cal.monthrange(year, mon)[1]
+    first_day = date(year, mon, 1)
+    last_day = date(year, mon, days_in_month)
+
+    holiday_dates = set((await db.execute(
+        select(ClinicHoliday.date).where(
+            ClinicHoliday.clinic_id == clinic.id,
+            ClinicHoliday.date >= first_day,
+            ClinicHoliday.date <= last_day,
+        )
+    )).scalars().all())
+
+    dentist_filter = [
+        User.clinic_id == clinic.id,
+        User.role.in_(["dentist", "clinic_owner", "admin"]),
+        User.is_active == True,  # noqa: E712
+    ]
+    if dentist_id:
+        try:
+            dentist_filter.append(User.id == uuid.UUID(dentist_id))
+        except ValueError:
+            pass
+    dentists = (await db.execute(select(User).where(*dentist_filter))).scalars().all()
+
+    _TZ = ZoneInfo("America/Managua")
+    month_start_utc = datetime(year, mon, 1, tzinfo=_TZ).astimezone(timezone.utc)
+    month_end_utc = datetime(year, mon, days_in_month, 23, 59, 59, tzinfo=_TZ).astimezone(timezone.utc)
+
+    appts_result = (await db.execute(
+        select(Appointment.scheduled_at, Appointment.duration_minutes).where(
+            Appointment.clinic_id == clinic.id,
+            Appointment.scheduled_at >= month_start_utc,
+            Appointment.scheduled_at <= month_end_utc,
+            Appointment.status.not_in(["cancelled", "no_show"]),
+            Appointment.deleted_at.is_(None),
+        )
+    )).all()
+
+    appts_by_date: dict = defaultdict(list)
+    for appt in appts_result:
+        scheduled = appt.scheduled_at
+        if scheduled.tzinfo is None:
+            scheduled = scheduled.replace(tzinfo=timezone.utc)
+        local_date = scheduled.astimezone(_TZ).date()
+        appts_by_date[local_date].append((scheduled.astimezone(timezone.utc), appt.duration_minutes))
+
+    today = date.today()
+    available_days = []
+
+    for day_num in range(1, days_in_month + 1):
+        d = date(year, mon, day_num)
+        if d < today:
+            continue
+        if d in holiday_dates:
+            continue
+        dow = datetime(year, mon, day_num).isoweekday() % 7
+        wh = wh_map.get(dow)
+        if not wh or not wh.is_working_day:
+            continue
+        if not dentists:
+            continue
+
+        def _slots(open_t, close_t):
+            if not open_t or not close_t:
+                return []
+            result = []
+            from datetime import time as _time
+            cursor = datetime(year, mon, day_num, open_t.hour, open_t.minute, tzinfo=_TZ).astimezone(timezone.utc)
+            close_utc = datetime(year, mon, day_num, close_t.hour, close_t.minute, tzinfo=_TZ).astimezone(timezone.utc)
+            while cursor + timedelta(minutes=duration) <= close_utc:
+                result.append(cursor)
+                cursor += timedelta(minutes=slot_size)
+            return result
+
+        possible = _slots(wh.morning_open, wh.morning_close) + _slots(wh.afternoon_open, wh.afternoon_close)
+        if not possible:
+            continue
+
+        day_booked = appts_by_date.get(d, [])
+        has_free = any(
+            not any(
+                s < b_start + timedelta(minutes=b_dur) and s + timedelta(minutes=duration) > b_start
+                for b_start, b_dur in day_booked
+            )
+            for s in possible
+        )
+        if has_free:
+            available_days.append(d.isoformat())
+
+    return {
+        "success": True,
+        "data": {
+            "available_days": available_days,
+            "holidays": [h.isoformat() for h in holiday_dates],
         },
     }
 
