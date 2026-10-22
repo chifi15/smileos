@@ -11,6 +11,25 @@ import axios from "axios";
 const API = process.env.NEXT_PUBLIC_API_URL ?? "https://smileos.onrender.com";
 const http = axios.create({ baseURL: API });
 
+const COUNTRY_CODES = [
+  { code: "+505", flag: "🇳🇮", name: "Nicaragua" },
+  { code: "+504", flag: "🇭🇳", name: "Honduras" },
+  { code: "+506", flag: "🇨🇷", name: "Costa Rica" },
+  { code: "+502", flag: "🇬🇹", name: "Guatemala" },
+  { code: "+503", flag: "🇸🇻", name: "El Salvador" },
+  { code: "+507", flag: "🇵🇦", name: "Panamá" },
+  { code: "+52",  flag: "🇲🇽", name: "México" },
+  { code: "+1",   flag: "🇺🇸", name: "EE.UU. / Canadá" },
+  { code: "+57",  flag: "🇨🇴", name: "Colombia" },
+  { code: "+58",  flag: "🇻🇪", name: "Venezuela" },
+  { code: "+56",  flag: "🇨🇱", name: "Chile" },
+  { code: "+54",  flag: "🇦🇷", name: "Argentina" },
+  { code: "+51",  flag: "🇵🇪", name: "Perú" },
+  { code: "+55",  flag: "🇧🇷", name: "Brasil" },
+  { code: "+593", flag: "🇪🇨", name: "Ecuador" },
+  { code: "+34",  flag: "🇪🇸", name: "España" },
+];
+
 const DAYS_ES = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
 const MONTHS_ES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -64,6 +83,7 @@ export default function BookingPage() {
 
   const [name,        setName]        = useState("");
   const [phone,       setPhone]       = useState("");
+  const [countryCode, setCountryCode] = useState("+505");
   const [apptType,    setApptType]    = useState("primera_consulta");
   const [reason,      setReason]      = useState("");
   const [submitting,  setSubmitting]  = useState(false);
@@ -151,6 +171,7 @@ export default function BookingPage() {
     setSlots([]);
     setName("");
     setPhone("");
+    setCountryCode("+505");
     setApptType("primera_consulta");
     setReason("");
     setSubmitError("");
@@ -166,7 +187,7 @@ export default function BookingPage() {
     try {
       const r = await http.post(`/api/v1/booking/${slug}/request`, {
         date: selectedDate, time: selectedSlot,
-        guest_name: name.trim(), guest_phone: phone.trim(),
+        guest_name: name.trim(), guest_phone: phone.trim() ? countryCode + phone.trim() : "",
         appointment_type: apptType, reason: reason.trim(),
         dentist_id: selectedDentist?.id ?? null,
       });
@@ -313,22 +334,47 @@ export default function BookingPage() {
               </div>
             </div>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {[
-                { label: "Nombre completo", type: "text",  value: name,  set: setName,  ph: "Tu nombre completo", req: true },
-                { label: "Teléfono",        type: "tel",   value: phone, set: setPhone, ph: "Ej: 8888-0000",      req: true },
-              ].map(({ label, type, value, set, ph, req }) => (
-                <div key={label}>
-                  <label className={`block text-xs font-medium mb-1 ${dark ? "text-gray-300" : "text-slate-600"}`}>{label}</label>
+              {/* Nombre */}
+              <div>
+                <label className={`block text-xs font-medium mb-1 ${dark ? "text-gray-300" : "text-slate-600"}`}>Nombre completo</label>
+                <input
+                  required
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Tu nombre completo"
+                  className={`w-full h-10 rounded-lg border px-3 text-sm focus:outline-none focus:ring-2 ${input}`}
+                />
+              </div>
+              {/* Teléfono con código de país */}
+              <div>
+                <label className={`block text-xs font-medium mb-1 ${dark ? "text-gray-300" : "text-slate-600"}`}>Teléfono</label>
+                <div className="flex gap-2">
+                  <select
+                    value={countryCode}
+                    onChange={(e) => setCountryCode(e.target.value)}
+                    className={`h-10 rounded-lg border px-2 text-sm focus:outline-none focus:ring-2 shrink-0 ${input}`}
+                    style={{ width: "6.5rem" }}
+                  >
+                    {COUNTRY_CODES.map((c) => (
+                      <option key={c.code} value={c.code} className={dark ? "bg-gray-800 text-white" : "bg-white text-slate-800"}>
+                        {c.flag} {c.code}
+                      </option>
+                    ))}
+                  </select>
                   <input
-                    required={req}
-                    type={type}
-                    value={value}
-                    onChange={(e) => set(e.target.value)}
-                    placeholder={ph}
-                    className={`w-full h-10 rounded-lg border px-3 text-sm focus:outline-none focus:ring-2 ${input}`}
+                    required
+                    type="tel"
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    placeholder="8888-0000"
+                    className={`flex-1 h-10 rounded-lg border px-3 text-sm focus:outline-none focus:ring-2 ${input}`}
                   />
                 </div>
-              ))}
+                <p className={`mt-1 text-xs ${dark ? "text-gray-500" : "text-slate-400"}`}>
+                  {countryCode} {phone || "_ _ _ _-_ _ _ _"} · solo el número local, sin el código
+                </p>
+              </div>
               <div>
                 <label className={`block text-xs font-medium mb-1 ${dark ? "text-gray-300" : "text-slate-600"}`}>Tipo de consulta</label>
                 <select
