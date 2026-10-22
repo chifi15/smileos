@@ -4,7 +4,7 @@ import { useEffect, useRef, useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { Building2, Users, Copy, CheckCircle2, UserPlus, Tag, Plus, Pencil, Check, X, Trash2, GripVertical, Link2, Unlink, Download, Shield, History, CalendarDays, RefreshCw, ExternalLink, Unplug, CreditCard, Zap } from "lucide-react";
+import { Building2, Users, Copy, CheckCircle2, UserPlus, Tag, Plus, Pencil, Check, X, Trash2, GripVertical, Link2, Unlink, Download, Shield, History, CalendarDays, RefreshCw, ExternalLink, Unplug, CreditCard, Zap, QrCode } from "lucide-react";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
@@ -20,6 +20,7 @@ import { useCostTreatments, useCostProducts, useFixedCosts, useLinkCostProcedure
 import { calculateTreatmentCosts, apiTreatmentToTreatment, apiProductToProduct } from "@/lib/costos-utils";
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
+import QrModal from "@/components/ui/QrModal";
 import Input from "@/components/ui/Input";
 import Modal from "@/components/ui/Modal";
 import Select from "@/components/ui/Select";
@@ -816,6 +817,7 @@ function WorkingHoursSection() {
   const [hours, setHours] = useState<WorkingHour[]>([]);
   const [dirty, setDirty] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showQr, setShowQr] = useState(false);
 
   useEffect(() => {
     if (savedHours && savedHours.length > 0) {
@@ -872,6 +874,13 @@ function WorkingHoursSection() {
                 <ExternalLink size={12} />
                 Vista previa
               </a>
+              <button
+                onClick={() => setShowQr(true)}
+                className="flex items-center gap-1 text-xs text-slate-500 dark:text-gray-400 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
+              >
+                <QrCode size={12} />
+                Ver QR
+              </button>
             </div>
           )}
         </div>
@@ -930,6 +939,12 @@ function WorkingHoursSection() {
             </div>
           ))}
         </div>
+      )}
+      {showQr && clinicSlug && (
+        <QrModal
+          url={`${window.location.origin}/reservar/${clinicSlug}`}
+          onClose={() => setShowQr(false)}
+        />
       )}
     </section>
   );

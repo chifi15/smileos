@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useState, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
-import { CalendarPlus, RefreshCw, Trash2, RotateCcw, X, Link2, Check, Copy } from "lucide-react";
+import { CalendarPlus, RefreshCw, Trash2, RotateCcw, X, Link2, Check, Copy, QrCode } from "lucide-react";
 import { useAppointments, useDeletedAppointments, useRestoreAppointment } from "@/hooks/useAppointments";
 import { useClinicUsers } from "@/hooks/useUsers";
 import { useCalendarEvents, useSyncCalendar, useCalendarStatus } from "@/hooks/useCalendar";
@@ -16,6 +16,7 @@ import Select from "@/components/ui/Select";
 import Spinner from "@/components/ui/Spinner";
 import AppointmentDetailModal from "@/components/appointments/AppointmentDetailModal";
 import NewAppointmentModal from "@/components/appointments/NewAppointmentModal";
+import QrModal from "@/components/ui/QrModal";
 
 const AppointmentCalendar = dynamic(
   () => import("@/components/appointments/AppointmentCalendar"),
@@ -62,6 +63,7 @@ function AppointmentsPageInner() {
   const [dentistFilter, setDentistFilter] = useState("all");
   const [showTrash, setShowTrash] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [showQr, setShowQr] = useState(false);
   const user = useAuthStore((s) => s.user);
   const { data: settingsData } = useWorkingHours();
   const clinicSlug = settingsData?.clinic_slug || user?.clinic_slug;
@@ -171,6 +173,16 @@ function AppointmentsPageInner() {
             {copied ? <Check size={15} className="text-green-500" /> : <Copy size={15} />}
             {copied ? "¡Copiado!" : "Copiar enlace"}
           </button>
+          {clinicSlug && (
+            <button
+              onClick={() => setShowQr(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-gray-600 px-3 py-2 text-sm font-medium text-slate-500 dark:text-gray-400 hover:border-violet-300 hover:text-violet-600 dark:hover:text-violet-400 transition-colors"
+              title="Ver QR del enlace de reserva"
+            >
+              <QrCode size={15} />
+              QR
+            </button>
+          )}
           <button
             onClick={() => setShowTrash(true)}
             className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-gray-600 px-3 py-2 text-sm font-medium text-slate-500 dark:text-gray-400 hover:border-slate-300 transition-colors"
@@ -224,6 +236,12 @@ function AppointmentsPageInner() {
         dateStr={newApptDateStr}
         onClose={() => setNewApptDateStr(null)}
       />
+      {showQr && clinicSlug && (
+        <QrModal
+          url={`${window.location.origin}/reservar/${clinicSlug}`}
+          onClose={() => setShowQr(false)}
+        />
+      )}
 
       {/* Papelera modal */}
       {showTrash && (
