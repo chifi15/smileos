@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Package, Plus, Minus, Edit2, AlertTriangle, CheckCircle, XCircle, Search, Link2, History, X } from "lucide-react";
 import Link from "next/link";
 import {
@@ -663,7 +664,8 @@ function InventoryRow({ product, onAdjust, onLots, exchangeRate }: { product: Ap
 
 // ─── Página ───────────────────────────────────────────────────────────────────
 
-export default function InventarioPage() {
+function InventarioContent() {
+  const searchParams = useSearchParams();
   const { data: products = [], isLoading } = useCostProducts();
   const { data: treatments = [] } = useCostTreatments();
   const { data: clinicSettings } = useClinicSettings();
@@ -671,7 +673,10 @@ export default function InventarioPage() {
 
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState<string>("all");
-  const [statusFilter, setStatusFilter] = useState<StockStatus | "all">("all");
+  const initialFilter = (searchParams.get("filter") as StockStatus | null) ?? "all";
+  const [statusFilter, setStatusFilter] = useState<StockStatus | "all">(
+    ["ok", "low", "empty", "unconfigured"].includes(initialFilter) ? initialFilter : "all"
+  );
   const [adjusting, setAdjusting] = useState<ApiProduct | null>(null);
   const [lotsProduct, setLotsProduct] = useState<ApiProduct | null>(null);
 
@@ -792,5 +797,13 @@ export default function InventarioPage() {
       {adjusting && <AdjustModal product={adjusting} onClose={() => setAdjusting(null)} />}
       {lotsProduct && <LotHistoryModal product={lotsProduct} onClose={() => setLotsProduct(null)} />}
     </div>
+  );
+}
+
+export default function InventarioPage() {
+  return (
+    <Suspense>
+      <InventarioContent />
+    </Suspense>
   );
 }
