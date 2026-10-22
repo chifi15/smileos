@@ -66,7 +66,8 @@ apiClient.interceptors.response.use(
         return apiClient(original);
       } catch {
         clearAccessToken();
-        window.location.href = "/login";
+        const next = encodeURIComponent(window.location.pathname + window.location.search);
+        window.location.href = `/login?next=${next}`;
       }
     }
     return Promise.reject(error);

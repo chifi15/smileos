@@ -27,11 +27,14 @@ function LoginForm() {
   const redirectTo = safeRedirect(searchParams.get("next"));
   const login = useLogin(redirectTo);
 
+  // Solo redirigir desde aquí si el usuario YA estaba autenticado al llegar
+  // (p.ej. tiene sesión activa y abre el link del correo directamente).
+  // Cuando acaba de hacer login, useLogin.onSuccess ya maneja la navegación.
   useEffect(() => {
-    if (!isInitializing && isAuthenticated) {
+    if (!isInitializing && isAuthenticated && !login.isPending && !login.isSuccess) {
       router.replace(redirectTo);
     }
-  }, [isAuthenticated, isInitializing, router, redirectTo]);
+  }, [isAuthenticated, isInitializing]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();

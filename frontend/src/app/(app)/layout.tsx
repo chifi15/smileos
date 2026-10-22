@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/stores/auth.store";
 import { setAccessToken } from "@/lib/api-client";
 import Sidebar from "@/components/layout/Sidebar";
@@ -28,18 +28,19 @@ async function silentRefresh() {
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isInitializing, user } = useAuthStore();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     if (isInitializing) return;
     if (!isAuthenticated) {
-      const next = encodeURIComponent(window.location.pathname + window.location.search);
+      const next = encodeURIComponent(pathname + window.location.search);
       router.replace(`/login?next=${next}`);
       return;
     }
     if (user?.must_change_password) {
       router.replace("/change-password");
     }
-  }, [isInitializing, isAuthenticated, user, router]);
+  }, [isInitializing, isAuthenticated, user, pathname]); // router intencionalmente excluido — referencia inestable
 
   useEffect(() => {
     if (!isAuthenticated) return;
