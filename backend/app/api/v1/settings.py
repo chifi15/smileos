@@ -24,11 +24,11 @@ users_router = APIRouter(prefix="/users", tags=["Gestión de Usuarios"])
 
 def _default_appt_types() -> list[dict]:
     return [
-        {"value": "primera_consulta", "label": "Consulta"},
-        {"value": "control",          "label": "Control"},
-        {"value": "limpieza",         "label": "Profilaxis"},
-        {"value": "extraccion",       "label": "Extracción"},
-        {"value": "emergencia",       "label": "Emergencia"},
+        {"value": "primera_consulta", "label": "Consulta",   "duration_minutes": 30},
+        {"value": "control",          "label": "Control",    "duration_minutes": 30},
+        {"value": "limpieza",         "label": "Profilaxis", "duration_minutes": 60},
+        {"value": "extraccion",       "label": "Extracción", "duration_minutes": 45},
+        {"value": "emergencia",       "label": "Emergencia", "duration_minutes": 30},
     ]
 
 

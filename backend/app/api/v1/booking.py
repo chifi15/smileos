@@ -54,11 +54,11 @@ async def get_booking_info(
     )).scalars().all()
 
     default_types = [
-        {"value": "primera_consulta", "label": "Consulta"},
-        {"value": "control",          "label": "Control"},
-        {"value": "limpieza",         "label": "Profilaxis"},
-        {"value": "extraccion",       "label": "Extracción"},
-        {"value": "emergencia",       "label": "Emergencia"},
+        {"value": "primera_consulta", "label": "Consulta",   "duration_minutes": 30},
+        {"value": "control",          "label": "Control",    "duration_minutes": 30},
+        {"value": "limpieza",         "label": "Profilaxis", "duration_minutes": 60},
+        {"value": "extraccion",       "label": "Extracción", "duration_minutes": 45},
+        {"value": "emergencia",       "label": "Emergencia", "duration_minutes": 30},
     ]
     appt_types = (settings.booking_appointment_types if settings and settings.booking_appointment_types else default_types)
 

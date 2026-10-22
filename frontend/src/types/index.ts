@@ -489,6 +489,12 @@ export interface PatientPhoto {
 
 // ─── Clinic Settings ──────────────────────────────────────────────────────────
 
+export interface AppointmentTypeConfig {
+  value: string;
+  label: string;
+  duration_minutes: number;
+}
+
 export interface ClinicSettings {
   id: string;
   display_name: string;
@@ -502,6 +508,7 @@ export interface ClinicSettings {
   ical_url: string | null;
   calendar_last_synced_at: string | null;
   updated_at: string | null;
+  booking_appointment_types: AppointmentTypeConfig[];
 }
 
 // ─── Schedule ─────────────────────────────────────────────────────────────────

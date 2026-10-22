@@ -893,28 +893,33 @@ function WorkingHoursSection() {
 // ─── Tipos de consulta para reservas ─────────────────────────────────────────
 
 const DEFAULT_APPT_TYPES = [
-  { value: "primera_consulta", label: "Consulta" },
-  { value: "control",          label: "Control" },
-  { value: "limpieza",         label: "Profilaxis" },
-  { value: "extraccion",       label: "Extracción" },
-  { value: "emergencia",       label: "Emergencia" },
+  { value: "primera_consulta", label: "Consulta",   duration_minutes: 30 },
+  { value: "control",          label: "Control",    duration_minutes: 30 },
+  { value: "limpieza",         label: "Profilaxis", duration_minutes: 60 },
+  { value: "extraccion",       label: "Extracción", duration_minutes: 45 },
+  { value: "emergencia",       label: "Emergencia", duration_minutes: 30 },
 ];
 
 function BookingTypesSection() {
   const { data: settings } = useClinicSettings();
   const saveTypes = useUpdateBookingAppointmentTypes();
 
-  const [types, setTypes] = useState<{ value: string; label: string }[]>([]);
+  const [types, setTypes] = useState<{ value: string; label: string; duration_minutes: number }[]>([]);
   const [dirty, setDirty] = useState(false);
   const [newLabel, setNewLabel] = useState("");
 
   useEffect(() => {
-    const saved = (settings as any)?.booking_appointment_types;
-    setTypes(saved?.length ? saved : DEFAULT_APPT_TYPES);
+    const saved = settings?.booking_appointment_types;
+    setTypes(saved?.length ? saved.map(t => ({ ...t, duration_minutes: t.duration_minutes ?? 30 })) : DEFAULT_APPT_TYPES);
   }, [settings]);
 
   function updateLabel(idx: number, label: string) {
     setTypes(prev => prev.map((t, i) => i === idx ? { ...t, label } : t));
+    setDirty(true);
+  }
+
+  function updateDuration(idx: number, duration_minutes: number) {
+    setTypes(prev => prev.map((t, i) => i === idx ? { ...t, duration_minutes } : t));
     setDirty(true);
   }
 
@@ -927,7 +932,7 @@ function BookingTypesSection() {
     const trimmed = newLabel.trim();
     if (!trimmed) return;
     const value = trimmed.toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
-    setTypes(prev => [...prev, { value, label: trimmed }]);
+    setTypes(prev => [...prev, { value, label: trimmed, duration_minutes: 30 }]);
     setNewLabel("");
     setDirty(true);
   }
@@ -941,7 +946,7 @@ function BookingTypesSection() {
       <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-gray-700">
         <div>
           <h2 className="font-semibold text-slate-800 dark:text-white">Tipos de consulta</h2>
-          <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">Opciones que ven los pacientes al reservar una cita en línea</p>
+          <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">Configura los tipos y su duración predeterminada en la agenda</p>
         </div>
         {dirty && (
           <button
@@ -955,6 +960,11 @@ function BookingTypesSection() {
       </div>
 
       <div className="p-6 space-y-3">
+        <div className="flex items-center gap-3 pb-1">
+          <span className="flex-1 text-xs font-medium text-slate-400 dark:text-gray-500">Nombre</span>
+          <span className="w-28 text-xs font-medium text-slate-400 dark:text-gray-500">Duración</span>
+          <span className="w-6" />
+        </div>
         {types.map((t, idx) => (
           <div key={idx} className="flex items-center gap-3">
             <input
@@ -962,6 +972,17 @@ function BookingTypesSection() {
               onChange={(e) => updateLabel(idx, e.target.value)}
               className="flex-1 h-9 rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
             />
+            <div className="relative w-28 shrink-0">
+              <input
+                type="number"
+                min="5"
+                step="5"
+                value={t.duration_minutes}
+                onChange={(e) => updateDuration(idx, Math.max(5, parseInt(e.target.value) || 5))}
+                className="w-full h-9 rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white pl-3 pr-8 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+              />
+              <span className="absolute right-2 top-1/2 -translate-y-1/2 text-xs text-slate-400 pointer-events-none">min</span>
+            </div>
             <button
               onClick={() => remove(idx)}
               className="shrink-0 text-slate-300 hover:text-red-500 transition-colors"

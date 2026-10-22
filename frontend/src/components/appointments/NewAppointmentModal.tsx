@@ -11,6 +11,7 @@ import Button from "@/components/ui/Button";
 import PatientSearch from "@/components/ui/PatientSearch";
 import { useCreateAppointment } from "@/hooks/useAppointments";
 import { useClinicUsers } from "@/hooks/useUsers";
+import { useClinicSettings } from "@/hooks/useSettings";
 import { useAuthStore } from "@/stores/auth.store";
 import { useGcalEventColors, GCAL_COLOR_NAMES } from "@/hooks/useCalendar";
 import { APPOINTMENT_TYPE_LABELS, AppointmentType } from "@/types";
@@ -44,6 +45,7 @@ function addMinutes(time: string, mins: number): string {
 export default function NewAppointmentModal({ dateStr, onClose, prefilledPatient }: Props) {
   const { user } = useAuthStore();
   const { data: users = [] } = useClinicUsers();
+  const { data: settings } = useClinicSettings();
   const { data: gcalColors = {} } = useGcalEventColors();
 
   const [patient, setPatient] = useState<{ id: string; name: string } | null>(
@@ -193,7 +195,13 @@ export default function NewAppointmentModal({ dateStr, onClose, prefilledPatient
         <Select
           label="Tipo de cita *"
           value={type}
-          onChange={(e) => setType(e.target.value)}
+          onChange={(e) => {
+            const newType = e.target.value;
+            setType(newType);
+            const configured = settings?.booking_appointment_types?.find(t => t.value === newType);
+            const mins = configured?.duration_minutes ?? settings?.default_appointment_duration_minutes ?? 30;
+            if (startTime) setEndTime(addMinutes(startTime, mins));
+          }}
           options={TYPE_OPTIONS}
         />
 

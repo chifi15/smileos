@@ -92,3 +92,4 @@ class UserUpdate(BaseModel):
 class BookingAppointmentType(BaseModel):
     value: str
     label: str
+    duration_minutes: int = 30
