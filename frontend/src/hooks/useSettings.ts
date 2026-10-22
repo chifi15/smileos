@@ -104,6 +104,54 @@ export function useUpdateBookingAppointmentTypes() {
   });
 }
 
+export interface ClinicHoliday {
+  id: string;
+  date: string;
+  description: string | null;
+}
+
+export function useClinicHolidays() {
+  return useQuery({
+    queryKey: ["clinic-holidays"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: { settings: ClinicSettings; working_hours: unknown[]; upcoming_holidays: ClinicHoliday[]; clinic_slug: string } }>("/api/v1/settings");
+      return data.data.upcoming_holidays ?? [];
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useAddHoliday() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (body: { date: string; description?: string }) => {
+      const { data } = await apiClient.post<{ data: ClinicHoliday }>("/api/v1/settings/holidays", body);
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["settings"] });
+      qc.invalidateQueries({ queryKey: ["clinic-holidays"] });
+      toast.success("Día no disponible guardado.");
+    },
+    onError: () => toast.error("Error al guardar el día."),
+  });
+}
+
+export function useDeleteHoliday() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (id: string) => {
+      await apiClient.delete(`/api/v1/settings/holidays/${id}`);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["settings"] });
+      qc.invalidateQueries({ queryKey: ["clinic-holidays"] });
+      toast.success("Día eliminado.");
+    },
+    onError: () => toast.error("Error al eliminar el día."),
+  });
+}
+
 export function useUpdateUiPreference() {
   const qc = useQueryClient();
   return useMutation({

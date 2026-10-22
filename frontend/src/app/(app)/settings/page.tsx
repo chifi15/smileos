@@ -9,7 +9,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import toast from "react-hot-toast";
-import { useClinicSettings, useUpdateSettings, useWorkingHours, useUpdateWorkingHours, useUpdateBookingAppointmentTypes, WorkingHour } from "@/hooks/useSettings";
+import { useClinicSettings, useUpdateSettings, useWorkingHours, useUpdateWorkingHours, useUpdateBookingAppointmentTypes, useClinicHolidays, useAddHoliday, useDeleteHoliday, WorkingHour, ClinicHoliday } from "@/hooks/useSettings";
 import { usePlanStatus } from "@/hooks/useBilling";
 import { useSyncCalendar, useCalendarStatus, useDisconnectGoogleOAuth, useGcalEventColors, GCAL_COLOR_NAMES } from "@/hooks/useCalendar";
 import apiClient, { getAccessToken } from "@/lib/api-client";
@@ -784,6 +784,8 @@ function SettingsContent() {
 
       <WorkingHoursSection />
 
+      <HolidaysSection />
+
       <BookingTypesSection />
 
       <PriceCatalogSection />
@@ -929,6 +931,111 @@ function WorkingHoursSection() {
           ))}
         </div>
       )}
+    </section>
+  );
+}
+
+// ─── Días no disponibles (feriados) ──────────────────────────────────────────
+
+const MONTHS_ES_SHORT = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+
+function formatHolidayDate(dateStr: string) {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  const dow = new Date(y, m - 1, d).getDay();
+  return `${DAY_NAMES[dow]}, ${d} ${MONTHS_ES_SHORT[m - 1]} ${y}`;
+}
+
+function HolidaysSection() {
+  const { data: holidays = [], isLoading } = useClinicHolidays();
+  const addHoliday = useAddHoliday();
+  const deleteHoliday = useDeleteHoliday();
+  const [date, setDate] = useState("");
+  const [description, setDescription] = useState("");
+
+  function handleAdd() {
+    if (!date) return;
+    addHoliday.mutate(
+      { date, description: description.trim() || undefined },
+      { onSuccess: () => { setDate(""); setDescription(""); } }
+    );
+  }
+
+  const sorted = [...holidays].sort((a, b) => a.date.localeCompare(b.date));
+
+  return (
+    <section className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-100 dark:border-gray-700">
+        <h2 className="font-semibold text-slate-800 dark:text-white">Días no disponibles</h2>
+        <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
+          Feriados o fechas especiales en las que la clínica no atiende. Esos días no aparecerán disponibles en la reserva en línea.
+        </p>
+      </div>
+
+      <div className="p-6 space-y-5">
+        {/* Add form */}
+        <div className="flex flex-col sm:flex-row items-end gap-3">
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Fecha *</label>
+            <input
+              type="date"
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+              className="h-9 rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+            />
+          </div>
+          <div className="flex-1 w-full sm:w-auto">
+            <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Descripción</label>
+            <input
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+              placeholder="Ej: Feriado nacional"
+              className="w-full h-9 rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder:text-slate-400"
+            />
+          </div>
+          <Button
+            onClick={handleAdd}
+            disabled={!date}
+            loading={addHoliday.isPending}
+            className="shrink-0"
+          >
+            <Plus size={15} />
+            Agregar día
+          </Button>
+        </div>
+
+        {/* List */}
+        {isLoading ? (
+          <div className="flex justify-center py-4"><Spinner size="sm" /></div>
+        ) : sorted.length === 0 ? (
+          <p className="text-sm text-slate-400 dark:text-gray-500 text-center py-4">
+            No hay días no disponibles configurados.
+          </p>
+        ) : (
+          <div className="rounded-xl border border-slate-100 dark:border-gray-700 divide-y divide-slate-100 dark:divide-gray-700 overflow-hidden">
+            {sorted.map((h) => (
+              <div key={h.id} className="flex items-center justify-between px-4 py-3">
+                <div>
+                  <p className="text-sm font-medium text-slate-700 dark:text-gray-200">
+                    {formatHolidayDate(h.date)}
+                  </p>
+                  {h.description && (
+                    <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">{h.description}</p>
+                  )}
+                </div>
+                <button
+                  onClick={() => deleteHoliday.mutate(h.id)}
+                  disabled={deleteHoliday.isPending}
+                  className="text-slate-300 hover:text-red-500 transition-colors disabled:opacity-50"
+                  title="Eliminar"
+                >
+                  <Trash2 size={15} />
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </section>
   );
 }

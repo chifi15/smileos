@@ -58,6 +58,10 @@ export default function BookingPage() {
   const [selectedSlot, setSelectedSlot]       = useState<string | null>(null);
   const [step, setStep]                       = useState<Step>("doctor");
 
+  const [availableDays, setAvailableDays]     = useState<Set<string> | null>(null);
+  const [holidaySet, setHolidaySet]           = useState<Set<string>>(new Set());
+  const [loadingAvailDays, setLoadingAvailDays] = useState(false);
+
   const [name,        setName]        = useState("");
   const [phone,       setPhone]       = useState("");
   const [apptType,    setApptType]    = useState("primera_consulta");
@@ -80,18 +84,47 @@ export default function BookingPage() {
       .finally(() => setLoadingClinic(false));
   }, [slug]);
 
+  useEffect(() => {
+    if (step !== "calendar" || !slug) return;
+    const month = `${viewYear}-${String(viewMonth + 1).padStart(2, "0")}`;
+    const params: Record<string, string> = { month };
+    if (selectedDentist) params.dentist_id = selectedDentist.id;
+    setLoadingAvailDays(true);
+    http.get(`/api/v1/booking/${slug}/available-days`, { params })
+      .then((r) => {
+        setAvailableDays(new Set(r.data.data.available_days));
+        setHolidaySet(new Set(r.data.data.holidays));
+      })
+      .catch(() => setAvailableDays(null))
+      .finally(() => setLoadingAvailDays(false));
+  }, [step, viewYear, viewMonth, slug, selectedDentist]); // eslint-disable-line react-hooks/exhaustive-deps
+
   const workingDaySet = new Set(
     (clinic?.working_days ?? []).filter((d) => d.is_working).map((d) => d.day)
   );
 
-  function isSelectableDay(y: number, m: number, d: number) {
+  function isWorkingDay(y: number, m: number, d: number) {
     const dt = new Date(y, m, d);
     const todayMid = new Date(today.getFullYear(), today.getMonth(), today.getDate());
     return dt >= todayMid && workingDaySet.has(dt.getDay());
   }
 
+  function isSelectableDay(y: number, m: number, d: number) {
+    if (!isWorkingDay(y, m, d)) return false;
+    const dateStr = isoDate(y, m, d);
+    if (holidaySet.has(dateStr)) return false;
+    if (availableDays !== null && !availableDays.has(dateStr)) return false;
+    return true;
+  }
+
+  function isFullDay(y: number, m: number, d: number) {
+    const dateStr = isoDate(y, m, d);
+    return isWorkingDay(y, m, d) && !holidaySet.has(dateStr) && availableDays !== null && !availableDays.has(dateStr);
+  }
+
   function handleChooseDentist(dentist: Dentist | null) {
     setSelectedDentist(dentist);
+    setAvailableDays(null);
     setStep("calendar");
   }
 
@@ -384,7 +417,10 @@ export default function BookingPage() {
               <button onClick={prevMonth} disabled={!canPrevMonth} className={`p-1.5 rounded-lg transition-colors disabled:opacity-30 ${dark ? "hover:bg-gray-700 text-gray-300" : "hover:bg-slate-100"}`}>
                 <ChevronLeft size={18} />
               </button>
-              <span className={`font-semibold text-sm ${text}`}>{MONTHS_ES[viewMonth]} {viewYear}</span>
+              <div className="flex items-center gap-2">
+                <span className={`font-semibold text-sm ${text}`}>{MONTHS_ES[viewMonth]} {viewYear}</span>
+                {loadingAvailDays && <Loader2 size={13} className="animate-spin text-blue-400" />}
+              </div>
               <button onClick={nextMonth} className={`p-1.5 rounded-lg transition-colors ${dark ? "hover:bg-gray-700 text-gray-300" : "hover:bg-slate-100"}`}>
                 <ChevronRight size={18} />
               </button>
@@ -397,18 +433,21 @@ export default function BookingPage() {
             <div className="grid grid-cols-7 gap-y-1">
               {calendar.map((day, i) => {
                 if (!day) return <div key={i} />;
-                const dateStr   = isoDate(viewYear, viewMonth, day);
+                const dateStr    = isoDate(viewYear, viewMonth, day);
                 const selectable = isSelectableDay(viewYear, viewMonth, day);
+                const full       = isFullDay(viewYear, viewMonth, day);
                 const isSelected = selectedDate === dateStr;
-                const isToday   = day === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
+                const isToday    = day === today.getDate() && viewMonth === today.getMonth() && viewYear === today.getFullYear();
                 return (
                   <button
                     key={i}
                     disabled={!selectable}
                     onClick={() => selectable && handleSelectDate(dateStr)}
+                    title={full ? "Sin horarios disponibles" : undefined}
                     className={[
                       "mx-auto w-9 h-9 rounded-xl text-sm font-medium transition-colors flex items-center justify-center",
-                      isSelected   ? "bg-blue-600 text-white shadow-sm"
+                      isSelected ? "bg-blue-600 text-white shadow-sm"
+                      : full ? (dark ? "text-gray-600 line-through cursor-default" : "text-slate-300 line-through cursor-default")
                       : selectable ? (dark
                           ? `text-gray-200 hover:bg-blue-800/50 hover:text-blue-300${isToday ? " ring-2 ring-blue-500" : ""}`
                           : `text-slate-800 hover:bg-blue-50 hover:text-blue-700${isToday ? " ring-2 ring-blue-300" : ""}`)
@@ -420,7 +459,12 @@ export default function BookingPage() {
                 );
               })}
             </div>
-            <p className={`text-xs text-center mt-4 ${muted}`}>Selecciona un día disponible para ver los horarios</p>
+            <div className={`flex flex-col gap-1 mt-4 text-xs text-center ${muted}`}>
+              <p>Selecciona un día disponible para ver los horarios</p>
+              {availableDays !== null && (
+                <p><span className="line-through">##</span> = sin horarios disponibles ese día</p>
+              )}
+            </div>
           </div>
         )}
 
