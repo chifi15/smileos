@@ -55,6 +55,11 @@ class HolidayCreate(BaseModel):
     description: str | None = None
 
 
+class UserDayOffCreate(BaseModel):
+    date: date
+    description: str | None = None
+
+
 # ─── Usuarios ─────────────────────────────────────────────────────────────────
 
 UserRole = Literal["admin", "dentist", "receptionist", "assistant"]

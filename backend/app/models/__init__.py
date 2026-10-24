@@ -1,4 +1,4 @@
-from app.models.clinic import Clinic, ClinicSettings, WorkingHours, ClinicHoliday
+from app.models.clinic import Clinic, ClinicSettings, WorkingHours, ClinicHoliday, UserDayOff
 from app.models.user import User, RefreshToken
 from app.models.patient import Patient
 from app.models.appointment import Appointment
@@ -17,6 +17,7 @@ __all__ = [
     "ClinicSettings",
     "WorkingHours",
     "ClinicHoliday",
+    "UserDayOff",
     "User",
     "RefreshToken",
     "Patient",

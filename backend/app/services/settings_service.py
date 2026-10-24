@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
-from app.models.clinic import Clinic, ClinicSettings, WorkingHours, ClinicHoliday
+from app.models.clinic import Clinic, ClinicSettings, WorkingHours, ClinicHoliday, UserDayOff
 from app.models.user import User, ROLES
 from app.core.exceptions import NotFoundError, ValidationError, ConflictError
 from app.core.security import hash_password
@@ -130,6 +130,98 @@ async def delete_holiday(
     if not holiday:
         raise NotFoundError("Festivo")
     await db.delete(holiday)
+
+
+# ─── Días libres por doctor ───────────────────────────────────────────────────
+
+async def list_user_days_off(
+    db: AsyncSession, clinic_id: uuid.UUID, user_id: uuid.UUID
+) -> list[UserDayOff]:
+    await _get_user(db, clinic_id, user_id)
+    result = await db.execute(
+        select(UserDayOff)
+        .where(UserDayOff.user_id == user_id, UserDayOff.clinic_id == clinic_id)
+        .order_by(UserDayOff.date)
+    )
+    return list(result.scalars().all())
+
+
+async def list_all_doctors_days_off(
+    db: AsyncSession, clinic_id: uuid.UUID
+) -> list[dict]:
+    """Devuelve todos los doctores (dentistas y admins) con sus días libres."""
+    users_result = await db.execute(
+        select(User)
+        .where(
+            User.clinic_id == clinic_id,
+            User.is_active == True,  # noqa: E712
+            User.role.in_(["clinic_owner", "admin", "dentist"]),
+        )
+        .order_by(User.full_name)
+    )
+    users = list(users_result.scalars().all())
+
+    days_result = await db.execute(
+        select(UserDayOff)
+        .where(UserDayOff.clinic_id == clinic_id)
+        .order_by(UserDayOff.date)
+    )
+    all_days = list(days_result.scalars().all())
+    days_by_user: dict[uuid.UUID, list[UserDayOff]] = {}
+    for d in all_days:
+        days_by_user.setdefault(d.user_id, []).append(d)
+
+    return [
+        {
+            "user": u,
+            "days_off": days_by_user.get(u.id, []),
+        }
+        for u in users
+    ]
+
+
+async def add_user_day_off(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    user_id: uuid.UUID,
+    day_date: date,
+    description: str | None,
+) -> UserDayOff:
+    await _get_user(db, clinic_id, user_id)
+    exists = await db.scalar(
+        select(func.count(UserDayOff.id)).where(
+            UserDayOff.user_id == user_id,
+            UserDayOff.date == day_date,
+        )
+    )
+    if exists:
+        raise ConflictError(f"Ya hay un día libre registrado para ese doctor en {day_date}.")
+
+    day_off = UserDayOff(
+        user_id=user_id,
+        clinic_id=clinic_id,
+        date=day_date,
+        description=description,
+    )
+    db.add(day_off)
+    await db.flush()
+    return day_off
+
+
+async def delete_user_day_off(
+    db: AsyncSession, clinic_id: uuid.UUID, user_id: uuid.UUID, day_off_id: uuid.UUID
+) -> None:
+    result = await db.execute(
+        select(UserDayOff).where(
+            UserDayOff.id == day_off_id,
+            UserDayOff.user_id == user_id,
+            UserDayOff.clinic_id == clinic_id,
+        )
+    )
+    day_off = result.scalar_one_or_none()
+    if not day_off:
+        raise NotFoundError("Día libre")
+    await db.delete(day_off)
 
 
 # ─── Gestión de Usuarios ──────────────────────────────────────────────────────

@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.models.appointment import Appointment
 from app.models.patient import Patient
-from app.models.clinic import WorkingHours, ClinicHoliday
+from app.models.clinic import WorkingHours, ClinicHoliday, UserDayOff
 from app.schemas.appointment import AppointmentCreate, AppointmentUpdate
 from app.core.exceptions import NotFoundError, ValidationError, ConflictError
 from app.services.rewards_service import accrue_appointment_rewards
@@ -42,7 +42,7 @@ async def _validate_slot(
     local_dt = scheduled_at.astimezone(CLINIC_TZ)
     appt_date = local_dt.date()
 
-    # 1. Día festivo
+    # 1. Día festivo de clínica
     holiday = await db.scalar(
         select(ClinicHoliday).where(
             ClinicHoliday.clinic_id == clinic_id,
@@ -51,6 +51,19 @@ async def _validate_slot(
     )
     if holiday:
         raise ValidationError(f"El {appt_date} es día festivo: {holiday.description or 'Día no laborable'}.")
+
+    # 1b. Día libre del doctor
+    doctor_day_off = await db.scalar(
+        select(UserDayOff).where(
+            UserDayOff.user_id == dentist_id,
+            UserDayOff.date == appt_date,
+        )
+    )
+    if doctor_day_off:
+        raise ValidationError(
+            f"El doctor no está disponible el {appt_date}"
+            + (f": {doctor_day_off.description}" if doctor_day_off.description else ".")
+        )
 
     # 2. Solapamiento con otras citas del mismo dentista
     end_at = _end_time(scheduled_at, duration_minutes)

@@ -10,6 +10,7 @@ from app.schemas.settings import (
     ClinicSettingsUpdate,
     WorkingHoursBulkUpdate,
     HolidayCreate,
+    UserDayOffCreate,
     UserCreate,
     UserUpdate,
     BookingAppointmentType,
@@ -76,6 +77,15 @@ def _serialize_holiday(h) -> dict:
         "id": str(h.id),
         "date": h.date.isoformat(),
         "description": h.description,
+    }
+
+
+def _serialize_day_off(d) -> dict:
+    return {
+        "id": str(d.id),
+        "user_id": str(d.user_id),
+        "date": d.date.isoformat(),
+        "description": d.description,
     }
 
 
@@ -219,6 +229,24 @@ async def delete_holiday(
     await settings_service.delete_holiday(db, user.clinic_id, holiday_id)
 
 
+@settings_router.get("/doctors-days-off")
+async def get_doctors_days_off(
+    user: Annotated[object, require_permission("view_settings")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    entries = await settings_service.list_all_doctors_days_off(db, user.clinic_id)
+    return {
+        "success": True,
+        "data": [
+            {
+                "user": _serialize_user(e["user"]),
+                "days_off": [_serialize_day_off(d) for d in e["days_off"]],
+            }
+            for e in entries
+        ],
+    }
+
+
 # ─── Usuarios ─────────────────────────────────────────────────────────────────
 
 @users_router.get("")
@@ -283,3 +311,36 @@ async def reset_password(
         db, user.clinic_id, user_id
     )
     return {"success": True, "data": _serialize_user(target, temp_password)}
+
+
+@users_router.get("/{user_id}/days-off")
+async def list_user_days_off(
+    user_id: uuid.UUID,
+    user: Annotated[object, require_permission("view_settings")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    days = await settings_service.list_user_days_off(db, user.clinic_id, user_id)
+    return {"success": True, "data": [_serialize_day_off(d) for d in days]}
+
+
+@users_router.post("/{user_id}/days-off", status_code=201)
+async def add_user_day_off(
+    user_id: uuid.UUID,
+    body: UserDayOffCreate,
+    user: Annotated[object, require_permission("manage_settings")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    day_off = await settings_service.add_user_day_off(
+        db, user.clinic_id, user_id, body.date, body.description
+    )
+    return {"success": True, "data": _serialize_day_off(day_off)}
+
+
+@users_router.delete("/{user_id}/days-off/{day_off_id}", status_code=204)
+async def delete_user_day_off(
+    user_id: uuid.UUID,
+    day_off_id: uuid.UUID,
+    user: Annotated[object, require_permission("manage_settings")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    await settings_service.delete_user_day_off(db, user.clinic_id, user_id, day_off_id)

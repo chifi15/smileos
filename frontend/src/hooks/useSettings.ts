@@ -152,6 +152,65 @@ export function useDeleteHoliday() {
   });
 }
 
+// ─── Días libres por doctor ───────────────────────────────────────────────────
+
+export interface UserDayOff {
+  id: string;
+  user_id: string;
+  date: string;
+  description: string | null;
+}
+
+export interface DoctorWithDaysOff {
+  user: {
+    id: string;
+    full_name: string;
+    role: string;
+    is_active: boolean;
+  };
+  days_off: UserDayOff[];
+}
+
+export function useDoctorsDaysOff() {
+  return useQuery({
+    queryKey: ["doctors-days-off"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: DoctorWithDaysOff[] }>("/api/v1/settings/doctors-days-off");
+      return data.data;
+    },
+    staleTime: 2 * 60 * 1000,
+  });
+}
+
+export function useAddUserDayOff() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, date, description }: { userId: string; date: string; description?: string }) => {
+      const { data } = await apiClient.post<{ data: UserDayOff }>(`/api/v1/users/${userId}/days-off`, { date, description });
+      return data.data;
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["doctors-days-off"] });
+      toast.success("Día libre guardado.");
+    },
+    onError: () => toast.error("Error al guardar el día libre."),
+  });
+}
+
+export function useDeleteUserDayOff() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ userId, dayOffId }: { userId: string; dayOffId: string }) => {
+      await apiClient.delete(`/api/v1/users/${userId}/days-off/${dayOffId}`);
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["doctors-days-off"] });
+      toast.success("Día libre eliminado.");
+    },
+    onError: () => toast.error("Error al eliminar el día libre."),
+  });
+}
+
 export function useUpdateUiPreference() {
   const qc = useQueryClient();
   return useMutation({

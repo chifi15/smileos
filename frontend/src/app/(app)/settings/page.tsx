@@ -9,7 +9,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import toast from "react-hot-toast";
-import { useClinicSettings, useUpdateSettings, useWorkingHours, useUpdateWorkingHours, useUpdateBookingAppointmentTypes, useClinicHolidays, useAddHoliday, useDeleteHoliday, WorkingHour, ClinicHoliday } from "@/hooks/useSettings";
+import { useClinicSettings, useUpdateSettings, useWorkingHours, useUpdateWorkingHours, useUpdateBookingAppointmentTypes, useClinicHolidays, useAddHoliday, useDeleteHoliday, useDoctorsDaysOff, useAddUserDayOff, useDeleteUserDayOff, WorkingHour, ClinicHoliday } from "@/hooks/useSettings";
 import { usePlanStatus } from "@/hooks/useBilling";
 import { useSyncCalendar, useCalendarStatus, useDisconnectGoogleOAuth, useGcalEventColors, GCAL_COLOR_NAMES } from "@/hooks/useCalendar";
 import apiClient, { getAccessToken } from "@/lib/api-client";
@@ -787,6 +787,8 @@ function SettingsContent() {
 
       <HolidaysSection />
 
+      <DoctorDaysOffSection />
+
       <BookingTypesSection />
 
       <PriceCatalogSection />
@@ -1049,6 +1051,161 @@ function HolidaysSection() {
               </div>
             ))}
           </div>
+        )}
+      </div>
+    </section>
+  );
+}
+
+// ─── Días libres por doctor ───────────────────────────────────────────────────
+
+const ROLE_LABELS_SHORT: Record<string, string> = {
+  clinic_owner: "Propietario",
+  admin: "Admin",
+  dentist: "Dentista",
+};
+
+function DoctorDaysOffSection() {
+  const { data: doctors = [], isLoading } = useDoctorsDaysOff();
+  const addDayOff = useAddUserDayOff();
+  const deleteDayOff = useDeleteUserDayOff();
+  const [selectedDoctor, setSelectedDoctor] = useState<string>("");
+  const [date, setDate] = useState("");
+  const [description, setDescription] = useState("");
+
+  // Auto-select first doctor when data loads
+  useEffect(() => {
+    if (doctors.length > 0 && !selectedDoctor) {
+      setSelectedDoctor(doctors[0].user.id);
+    }
+  }, [doctors, selectedDoctor]);
+
+  function handleAdd() {
+    if (!selectedDoctor || !date) return;
+    addDayOff.mutate(
+      { userId: selectedDoctor, date, description: description.trim() || undefined },
+      { onSuccess: () => { setDate(""); setDescription(""); } }
+    );
+  }
+
+  const currentDoctor = doctors.find((d) => d.user.id === selectedDoctor);
+
+  return (
+    <section className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
+      <div className="px-6 py-4 border-b border-slate-100 dark:border-gray-700">
+        <h2 className="font-semibold text-slate-800 dark:text-white">Días libres por doctor</h2>
+        <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">
+          Fechas en que un doctor específico no trabaja. Esos días se bloquean para ese doctor, pero otros pueden seguir atendiendo.
+        </p>
+      </div>
+
+      <div className="p-6 space-y-5">
+        {isLoading ? (
+          <div className="flex justify-center py-4"><Spinner size="sm" /></div>
+        ) : doctors.length === 0 ? (
+          <p className="text-sm text-slate-400 dark:text-gray-500 text-center py-4">
+            No hay doctores registrados. Agrega usuarios con rol Dentista o Admin primero.
+          </p>
+        ) : (
+          <>
+            {/* Doctor tabs */}
+            <div className="flex flex-wrap gap-2">
+              {doctors.map((d) => (
+                <button
+                  key={d.user.id}
+                  onClick={() => setSelectedDoctor(d.user.id)}
+                  className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                    selectedDoctor === d.user.id
+                      ? "bg-blue-600 text-white"
+                      : "bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-gray-600"
+                  }`}
+                >
+                  {d.user.full_name}
+                  <span className={`ml-1.5 text-xs opacity-70`}>
+                    ({ROLE_LABELS_SHORT[d.user.role] ?? d.user.role})
+                  </span>
+                  {d.days_off.length > 0 && (
+                    <span className={`ml-1.5 text-xs px-1.5 py-0.5 rounded-full ${
+                      selectedDoctor === d.user.id
+                        ? "bg-white/20 text-white"
+                        : "bg-slate-200 dark:bg-gray-600 text-slate-500 dark:text-gray-400"
+                    }`}>
+                      {d.days_off.length}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Add form */}
+            <div className="flex flex-col sm:flex-row items-end gap-3">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Fecha *</label>
+                <input
+                  type="date"
+                  value={date}
+                  onChange={(e) => setDate(e.target.value)}
+                  className="h-9 rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400"
+                />
+              </div>
+              <div className="flex-1 w-full sm:w-auto">
+                <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Motivo (opcional)</label>
+                <input
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleAdd()}
+                  placeholder="Ej: Vacaciones, Congreso..."
+                  className="w-full h-9 rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 text-sm focus:outline-none focus:ring-2 focus:ring-blue-400 placeholder:text-slate-400"
+                />
+              </div>
+              <Button
+                onClick={handleAdd}
+                disabled={!date || !selectedDoctor}
+                loading={addDayOff.isPending}
+                className="shrink-0"
+              >
+                <Plus size={15} />
+                Agregar día libre
+              </Button>
+            </div>
+
+            {/* Days off list for selected doctor */}
+            {currentDoctor && (
+              currentDoctor.days_off.length === 0 ? (
+                <p className="text-sm text-slate-400 dark:text-gray-500 text-center py-3">
+                  {currentDoctor.user.full_name} no tiene días libres registrados.
+                </p>
+              ) : (
+                <div className="rounded-xl border border-slate-100 dark:border-gray-700 divide-y divide-slate-100 dark:divide-gray-700 overflow-hidden">
+                  {[...currentDoctor.days_off]
+                    .sort((a, b) => a.date.localeCompare(b.date))
+                    .map((d) => {
+                      const [y, m, day] = d.date.split("-").map(Number);
+                      const dow = new Date(y, m - 1, day).getDay();
+                      const label = `${DAY_NAMES[dow]}, ${day} ${MONTHS_ES_SHORT[m - 1]} ${y}`;
+                      return (
+                        <div key={d.id} className="flex items-center justify-between px-4 py-3">
+                          <div>
+                            <p className="text-sm font-medium text-slate-700 dark:text-gray-200">{label}</p>
+                            {d.description && (
+                              <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">{d.description}</p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => deleteDayOff.mutate({ userId: d.user_id, dayOffId: d.id })}
+                            disabled={deleteDayOff.isPending}
+                            className="text-slate-300 hover:text-red-500 transition-colors disabled:opacity-50"
+                            title="Eliminar"
+                          >
+                            <Trash2 size={15} />
+                          </button>
+                        </div>
+                      );
+                    })}
+                </div>
+              )
+            )}
+          </>
         )}
       </div>
     </section>

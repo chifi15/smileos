@@ -1,5 +1,5 @@
 import uuid
-from datetime import time, datetime
+from datetime import time, datetime, date as date_type
 from decimal import Decimal
 from sqlalchemy import String, Boolean, Integer, SmallInteger, Time, Date, DateTime, ForeignKey, UniqueConstraint, Numeric, Text
 from sqlalchemy.dialects.postgresql import JSONB
@@ -107,3 +107,20 @@ class ClinicHoliday(UUIDMixin, Base):
     )
 
     clinic: Mapped["Clinic"] = relationship(back_populates="holidays")
+
+
+class UserDayOff(UUIDMixin, Base):
+    __tablename__ = "user_days_off"
+    __table_args__ = (UniqueConstraint("user_id", "date"),)
+
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    clinic_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("clinics.id"), nullable=False
+    )
+    date: Mapped[date_type] = mapped_column(Date, nullable=False)
+    description: Mapped[str | None] = mapped_column(String(200))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default="now()"
+    )
