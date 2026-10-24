@@ -331,6 +331,15 @@ async def get_available_slots(
     if holiday:
         return []
 
+    doctor_day_off = await db.scalar(
+        select(UserDayOff).where(
+            UserDayOff.user_id == dentist_id,
+            UserDayOff.date == slot_date,
+        )
+    )
+    if doctor_day_off:
+        return []
+
     # Citas existentes del dentista ese día
     day_start = datetime(slot_date.year, slot_date.month, slot_date.day, tzinfo=CLINIC_TZ).astimezone(timezone.utc)
     day_end = day_start + timedelta(days=1)

@@ -13,7 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
 from app.models.calendar import CalendarEvent
-from app.models.clinic import Clinic, ClinicSettings, WorkingHours, ClinicHoliday
+from app.models.clinic import Clinic, ClinicSettings, WorkingHours, ClinicHoliday, UserDayOff
 from app.models.user import User
 from app.models.appointment import Appointment
 from app.services.appointment_service import get_available_slots, CLINIC_TZ
@@ -257,6 +257,19 @@ async def get_available_days(
             pass
     dentists = (await db.execute(select(User).where(*dentist_filter))).scalars().all()
 
+    # Días libres de cada doctor en el mes — {user_id: set(dates)}
+    dentist_ids = [d.id for d in dentists]
+    days_off_rows = (await db.execute(
+        select(UserDayOff.user_id, UserDayOff.date).where(
+            UserDayOff.user_id.in_(dentist_ids),
+            UserDayOff.date >= first_day,
+            UserDayOff.date <= last_day,
+        )
+    )).all()
+    days_off_by_dentist: dict = {}
+    for row in days_off_rows:
+        days_off_by_dentist.setdefault(row.user_id, set()).add(row.date)
+
     _TZ = ZoneInfo("America/Managua")
     month_start_utc = datetime(year, mon, 1, tzinfo=_TZ).astimezone(timezone.utc)
     month_end_utc = datetime(year, mon, days_in_month, 23, 59, 59, tzinfo=_TZ).astimezone(timezone.utc)
@@ -309,6 +322,14 @@ async def get_available_days(
 
         possible = _slots(wh.morning_open, wh.morning_close) + _slots(wh.afternoon_open, wh.afternoon_close)
         if not possible:
+            continue
+
+        # Dentistas disponibles ese día (excluyendo quienes tienen día libre)
+        available_dentists = [
+            doc for doc in dentists
+            if d not in days_off_by_dentist.get(doc.id, set())
+        ]
+        if not available_dentists:
             continue
 
         day_booked = appts_by_date.get(d, [])
