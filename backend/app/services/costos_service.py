@@ -313,10 +313,7 @@ async def get_products(db: AsyncSession, clinic_id: uuid.UUID) -> list[CostProdu
         .where(CostProduct.clinic_id == clinic_id)
         .order_by(CostProduct.sort_order, CostProduct.created_at)
     )
-    products = list(result.scalars().all())
-    if not products:
-        products = await _seed_products(db, clinic_id)
-    return products
+    return list(result.scalars().all())
 
 
 async def create_product(db: AsyncSession, clinic_id: uuid.UUID, data: dict) -> CostProduct:
