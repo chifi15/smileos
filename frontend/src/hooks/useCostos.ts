@@ -241,6 +241,32 @@ export function useDeleteCostTreatment() {
   });
 }
 
+export function useDeleteCostTreatments() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (ids: string[]) => {
+      let deleted = 0;
+      for (const id of ids) {
+        try {
+          await api.delete(`/api/v1/costos/treatments/${id}`);
+          deleted++;
+        } catch {
+          // continue with remaining
+        }
+      }
+      return { total: ids.length, deleted };
+    },
+    onSuccess: ({ total, deleted }) => {
+      qc.invalidateQueries({ queryKey: TREATMENTS_KEY });
+      if (deleted === total) {
+        toast.success(`${deleted} tratamiento${deleted !== 1 ? "s" : ""} eliminado${deleted !== 1 ? "s" : ""}.`);
+      } else {
+        toast.success(`${deleted} de ${total} tratamientos eliminados.`);
+      }
+    },
+  });
+}
+
 export function useDuplicateCostTreatment() {
   const qc = useQueryClient();
   return useMutation({

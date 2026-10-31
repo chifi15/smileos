@@ -17,6 +17,7 @@ import {
   useHonorariosConfig,
   useCreateCostTreatment,
   useDeleteCostTreatment,
+  useDeleteCostTreatments,
   useDuplicateCostTreatment,
   useReorderCostTreatments,
   useUpdateCostTreatment,
@@ -133,7 +134,15 @@ function NewTreatmentModal({ onClose }: { onClose: () => void }) {
 
 // ─── Treatment Card ───────────────────────────────────────────────────────────
 
-function TreatmentCard({ treatment, globalFixedCost }: { treatment: ApiTreatment; globalFixedCost: number }) {
+function TreatmentCard({
+  treatment, globalFixedCost, selected, onToggle, selectionActive,
+}: {
+  treatment: ApiTreatment;
+  globalFixedCost: number;
+  selected: boolean;
+  onToggle: (id: string) => void;
+  selectionActive: boolean;
+}) {
   const { data: apiProducts = [] } = useCostProducts();
   const deleteTreatment = useDeleteCostTreatment();
   const duplicateTreatment = useDuplicateCostTreatment();
@@ -155,11 +164,36 @@ function TreatmentCard({ treatment, globalFixedCost }: { treatment: ApiTreatment
   const marginPct = breakdown.calculatedPrice > 0 ? (utilidad / breakdown.calculatedPrice) * 100 : 0;
 
   return (
-    <div ref={setNodeRef} style={style} className="group relative rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm hover:shadow-md transition-shadow">
-      <button {...attributes} {...listeners}
-        className="absolute left-3 top-3 hidden rounded-lg p-1 text-slate-300 dark:text-gray-600 hover:text-slate-500 dark:hover:text-gray-400 cursor-grab active:cursor-grabbing group-hover:flex touch-none" title="Arrastrar para ordenar">
-        <GripVertical size={15} />
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={`group relative rounded-xl border bg-white dark:bg-gray-800 p-5 shadow-sm hover:shadow-md transition-shadow ${
+        selected
+          ? "border-blue-400 dark:border-blue-500 ring-2 ring-blue-200 dark:ring-blue-800"
+          : "border-slate-200 dark:border-gray-700"
+      }`}
+    >
+      {/* Checkbox — visible al hover o cuando hay selección activa */}
+      <button
+        onClick={(e) => { e.preventDefault(); e.stopPropagation(); onToggle(treatment.id); }}
+        className={`absolute left-3 top-3 z-10 flex h-5 w-5 items-center justify-center rounded border transition-all ${
+          selected
+            ? "border-blue-500 bg-blue-500 text-white"
+            : "border-slate-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-transparent group-hover:border-blue-400"
+        } ${selectionActive ? "flex" : "hidden group-hover:flex"}`}
+        title={selected ? "Deseleccionar" : "Seleccionar"}
+      >
+        {selected && <Check size={12} strokeWidth={3} />}
       </button>
+
+      {/* Drag handle — solo cuando no hay selección activa */}
+      {!selectionActive && (
+        <button {...attributes} {...listeners}
+          className="absolute left-3 top-3 hidden rounded-lg p-1 text-slate-300 dark:text-gray-600 hover:text-slate-500 dark:hover:text-gray-400 cursor-grab active:cursor-grabbing group-hover:flex touch-none" title="Arrastrar para ordenar">
+          <GripVertical size={15} />
+        </button>
+      )}
+
       <div className="absolute right-3 top-3 hidden group-hover:flex items-center gap-1">
         <button
           onClick={(e) => { e.preventDefault(); duplicateTreatment.mutate(treatment.id); }}
@@ -491,8 +525,31 @@ export default function CostosPage() {
   const { data: fixedCosts } = useFixedCosts();
   const { data: honorariosConfig } = useHonorariosConfig();
   const reorderTreatments = useReorderCostTreatments();
+  const bulkDelete = useDeleteCostTreatments();
   const [showModal, setShowModal] = useState(false);
   const [showImport, setShowImport] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+
+  const allSelected = treatments.length > 0 && treatments.every((t) => selectedIds.has(t.id));
+  const someSelected = selectedIds.size > 0 && !allSelected;
+
+  function toggleSelect(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  }
+
+  function toggleSelectAll() {
+    setSelectedIds(allSelected ? new Set() : new Set(treatments.map((t) => t.id)));
+  }
+
+  function handleBulkDelete() {
+    const n = selectedIds.size;
+    if (!confirm(`¿Eliminar ${n} tratamiento${n !== 1 ? "s" : ""}? Esta acción no se puede deshacer.`)) return;
+    bulkDelete.mutate([...selectedIds], { onSuccess: () => setSelectedIds(new Set()) });
+  }
 
   const totalFijo = (fixedCosts?.items ?? []).reduce((s, i) => s + i.amount, 0);
   const patientsPerMonth = fixedCosts?.patients_per_month ?? 1;
@@ -555,6 +612,40 @@ export default function CostosPage() {
         </div>
       </div>
 
+      {/* Barra de selección bulk */}
+      {selectedIds.size > 0 && (
+        <div className="mb-4 flex items-center gap-3 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 px-4 py-2.5">
+          <button
+            onClick={toggleSelectAll}
+            className="flex h-5 w-5 shrink-0 items-center justify-center rounded border border-blue-400 dark:border-blue-500 bg-white dark:bg-gray-800 transition-colors hover:border-blue-500"
+            title={allSelected ? "Deseleccionar todos" : "Seleccionar todos"}
+          >
+            {allSelected ? (
+              <Check size={12} strokeWidth={3} className="text-blue-600" />
+            ) : someSelected ? (
+              <span className="block h-0.5 w-2.5 rounded-full bg-blue-500" />
+            ) : null}
+          </button>
+          <span className="flex-1 text-sm font-medium text-blue-700 dark:text-blue-400">
+            {selectedIds.size} tratamiento{selectedIds.size !== 1 ? "s" : ""} seleccionado{selectedIds.size !== 1 ? "s" : ""}
+          </span>
+          <button
+            onClick={() => setSelectedIds(new Set())}
+            className="text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-300"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleBulkDelete}
+            disabled={bulkDelete.isPending}
+            className="flex items-center gap-1.5 rounded-lg bg-red-600 hover:bg-red-700 disabled:opacity-50 px-3 py-1.5 text-xs font-semibold text-white transition-colors"
+          >
+            <Trash2 size={13} />
+            {bulkDelete.isPending ? "Eliminando…" : `Eliminar ${selectedIds.size}`}
+          </button>
+        </div>
+      )}
+
       {treatments.length === 0 ? (
         <div className="flex h-64 flex-col items-center justify-center rounded-2xl border-2 border-dashed border-slate-200 dark:border-gray-700 text-center">
           <Calculator size={32} className="text-slate-300 dark:text-gray-600 mb-3" />
@@ -563,13 +654,34 @@ export default function CostosPage() {
           <Button size="sm" className="mt-4" onClick={() => setShowModal(true)}><Plus size={15} /> Nuevo tratamiento</Button>
         </div>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-          <SortableContext items={treatments.map((t) => t.id)} strategy={rectSortingStrategy}>
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {treatments.map((t) => <TreatmentCard key={t.id} treatment={t} globalFixedCost={perPaciente} />)}
-            </div>
-          </SortableContext>
-        </DndContext>
+        <>
+          {/* Select all cuando no hay selección aún */}
+          {selectedIds.size === 0 && treatments.length > 1 && (
+            <button
+              onClick={toggleSelectAll}
+              className="mb-3 flex items-center gap-2 text-xs text-slate-400 dark:text-gray-500 hover:text-slate-600 dark:hover:text-gray-300 transition-colors"
+            >
+              <span className="flex h-4 w-4 items-center justify-center rounded border border-slate-300 dark:border-gray-600" />
+              Seleccionar todos
+            </button>
+          )}
+          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+            <SortableContext items={treatments.map((t) => t.id)} strategy={rectSortingStrategy}>
+              <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                {treatments.map((t) => (
+                  <TreatmentCard
+                    key={t.id}
+                    treatment={t}
+                    globalFixedCost={perPaciente}
+                    selected={selectedIds.has(t.id)}
+                    onToggle={toggleSelect}
+                    selectionActive={selectedIds.size > 0}
+                  />
+                ))}
+              </div>
+            </SortableContext>
+          </DndContext>
+        </>
       )}
 
       {showModal && <NewTreatmentModal onClose={() => setShowModal(false)} />}
