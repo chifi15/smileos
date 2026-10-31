@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef } from "react";
 import Link from "next/link";
 import {
   Calculator, Package, ChevronRight, ChevronDown,
   TrendingUp, Plus, Calendar, Trash2, X, GripVertical, Pencil, Check, Copy, BadgeDollarSign,
+  Upload, Download, AlertCircle, CheckCircle2,
 } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from "@dnd-kit/sortable";
@@ -21,6 +22,7 @@ import {
   useUpdateCostTreatment,
   ApiTreatment,
 } from "@/hooks/useCostos";
+import { useImportProcedures, type ImportResult } from "@/hooks/useCatalog";
 import { calculateTreatmentCosts, fmtC, apiProductToProduct, apiTreatmentToTreatment } from "@/lib/costos-utils";
 import { useEscapeKey } from "@/lib/utils";
 import Button from "@/components/ui/Button";
@@ -288,6 +290,128 @@ function TreatmentCard({ treatment, globalFixedCost }: { treatment: ApiTreatment
   );
 }
 
+// ─── Import Modal ─────────────────────────────────────────────────────────────
+
+function ImportModal({ onClose }: { onClose: () => void }) {
+  useEscapeKey(onClose);
+  const importMutation = useImportProcedures();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
+
+  function downloadTemplate() {
+    const csv = "Nombre,Precio,Duración (minutos),Categoría,Descripción\nLimpieza dental,500,45,preventivo,Limpieza profesional\nExtracción simple,800,30,cirugia,\n";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "plantilla_tratamientos.csv"; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImport() {
+    if (!file) return;
+    const res = await importMutation.mutateAsync(file);
+    setResult(res);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-800 shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-700 px-6 py-4">
+          <h2 className="font-semibold text-slate-800 dark:text-white">Importar tratamientos desde CSV</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-gray-300">
+            <X size={18} />
+          </button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          {!result ? (
+            <>
+              {/* Instrucciones */}
+              <div className="rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 p-4 text-sm text-blue-800 dark:text-blue-300 space-y-1">
+                <p className="font-semibold">Cómo preparar tu Excel:</p>
+                <ol className="list-decimal list-inside space-y-0.5 text-blue-700 dark:text-blue-400">
+                  <li>Abre tu Excel y ve a <strong>Archivo → Guardar como → CSV UTF-8</strong></li>
+                  <li>Las columnas pueden llamarse: <em>Nombre, Precio, Duración, Categoría, Descripción</em></li>
+                  <li>Solo <strong>Nombre</strong> es obligatorio</li>
+                </ol>
+              </div>
+
+              <button
+                onClick={downloadTemplate}
+                className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                <Download size={14} /> Descargar plantilla de ejemplo
+              </button>
+
+              {/* File picker */}
+              <div
+                onClick={() => fileRef.current?.click()}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 dark:border-gray-600 py-8 cursor-pointer hover:border-blue-300 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
+              >
+                <Upload size={24} className="text-slate-300 dark:text-gray-600" />
+                <p className="text-sm text-slate-500 dark:text-gray-400">
+                  {file ? <span className="font-medium text-blue-600">{file.name}</span> : "Haz clic para seleccionar tu archivo CSV"}
+                </p>
+                <input
+                  ref={fileRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="hidden"
+                  onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                />
+              </div>
+            </>
+          ) : (
+            /* Resultado */
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800/30 px-4 py-3">
+                <CheckCircle2 size={20} className="text-green-600 shrink-0" />
+                <div>
+                  <p className="font-semibold text-green-800 dark:text-green-300">
+                    {result.created} tratamiento{result.created !== 1 ? "s" : ""} importado{result.created !== 1 ? "s" : ""}
+                  </p>
+                  {result.skipped > 0 && <p className="text-xs text-green-700 dark:text-green-400">{result.skipped} filas vacías omitidas</p>}
+                </div>
+              </div>
+
+              {result.error_details.length > 0 && (
+                <div className="rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/30 px-4 py-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle size={16} className="text-red-500 shrink-0" />
+                    <p className="text-sm font-semibold text-red-700 dark:text-red-400">{result.errors} fila{result.errors !== 1 ? "s" : ""} con error</p>
+                  </div>
+                  {result.error_details.map((e, i) => (
+                    <p key={i} className="text-xs text-red-600 dark:text-red-400">Fila {e.row}: {e.name} — {e.reason}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 border-t border-slate-100 dark:border-gray-700 px-6 py-4">
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-slate-200 dark:border-gray-600 px-4 py-2 text-sm font-medium text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700"
+          >
+            {result ? "Cerrar" : "Cancelar"}
+          </button>
+          {!result && (
+            <button
+              onClick={handleImport}
+              disabled={!file || importMutation.isPending}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2"
+            >
+              {importMutation.isPending ? "Importando…" : <><Upload size={14} /> Importar</>}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
 export default function CostosPage() {
@@ -296,6 +420,7 @@ export default function CostosPage() {
   const { data: honorariosConfig } = useHonorariosConfig();
   const reorderTreatments = useReorderCostTreatments();
   const [showModal, setShowModal] = useState(false);
+  const [showImport, setShowImport] = useState(false);
 
   const totalFijo = (fixedCosts?.items ?? []).reduce((s, i) => s + i.amount, 0);
   const patientsPerMonth = fixedCosts?.patients_per_month ?? 1;
@@ -336,6 +461,7 @@ export default function CostosPage() {
           <Link href="/costos/productos">
             <Button variant="secondary" size="sm"><Package size={15} /> Productos</Button>
           </Link>
+          <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}><Upload size={15} /> Importar CSV</Button>
           <Button size="sm" onClick={() => setShowModal(true)}><Plus size={15} /> Nuevo tratamiento</Button>
         </div>
       </div>
@@ -377,6 +503,7 @@ export default function CostosPage() {
       )}
 
       {showModal && <NewTreatmentModal onClose={() => setShowModal(false)} />}
+      {showImport && <ImportModal onClose={() => setShowImport(false)} />}
     </div>
   );
 }

@@ -85,6 +85,41 @@ export function usePriceHistory(procedureId: string | null) {
   });
 }
 
+export interface ImportResult {
+  created: number;
+  skipped: number;
+  errors: number;
+  error_details: { row: number; name: string; reason: string }[];
+  procedures: unknown[];
+}
+
+export function useImportProcedures() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File): Promise<ImportResult> => {
+      const fd = new FormData();
+      fd.append("file", file);
+      const { data } = await apiClient.post<{ data: ImportResult }>(
+        "/api/v1/catalog/procedures/import",
+        fd,
+      );
+      return data.data;
+    },
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: ["catalog", "procedures"] });
+      if (result.errors === 0) {
+        toast.success(`${result.created} tratamiento${result.created !== 1 ? "s" : ""} importado${result.created !== 1 ? "s" : ""} correctamente.`);
+      } else {
+        toast.error(`${result.created} importados, ${result.errors} con error.`);
+      }
+    },
+    onError: (err: unknown) => {
+      const e = err as { response?: { data?: { detail?: string } } };
+      toast.error(e?.response?.data?.detail ?? "Error al importar.");
+    },
+  });
+}
+
 export function useCreateProcedure(onSuccess?: () => void) {
   const qc = useQueryClient();
   return useMutation({
