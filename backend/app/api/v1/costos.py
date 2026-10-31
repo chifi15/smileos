@@ -1,5 +1,6 @@
 import csv
 import io
+import re
 import uuid
 from datetime import date
 from typing import Annotated, Optional, Any, List
@@ -265,17 +266,29 @@ async def delete_product(
 
 
 _PROD_COL_MAP = {
+    # nombre
     "nombre": "name", "name": "name", "producto": "name", "material": "name",
+    # categoria
     "categoria": "category", "category": "category", "tipo": "category",
+    # proveedor
     "proveedor": "supplier", "supplier": "supplier",
-    "costo_total": "total_cost", "costo": "total_cost", "total_cost": "total_cost",
-    "precio_total": "total_cost", "precio": "total_cost",
-    "cantidad_presentacion": "presentation_qty", "presentacion_qty": "presentation_qty",
-    "presentation_qty": "presentation_qty", "cantidad": "presentation_qty",
+    # costo total — "Costo total (C$)" → normalizado "costo total"
+    "costo total": "total_cost", "costo_total": "total_cost", "costo": "total_cost",
+    "total_cost": "total_cost", "precio_total": "total_cost",
+    # cantidad de presentación — "Cantidad presentación" → "cantidad presentacion"
+    "cantidad presentacion": "presentation_qty", "cantidad_presentacion": "presentation_qty",
+    "presentacion_qty": "presentation_qty", "presentation_qty": "presentation_qty",
+    "cantidad": "presentation_qty",
+    # unidad
     "unidad": "presentation_unit", "presentation_unit": "presentation_unit",
     "unidad_presentacion": "presentation_unit",
-    "cantidad_porcion": "portion_qty", "porcion_qty": "portion_qty",
-    "portion_qty": "portion_qty", "porcion": "portion_qty",
+    # cantidad por porción — "Cantidad por porción" → "cantidad por porcion"
+    "cantidad por porcion": "portion_qty", "cantidad_porcion": "portion_qty",
+    "porcion_qty": "portion_qty", "portion_qty": "portion_qty", "porcion": "portion_qty",
+    # precio por uso — "Precio por uso (C$)" → normalizado "precio por uso"
+    "precio por uso": "unit_price", "precio_uso": "unit_price", "unit_price": "unit_price",
+    "precio": "unit_price",
+    # notas
     "notas": "notes", "notes": "notes", "descripcion": "notes",
 }
 
@@ -320,7 +333,7 @@ async def import_products(
             val = (row.get(raw_col) or "").strip()
             if not val:
                 continue
-            if field in ("total_cost", "presentation_qty", "portion_qty"):
+            if field in ("total_cost", "presentation_qty", "portion_qty", "unit_price"):
                 val = val.replace("C$", "").replace("$", "").replace(",", "").strip()
                 try:
                     mapped[field] = float(val)
@@ -335,18 +348,31 @@ async def import_products(
             continue
 
         try:
+            pqty = mapped.get("presentation_qty")
+            porqty = mapped.get("portion_qty")
+            tcost = mapped.get("total_cost")
+            # Calcular unit_price si tenemos los datos, si no usar el del CSV
+            if pqty and porqty and tcost and porqty > 0:
+                unit_price = tcost / (pqty / porqty)
+            else:
+                unit_price = mapped.get("unit_price", 0.0) or 0.0
+
+            punit = mapped.get("presentation_unit", "")
+            presentation = f"{pqty}{punit}" if pqty else ""
+            portion_description = f"{porqty}{punit}/uso" if porqty else ""
+
             data = {
                 "name": name,
                 "category": mapped.get("category", "otros"),
                 "supplier": mapped.get("supplier"),
                 "notes": mapped.get("notes"),
-                "total_cost": mapped.get("total_cost"),
-                "presentation_qty": mapped.get("presentation_qty"),
-                "presentation_unit": mapped.get("presentation_unit"),
-                "portion_qty": mapped.get("portion_qty"),
-                "unit_price": 0.0,
-                "presentation": "",
-                "portion_description": "",
+                "total_cost": tcost,
+                "presentation_qty": pqty,
+                "presentation_unit": punit or None,
+                "portion_qty": porqty,
+                "unit_price": unit_price,
+                "presentation": presentation,
+                "portion_description": portion_description,
             }
             obj = await svc.create_product(db, current_user.clinic_id, data)
             created.append({"id": str(obj.id), "name": obj.name})
@@ -523,6 +549,7 @@ _TREAT_COL_MAP = {
 
 def _norm_header(h: str) -> str:
     h = h.strip().lower()
+    h = re.sub(r"\s*\([^)]*\)", "", h).strip()  # quitar "(C$)", "(minutos)", etc.
     for src, dst in [("á","a"),("é","e"),("í","i"),("ó","o"),("ú","u"),("ü","u"),("ñ","n")]:
         h = h.replace(src, dst)
     return h
