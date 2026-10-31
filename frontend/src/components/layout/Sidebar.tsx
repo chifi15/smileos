@@ -28,6 +28,7 @@ import {
   SlidersHorizontal,
   Check,
   Filter,
+  ArrowRightLeft,
 } from "lucide-react";
 import {
   DndContext,
@@ -97,14 +98,13 @@ const ALL_HREFS = new Set(NAV_DEF.flatMap((s) => s.items.map((i) => i.href)));
 
 interface SidebarPrefs {
   order: string[];
-  /** Secciones que difieren del default de expansión */
   collapsed: string[];
   hidden: string[];
   defaultExpanded: boolean;
-  /** Orden de ítems por sección — vacío = orden por defecto */
   itemOrder: Record<string, string[]>;
-  /** Hrefs de ítems ocultos */
   hiddenItems: string[];
+  /** Overrides de sección: href → sección destino (si fue movido) */
+  itemSection: Record<string, string>;
 }
 
 const EMPTY_PREFS: SidebarPrefs = {
@@ -114,6 +114,7 @@ const EMPTY_PREFS: SidebarPrefs = {
   defaultExpanded: true,
   itemOrder: {},
   hiddenItems: [],
+  itemSection: {},
 };
 
 function loadPrefs(): SidebarPrefs {
@@ -136,6 +137,13 @@ function loadPrefs(): SidebarPrefs {
       itemOrder[section] = merged;
     }
 
+    const itemSection: Record<string, string> = {};
+    for (const [href, section] of Object.entries(p.itemSection ?? {})) {
+      if (ALL_HREFS.has(href) && allSections.has(section as string)) {
+        itemSection[href] = section as string;
+      }
+    }
+
     return {
       order,
       collapsed: (p.collapsed ?? []).filter((s) => allSections.has(s)),
@@ -143,6 +151,7 @@ function loadPrefs(): SidebarPrefs {
       defaultExpanded: p.defaultExpanded !== false,
       itemOrder,
       hiddenItems: (p.hiddenItems ?? []).filter((h) => ALL_HREFS.has(h)),
+      itemSection,
     };
   } catch {
     return EMPTY_PREFS;
@@ -159,13 +168,20 @@ function SortableItemRow({
   item,
   isHidden,
   onToggleHide,
+  sections,
+  currentSection,
+  onMoveToSection,
 }: {
   item: NavItem;
   isHidden: boolean;
   onToggleHide: (href: string) => void;
+  sections: string[];
+  currentSection: string;
+  onMoveToSection: (href: string, section: string) => void;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: item.href });
+  const [showMove, setShowMove] = useState(false);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -174,13 +190,14 @@ function SortableItemRow({
   };
 
   const Icon = item.icon;
+  const otherSections = sections.filter((s) => s !== currentSection);
 
   return (
     <div
       ref={setNodeRef}
       style={style}
       className={cn(
-        "flex items-center gap-1.5 rounded-lg pl-5 pr-2 py-1.5",
+        "relative flex items-center gap-1.5 rounded-lg pl-5 pr-2 py-1.5",
         isHidden ? "opacity-30" : ""
       )}
     >
@@ -194,6 +211,31 @@ function SortableItemRow({
       </button>
       <Icon size={14} strokeWidth={1.8} className="shrink-0 text-white/45" />
       <span className="flex-1 text-xs text-white/65">{item.label}</span>
+
+      {/* Mover a sección */}
+      <div className="relative shrink-0">
+        <button
+          onClick={() => setShowMove((v) => !v)}
+          className="rounded p-0.5 text-white/20 hover:text-blue-400 transition-colors"
+          title="Mover a sección"
+        >
+          <ArrowRightLeft size={11} />
+        </button>
+        {showMove && (
+          <div className="absolute right-0 bottom-full mb-1 z-50 bg-[#162d4a] border border-white/15 rounded-lg shadow-lg overflow-hidden min-w-[110px]">
+            {otherSections.map((s) => (
+              <button
+                key={s}
+                onClick={() => { onMoveToSection(item.href, s); setShowMove(false); }}
+                className="w-full text-left px-3 py-1.5 text-[11px] text-white/60 hover:bg-white/10 hover:text-white transition-colors"
+              >
+                → {s}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+
       <button
         onClick={() => onToggleHide(item.href)}
         className={cn(
@@ -215,18 +257,22 @@ function SortableSectionBlock({
   orderedItems,
   isHidden,
   hiddenItems,
+  allSections,
   onToggleHideSection,
   onToggleHideItem,
   onItemDragEnd,
+  onMoveItemToSection,
   sensors,
 }: {
   section: string;
   orderedItems: NavItem[];
   isHidden: boolean;
   hiddenItems: string[];
+  allSections: string[];
   onToggleHideSection: (s: string) => void;
   onToggleHideItem: (href: string) => void;
   onItemDragEnd: (event: DragEndEvent) => void;
+  onMoveItemToSection: (href: string, section: string) => void;
   sensors: ReturnType<typeof useSensors>;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -287,6 +333,9 @@ function SortableSectionBlock({
                 item={item}
                 isHidden={hiddenItems.includes(item.href)}
                 onToggleHide={onToggleHideItem}
+                sections={allSections}
+                currentSection={section}
+                onMoveToSection={onMoveItemToSection}
               />
             ))}
           </SortableContext>
@@ -360,11 +409,27 @@ export default function Sidebar() {
   // ── Item helpers ──
 
   function getOrderedItems(section: string): NavItem[] {
-    const def = NAV_DEF.find((s) => s.section === section)!;
-    const order = prefs.itemOrder[section] ?? def.items.map((i) => i.href);
-    return order
-      .map((href) => def.items.find((i) => i.href === href))
-      .filter(Boolean) as NavItem[];
+    // ítems que pertenecen a esta sección (por default o por override)
+    const allItems = NAV_DEF.flatMap((s) => s.items) as NavItem[];
+    const sectionItems = allItems.filter((i) => {
+      const override = prefs.itemSection[i.href];
+      return override ? override === section : NAV_DEF.find((s) => s.section === section)?.items.some((si) => si.href === i.href);
+    });
+    const defaultOrder = sectionItems.map((i) => i.href);
+    const savedOrder = (prefs.itemOrder[section] ?? []).filter((h) => sectionItems.some((i) => i.href === h));
+    // añadir los que no estén en savedOrder (recién movidos)
+    const merged = [...new Set([...savedOrder, ...defaultOrder])];
+    return merged.map((href) => sectionItems.find((i) => i.href === href)).filter(Boolean) as NavItem[];
+  }
+
+  function moveItemToSection(href: string, targetSection: string) {
+    const newItemSection = { ...prefs.itemSection, [href]: targetSection };
+    // limpiar el href del itemOrder de la sección anterior
+    const newItemOrder: Record<string, string[]> = {};
+    for (const [sec, order] of Object.entries(prefs.itemOrder)) {
+      newItemOrder[sec] = order.filter((h) => h !== href);
+    }
+    updatePrefs({ ...prefs, itemSection: newItemSection, itemOrder: newItemOrder });
   }
 
   function toggleHideItem(href: string) {
@@ -524,9 +589,11 @@ export default function Sidebar() {
                     orderedItems={getOrderedItems(section)}
                     isHidden={prefs.hidden.includes(section)}
                     hiddenItems={prefs.hiddenItems}
+                    allSections={prefs.order}
                     onToggleHideSection={toggleHideSection}
                     onToggleHideItem={toggleHideItem}
                     onItemDragEnd={(e) => handleItemDragEnd(section, e)}
+                    onMoveItemToSection={moveItemToSection}
                     sensors={sensors}
                   />
                 ))}
