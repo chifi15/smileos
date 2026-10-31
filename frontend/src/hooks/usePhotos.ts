@@ -13,7 +13,7 @@ export function usePatientPhotos(patientId: string) {
       return data.data;
     },
     enabled: !!patientId,
-    staleTime: 2 * 60 * 1000,
+    staleTime: 15 * 60 * 1000,
   });
 }
 

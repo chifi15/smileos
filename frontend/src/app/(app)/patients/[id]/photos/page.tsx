@@ -334,6 +334,7 @@ function PhotoLightbox({
           src={`/api/v1/patients/${patientId}/photos/${photo.id}/file`}
           alt={photo.caption ?? ""}
           className="max-h-[75vh] max-w-full rounded-lg"
+          eager
         />
         <div className="flex items-center gap-3">
           <Badge
