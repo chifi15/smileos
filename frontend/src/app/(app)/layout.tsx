@@ -69,7 +69,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   if (!isAuthenticated) return null;
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-gray-900">
+    <div className="flex h-screen overflow-y-hidden min-w-[900px] bg-slate-50 dark:bg-gray-900">
       {/* Mobile top bar */}
       <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex h-14 items-center gap-3 bg-[#1e3a5f] px-4 border-b border-white/10">
         <button
