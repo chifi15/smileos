@@ -204,7 +204,7 @@ function TableCard({
       {empty ? (
         <p className="py-8 text-center text-sm text-slate-400 dark:text-gray-500">Sin datos</p>
       ) : (
-        children
+        <div className="overflow-x-auto">{children}</div>
       )}
     </div>
   );
@@ -531,7 +531,7 @@ export default function ReportesPage() {
 
   return (
     <PlanGate feature="Reportes financieros">
-    <div className="p-6 space-y-6 max-w-screen-2xl">
+    <div className="p-4 sm:p-6 space-y-5 sm:space-y-6 max-w-screen-2xl">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>

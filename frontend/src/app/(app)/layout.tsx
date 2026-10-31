@@ -1,13 +1,14 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { useAuthStore } from "@/stores/auth.store";
 import { setAccessToken } from "@/lib/api-client";
 import Sidebar from "@/components/layout/Sidebar";
 import Spinner from "@/components/ui/Spinner";
+import { Menu } from "lucide-react";
 
-const REFRESH_INTERVAL_MS = 7 * 60 * 60 * 1000; // 7 horas (token dura 8)
+const REFRESH_INTERVAL_MS = 7 * 60 * 60 * 1000;
 
 async function silentRefresh() {
   try {
@@ -29,6 +30,12 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isInitializing, user } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // Cierra el drawer al navegar
+  useEffect(() => {
+    setMobileSidebarOpen(false);
+  }, [pathname]);
 
   useEffect(() => {
     if (isInitializing) return;
@@ -40,7 +47,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
     if (user?.must_change_password) {
       router.replace("/change-password");
     }
-  }, [isInitializing, isAuthenticated, user, pathname]); // router intencionalmente excluido — referencia inestable
+  }, [isInitializing, isAuthenticated, user, pathname]); // router intencionalmente excluido
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -63,8 +70,26 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-gray-900">
-      <Sidebar />
-      <main className="flex-1 overflow-auto">
+      {/* Mobile top bar */}
+      <div className="md:hidden fixed top-0 left-0 right-0 z-40 flex h-14 items-center gap-3 bg-[#1e3a5f] px-4 border-b border-white/10">
+        <button
+          onClick={() => setMobileSidebarOpen(true)}
+          className="rounded-lg p-2 text-white/70 hover:text-white hover:bg-white/10 transition-colors"
+          aria-label="Abrir menú"
+        >
+          <Menu size={20} />
+        </button>
+        <span className="text-lg font-bold tracking-tight text-white">
+          Smile<span className="text-blue-400">OS</span>
+        </span>
+      </div>
+
+      <Sidebar
+        mobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
+      />
+
+      <main className="flex-1 overflow-auto pt-14 md:pt-0">
         {children}
       </main>
     </div>

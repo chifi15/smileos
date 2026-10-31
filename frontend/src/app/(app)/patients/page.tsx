@@ -126,7 +126,7 @@ function PatientsContent() {
   }
 
   return (
-    <div className="p-6 space-y-5">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-5">
       {/* Plan limit banner */}
       {planStatus && planStatus.patient_limit !== null && (() => {
         const pct = planStatus.patient_count / planStatus.patient_limit;
@@ -154,7 +154,7 @@ function PatientsContent() {
       })()}
 
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-xl font-semibold text-slate-800 dark:text-white">Pacientes</h1>
           {meta && (
@@ -163,7 +163,7 @@ function PatientsContent() {
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {/* Active / Inactive toggle */}
           <div className="flex items-center gap-1 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 p-1">
             <button
@@ -253,6 +253,7 @@ function PatientsContent() {
           </div>
         ) : (
           <>
+            <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50">
@@ -353,6 +354,7 @@ function PatientsContent() {
                 ))}
               </tbody>
             </table>
+            </div>
 
             {/* Pagination */}
             {meta && meta.pages > 1 && (
