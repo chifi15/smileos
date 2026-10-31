@@ -25,21 +25,23 @@ ALL_FEATURES = ["rewards", "booking", "costos", "finances", "reportes", "activid
 BASE_FEATURES = ["costos", "finances", "inventario"]
 PLAN_FEATURES: dict[str, list[str]] = {
     "free":   [],
-    "pro":    ["booking", "reportes", "actividad", "rewards"],
-    "clinic": ["booking", "reportes", "actividad", "rewards"],
+    "pro":    ["booking", "reportes", "actividad"],
+    "clinic": ["booking", "reportes", "actividad"],
 }
 
 
 def _resolve_features(settings_obj, user_email: str, plan: str = "free") -> list[str]:
     """Admin de plataforma siempre ve todos los features.
-    Clínicas normales reciben: BASE + features del plan + lo que el admin haya añadido."""
+    Si la clínica nunca fue configurada (stored vacío), usa defaults del plan.
+    Si el admin ya configuró explícitamente, respeta exactamente lo guardado."""
     cfg = _get_settings()
     if user_email == cfg.admin_email:
         return ALL_FEATURES
-    plan_defaults = PLAN_FEATURES.get(plan, [])
     stored = settings_obj.features or []
-    combined = list(dict.fromkeys(BASE_FEATURES + plan_defaults + stored))
-    return combined
+    if not stored:
+        plan_defaults = PLAN_FEATURES.get(plan, [])
+        return list(dict.fromkeys(BASE_FEATURES + plan_defaults))
+    return list(dict.fromkeys(BASE_FEATURES + stored))
 
 
 # ─── Defaults ─────────────────────────────────────────────────────────────────

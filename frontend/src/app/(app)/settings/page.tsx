@@ -82,7 +82,7 @@ const PLAN_DETAILS = [
       "Dashboard básico",
       "Exportación de datos",
     ],
-    locked: ["Reserva online", "Reportes financieros", "Log de actividad", "Smile Rewards"],
+    locked: ["Reserva online", "Reportes financieros", "Log de actividad"],
   },
   {
     key: "pro",
@@ -94,7 +94,6 @@ const PLAN_DETAILS = [
       "Reserva online para pacientes",
       "Reportes financieros completos",
       "Log de actividad del sistema",
-      "Smile Rewards (fidelización)",
       "Segmentación de pacientes",
     ],
     locked: [],
@@ -106,6 +105,7 @@ const PLAN_DETAILS = [
     features: [
       "Pacientes ilimitados",
       "Todo lo del plan Pro",
+      "Smile Rewards (fidelización, próximamente)",
       "Soporte prioritario",
       "Múltiples sucursales (próximamente)",
       "API de integración (próximamente)",

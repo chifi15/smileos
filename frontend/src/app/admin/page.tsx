@@ -910,13 +910,16 @@ function CostosFijosTab({
 // ─── FeaturesTab ──────────────────────────────────────────────────────────────
 
 const FEATURE_META: Record<string, { label: string; description: string }> = {
-  rewards:    { label: "Smile Rewards",    description: "Programa de puntos y niveles para pacientes" },
   booking:    { label: "Reserva online",   description: "Página pública /reservar/[slug] para que pacientes agenden" },
   costos:     { label: "Costos",           description: "Módulo de costos, honorarios e inventario" },
   finances:   { label: "Finanzas",         description: "Registro de ingresos y gastos por cita" },
   reportes:   { label: "Reportes",         description: "Estadísticas y reportes de la clínica" },
   actividad:  { label: "Actividad",        description: "Log de auditoría y actividad del sistema" },
   inventario: { label: "Inventario",       description: "Gestión de inventario y stock de productos" },
+};
+
+const FEATURE_META_COMING_SOON: Record<string, { label: string; description: string }> = {
+  rewards: { label: "Smile Rewards", description: "Programa de puntos y niveles para pacientes (en desarrollo)" },
 };
 
 const BASE_FEATURES_KEYS = ["costos", "finances", "inventario"];
@@ -1070,6 +1073,22 @@ function FeaturesTab({ clinicId, secret }: { clinicId: string; secret: string })
         {saved && <span className="text-xs text-emerald-600 dark:text-emerald-400">¡Guardado!</span>}
         {appliedAll && <span className="text-xs text-emerald-600 dark:text-emerald-400">¡Aplicado a todas las cuentas!</span>}
         {error && <span className="text-xs text-red-500">{error}</span>}
+      </div>
+
+      {/* Coming soon */}
+      <div>
+        <p className="text-xs font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wide mb-2">Próximamente</p>
+        <div className="rounded-xl border border-slate-200 dark:border-gray-700 overflow-hidden divide-y divide-slate-100 dark:divide-gray-700">
+          {Object.entries(FEATURE_META_COMING_SOON).map(([key, meta]) => (
+            <div key={key} className="flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-gray-700/40 opacity-60">
+              <div className="min-w-0 mr-4">
+                <p className="text-sm font-medium text-slate-600 dark:text-gray-300">{meta.label}</p>
+                <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">{meta.description}</p>
+              </div>
+              <span className="text-xs font-semibold text-slate-400 dark:text-gray-500 bg-slate-100 dark:bg-gray-700 px-2 py-0.5 rounded-full">En desarrollo</span>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className="rounded-lg border border-blue-100 bg-blue-50 dark:border-blue-800/30 dark:bg-blue-900/20 px-4 py-3 text-xs text-blue-700 dark:text-blue-400">
