@@ -47,6 +47,8 @@ import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth.store";
 import { useLogout } from "@/hooks/useAuth";
 
+// ─── Nav definition ───────────────────────────────────────────────────────────
+
 const NAV_DEF = [
   {
     section: "Principal",
@@ -69,9 +71,7 @@ const NAV_DEF = [
   },
   {
     section: "Reportes",
-    items: [
-      { label: "Reportes", href: "/reportes", icon: BarChart2 },
-    ],
+    items: [{ label: "Reportes", href: "/reportes", icon: BarChart2 }],
   },
   {
     section: "Sistema",
@@ -82,33 +82,62 @@ const NAV_DEF = [
   },
 ];
 
+type NavItem = (typeof NAV_DEF)[0]["items"][0];
+
+// ─── Preferences ──────────────────────────────────────────────────────────────
+
 const PREFS_KEY = "smileos-sidebar-prefs-v1";
 const DEFAULT_ORDER = NAV_DEF.map((s) => s.section);
+const ALL_HREFS = new Set(NAV_DEF.flatMap((s) => s.items.map((i) => i.href)));
 
 interface SidebarPrefs {
   order: string[];
-  /** Secciones que difieren del default: si defaultExpanded=true → están cerradas; si false → están abiertas */
+  /** Secciones que difieren del default de expansión */
   collapsed: string[];
   hidden: string[];
   defaultExpanded: boolean;
+  /** Orden de ítems por sección — vacío = orden por defecto */
+  itemOrder: Record<string, string[]>;
+  /** Hrefs de ítems ocultos */
+  hiddenItems: string[];
 }
 
-const EMPTY_PREFS: SidebarPrefs = { order: DEFAULT_ORDER, collapsed: [], hidden: [], defaultExpanded: true };
+const EMPTY_PREFS: SidebarPrefs = {
+  order: DEFAULT_ORDER,
+  collapsed: [],
+  hidden: [],
+  defaultExpanded: true,
+  itemOrder: {},
+  hiddenItems: [],
+};
 
 function loadPrefs(): SidebarPrefs {
   if (typeof window === "undefined") return EMPTY_PREFS;
   try {
     const raw = localStorage.getItem(PREFS_KEY);
     if (!raw) return EMPTY_PREFS;
-    const parsed = JSON.parse(raw) as Partial<SidebarPrefs>;
+    const p = JSON.parse(raw) as Partial<SidebarPrefs>;
     const allSections = new Set(DEFAULT_ORDER);
-    const order = (parsed.order ?? DEFAULT_ORDER).filter((s) => allSections.has(s));
+
+    const order = (p.order ?? DEFAULT_ORDER).filter((s) => allSections.has(s));
     for (const s of DEFAULT_ORDER) if (!order.includes(s)) order.push(s);
+
+    const itemOrder: Record<string, string[]> = {};
+    for (const { section, items } of NAV_DEF) {
+      const defaultHrefs = items.map((i) => i.href);
+      const saved = ((p.itemOrder ?? {})[section] ?? []).filter((h) => ALL_HREFS.has(h));
+      // ensure all defaults are present, append new ones at the end
+      const merged = [...new Set([...saved, ...defaultHrefs])];
+      itemOrder[section] = merged;
+    }
+
     return {
       order,
-      collapsed: (parsed.collapsed ?? []).filter((s) => allSections.has(s)),
-      hidden: (parsed.hidden ?? []).filter((s) => allSections.has(s)),
-      defaultExpanded: parsed.defaultExpanded !== false,
+      collapsed: (p.collapsed ?? []).filter((s) => allSections.has(s)),
+      hidden: (p.hidden ?? []).filter((s) => allSections.has(s)),
+      defaultExpanded: p.defaultExpanded !== false,
+      itemOrder,
+      hiddenItems: (p.hiddenItems ?? []).filter((h) => ALL_HREFS.has(h)),
     };
   } catch {
     return EMPTY_PREFS;
@@ -119,16 +148,81 @@ function savePrefs(prefs: SidebarPrefs) {
   localStorage.setItem(PREFS_KEY, JSON.stringify(prefs));
 }
 
-// ─── Sortable section row (edit mode) ────────────────────────────────────────
+// ─── Sortable item row (edit mode) ────────────────────────────────────────────
 
-function SortableSectionRow({
-  section,
+function SortableItemRow({
+  item,
   isHidden,
   onToggleHide,
 }: {
-  section: string;
+  item: NavItem;
   isHidden: boolean;
-  onToggleHide: (s: string) => void;
+  onToggleHide: (href: string) => void;
+}) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
+    useSortable({ id: item.href });
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  };
+
+  const Icon = item.icon;
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={style}
+      className={cn(
+        "flex items-center gap-1.5 rounded-lg pl-5 pr-2 py-1.5",
+        isHidden ? "opacity-30" : ""
+      )}
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className="cursor-grab touch-none text-white/25 hover:text-white/55 transition-colors shrink-0"
+        aria-label="Arrastrar"
+      >
+        <GripVertical size={13} />
+      </button>
+      <Icon size={14} strokeWidth={1.8} className="shrink-0 text-white/45" />
+      <span className="flex-1 text-xs text-white/65">{item.label}</span>
+      <button
+        onClick={() => onToggleHide(item.href)}
+        className={cn(
+          "rounded p-0.5 transition-colors shrink-0",
+          isHidden ? "text-white/30 hover:text-white/60" : "text-white/25 hover:text-red-400"
+        )}
+        title={isHidden ? "Mostrar" : "Ocultar"}
+      >
+        {isHidden ? <EyeOff size={12} /> : <X size={12} />}
+      </button>
+    </div>
+  );
+}
+
+// ─── Sortable section block (edit mode) ───────────────────────────────────────
+
+function SortableSectionBlock({
+  section,
+  orderedItems,
+  isHidden,
+  hiddenItems,
+  onToggleHideSection,
+  onToggleHideItem,
+  onItemDragEnd,
+  sensors,
+}: {
+  section: string;
+  orderedItems: NavItem[];
+  isHidden: boolean;
+  hiddenItems: string[];
+  onToggleHideSection: (s: string) => void;
+  onToggleHideItem: (href: string) => void;
+  onItemDragEnd: (event: DragEndEvent) => void;
+  sensors: ReturnType<typeof useSensors>;
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
     useSortable({ id: section });
@@ -140,35 +234,59 @@ function SortableSectionRow({
   };
 
   return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className={cn(
-        "flex items-center gap-2 rounded-lg px-2 py-2 text-sm",
-        isHidden ? "text-white/30" : "text-white/80"
-      )}
-    >
-      <button
-        {...attributes}
-        {...listeners}
-        className="cursor-grab touch-none text-white/30 hover:text-white/60 transition-colors"
-        aria-label="Arrastrar"
-      >
-        <GripVertical size={16} />
-      </button>
-      <span className="flex-1 font-medium">{section}</span>
-      <button
-        onClick={() => onToggleHide(section)}
+    <div ref={setNodeRef} style={style} className="mb-0.5">
+      {/* Section header */}
+      <div
         className={cn(
-          "rounded p-1 transition-colors",
-          isHidden
-            ? "text-white/30 hover:text-white/60"
-            : "text-white/40 hover:text-red-400"
+          "flex items-center gap-2 rounded-lg px-2 py-1.5",
+          isHidden ? "opacity-40" : ""
         )}
-        title={isHidden ? "Mostrar sección" : "Ocultar sección"}
       >
-        {isHidden ? <EyeOff size={14} /> : <X size={14} />}
-      </button>
+        <button
+          {...attributes}
+          {...listeners}
+          className="cursor-grab touch-none text-white/30 hover:text-white/60 transition-colors shrink-0"
+          aria-label="Arrastrar sección"
+        >
+          <GripVertical size={15} />
+        </button>
+        <span className="flex-1 text-[11px] font-semibold uppercase tracking-widest text-white/55">
+          {section}
+        </span>
+        <button
+          onClick={() => onToggleHideSection(section)}
+          className={cn(
+            "rounded p-1 transition-colors shrink-0",
+            isHidden ? "text-white/30 hover:text-white/60" : "text-white/35 hover:text-red-400"
+          )}
+          title={isHidden ? "Mostrar sección" : "Ocultar sección"}
+        >
+          {isHidden ? <EyeOff size={13} /> : <X size={13} />}
+        </button>
+      </div>
+
+      {/* Items (nested sortable) */}
+      {!isHidden && (
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragEnd={onItemDragEnd}
+        >
+          <SortableContext
+            items={orderedItems.map((i) => i.href)}
+            strategy={verticalListSortingStrategy}
+          >
+            {orderedItems.map((item) => (
+              <SortableItemRow
+                key={item.href}
+                item={item}
+                isHidden={hiddenItems.includes(item.href)}
+                onToggleHide={onToggleHideItem}
+              />
+            ))}
+          </SortableContext>
+        </DndContext>
+      )}
     </div>
   );
 }
@@ -190,14 +308,18 @@ export default function Sidebar() {
     setMounted(true);
   }, []);
 
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
+  );
+
   function updatePrefs(next: SidebarPrefs) {
     setPrefs(next);
     savePrefs(next);
   }
 
-  // collapsed[] almacena secciones que difieren del default.
-  // defaultExpanded=true → en lista = cerrada; defaultExpanded=false → en lista = abierta
-  function isSectionCollapsed(section: string): boolean {
+  // ── Section helpers ──
+
+  function isSectionCollapsed(section: string) {
     const inList = prefs.collapsed.includes(section);
     return prefs.defaultExpanded ? inList : !inList;
   }
@@ -211,31 +333,65 @@ export default function Sidebar() {
   }
 
   function toggleDefaultExpanded() {
-    // al cambiar el default, limpiar los overrides para que todos reflejen el nuevo default
     updatePrefs({ ...prefs, defaultExpanded: !prefs.defaultExpanded, collapsed: [] });
   }
 
-  function toggleHide(section: string) {
+  function toggleHideSection(section: string) {
     const hidden = prefs.hidden.includes(section)
       ? prefs.hidden.filter((s) => s !== section)
       : [...prefs.hidden, section];
     updatePrefs({ ...prefs, hidden });
   }
 
-  function handleDragEnd(event: DragEndEvent) {
+  function handleSectionDragEnd(event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const oldIndex = prefs.order.indexOf(active.id as string);
-    const newIndex = prefs.order.indexOf(over.id as string);
-    const order = arrayMove(prefs.order, oldIndex, newIndex);
-    updatePrefs({ ...prefs, order });
+    const oldIdx = prefs.order.indexOf(active.id as string);
+    const newIdx = prefs.order.indexOf(over.id as string);
+    updatePrefs({ ...prefs, order: arrayMove(prefs.order, oldIdx, newIdx) });
+  }
+
+  // ── Item helpers ──
+
+  function getOrderedItems(section: string): NavItem[] {
+    const def = NAV_DEF.find((s) => s.section === section)!;
+    const order = prefs.itemOrder[section] ?? def.items.map((i) => i.href);
+    return order
+      .map((href) => def.items.find((i) => i.href === href))
+      .filter(Boolean) as NavItem[];
+  }
+
+  function toggleHideItem(href: string) {
+    const hiddenItems = prefs.hiddenItems.includes(href)
+      ? prefs.hiddenItems.filter((h) => h !== href)
+      : [...prefs.hiddenItems, href];
+    updatePrefs({ ...prefs, hiddenItems });
+  }
+
+  function handleItemDragEnd(section: string, event: DragEndEvent) {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const current = prefs.itemOrder[section] ??
+      NAV_DEF.find((s) => s.section === section)!.items.map((i) => i.href);
+    const oldIdx = current.indexOf(active.id as string);
+    const newIdx = current.indexOf(over.id as string);
+    updatePrefs({
+      ...prefs,
+      itemOrder: { ...prefs.itemOrder, [section]: arrayMove(current, oldIdx, newIdx) },
+    });
   }
 
   function resetPrefs() {
     updatePrefs(EMPTY_PREFS);
   }
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
+  // ── Derived data ──
+
+  const orderedSections = prefs.order
+    .map((name) => NAV_DEF.find((s) => s.section === name))
+    .filter(Boolean) as typeof NAV_DEF;
+
+  const visibleSections = orderedSections.filter((s) => !prefs.hidden.includes(s.section));
 
   const initials = user?.full_name
     .split(" ")
@@ -244,16 +400,10 @@ export default function Sidebar() {
     .join("")
     .toUpperCase();
 
-  // Build ordered sections
-  const orderedSections = prefs.order
-    .map((name) => NAV_DEF.find((s) => s.section === name))
-    .filter(Boolean) as typeof NAV_DEF;
-
-  const visibleSections = orderedSections.filter((s) => !prefs.hidden.includes(s.section));
-  const hasHidden = prefs.hidden.length > 0;
+  const hiddenItemCount = prefs.hiddenItems.length;
+  const hiddenSectionCount = prefs.hidden.length;
 
   if (!mounted) {
-    // SSR / hydration — render static to avoid mismatch
     return (
       <aside className="flex w-60 shrink-0 flex-col bg-[#1e3a5f] text-white">
         <div className="flex h-16 items-center px-6 border-b border-white/10">
@@ -275,16 +425,18 @@ export default function Sidebar() {
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-1">
+      <nav className="flex-1 overflow-y-auto py-4 px-3">
 
         {/* ── Normal mode ── */}
         {!editMode && (
-          <>
-            {visibleSections.map(({ section, items }) => {
+          <div className="space-y-1">
+            {visibleSections.map(({ section }) => {
               const isCollapsed = isSectionCollapsed(section);
+              const items = getOrderedItems(section).filter(
+                (i) => !prefs.hiddenItems.includes(i.href)
+              );
               return (
                 <div key={section} className="mb-1">
-                  {/* Section header */}
                   <button
                     onClick={() => toggleCollapse(section)}
                     className="flex w-full items-center justify-between px-3 py-1 mb-1 group"
@@ -301,11 +453,11 @@ export default function Sidebar() {
                     />
                   </button>
 
-                  {/* Items */}
                   {!isCollapsed && (
                     <div className="space-y-0.5">
                       {items.map(({ label, href, icon: Icon }) => {
-                        const active = pathname === href || pathname.startsWith(href + "/");
+                        const active =
+                          pathname === href || pathname.startsWith(href + "/");
                         return (
                           <Link
                             key={href}
@@ -328,46 +480,58 @@ export default function Sidebar() {
               );
             })}
 
-            {/* Sections hidden indicator */}
-            {hasHidden && (
-              <p className="px-3 pt-2 text-[10px] text-white/25">
-                {prefs.hidden.length} sección{prefs.hidden.length > 1 ? "es" : ""} oculta{prefs.hidden.length > 1 ? "s" : ""}
+            {(hiddenSectionCount > 0 || hiddenItemCount > 0) && (
+              <p className="px-3 pt-1 text-[10px] text-white/25">
+                {[
+                  hiddenSectionCount > 0 &&
+                    `${hiddenSectionCount} sección${hiddenSectionCount > 1 ? "es" : ""} oculta${hiddenSectionCount > 1 ? "s" : ""}`,
+                  hiddenItemCount > 0 &&
+                    `${hiddenItemCount} ítem${hiddenItemCount > 1 ? "s" : ""} oculto${hiddenItemCount > 1 ? "s" : ""}`,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
               </p>
             )}
-          </>
+          </div>
         )}
 
         {/* ── Edit mode ── */}
         {editMode && (
-          <div className="space-y-1">
-            <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-widest text-white/40">
-              Arrastrar para reordenar
+          <div className="space-y-0.5">
+            <p className="px-2 py-1 mb-1 text-[10px] font-semibold uppercase tracking-widest text-white/35">
+              ⠿ Arrastra · ✕ Oculta
             </p>
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragEnd={handleSectionDragEnd}
+            >
               <SortableContext items={prefs.order} strategy={verticalListSortingStrategy}>
                 {prefs.order.map((section) => (
-                  <SortableSectionRow
+                  <SortableSectionBlock
                     key={section}
                     section={section}
+                    orderedItems={getOrderedItems(section)}
                     isHidden={prefs.hidden.includes(section)}
-                    onToggleHide={toggleHide}
+                    hiddenItems={prefs.hiddenItems}
+                    onToggleHideSection={toggleHideSection}
+                    onToggleHideItem={toggleHideItem}
+                    onItemDragEnd={(e) => handleItemDragEnd(section, e)}
+                    sensors={sensors}
                   />
                 ))}
               </SortableContext>
             </DndContext>
-
-            {hasHidden && (
-              <div className="mt-2 px-2">
-                <p className="text-[10px] text-white/30 mb-1 px-1">Secciones ocultas (click <EyeOff size={10} className="inline" /> para mostrar)</p>
-              </div>
-            )}
 
             {/* Expandidas por defecto */}
             <div className="mt-3 flex items-center justify-between rounded-lg px-3 py-2 bg-white/5">
               <div>
                 <p className="text-xs font-medium text-white/70">Expandidas por defecto</p>
                 <p className="text-[10px] text-white/35 mt-0.5">
-                  {prefs.defaultExpanded ? "Las secciones abren al cargar" : "Las secciones cierran al cargar"}
+                  {prefs.defaultExpanded
+                    ? "Las secciones abren al cargar"
+                    : "Las secciones cierran al cargar"}
                 </p>
               </div>
               <button
@@ -377,16 +541,18 @@ export default function Sidebar() {
                   prefs.defaultExpanded ? "bg-blue-500" : "bg-white/20"
                 )}
               >
-                <span className={cn(
-                  "inline-block h-4 w-4 rounded-full bg-white shadow transition-transform",
-                  prefs.defaultExpanded ? "translate-x-4" : "translate-x-0"
-                )} />
+                <span
+                  className={cn(
+                    "inline-block h-4 w-4 rounded-full bg-white shadow transition-transform",
+                    prefs.defaultExpanded ? "translate-x-4" : "translate-x-0"
+                  )}
+                />
               </button>
             </div>
 
             <button
               onClick={resetPrefs}
-              className="mt-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-white/40 hover:bg-white/10 hover:text-white/70 transition-colors"
+              className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-white/40 hover:bg-white/10 hover:text-white/70 transition-colors"
             >
               <RotateCcw size={13} />
               Restaurar por defecto
@@ -395,7 +561,7 @@ export default function Sidebar() {
         )}
       </nav>
 
-      {/* Personalizar / Hecho button */}
+      {/* Personalizar / Hecho */}
       <div className="px-3 pb-1">
         <button
           onClick={() => setEditMode((v) => !v)}
