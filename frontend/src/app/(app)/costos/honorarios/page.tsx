@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Info, Pencil, Check, X } from "lucide-react";
 import { useHonorariosConfig, useUpdateHonorariosConfig } from "@/hooks/useCostos";
+import { useWorkingHours } from "@/hooks/useSettings";
 import { fmtC } from "@/lib/costos-utils";
 import toast from "react-hot-toast";
 
@@ -55,8 +56,16 @@ function EditableNumber({
   );
 }
 
+function parseHours(open: string | null, close: string | null): number {
+  if (!open || !close) return 0;
+  const [oh, om] = open.split(":").map(Number);
+  const [ch, cm] = close.split(":").map(Number);
+  return (ch + cm / 60) - (oh + om / 60);
+}
+
 export default function HonorariosPage() {
   const { data: config, isLoading } = useHonorariosConfig();
+  const { data: whData } = useWorkingHours();
   const updateHonorarios = useUpdateHonorariosConfig();
   const router = useRouter();
 
@@ -75,6 +84,25 @@ export default function HonorariosPage() {
   const [horasDia, setHorasDia] = useState(8);
   const [horasSabado, setHorasSabado] = useState(4);
   const [sabadoActivo, setSabadoActivo] = useState(false);
+
+  // Pre-poblar calculador desde horarios guardados al cargar
+  useEffect(() => {
+    const hours = whData?.hours;
+    if (!hours || hours.length === 0) return;
+    const weekdays = hours.filter((h) => h.day_of_week >= 1 && h.day_of_week <= 5 && h.is_working_day);
+    const saturday = hours.find((h) => h.day_of_week === 6);
+    setDiasSemana(weekdays.length || 5);
+    setSabadoActivo(saturday?.is_working_day ?? false);
+    if (weekdays.length > 0) {
+      const wh = weekdays[0];
+      const total = parseHours(wh.morning_open, wh.morning_close) + parseHours(wh.afternoon_open, wh.afternoon_close);
+      if (total > 0) setHorasDia(Math.round(total * 2) / 2);
+    }
+    if (saturday?.is_working_day) {
+      const total = parseHours(saturday.morning_open, saturday.morning_close) + parseHours(saturday.afternoon_open, saturday.afternoon_close);
+      if (total > 0) setHorasSabado(Math.round(total * 2) / 2);
+    }
+  }, [whData]);
 
   const horasSemanales = diasSemana * horasDia + (sabadoActivo ? horasSabado : 0);
   const horasMes = Math.round(horasSemanales * SEMANAS_POR_MES * 10) / 10;
