@@ -785,13 +785,7 @@ function SettingsContent() {
         onClose={() => setShowCreateUser(false)}
       />
 
-      <WorkingHoursSection />
-
-      <HolidaysSection />
-
-      <DoctorDaysOffSection />
-
-      <BookingTypesSectionGated />
+      <ReservaOnlineGroup />
 
       <PriceCatalogSection />
 
@@ -815,8 +809,6 @@ const DEFAULT_HOURS: WorkingHour[] = [0, 1, 2, 3, 4, 5, 6].map((day) => ({
 
 function WorkingHoursSection() {
   const { data: settingsData, isLoading } = useWorkingHours();
-  const { data: features } = useClinicFeatures();
-  const bookingEnabled = features?.includes("booking") ?? false;
   const savedHours = settingsData?.hours;
   const clinicSlug = settingsData?.clinic_slug;
   const updateHours = useUpdateWorkingHours();
@@ -856,9 +848,9 @@ function WorkingHoursSection() {
     <section className="rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 overflow-hidden">
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 px-6 py-4 border-b border-slate-100 dark:border-gray-700">
         <div>
-          <h2 className="font-semibold text-slate-800 dark:text-white">Horario de atención</h2>
-          <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">Define los días y horarios disponibles para reservas de pacientes</p>
-          {bookingEnabled && clinicSlug && (
+          <h2 className="font-semibold text-slate-800 dark:text-white">Reserva online — Horario de atención</h2>
+          <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">Días y horarios que verán los pacientes al hacer una reserva en línea</p>
+          {clinicSlug && (
             <div className="mt-2 flex items-center gap-2 flex-wrap">
               <span className="text-xs text-slate-400 dark:text-gray-500">Enlace para pacientes:</span>
               <code className="text-xs bg-slate-100 dark:bg-gray-700 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded">
@@ -946,7 +938,7 @@ function WorkingHoursSection() {
           ))}
         </div>
       )}
-      {bookingEnabled && showQr && clinicSlug && (
+      {showQr && clinicSlug && (
         <QrModal
           url={`${window.location.origin}/reservar/${clinicSlug}`}
           onClose={() => setShowQr(false)}
@@ -1216,10 +1208,18 @@ function DoctorDaysOffSection() {
   );
 }
 
-function BookingTypesSectionGated() {
-  const { data: features } = useClinicFeatures();
+function ReservaOnlineGroup() {
+  const { data: features, isLoading } = useClinicFeatures();
+  if (isLoading) return null;
   if (!features?.includes("booking")) return null;
-  return <BookingTypesSection />;
+  return (
+    <>
+      <WorkingHoursSection />
+      <HolidaysSection />
+      <DoctorDaysOffSection />
+      <BookingTypesSection />
+    </>
+  );
 }
 
 // ─── Tipos de consulta para reservas ─────────────────────────────────────────
