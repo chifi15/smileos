@@ -51,6 +51,8 @@ class Settings(BaseSettings):
 
     # Platform admin secret (X-Admin-Secret header)
     admin_secret: str = ""
+    # Cuenta del administrador de plataforma — siempre ve todos los features
+    admin_email: str = "admin@smileos.ni"
 
     # WhatsApp Cloud API
     whatsapp_token: str = ""

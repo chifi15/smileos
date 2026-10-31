@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import axios from "axios";
@@ -21,6 +21,7 @@ import {
   AlertTriangle,
   RefreshCw,
   Copy,
+  Sparkles,
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "https://smileos.onrender.com";
@@ -121,7 +122,7 @@ function PlanBadge({ plan }: { plan: string }) {
 
 // ─── Clinic Drawer ────────────────────────────────────────────────────────────
 
-type Tab = "plan" | "inventario" | "tratamientos" | "costos" | "copiar";
+type Tab = "plan" | "inventario" | "tratamientos" | "costos" | "copiar" | "features";
 
 function ClinicDrawer({
   clinic,
@@ -159,6 +160,7 @@ function ClinicDrawer({
 
   const tabs: { key: Tab; label: string; icon: React.ElementType }[] = [
     { key: "plan", label: "Plan", icon: ShieldCheck },
+    { key: "features", label: "Features", icon: Sparkles },
     { key: "inventario", label: "Inventario", icon: Package },
     { key: "tratamientos", label: "Tratamientos", icon: Stethoscope },
     { key: "costos", label: "Costos Fijos", icon: DollarSign },
@@ -214,6 +216,9 @@ function ClinicDrawer({
           )}
           {tab === "costos" && (
             <CostosFijosTab clinicId={clinic.id} secret={secret} detail={detail} loading={loadingDetail} onReload={loadDetail} />
+          )}
+          {tab === "features" && (
+            <FeaturesTab clinicId={clinic.id} secret={secret} />
           )}
           {tab === "copiar" && (
             <CopiarSetupTab clinicId={clinic.id} secret={secret} allClinics={allClinics} />
@@ -898,6 +903,109 @@ function CostosFijosTab({
           </div>
         </form>
       )}
+    </div>
+  );
+}
+
+// ─── FeaturesTab ──────────────────────────────────────────────────────────────
+
+const FEATURE_META: Record<string, { label: string; description: string }> = {
+  rewards:    { label: "Smile Rewards",    description: "Programa de puntos y niveles para pacientes" },
+  booking:    { label: "Reserva online",   description: "Página pública /reservar/[slug] para que pacientes agenden" },
+  costos:     { label: "Costos",           description: "Módulo de costos, honorarios e inventario" },
+  finances:   { label: "Finanzas",         description: "Registro de ingresos y gastos por cita" },
+  reportes:   { label: "Reportes",         description: "Estadísticas y reportes de la clínica" },
+  actividad:  { label: "Actividad",        description: "Log de auditoría y actividad del sistema" },
+  inventario: { label: "Inventario",       description: "Gestión de inventario y stock de productos" },
+};
+
+function FeaturesTab({ clinicId, secret }: { clinicId: string; secret: string }) {
+  const [enabled, setEnabled] = useState<string[] | null>(null);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    api(secret).get(`/api/v1/admin/clinics/${clinicId}/features`)
+      .then(({ data }) => setEnabled(data.data.enabled))
+      .catch(() => setError("Error al cargar los features."));
+  }, [clinicId, secret]);
+
+  function toggle(feature: string) {
+    setEnabled((prev) =>
+      prev === null ? [feature]
+        : prev.includes(feature) ? prev.filter((f) => f !== feature)
+        : [...prev, feature]
+    );
+    setSaved(false);
+  }
+
+  async function save() {
+    if (enabled === null) return;
+    setSaving(true);
+    setError(null);
+    try {
+      await api(secret).patch(`/api/v1/admin/clinics/${clinicId}/features`, { features: enabled });
+      setSaved(true);
+    } catch {
+      setError("Error al guardar los features.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  if (enabled === null && !error) {
+    return <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-slate-300" /></div>;
+  }
+
+  const allKeys = Object.keys(FEATURE_META);
+
+  return (
+    <div className="p-6 space-y-5">
+      <div>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-white mb-1">Features habilitados</h3>
+        <p className="text-xs text-slate-500 dark:text-gray-400 leading-relaxed">
+          Activa o desactiva funcionalidades para esta clínica. Los cambios aplican al instante en el menú del usuario.
+        </p>
+      </div>
+
+      <div className="rounded-xl border border-slate-200 dark:border-gray-700 overflow-hidden divide-y divide-slate-100 dark:divide-gray-700">
+        {allKeys.map((key) => {
+          const on = enabled?.includes(key) ?? false;
+          const meta = FEATURE_META[key];
+          return (
+            <div key={key} className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800">
+              <div className="min-w-0 mr-4">
+                <p className="text-sm font-medium text-slate-800 dark:text-white">{meta.label}</p>
+                <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">{meta.description}</p>
+              </div>
+              <button
+                onClick={() => toggle(key)}
+                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${on ? "bg-violet-600" : "bg-slate-200 dark:bg-gray-600"}`}
+              >
+                <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${on ? "translate-x-4" : "translate-x-0"}`} />
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="flex items-center gap-3">
+        <button
+          onClick={save}
+          disabled={saving}
+          className="flex items-center gap-2 rounded-lg bg-violet-600 hover:bg-violet-700 disabled:opacity-50 px-4 py-2.5 text-sm font-medium text-white transition-colors"
+        >
+          {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
+          {saving ? "Guardando…" : "Guardar cambios"}
+        </button>
+        {saved && <span className="text-xs text-emerald-600 dark:text-emerald-400">¡Guardado!</span>}
+        {error && <span className="text-xs text-red-500">{error}</span>}
+      </div>
+
+      <div className="rounded-lg border border-blue-100 bg-blue-50 dark:border-blue-800/30 dark:bg-blue-900/20 px-4 py-3 text-xs text-blue-700 dark:text-blue-400">
+        La cuenta <strong>admin@smileos.ni</strong> siempre ve todos los features sin importar esta configuración.
+      </div>
     </div>
   );
 }

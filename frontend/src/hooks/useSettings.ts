@@ -13,12 +13,26 @@ export interface WorkingHour {
   afternoon_close: string | null;
 }
 
+export const ALL_FEATURES = ["rewards", "booking", "costos", "finances", "reportes", "actividad", "inventario"] as const;
+export type FeatureName = typeof ALL_FEATURES[number];
+
 export function useClinicSettings() {
   return useQuery({
     queryKey: ["settings"],
     queryFn: async () => {
       const { data } = await apiClient.get<{ data: { settings: ClinicSettings; working_hours: WorkingHour[] } }>("/api/v1/settings");
       return data.data.settings;
+    },
+    staleTime: 5 * 60 * 1000,
+  });
+}
+
+export function useClinicFeatures() {
+  return useQuery({
+    queryKey: ["clinic-features"],
+    queryFn: async () => {
+      const { data } = await apiClient.get<{ data: { settings: ClinicSettings & { features: string[] } } }>("/api/v1/settings");
+      return (data.data.settings.features ?? []) as string[];
     },
     staleTime: 5 * 60 * 1000,
   });

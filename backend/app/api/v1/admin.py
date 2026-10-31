@@ -15,6 +15,7 @@ from sqlalchemy.orm import selectinload
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.models.clinic import Clinic, ClinicSettings
+from app.api.v1.settings import ALL_FEATURES
 from app.models.user import User
 from app.models.patient import Patient
 from app.models.costos import CostProduct, CostTreatment, CostAppointment, FixedCostsConfig
@@ -40,6 +41,10 @@ AdminAuth = Depends(_require_admin)
 class PlanUpdate(BaseModel):
     plan: str
     plan_expires_at: Optional[datetime] = None
+
+
+class FeaturesUpdate(BaseModel):
+    features: list[str]
 
 
 class AdminProductIn(BaseModel):
@@ -385,3 +390,41 @@ async def set_fixed_costs(
     await costos_service.update_honorarios(db, clinic_id, body.fee_per_hour)
     await db.commit()
     return {"success": True, "data": {"patients_per_month": body.patients_per_month, "fee_per_hour": body.fee_per_hour}}
+
+
+@router.get("/clinics/{clinic_id}/features")
+async def get_clinic_features(
+    clinic_id: uuid.UUID,
+    _: Annotated[None, AdminAuth],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Devuelve los features habilitados para la clínica y la lista de todos los disponibles."""
+    cs = await db.scalar(select(ClinicSettings).where(ClinicSettings.clinic_id == clinic_id))
+    if not cs:
+        raise HTTPException(status_code=404, detail="Clínica no encontrada.")
+    return {
+        "success": True,
+        "data": {
+            "enabled": cs.features or [],
+            "all": ALL_FEATURES,
+        },
+    }
+
+
+@router.patch("/clinics/{clinic_id}/features")
+async def update_clinic_features(
+    clinic_id: uuid.UUID,
+    body: FeaturesUpdate,
+    _: Annotated[None, AdminAuth],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Actualiza los features habilitados para la clínica."""
+    cs = await db.scalar(select(ClinicSettings).where(ClinicSettings.clinic_id == clinic_id))
+    if not cs:
+        raise HTTPException(status_code=404, detail="Clínica no encontrada.")
+    valid = [f for f in body.features if f in ALL_FEATURES]
+    cs.features = valid
+    from sqlalchemy.orm.attributes import flag_modified
+    flag_modified(cs, "features")
+    await db.commit()
+    return {"success": True, "data": {"enabled": valid}}

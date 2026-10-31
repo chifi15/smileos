@@ -46,7 +46,9 @@ import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth.store";
 import { useLogout } from "@/hooks/useAuth";
+import { useClinicFeatures } from "@/hooks/useSettings";
 import type { UserRole } from "@/types";
+import type { FeatureName } from "@/hooks/useSettings";
 
 // ─── Nav definition ───────────────────────────────────────────────────────────
 
@@ -64,26 +66,26 @@ const NAV_DEF = [
       { label: "Agenda", href: "/appointments", icon: Calendar },
       { label: "Tratamientos", href: "/treatments", icon: ClipboardList },
       { label: "Fotografías", href: "/photos", icon: Camera },
-      { label: "Smile Rewards", href: "/rewards", icon: Star, roles: ["clinic_owner"] as UserRole[] },
-      { label: "Finanzas", href: "/finances", icon: TrendingUp },
-      { label: "Costos", href: "/costos", icon: Calculator },
-      { label: "Inventario", href: "/inventario", icon: Package },
+      { label: "Smile Rewards", href: "/rewards", icon: Star, roles: ["clinic_owner"] as UserRole[], feature: "rewards" as FeatureName },
+      { label: "Finanzas", href: "/finances", icon: TrendingUp, feature: "finances" as FeatureName },
+      { label: "Costos", href: "/costos", icon: Calculator, feature: "costos" as FeatureName },
+      { label: "Inventario", href: "/inventario", icon: Package, feature: "inventario" as FeatureName },
     ],
   },
   {
     section: "Reportes",
-    items: [{ label: "Reportes", href: "/reportes", icon: BarChart2 }],
+    items: [{ label: "Reportes", href: "/reportes", icon: BarChart2, feature: "reportes" as FeatureName }],
   },
   {
     section: "Sistema",
     items: [
-      { label: "Actividad", href: "/actividad", icon: Activity },
+      { label: "Actividad", href: "/actividad", icon: Activity, feature: "actividad" as FeatureName },
       { label: "Configuración", href: "/settings", icon: Settings },
     ],
   },
 ];
 
-type NavItem = (typeof NAV_DEF)[0]["items"][0] & { roles?: UserRole[] };
+type NavItem = (typeof NAV_DEF)[0]["items"][0] & { roles?: UserRole[]; feature?: FeatureName };
 
 // ─── Preferences ──────────────────────────────────────────────────────────────
 
@@ -300,6 +302,7 @@ export default function Sidebar() {
   const logout = useLogout();
   const { theme, setTheme } = useTheme();
 
+  const { data: enabledFeatures } = useClinicFeatures();
   const [prefs, setPrefs] = useState<SidebarPrefs>(EMPTY_PREFS);
   const [editMode, setEditMode] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -436,7 +439,8 @@ export default function Sidebar() {
               const items = getOrderedItems(section).filter(
                 (i) =>
                   !prefs.hiddenItems.includes(i.href) &&
-                  (!i.roles || i.roles.includes(user?.role as UserRole))
+                  (!i.roles || i.roles.includes(user?.role as UserRole)) &&
+                  (!i.feature || enabledFeatures?.includes(i.feature))
               );
               return (
                 <div key={section} className="mb-1">

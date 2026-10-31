@@ -4,6 +4,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings as _get_settings
 from app.core.database import get_db
 from app.core.dependencies import require_permission
 from app.schemas.settings import (
@@ -19,6 +20,16 @@ from app.services import settings_service, audit_service
 
 settings_router = APIRouter(prefix="/settings", tags=["Configuración de Clínica"])
 users_router = APIRouter(prefix="/users", tags=["Gestión de Usuarios"])
+
+ALL_FEATURES = ["rewards", "booking", "costos", "finances", "reportes", "actividad", "inventario"]
+
+
+def _resolve_features(settings_obj, user_email: str) -> list[str]:
+    """Admin de plataforma siempre ve todos los features."""
+    cfg = _get_settings()
+    if user_email == cfg.admin_email:
+        return ALL_FEATURES
+    return settings_obj.features or []
 
 
 # ─── Defaults ─────────────────────────────────────────────────────────────────
@@ -57,6 +68,7 @@ def _serialize_settings(s) -> dict:
         "calendar_last_synced_at": s.calendar_last_synced_at.isoformat() if s.calendar_last_synced_at else None,
         "updated_at": s.updated_at.isoformat() if s.updated_at else None,
         "booking_appointment_types": s.booking_appointment_types or _default_appt_types(),
+        "features": s.features or [],
     }
 
 
@@ -119,10 +131,12 @@ async def get_settings(
     from sqlalchemy import select as _select
     config = await settings_service.get_clinic_config(db, user.clinic_id)
     clinic = await db.scalar(_select(Clinic).where(Clinic.id == user.clinic_id))
+    serialized = _serialize_settings(config["settings"])
+    serialized["features"] = _resolve_features(config["settings"], user.email)
     return {
         "success": True,
         "data": {
-            "settings": _serialize_settings(config["settings"]),
+            "settings": serialized,
             "working_hours": [_serialize_wh(wh) for wh in config["working_hours"]],
             "upcoming_holidays": [_serialize_holiday(h) for h in config["holidays"]],
             "clinic_slug": clinic.slug if clinic else "",

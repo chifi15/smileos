@@ -69,6 +69,7 @@ class ClinicSettings(UUIDMixin, TimestampMixin, Base):
 
     ui_preferences: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     booking_appointment_types: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    features: Mapped[list] = mapped_column(JSONB, nullable=False, default=list, server_default="'[]'::jsonb")
 
     clinic: Mapped["Clinic"] = relationship(back_populates="settings")
 
