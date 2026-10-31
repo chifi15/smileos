@@ -1,6 +1,7 @@
 import uuid
 from datetime import time, datetime, date as date_type
 from decimal import Decimal
+import sqlalchemy as sa
 from sqlalchemy import String, Boolean, Integer, SmallInteger, Time, Date, DateTime, ForeignKey, UniqueConstraint, Numeric, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -69,7 +70,7 @@ class ClinicSettings(UUIDMixin, TimestampMixin, Base):
 
     ui_preferences: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     booking_appointment_types: Mapped[list | None] = mapped_column(JSONB, nullable=True)
-    features: Mapped[list] = mapped_column(JSONB, nullable=False, default=list, server_default="'[]'::jsonb")
+    features: Mapped[list] = mapped_column(JSONB, nullable=False, default=list, server_default=sa.text("'[]'::jsonb"))
 
     clinic: Mapped["Clinic"] = relationship(back_populates="settings")
 
