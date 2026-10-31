@@ -360,6 +360,13 @@ export default function Sidebar() {
     setMounted(true);
   }, []);
 
+  useEffect(() => {
+    if (!editMode) return;
+    const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setEditMode(false); };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [editMode]);
+
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } })
   );
