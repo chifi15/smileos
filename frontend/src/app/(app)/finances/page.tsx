@@ -1025,16 +1025,9 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
               }}
               className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
               <option value="">— Sin procedimiento —</option>
-              {procedures.map((p, i) => (
-                <option key={p.id} value={p.id}>{i + 1}. {p.name}</option>
+              {standaloneT.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
-              {standaloneT.length > 0 && (
-                <optgroup label="── Costos Operativos ──">
-                  {standaloneT.map((t) => (
-                    <option key={t.id} value={t.id}>{t.name}</option>
-                  ))}
-                </optgroup>
-              )}
             </select>
 
             {/* Selector de cita para el procedimiento principal (multi-sesión) */}
@@ -1106,16 +1099,9 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                     className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">— Seleccionar —</option>
-                    {procedures
-                      .filter((p) => !usedIds.has(p.id))
-                      .map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
-                    {standaloneT.filter((t) => !usedIds.has(t.id)).length > 0 && (
-                      <optgroup label="── Costos Operativos ──">
-                        {standaloneT.filter((t) => !usedIds.has(t.id)).map((t) => (
-                          <option key={t.id} value={t.id}>{t.name}</option>
-                        ))}
-                      </optgroup>
-                    )}
+                    {standaloneT
+                      .filter((t) => !usedIds.has(t.id))
+                      .map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
                   {ep.procedure_id && extraTreatment && extraTreatment.appointments.length > 1 && (
                     <select
@@ -1140,7 +1126,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
             {/* Botón agregar más procedimientos (cuando ya hay al menos uno extra) */}
             {form.procedure_id && extraProcedures.length > 0 &&
               extraProcedures.every((ep) => !!ep.procedure_id) &&
-              (extraProcedures.length + 1) < (procedures.length + standaloneT.length) && (
+              (extraProcedures.length + 1) < standaloneT.length && (
               <button
                 type="button"
                 onClick={addExtraProcedure}
