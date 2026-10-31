@@ -923,6 +923,8 @@ const BASE_FEATURES_KEYS = ["costos", "finances", "inventario"];
 
 function FeaturesTab({ clinicId, secret }: { clinicId: string; secret: string }) {
   const [enabled, setEnabled] = useState<string[] | null>(null);
+  const [planFeatures, setPlanFeatures] = useState<string[]>([]);
+  const [clinicPlan, setClinicPlan] = useState<string>("free");
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [applyingAll, setApplyingAll] = useState(false);
@@ -931,7 +933,11 @@ function FeaturesTab({ clinicId, secret }: { clinicId: string; secret: string })
 
   useEffect(() => {
     api(secret).get(`/api/v1/admin/clinics/${clinicId}/features`)
-      .then(({ data }) => setEnabled(data.data.enabled))
+      .then(({ data }) => {
+        setEnabled(data.data.enabled);
+        setPlanFeatures(data.data.plan_features ?? []);
+        setClinicPlan(data.data.plan ?? "free");
+      })
       .catch(() => setError("Error al cargar los features."));
   }, [clinicId, secret]);
 
@@ -1010,15 +1016,26 @@ function FeaturesTab({ clinicId, secret }: { clinicId: string; secret: string })
 
       {/* Optional features */}
       <div>
-        <p className="text-xs font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wide mb-2">Opcionales</p>
+        <p className="text-xs font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wide mb-2">
+          Opcionales
+          {clinicPlan !== "free" && (
+            <span className="ml-2 normal-case font-normal text-violet-500">Plan {clinicPlan}</span>
+          )}
+        </p>
         <div className="rounded-xl border border-slate-200 dark:border-gray-700 overflow-hidden divide-y divide-slate-100 dark:divide-gray-700">
           {optionalKeys.map((key) => {
             const on = enabled?.includes(key) ?? false;
+            const fromPlan = planFeatures.includes(key);
             const meta = FEATURE_META[key];
             return (
               <div key={key} className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800">
                 <div className="min-w-0 mr-4">
-                  <p className="text-sm font-medium text-slate-800 dark:text-white">{meta.label}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-medium text-slate-800 dark:text-white">{meta.label}</p>
+                    {fromPlan && (
+                      <span className="text-[10px] font-semibold text-violet-600 dark:text-violet-400 bg-violet-50 dark:bg-violet-900/30 px-1.5 py-0.5 rounded-full">Plan</span>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">{meta.description}</p>
                 </div>
                 <button

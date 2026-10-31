@@ -23,16 +23,22 @@ users_router = APIRouter(prefix="/users", tags=["Gestión de Usuarios"])
 
 ALL_FEATURES = ["rewards", "booking", "costos", "finances", "reportes", "actividad", "inventario"]
 BASE_FEATURES = ["costos", "finances", "inventario"]
+PLAN_FEATURES: dict[str, list[str]] = {
+    "free":   [],
+    "pro":    ["booking", "reportes", "actividad", "rewards"],
+    "clinic": ["booking", "reportes", "actividad", "rewards"],
+}
 
 
-def _resolve_features(settings_obj, user_email: str) -> list[str]:
+def _resolve_features(settings_obj, user_email: str, plan: str = "free") -> list[str]:
     """Admin de plataforma siempre ve todos los features.
-    Clínicas normales siempre tienen BASE_FEATURES más lo que el admin haya habilitado."""
+    Clínicas normales reciben: BASE + features del plan + lo que el admin haya añadido."""
     cfg = _get_settings()
     if user_email == cfg.admin_email:
         return ALL_FEATURES
+    plan_defaults = PLAN_FEATURES.get(plan, [])
     stored = settings_obj.features or []
-    combined = list(dict.fromkeys(BASE_FEATURES + stored))
+    combined = list(dict.fromkeys(BASE_FEATURES + plan_defaults + stored))
     return combined
 
 
@@ -136,7 +142,7 @@ async def get_settings(
     config = await settings_service.get_clinic_config(db, user.clinic_id)
     clinic = await db.scalar(_select(Clinic).where(Clinic.id == user.clinic_id))
     serialized = _serialize_settings(config["settings"])
-    serialized["features"] = _resolve_features(config["settings"], user.email)
+    serialized["features"] = _resolve_features(config["settings"], user.email, clinic.plan if clinic else "free")
     return {
         "success": True,
         "data": {

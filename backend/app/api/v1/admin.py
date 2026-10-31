@@ -15,13 +15,7 @@ from sqlalchemy.orm import selectinload
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.models.clinic import Clinic, ClinicSettings
-from app.api.v1.settings import ALL_FEATURES, BASE_FEATURES
-
-PLAN_FEATURES: dict[str, list[str]] = {
-    "free":   [],
-    "pro":    ["booking", "reportes", "actividad", "rewards"],
-    "clinic": ["booking", "reportes", "actividad", "rewards"],
-}
+from app.api.v1.settings import ALL_FEATURES, BASE_FEATURES, PLAN_FEATURES
 from app.models.user import User
 from app.models.patient import Patient
 from app.models.costos import CostProduct, CostTreatment, CostAppointment, FixedCostsConfig
@@ -435,13 +429,25 @@ async def get_clinic_features(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     """Devuelve los features habilitados para la clínica y la lista de todos los disponibles."""
+    clinic = await db.scalar(select(Clinic).where(Clinic.id == clinic_id))
+    if not clinic:
+        raise HTTPException(status_code=404, detail="Clínica no encontrada.")
     cs = await db.scalar(select(ClinicSettings).where(ClinicSettings.clinic_id == clinic_id))
     if not cs:
         raise HTTPException(status_code=404, detail="Clínica no encontrada.")
+    plan = clinic.plan or "free"
+    plan_defaults = PLAN_FEATURES.get(plan, [])
+    stored = cs.features or []
+    # resolved = lo que el usuario realmente ve
+    from app.api.v1.settings import BASE_FEATURES as _BASE
+    resolved = list(dict.fromkeys(_BASE + plan_defaults + stored))
     return {
         "success": True,
         "data": {
-            "enabled": cs.features or [],
+            "enabled": resolved,
+            "stored": stored,
+            "plan": plan,
+            "plan_features": plan_defaults,
             "all": ALL_FEATURES,
             "base": BASE_FEATURES,
         },
