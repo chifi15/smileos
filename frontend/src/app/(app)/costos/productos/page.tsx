@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, Search, X, Edit2, Package, Calculator, ChevronRight, GripVertical, ImagePlus, Users, Loader2, Check, Settings2, AlertTriangle } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Search, X, Edit2, Package, Calculator, ChevronRight, GripVertical, ImagePlus, Users, Loader2, Check, Settings2, AlertTriangle, Download } from "lucide-react";
 import Link from "next/link";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -608,6 +608,30 @@ function SortableProductRow({ product, onEdit, onViewUsage, isDragDisabled, exch
 
 // ─── Página ───────────────────────────────────────────────────────────────────
 
+function exportProductsToCSV(products: ApiProduct[]) {
+  const rows = [
+    ["Nombre", "Categoría", "Proveedor", "Costo total (C$)", "Cantidad presentación", "Unidad", "Cantidad por porción", "Notas"],
+    ...products.map((p) => [
+      p.name,
+      p.category,
+      p.supplier ?? "",
+      p.total_cost ?? "",
+      p.presentation_qty ?? "",
+      p.presentation_unit ?? "",
+      p.portion_qty ?? "",
+      p.notes ?? "",
+    ]),
+  ];
+  const csv = "﻿" + rows.map((r) =>
+    r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")
+  ).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "productos.csv"; a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function ProductosPage() {
   const { data: products = [], isLoading } = useCostProducts();
   const { data: clinicSettings } = useClinicSettings();
@@ -742,7 +766,10 @@ export default function ProductosPage() {
             <p className="text-sm text-slate-500 dark:text-gray-400 mt-0.5">Actualiza precios aquí y se reflejan en todos los tratamientos automáticamente</p>
           </div>
         </div>
-        <Button size="sm" onClick={() => setShowNew(true)}><Plus size={15} /> Nuevo producto</Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => exportProductsToCSV(products)} disabled={products.length === 0}><Download size={15} /> Exportar CSV</Button>
+          <Button size="sm" onClick={() => setShowNew(true)}><Plus size={15} /> Nuevo producto</Button>
+        </div>
       </div>
 
       <div className="mb-4 flex flex-col gap-3">
