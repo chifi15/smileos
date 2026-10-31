@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
-import { useCostTreatments, useCostProducts } from "@/hooks/useCostos";
+import { useCostTreatments, useCostProducts, type ApiTreatment } from "@/hooks/useCostos";
 import {
   TrendingUp,
   TrendingDown,
@@ -542,6 +542,26 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   const { data: apiTreatments = [] } = useCostTreatments();
   const { data: apiProducts = [] } = useCostProducts();
   const isIngreso = type === "ingreso";
+
+  // Tratamientos de Costos Operativos sin vínculo al catálogo — aparecen directamente en el selector
+  const standaloneT = apiTreatments.filter((t) => !t.procedure_catalog_id);
+
+  // Busca el CostTreatment por catalog ID o por su propio ID (tratamientos standalone)
+  function findTreatmentByProcId(procedureId: string): ApiTreatment | undefined {
+    if (!procedureId) return undefined;
+    return (
+      findTreatmentByProcId(procedureId) ??
+      apiTreatments.find((t) => t.id === procedureId)
+    );
+  }
+
+  // Nombre del procedimiento: busca en catálogo primero, luego en CostTreatments standalone
+  function findProcName(procedureId: string): string {
+    const cat = procedures.find((p) => p.id === procedureId);
+    if (cat) return cat.name;
+    const ct = apiTreatments.find((t) => t.id === procedureId);
+    return ct?.name ?? "Procedimiento";
+  }
   const { data: expenseCats = [] } = useExpenseCategories();
   const { data: doctors = [] } = useDoctors();
   const incomeCategories = INCOME_CATEGORY_LABELS;
@@ -588,7 +608,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   }, [apiTreatments.length, isEdit, form.procedure_id]);
 
   function getMaterialsForSpec(procedureId: string, appointmentId: string): { productId: string; qty: number; altGroup: string | null }[] {
-    const treatment = apiTreatments.find((t) => t.procedure_catalog_id === procedureId);
+    const treatment = findTreatmentByProcId(procedureId);
     if (!treatment) return [];
     if (appointmentId) {
       const apt = treatment.appointments.find((a) => a.id === appointmentId);
@@ -685,10 +705,10 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   };
 
   function specBreakdown(s: { procedure_id: string; appointment_id: string }): SpecBreakdown {
-    const treatment = apiTreatments.find((t) => t.procedure_catalog_id === s.procedure_id);
+    const treatment = findTreatmentByProcId(s.procedure_id);
     const proc = procedures.find((p) => p.id === s.procedure_id);
     const matCost = calcMaterialsCost(getMaterialsForSpec(s.procedure_id, s.appointment_id));
-    const procName = proc?.name ?? "Procedimiento";
+    const procName = findProcName(s.procedure_id);
     let citaLabel: string | null = null;
     if (s.appointment_id && treatment) {
       const apt = treatment.appointments.find((a) => a.id === s.appointment_id);
@@ -724,7 +744,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
 
     const maxIndividual = breakdowns.reduce((max, b) => Math.max(max, b.subtotal), 0);
 
-    const mainTreatment = apiTreatments.find((t) => t.procedure_catalog_id === mainProcId);
+    const mainTreatment = findTreatmentByProcId(mainProcId);
     const marginPct = mainTreatment?.clinic_margin_pct ?? 0.15;
     const subtotal = Math.max(individualSum - savings, maxIndividual);
     const total = Math.round(subtotal * (1 + marginPct) * 100) / 100;
@@ -799,7 +819,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     if (isMultiProc && resolvedMaterials) {
       opCostOverride = calcCombinedOpCost(form.procedure_id, form.appointment_id, extraProcedures, resolvedMaterials).total;
     } else if (form.appointment_id && resolvedMaterials) {
-      const apptTreatment = apiTreatments.find((t) => t.procedure_catalog_id === form.procedure_id);
+      const apptTreatment = findTreatmentByProcId(form.procedure_id);
       const materialCost = calcMaterialsCost(resolvedMaterials);
       if (apptTreatment) {
         const profFees = (apptTreatment.professional_fee_per_hour || 0) * (apptTreatment.total_hours || 0);
@@ -813,7 +833,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         opCostOverride = materialCost;
       }
     } else if (form.procedure_id && resolvedMaterials) {
-      const apptTreatment = apiTreatments.find((t) => t.procedure_catalog_id === form.procedure_id);
+      const apptTreatment = findTreatmentByProcId(form.procedure_id);
       const materialCost = calcMaterialsCost(resolvedMaterials);
       if (apptTreatment) {
         const profFees = (apptTreatment.professional_fee_per_hour || 0) * (apptTreatment.total_hours || 0);
@@ -1008,11 +1028,18 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
               {procedures.map((p, i) => (
                 <option key={p.id} value={p.id}>{i + 1}. {p.name}</option>
               ))}
+              {standaloneT.length > 0 && (
+                <optgroup label="── Costos Operativos ──">
+                  {standaloneT.map((t) => (
+                    <option key={t.id} value={t.id}>{t.name}</option>
+                  ))}
+                </optgroup>
+              )}
             </select>
 
             {/* Selector de cita para el procedimiento principal (multi-sesión) */}
             {form.procedure_id && (() => {
-              const treatment = apiTreatments.find((t) => t.procedure_catalog_id === form.procedure_id);
+              const treatment = findTreatmentByProcId(form.procedure_id);
               if (!treatment || treatment.appointments.length <= 1) return null;
               return (
                 <select
@@ -1058,7 +1085,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
             {/* Procedimientos extra */}
             {extraProcedures.map((ep, idx) => {
               const extraTreatment = ep.procedure_id
-                ? apiTreatments.find((t) => t.procedure_catalog_id === ep.procedure_id)
+                ? findTreatmentByProcId(ep.procedure_id)
                 : null;
               const usedIds = new Set<string>(); // sin filtro — permite repetir el mismo procedimiento para distintas citas/piezas
               return (
@@ -1081,7 +1108,14 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                     <option value="">— Seleccionar —</option>
                     {procedures
                       .filter((p) => !usedIds.has(p.id))
-                      .map((p, i) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      .map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                    {standaloneT.filter((t) => !usedIds.has(t.id)).length > 0 && (
+                      <optgroup label="── Costos Operativos ──">
+                        {standaloneT.filter((t) => !usedIds.has(t.id)).map((t) => (
+                          <option key={t.id} value={t.id}>{t.name}</option>
+                        ))}
+                      </optgroup>
+                    )}
                   </select>
                   {ep.procedure_id && extraTreatment && extraTreatment.appointments.length > 1 && (
                     <select
@@ -1106,7 +1140,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
             {/* Botón agregar más procedimientos (cuando ya hay al menos uno extra) */}
             {form.procedure_id && extraProcedures.length > 0 &&
               extraProcedures.every((ep) => !!ep.procedure_id) &&
-              (extraProcedures.length + 1) < procedures.length && (
+              (extraProcedures.length + 1) < (procedures.length + standaloneT.length) && (
               <button
                 type="button"
                 onClick={addExtraProcedure}
@@ -1123,7 +1157,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
             const proc = procedures.find((p) => p.id === form.procedure_id);
             const qty = Math.max(1, parseInt(form.quantity) || 1);
             const sess = Math.max(1, parseInt(form.sessions) || 1);
-            const unitCost = proc?.operational_cost ?? 0;
+            const unitCost = proc?.operational_cost ?? findTreatmentByProcId(form.procedure_id)?.fixed_costs ?? 0;
             const matCost = form.appointment_id && usedMaterials ? calcMaterialsCost(usedMaterials) : null;
 
             let costPreview: number;
@@ -1133,7 +1167,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                 form.procedure_id, form.appointment_id, extraProcedures, usedMaterials
               );
               costPreview = total;
-              const mainTreatmentForPreview = apiTreatments.find((t) => t.procedure_catalog_id === form.procedure_id);
+              const mainTreatmentForPreview = findTreatmentByProcId(form.procedure_id);
               const marginPctMulti = mainTreatmentForPreview?.clinic_margin_pct ?? 0.15;
               const subtotalMulti = Math.max(individualSum - savings, 0);
               const gananciaMulti = subtotalMulti * marginPctMulti;
@@ -1188,7 +1222,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                 </span>
               );
             } else if (form.appointment_id && matCost !== null) {
-              const apptTreatment = apiTreatments.find((t) => t.procedure_catalog_id === form.procedure_id);
+              const apptTreatment = findTreatmentByProcId(form.procedure_id);
               if (apptTreatment) {
                 const profFees = (apptTreatment.professional_fee_per_hour || 0) * (apptTreatment.total_hours || 0);
                 const fixedCosts = apptTreatment.fixed_costs || 0;
@@ -1226,7 +1260,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                 costLabel = <>Costo op. esta cita: <strong>C${fmt(costPreview)}</strong></>;
               }
             } else {
-              const simpleTreatment = apiTreatments.find((t) => t.procedure_catalog_id === form.procedure_id);
+              const simpleTreatment = findTreatmentByProcId(form.procedure_id);
               const marginPct = simpleTreatment?.clinic_margin_pct ?? 0;
               const rawCost = unitCost * qty / sess;
               const ganancia = rawCost * marginPct;
