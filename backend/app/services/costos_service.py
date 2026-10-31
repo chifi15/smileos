@@ -287,8 +287,11 @@ SEED_FIXED_COSTS = {
 async def _seed_products(db: AsyncSession, clinic_id: uuid.UUID) -> list[CostProduct]:
     objs = []
     for i, p in enumerate(SEED_PRODUCTS):
+        # Use UUID5 (deterministic namespace + clinic_id + seed index) so each
+        # clinic gets unique PKs while staying reproducible across restarts.
+        seed_id = uuid.uuid5(clinic_id, p["id"])
         obj = CostProduct(
-            id=uuid.UUID(p["id"]),
+            id=seed_id,
             clinic_id=clinic_id,
             name=p["name"],
             category=p["category"],
@@ -345,14 +348,12 @@ async def update_product(db: AsyncSession, clinic_id: uuid.UUID, product_id: uui
 
 async def delete_product(db: AsyncSession, clinic_id: uuid.UUID, product_id: uuid.UUID) -> bool:
     result = await db.execute(
-        select(CostProduct).where(CostProduct.id == product_id, CostProduct.clinic_id == clinic_id)
+        delete(CostProduct)
+        .where(CostProduct.id == product_id, CostProduct.clinic_id == clinic_id)
+        .returning(CostProduct.id)
     )
-    obj = result.scalar_one_or_none()
-    if not obj:
-        return False
-    await db.delete(obj)
     await db.flush()
-    return True
+    return result.scalar_one_or_none() is not None
 
 
 async def reorder_products(db: AsyncSession, clinic_id: uuid.UUID, ordered_ids: list[uuid.UUID]) -> None:
