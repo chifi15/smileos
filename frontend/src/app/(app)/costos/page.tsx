@@ -22,7 +22,7 @@ import {
   useUpdateCostTreatment,
   ApiTreatment,
 } from "@/hooks/useCostos";
-import { useImportProcedures, type ImportResult } from "@/hooks/useCatalog";
+import { useImportProcedures, useProcedures, type ImportResult } from "@/hooks/useCatalog";
 import { calculateTreatmentCosts, fmtC, apiProductToProduct, apiTreatmentToTreatment } from "@/lib/costos-utils";
 import { useEscapeKey } from "@/lib/utils";
 import Button from "@/components/ui/Button";
@@ -414,8 +414,30 @@ function ImportModal({ onClose }: { onClose: () => void }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+function exportProceduresToCSV(procedures: { name: string; default_price?: number | null; default_duration_minutes?: number | null; category?: string | null; description?: string | null }[]) {
+  const rows = [
+    ["Nombre", "Precio", "Duración (minutos)", "Categoría", "Descripción"],
+    ...procedures.map((p) => [
+      p.name,
+      p.default_price ?? "",
+      p.default_duration_minutes ?? "",
+      p.category ?? "",
+      p.description ?? "",
+    ]),
+  ];
+  const csv = "﻿" + rows.map((r) =>
+    r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")
+  ).join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url; a.download = "tratamientos.csv"; a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function CostosPage() {
   const { data: treatments = [], isLoading } = useCostTreatments();
+  const { data: procedures = [] } = useProcedures();
   const { data: fixedCosts } = useFixedCosts();
   const { data: honorariosConfig } = useHonorariosConfig();
   const reorderTreatments = useReorderCostTreatments();
@@ -461,6 +483,7 @@ export default function CostosPage() {
           <Link href="/costos/productos">
             <Button variant="secondary" size="sm"><Package size={15} /> Productos</Button>
           </Link>
+          <Button variant="secondary" size="sm" onClick={() => exportProceduresToCSV(procedures)} disabled={procedures.length === 0}><Download size={15} /> Exportar CSV</Button>
           <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}><Upload size={15} /> Importar CSV</Button>
           <Button size="sm" onClick={() => setShowModal(true)}><Plus size={15} /> Nuevo tratamiento</Button>
         </div>
