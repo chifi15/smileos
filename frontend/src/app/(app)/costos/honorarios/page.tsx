@@ -335,15 +335,27 @@ export default function HonorariosPage() {
             </div>
 
             {/* Resultado: horas/mes */}
-            <div className="px-4 py-3 bg-white dark:bg-gray-800">
-              <div className="flex items-center justify-between text-sm">
-                <div>
-                  <p className="font-medium text-slate-700 dark:text-gray-300">Horas de trabajo por mes</p>
-                  <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">
-                    ({diasSemana} días × {horasDia} h{sabadoActivo ? ` + sáb ${horasSabado} h` : ""}) × 4.33 sem/mes
-                  </p>
+            <div className="px-4 py-3 bg-white dark:bg-gray-800 space-y-2">
+              <p className="text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Horas de trabajo por mes</p>
+              <div className="space-y-1 text-sm">
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-gray-400">Lun–Vie ({diasSemana} días × {horasDia} h)</span>
+                  <span className="font-medium text-slate-700 dark:text-gray-300 tabular-nums">{diasSemana * horasDia} h/sem</span>
                 </div>
-                <span className="text-base font-bold text-slate-800 dark:text-white tabular-nums shrink-0">{horasMes} h</span>
+                {sabadoActivo && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-slate-500 dark:text-gray-400">Sábado</span>
+                    <span className="font-medium text-slate-700 dark:text-gray-300 tabular-nums">+ {horasSabado} h/sem</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between border-t border-slate-100 dark:border-gray-700 pt-1.5 mt-1">
+                  <span className="text-slate-500 dark:text-gray-400">Total por semana</span>
+                  <span className="font-semibold text-slate-700 dark:text-gray-300 tabular-nums">{diasSemana * horasDia + (sabadoActivo ? horasSabado : 0)} h/sem</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-500 dark:text-gray-400">× 4.33 semanas/mes</span>
+                  <span className="font-bold text-slate-800 dark:text-white tabular-nums text-base">{horasMes} h/mes</span>
+                </div>
               </div>
             </div>
           </div>
