@@ -590,7 +590,11 @@ export default function Sidebar() {
                   <SortableSectionBlock
                     key={section}
                     section={section}
-                    orderedItems={getOrderedItems(section)}
+                    orderedItems={getOrderedItems(section).filter(
+                      (i) =>
+                        (!i.roles || i.roles.includes(user?.role as UserRole)) &&
+                        (!i.feature || enabledFeatures?.includes(i.feature))
+                    )}
                     isHidden={prefs.hidden.includes(section)}
                     hiddenItems={prefs.hiddenItems}
                     allSections={prefs.order}
