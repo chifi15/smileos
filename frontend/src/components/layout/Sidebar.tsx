@@ -29,6 +29,7 @@ import {
   Check,
   Filter,
   ArrowRightLeft,
+  FlaskConical,
 } from "lucide-react";
 import {
   DndContext,
@@ -72,6 +73,7 @@ const NAV_DEF = [
       { label: "Smile Rewards", href: "/rewards", icon: Star, feature: "rewards" as FeatureName },
       { label: "Finanzas", href: "/finances", icon: TrendingUp, feature: "finances" as FeatureName },
       { label: "Costos", href: "/costos", icon: Calculator, feature: "costos" as FeatureName },
+      { label: "Productos", href: "/costos/productos", icon: FlaskConical, feature: "costos" as FeatureName },
       { label: "Inventario", href: "/inventario", icon: Package, feature: "inventario" as FeatureName },
     ],
   },
