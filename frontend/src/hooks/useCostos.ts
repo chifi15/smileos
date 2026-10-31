@@ -499,6 +499,7 @@ export interface ImportResult {
   skipped: number;
   errors: number;
   error_details: { row: number; name: string; reason: string }[];
+  warnings?: string[];
   treatments: { id: string; name: string }[];
 }
 

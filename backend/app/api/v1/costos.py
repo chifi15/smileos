@@ -547,9 +547,22 @@ _TREAT_COL_MAP = {
     "procedimiento": "name", "servicio": "name",
     "precio": "suggested_price", "price": "suggested_price",
     "precio_sugerido": "suggested_price", "valor": "suggested_price",
+    "precio sugerido": "suggested_price",
     "tarifa": "suggested_price", "costo": "suggested_price",
     "descripcion": "description", "description": "description",
     "notas": "description", "detalle": "description",
+    # hierarchical format
+    "tipo": "tipo", "type": "tipo",
+    "horas": "total_hours", "total_hours": "total_hours", "total horas": "total_hours",
+    "honorario/hora": "professional_fee_per_hour",
+    "honorario hora": "professional_fee_per_hour",
+    "costos fijos": "fixed_costs", "costos_fijos": "fixed_costs",
+    "margen %": "clinic_margin_pct", "margen pct": "clinic_margin_pct",
+    "cita num": "apt_number", "cita numero": "apt_number", "cita_num": "apt_number",
+    "cita nombre": "apt_name", "cita_nombre": "apt_name",
+    "producto": "product_name",
+    "cantidad": "quantity",
+    "grupo alt": "alt_group", "grupo_alt": "alt_group", "grupo alternativo": "alt_group",
 }
 
 
@@ -567,7 +580,10 @@ async def import_treatments(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
-    """Importa tratamientos desde CSV directamente en Costos Operativos."""
+    """Importa tratamientos desde CSV. Soporta formato jerárquico (T/C/M) y formato simple."""
+    from sqlalchemy import select as sa_select
+    from app.models.costos import CostProduct
+
     content = await file.read()
     try:
         text = content.decode("utf-8-sig")
@@ -587,44 +603,163 @@ async def import_treatments(
         if normalized in _TREAT_COL_MAP:
             col_map[raw_col] = _TREAT_COL_MAP[normalized]
 
-    if "name" not in col_map.values():
+    is_hierarchical = "tipo" in col_map.values()
+
+    if not is_hierarchical and "name" not in col_map.values():
         raise HTTPException(
             status_code=400,
             detail="No se encontró la columna de nombre. Usa 'Nombre', 'Tratamiento' o 'Procedimiento'."
         )
 
-    created, skipped, errors = [], [], []
+    created, skipped, errors, warnings = [], [], [], []
+    rows_list = list(reader)
 
-    for i, row in enumerate(reader, start=2):
-        mapped: dict = {}
-        for raw_col, field in col_map.items():
-            val = (row.get(raw_col) or "").strip()
-            if not val:
-                continue
-            if field == "suggested_price":
-                val = val.replace("C$", "").replace("$", "").replace(",", "").strip()
+    if is_hierarchical:
+        # Preload products for this clinic (name → id lookup)
+        prod_result = await db.execute(
+            sa_select(CostProduct.id, CostProduct.name)
+            .where(CostProduct.clinic_id == current_user.clinic_id)
+        )
+        product_name_map: dict[str, str] = {
+            name.lower(): str(pid) for pid, name in prod_result.all()
+        }
+
+        pending: list[tuple[dict, list]] = []  # (treatment_data, appointments)
+        cur_t: dict | None = None
+        cur_apts: list = []
+        cur_apt: dict | None = None
+        cur_mats: list = []
+
+        def _flush_apt() -> None:
+            nonlocal cur_apt, cur_mats
+            if cur_apt is not None:
+                cur_apts.append({**cur_apt, "materials": cur_mats})
+                cur_apt = None
+                cur_mats = []
+
+        def _flush_treatment() -> None:
+            nonlocal cur_t, cur_apts
+            _flush_apt()
+            if cur_t is not None:
+                pending.append((cur_t, list(cur_apts)))
+            cur_t = None
+            cur_apts = []
+
+        for row in rows_list:
+            mapped: dict = {}
+            for raw_col, field in col_map.items():
+                val = (row.get(raw_col) or "").strip()
+                if val:
+                    mapped[field] = val
+
+            tipo = mapped.get("tipo", "").lower()
+
+            if tipo == "t":
+                _flush_treatment()
+                name = mapped.get("name", "").strip()
+                if not name:
+                    skipped.append({"row": 0, "reason": "Tratamiento sin nombre"})
+                    continue
+                t_data: dict = {"name": name}
+                if mapped.get("description"):
+                    t_data["description"] = mapped["description"]
+                for fld, key in [
+                    ("suggested_price", "suggested_price"),
+                    ("total_hours", "total_hours"),
+                    ("professional_fee_per_hour", "professional_fee_per_hour"),
+                    ("fixed_costs", "fixed_costs"),
+                ]:
+                    raw = mapped.get(fld, "").replace("C$", "").replace("$", "").replace(",", "").strip()
+                    if raw:
+                        try:
+                            t_data[key] = float(raw)
+                        except ValueError:
+                            pass
+                if mapped.get("clinic_margin_pct"):
+                    raw = mapped["clinic_margin_pct"].replace("%", "").replace(",", "").strip()
+                    try:
+                        val_f = float(raw)
+                        # store as decimal; if >1 assume it was given as percentage (15 → 0.15)
+                        t_data["clinic_margin_pct"] = val_f / 100 if val_f > 1 else val_f
+                    except ValueError:
+                        pass
+                cur_t = t_data
+                cur_apts = []
+
+            elif tipo == "c":
+                if cur_t is None:
+                    continue
+                _flush_apt()
                 try:
-                    mapped[field] = float(val)
+                    apt_num = int(mapped.get("apt_number", str(len(cur_apts) + 1)))
                 except ValueError:
-                    pass
-            else:
-                mapped[field] = val
+                    apt_num = len(cur_apts) + 1
+                cur_apt = {
+                    "number": apt_num,
+                    "name": mapped.get("apt_name") or f"Cita {apt_num}",
+                }
+                cur_mats = []
 
-        name = mapped.get("name", "").strip()
-        if not name:
-            skipped.append({"row": i, "reason": "Nombre vacío"})
-            continue
+            elif tipo == "m":
+                if cur_apt is None:
+                    continue
+                prod_name = mapped.get("product_name", "").strip()
+                if not prod_name:
+                    continue
+                product_id = product_name_map.get(prod_name.lower())
+                if not product_id:
+                    warnings.append(f"Producto '{prod_name}' no encontrado — se omitió del tratamiento.")
+                    continue
+                try:
+                    qty = float(mapped.get("quantity", "1").replace(",", "."))
+                except ValueError:
+                    qty = 1.0
+                mat: dict = {"productId": product_id, "quantity": qty}
+                if mapped.get("alt_group"):
+                    mat["altGroup"] = mapped["alt_group"]
+                cur_mats.append(mat)
 
-        try:
-            data = {
-                "name": name,
-                "description": mapped.get("description"),
-                "suggested_price": mapped.get("suggested_price"),
-            }
-            obj = await svc.create_treatment(db, current_user.clinic_id, data, [])
-            created.append({"id": str(obj.id), "name": obj.name})
-        except Exception as e:
-            errors.append({"row": i, "name": name, "reason": str(e)})
+        _flush_treatment()
+
+        for t_data, apts in pending:
+            try:
+                obj = await svc.create_treatment(db, current_user.clinic_id, t_data, apts)
+                created.append({"id": str(obj.id), "name": obj.name})
+            except Exception as e:
+                errors.append({"row": 0, "name": t_data.get("name", "?"), "reason": str(e)})
+
+    else:
+        # Simple format (backwards compat)
+        for i, row in enumerate(rows_list, start=2):
+            mapped = {}
+            for raw_col, field in col_map.items():
+                val = (row.get(raw_col) or "").strip()
+                if not val:
+                    continue
+                if field == "suggested_price":
+                    val = val.replace("C$", "").replace("$", "").replace(",", "").strip()
+                    try:
+                        mapped[field] = float(val)
+                    except ValueError:
+                        pass
+                else:
+                    mapped[field] = val
+
+            name = mapped.get("name", "").strip()
+            if not name:
+                skipped.append({"row": i, "reason": "Nombre vacío"})
+                continue
+
+            try:
+                data = {
+                    "name": name,
+                    "description": mapped.get("description"),
+                    "suggested_price": mapped.get("suggested_price"),
+                }
+                obj = await svc.create_treatment(db, current_user.clinic_id, data, [])
+                created.append({"id": str(obj.id), "name": obj.name})
+            except Exception as e:
+                errors.append({"row": i, "name": name, "reason": str(e)})
 
     return {
         "success": True,
@@ -633,6 +768,7 @@ async def import_treatments(
             "skipped": len(skipped),
             "errors": len(errors),
             "error_details": errors[:10],
+            "warnings": warnings[:20],
             "treatments": created,
         },
     }

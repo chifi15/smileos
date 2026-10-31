@@ -22,6 +22,7 @@ import {
   useUpdateCostTreatment,
   useImportCostTreatments,
   ApiTreatment,
+  ApiProduct,
   type ImportResult,
 } from "@/hooks/useCostos";
 import { calculateTreatmentCosts, fmtC, apiProductToProduct, apiTreatmentToTreatment } from "@/lib/costos-utils";
@@ -301,7 +302,18 @@ function ImportModal({ onClose }: { onClose: () => void }) {
   const [result, setResult] = useState<ImportResult | null>(null);
 
   function downloadTemplate() {
-    const csv = "Nombre,Precio,Descripción\nLimpieza dental,500,Limpieza profesional\nExtracción simple,800,\n";
+    const lines = [
+      ["Tipo","Nombre","Descripcion","Precio sugerido","Horas","Honorario/hora","Costos fijos","Margen %","Cita num","Cita nombre","Producto","Cantidad","Grupo alt"],
+      ["T","Limpieza dental","Profilaxis profesional","500","1","192","216","15","","","","",""],
+      ["C","","","","","","","","1","Revisión y profilaxis","","",""],
+      ["M","","","","","","","","","","Pasta profiláctica","0.5",""],
+      ["M","","","","","","","","","","Guantes nitrilo","1",""],
+      ["T","Extracción simple","","800","1.5","192","216","15","","","","",""],
+      ["C","","","","","","","","1","Extracción","","",""],
+      ["M","","","","","","","","","","Anestesia lidocaína","2",""],
+      ["M","","","","","","","","","","Jeringa desechable","1",""],
+    ];
+    const csv = "﻿" + lines.map(r => r.map(c => `"${c}"`).join(",")).join("\n");
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -330,12 +342,13 @@ function ImportModal({ onClose }: { onClose: () => void }) {
             <>
               {/* Instrucciones */}
               <div className="rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 p-4 text-sm text-blue-800 dark:text-blue-300 space-y-1">
-                <p className="font-semibold">Cómo preparar tu Excel:</p>
+                <p className="font-semibold">Importar con materiales (formato completo):</p>
                 <ol className="list-decimal list-inside space-y-0.5 text-blue-700 dark:text-blue-400">
-                  <li>Abre tu Excel y ve a <strong>Archivo → Guardar como → CSV UTF-8</strong></li>
-                  <li>Las columnas pueden llamarse: <em>Nombre, Precio, Descripción</em></li>
-                  <li>Solo <strong>Nombre</strong> es obligatorio — el resto lo completas luego</li>
+                  <li>Importa los <strong>Productos</strong> primero en la página de Productos</li>
+                  <li>Luego importa los tratamientos — los materiales se vinculan por nombre de producto</li>
+                  <li>Descarga la plantilla para ver el formato exacto (<em>filas T, C y M</em>)</li>
                 </ol>
+                <p className="text-blue-600 dark:text-blue-500 mt-1">También acepta el formato simple: <em>Nombre, Precio, Descripción</em></p>
               </div>
 
               <button
@@ -388,6 +401,18 @@ function ImportModal({ onClose }: { onClose: () => void }) {
                   ))}
                 </div>
               )}
+              {(result.warnings ?? []).length > 0 && (
+                <div className="rounded-xl bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-800/30 px-4 py-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle size={16} className="text-amber-500 shrink-0" />
+                    <p className="text-sm font-semibold text-amber-700 dark:text-amber-400">Productos no encontrados</p>
+                  </div>
+                  {(result.warnings ?? []).map((w, i) => (
+                    <p key={i} className="text-xs text-amber-600 dark:text-amber-400">{w}</p>
+                  ))}
+                  <p className="text-xs text-amber-500 dark:text-amber-500 mt-1">Importa los productos primero y vuelve a importar el tratamiento.</p>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -416,15 +441,40 @@ function ImportModal({ onClose }: { onClose: () => void }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-function exportTreatmentsToCSV(treatments: ApiTreatment[]) {
-  const rows = [
-    ["Nombre", "Precio", "Descripción"],
-    ...treatments.map((t) => [
-      t.name,
-      t.suggested_price ?? "",
-      t.description ?? "",
-    ]),
+function exportTreatmentsToCSV(treatments: ApiTreatment[], products: ApiProduct[]) {
+  const productMap = new Map(products.map((p) => [p.id, p.name]));
+
+  const headers = [
+    "Tipo", "Nombre", "Descripcion", "Precio sugerido", "Horas",
+    "Honorario/hora", "Costos fijos", "Margen %",
+    "Cita num", "Cita nombre", "Producto", "Cantidad", "Grupo alt",
   ];
+
+  const rows: (string | number)[][] = [headers];
+
+  for (const t of treatments) {
+    rows.push([
+      "T", t.name, t.description ?? "",
+      t.suggested_price ?? "", t.total_hours,
+      t.professional_fee_per_hour, t.fixed_costs,
+      Math.round(t.clinic_margin_pct * 100),
+      "", "", "", "", "",
+    ]);
+    for (const apt of t.appointments) {
+      rows.push([
+        "C", "", "", "", "", "", "", "",
+        apt.number, apt.name, "", "", "",
+      ]);
+      for (const mat of apt.materials) {
+        const productName = productMap.get(mat.productId) ?? "";
+        rows.push([
+          "M", "", "", "", "", "", "", "",
+          "", "", productName, mat.quantity, mat.altGroup ?? "",
+        ]);
+      }
+    }
+  }
+
   const csv = "﻿" + rows.map((r) =>
     r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")
   ).join("\n");
@@ -437,6 +487,7 @@ function exportTreatmentsToCSV(treatments: ApiTreatment[]) {
 
 export default function CostosPage() {
   const { data: treatments = [], isLoading } = useCostTreatments();
+  const { data: products = [] } = useCostProducts();
   const { data: fixedCosts } = useFixedCosts();
   const { data: honorariosConfig } = useHonorariosConfig();
   const reorderTreatments = useReorderCostTreatments();
@@ -479,7 +530,7 @@ export default function CostosPage() {
           <Link href="/costos/costos-fijos">
             <Button variant="secondary" size="sm"><Package size={15} /> Costos fijos</Button>
           </Link>
-          <Button variant="secondary" size="sm" onClick={() => exportTreatmentsToCSV(treatments)} disabled={treatments.length === 0}><Download size={15} /> Exportar CSV</Button>
+          <Button variant="secondary" size="sm" onClick={() => exportTreatmentsToCSV(treatments, products)} disabled={treatments.length === 0}><Download size={15} /> Exportar CSV</Button>
           <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}><Upload size={15} /> Importar CSV</Button>
           <Button size="sm" onClick={() => setShowModal(true)}><Plus size={15} /> Nuevo tratamiento</Button>
         </div>
