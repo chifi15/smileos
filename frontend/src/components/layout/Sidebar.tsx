@@ -87,27 +87,31 @@ const DEFAULT_ORDER = NAV_DEF.map((s) => s.section);
 
 interface SidebarPrefs {
   order: string[];
+  /** Secciones que difieren del default: si defaultExpanded=true → están cerradas; si false → están abiertas */
   collapsed: string[];
   hidden: string[];
+  defaultExpanded: boolean;
 }
 
+const EMPTY_PREFS: SidebarPrefs = { order: DEFAULT_ORDER, collapsed: [], hidden: [], defaultExpanded: true };
+
 function loadPrefs(): SidebarPrefs {
-  if (typeof window === "undefined") return { order: DEFAULT_ORDER, collapsed: [], hidden: [] };
+  if (typeof window === "undefined") return EMPTY_PREFS;
   try {
     const raw = localStorage.getItem(PREFS_KEY);
-    if (!raw) return { order: DEFAULT_ORDER, collapsed: [], hidden: [] };
+    if (!raw) return EMPTY_PREFS;
     const parsed = JSON.parse(raw) as Partial<SidebarPrefs>;
     const allSections = new Set(DEFAULT_ORDER);
     const order = (parsed.order ?? DEFAULT_ORDER).filter((s) => allSections.has(s));
-    // append any new sections not in saved order
     for (const s of DEFAULT_ORDER) if (!order.includes(s)) order.push(s);
     return {
       order,
       collapsed: (parsed.collapsed ?? []).filter((s) => allSections.has(s)),
       hidden: (parsed.hidden ?? []).filter((s) => allSections.has(s)),
+      defaultExpanded: parsed.defaultExpanded !== false,
     };
   } catch {
-    return { order: DEFAULT_ORDER, collapsed: [], hidden: [] };
+    return EMPTY_PREFS;
   }
 }
 
@@ -177,7 +181,7 @@ export default function Sidebar() {
   const logout = useLogout();
   const { theme, setTheme } = useTheme();
 
-  const [prefs, setPrefs] = useState<SidebarPrefs>({ order: DEFAULT_ORDER, collapsed: [], hidden: [] });
+  const [prefs, setPrefs] = useState<SidebarPrefs>(EMPTY_PREFS);
   const [editMode, setEditMode] = useState(false);
   const [mounted, setMounted] = useState(false);
 
@@ -191,11 +195,24 @@ export default function Sidebar() {
     savePrefs(next);
   }
 
+  // collapsed[] almacena secciones que difieren del default.
+  // defaultExpanded=true → en lista = cerrada; defaultExpanded=false → en lista = abierta
+  function isSectionCollapsed(section: string): boolean {
+    const inList = prefs.collapsed.includes(section);
+    return prefs.defaultExpanded ? inList : !inList;
+  }
+
   function toggleCollapse(section: string) {
-    const collapsed = prefs.collapsed.includes(section)
+    const inList = prefs.collapsed.includes(section);
+    const collapsed = inList
       ? prefs.collapsed.filter((s) => s !== section)
       : [...prefs.collapsed, section];
     updatePrefs({ ...prefs, collapsed });
+  }
+
+  function toggleDefaultExpanded() {
+    // al cambiar el default, limpiar los overrides para que todos reflejen el nuevo default
+    updatePrefs({ ...prefs, defaultExpanded: !prefs.defaultExpanded, collapsed: [] });
   }
 
   function toggleHide(section: string) {
@@ -215,8 +232,7 @@ export default function Sidebar() {
   }
 
   function resetPrefs() {
-    const fresh = { order: DEFAULT_ORDER, collapsed: [], hidden: [] };
-    updatePrefs(fresh);
+    updatePrefs(EMPTY_PREFS);
   }
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }));
@@ -265,7 +281,7 @@ export default function Sidebar() {
         {!editMode && (
           <>
             {visibleSections.map(({ section, items }) => {
-              const isCollapsed = prefs.collapsed.includes(section);
+              const isCollapsed = isSectionCollapsed(section);
               return (
                 <div key={section} className="mb-1">
                   {/* Section header */}
@@ -346,9 +362,31 @@ export default function Sidebar() {
               </div>
             )}
 
+            {/* Expandidas por defecto */}
+            <div className="mt-3 flex items-center justify-between rounded-lg px-3 py-2 bg-white/5">
+              <div>
+                <p className="text-xs font-medium text-white/70">Expandidas por defecto</p>
+                <p className="text-[10px] text-white/35 mt-0.5">
+                  {prefs.defaultExpanded ? "Las secciones abren al cargar" : "Las secciones cierran al cargar"}
+                </p>
+              </div>
+              <button
+                onClick={toggleDefaultExpanded}
+                className={cn(
+                  "relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors",
+                  prefs.defaultExpanded ? "bg-blue-500" : "bg-white/20"
+                )}
+              >
+                <span className={cn(
+                  "inline-block h-4 w-4 rounded-full bg-white shadow transition-transform",
+                  prefs.defaultExpanded ? "translate-x-4" : "translate-x-0"
+                )} />
+              </button>
+            </div>
+
             <button
               onClick={resetPrefs}
-              className="mt-3 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-white/40 hover:bg-white/10 hover:text-white/70 transition-colors"
+              className="mt-2 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-xs text-white/40 hover:bg-white/10 hover:text-white/70 transition-colors"
             >
               <RotateCcw size={13} />
               Restaurar por defecto
