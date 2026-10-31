@@ -15,7 +15,7 @@ from sqlalchemy.orm import selectinload
 from app.core.config import get_settings
 from app.core.database import get_db
 from app.models.clinic import Clinic, ClinicSettings
-from app.api.v1.settings import ALL_FEATURES
+from app.api.v1.settings import ALL_FEATURES, BASE_FEATURES
 from app.models.user import User
 from app.models.patient import Patient
 from app.models.costos import CostProduct, CostTreatment, CostAppointment, FixedCostsConfig
@@ -392,6 +392,23 @@ async def set_fixed_costs(
     return {"success": True, "data": {"patients_per_month": body.patients_per_month, "fee_per_hour": body.fee_per_hour}}
 
 
+@router.post("/features/apply-to-all")
+async def apply_features_to_all_clinics(
+    body: FeaturesUpdate,
+    _: Annotated[None, AdminAuth],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Aplica el mismo conjunto de features a TODAS las clínicas."""
+    valid = [f for f in body.features if f in ALL_FEATURES]
+    all_settings = (await db.scalars(select(ClinicSettings))).all()
+    from sqlalchemy.orm.attributes import flag_modified
+    for cs in all_settings:
+        cs.features = valid
+        flag_modified(cs, "features")
+    await db.commit()
+    return {"success": True, "data": {"updated": len(all_settings), "features": valid}}
+
+
 @router.get("/clinics/{clinic_id}/features")
 async def get_clinic_features(
     clinic_id: uuid.UUID,
@@ -407,6 +424,7 @@ async def get_clinic_features(
         "data": {
             "enabled": cs.features or [],
             "all": ALL_FEATURES,
+            "base": BASE_FEATURES,
         },
     }
 

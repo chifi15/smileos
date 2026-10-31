@@ -919,10 +919,14 @@ const FEATURE_META: Record<string, { label: string; description: string }> = {
   inventario: { label: "Inventario",       description: "Gestión de inventario y stock de productos" },
 };
 
+const BASE_FEATURES_KEYS = ["costos", "finances", "inventario"];
+
 function FeaturesTab({ clinicId, secret }: { clinicId: string; secret: string }) {
   const [enabled, setEnabled] = useState<string[] | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [applyingAll, setApplyingAll] = useState(false);
+  const [appliedAll, setAppliedAll] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -938,6 +942,7 @@ function FeaturesTab({ clinicId, secret }: { clinicId: string; secret: string })
         : [...prev, feature]
     );
     setSaved(false);
+    setAppliedAll(false);
   }
 
   async function save() {
@@ -954,11 +959,26 @@ function FeaturesTab({ clinicId, secret }: { clinicId: string; secret: string })
     }
   }
 
+  async function applyToAll() {
+    if (enabled === null) return;
+    if (!confirm(`¿Aplicar estos features a TODAS las cuentas? Esta acción sobreescribe la configuración de cada clínica.`)) return;
+    setApplyingAll(true);
+    setError(null);
+    try {
+      await api(secret).post(`/api/v1/admin/features/apply-to-all`, { features: enabled });
+      setAppliedAll(true);
+    } catch {
+      setError("Error al aplicar a todas las cuentas.");
+    } finally {
+      setApplyingAll(false);
+    }
+  }
+
   if (enabled === null && !error) {
     return <div className="flex justify-center py-12"><Loader2 size={24} className="animate-spin text-slate-300" /></div>;
   }
 
-  const allKeys = Object.keys(FEATURE_META);
+  const optionalKeys = Object.keys(FEATURE_META).filter((k) => !BASE_FEATURES_KEYS.includes(k));
 
   return (
     <div className="p-6 space-y-5">
@@ -969,37 +989,69 @@ function FeaturesTab({ clinicId, secret }: { clinicId: string; secret: string })
         </p>
       </div>
 
-      <div className="rounded-xl border border-slate-200 dark:border-gray-700 overflow-hidden divide-y divide-slate-100 dark:divide-gray-700">
-        {allKeys.map((key) => {
-          const on = enabled?.includes(key) ?? false;
-          const meta = FEATURE_META[key];
-          return (
-            <div key={key} className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800">
-              <div className="min-w-0 mr-4">
-                <p className="text-sm font-medium text-slate-800 dark:text-white">{meta.label}</p>
-                <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">{meta.description}</p>
+      {/* Base features — siempre activos */}
+      <div>
+        <p className="text-xs font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wide mb-2">Siempre incluidos (base)</p>
+        <div className="rounded-xl border border-slate-200 dark:border-gray-700 overflow-hidden divide-y divide-slate-100 dark:divide-gray-700">
+          {BASE_FEATURES_KEYS.map((key) => {
+            const meta = FEATURE_META[key];
+            return (
+              <div key={key} className="flex items-center justify-between px-4 py-3 bg-slate-50 dark:bg-gray-700/40">
+                <div className="min-w-0 mr-4">
+                  <p className="text-sm font-medium text-slate-600 dark:text-gray-300">{meta.label}</p>
+                  <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">{meta.description}</p>
+                </div>
+                <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30 px-2 py-0.5 rounded-full">Siempre activo</span>
               </div>
-              <button
-                onClick={() => toggle(key)}
-                className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${on ? "bg-violet-600" : "bg-slate-200 dark:bg-gray-600"}`}
-              >
-                <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${on ? "translate-x-4" : "translate-x-0"}`} />
-              </button>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
 
-      <div className="flex items-center gap-3">
+      {/* Optional features */}
+      <div>
+        <p className="text-xs font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wide mb-2">Opcionales</p>
+        <div className="rounded-xl border border-slate-200 dark:border-gray-700 overflow-hidden divide-y divide-slate-100 dark:divide-gray-700">
+          {optionalKeys.map((key) => {
+            const on = enabled?.includes(key) ?? false;
+            const meta = FEATURE_META[key];
+            return (
+              <div key={key} className="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-800">
+                <div className="min-w-0 mr-4">
+                  <p className="text-sm font-medium text-slate-800 dark:text-white">{meta.label}</p>
+                  <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">{meta.description}</p>
+                </div>
+                <button
+                  onClick={() => toggle(key)}
+                  className={`relative inline-flex h-5 w-9 shrink-0 rounded-full border-2 border-transparent transition-colors ${on ? "bg-violet-600" : "bg-slate-200 dark:bg-gray-600"}`}
+                >
+                  <span className={`inline-block h-4 w-4 rounded-full bg-white shadow transition-transform ${on ? "translate-x-4" : "translate-x-0"}`} />
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3">
         <button
           onClick={save}
           disabled={saving}
           className="flex items-center gap-2 rounded-lg bg-violet-600 hover:bg-violet-700 disabled:opacity-50 px-4 py-2.5 text-sm font-medium text-white transition-colors"
         >
           {saving ? <Loader2 size={14} className="animate-spin" /> : <CheckCircle2 size={14} />}
-          {saving ? "Guardando…" : "Guardar cambios"}
+          {saving ? "Guardando…" : "Guardar para esta clínica"}
+        </button>
+        <button
+          onClick={applyToAll}
+          disabled={applyingAll}
+          className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 hover:bg-amber-100 dark:border-amber-700 dark:bg-amber-900/20 dark:hover:bg-amber-900/40 disabled:opacity-50 px-4 py-2.5 text-sm font-medium text-amber-800 dark:text-amber-300 transition-colors"
+        >
+          {applyingAll ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+          {applyingAll ? "Aplicando…" : "Dejar por defecto en todas las cuentas"}
         </button>
         {saved && <span className="text-xs text-emerald-600 dark:text-emerald-400">¡Guardado!</span>}
+        {appliedAll && <span className="text-xs text-emerald-600 dark:text-emerald-400">¡Aplicado a todas las cuentas!</span>}
         {error && <span className="text-xs text-red-500">{error}</span>}
       </div>
 

@@ -28,6 +28,7 @@ import { usePatient, useDeactivatePatient, useDeletePatientPermanent } from "@/h
 import { useCreateTransaction, useExchangeRate, useDoctors } from "@/hooks/useFinances";
 import { useProcedures } from "@/hooks/useCatalog";
 import { useRewardsConfig } from "@/hooks/useRewards";
+import { useClinicFeatures } from "@/hooks/useSettings";
 import {
   REWARDS_LEVEL_LABELS,
   REWARDS_LEVEL_COLORS,
@@ -300,6 +301,8 @@ export default function PatientDetailPage() {
   const router = useRouter();
   const { data: patient, isLoading } = usePatient(id);
   const { data: rewardsConfig } = useRewardsConfig();
+  const { data: features } = useClinicFeatures();
+  const rewardsEnabled = features?.includes("rewards") ?? false;
   const deactivate = useDeactivatePatient();
   const deletePermanent = useDeletePatientPermanent();
   const [showPayment, setShowPayment] = useState(false);
@@ -513,18 +516,20 @@ export default function PatientDetailPage() {
           </div>
           <ChevronRight size={16} className="text-slate-300" />
         </Link>
-        <Link
-          href={`/patients/${id}/rewards`}
-          className="flex items-center justify-between rounded-xl border border-slate-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm hover:border-yellow-200 dark:hover:border-yellow-700 hover:shadow-md transition-all"
-        >
-          <div className="flex items-center gap-3">
-            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-yellow-50">
-              <Star size={18} className="text-yellow-500" />
+        {rewardsEnabled && (
+          <Link
+            href={`/patients/${id}/rewards`}
+            className="flex items-center justify-between rounded-xl border border-slate-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm hover:border-yellow-200 dark:hover:border-yellow-700 hover:shadow-md transition-all"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-yellow-50">
+                <Star size={18} className="text-yellow-500" />
+              </div>
+              <span className="text-sm font-medium text-slate-700 dark:text-gray-300">Smile Rewards</span>
             </div>
-            <span className="text-sm font-medium text-slate-700 dark:text-gray-300">Smile Rewards</span>
-          </div>
-          <ChevronRight size={16} className="text-slate-300" />
-        </Link>
+            <ChevronRight size={16} className="text-slate-300" />
+          </Link>
+        )}
         <Link
           href={`/patients/${id}/odontogram`}
           className="flex items-center justify-between rounded-xl border border-slate-100 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm hover:border-teal-200 dark:hover:border-teal-700 hover:shadow-md transition-all"
@@ -615,7 +620,7 @@ export default function PatientDetailPage() {
         )}
 
         {/* Rewards summary */}
-        {patient.rewards && (() => {
+        {rewardsEnabled && patient.rewards && (() => {
           const levelData = rewardsConfig?.level_thresholds.find(
             (l) => l.level === patient.rewards!.level
           );

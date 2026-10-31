@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { usePatientList, useDeletePatientPermanent, useReactivatePatient } from "@/hooks/usePatients";
 import { usePlanStatus } from "@/hooks/useBilling";
+import { useClinicFeatures } from "@/hooks/useSettings";
 import {
   REWARDS_LEVEL_LABELS,
   REWARDS_LEVEL_COLORS,
@@ -85,6 +86,8 @@ function PatientsContent() {
   const [toDelete, setToDelete] = useState<PatientToDelete | null>(null);
   const reactivate = useReactivatePatient();
   const { data: planStatus } = usePlanStatus();
+  const { data: features } = useClinicFeatures();
+  const rewardsEnabled = features?.includes("rewards") ?? false;
 
   // Debounce la búsqueda directamente en estado local (no depende del URL)
   useEffect(() => {
@@ -265,9 +268,11 @@ function PatientsContent() {
                   <th className="hidden px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400 md:table-cell">
                     Email
                   </th>
-                  <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">
-                    Rewards
-                  </th>
+                  {rewardsEnabled && (
+                    <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wide text-slate-500 dark:text-gray-400">
+                      Rewards
+                    </th>
+                  )}
                   <th className="px-4 py-3" />
                 </tr>
               </thead>
@@ -304,16 +309,18 @@ function PatientsContent() {
                     <td className="px-4 py-3 text-slate-600 dark:text-gray-400">{age(p.date_of_birth)}</td>
                     <td className="px-4 py-3 text-slate-600 dark:text-gray-400">{p.phone ?? "—"}</td>
                     <td className="hidden px-4 py-3 text-slate-500 dark:text-gray-500 md:table-cell">{p.email ?? "—"}</td>
-                    <td className="px-4 py-3">
-                      {p.rewards_level ? (
-                        <Badge
-                          label={REWARDS_LEVEL_LABELS[p.rewards_level as RewardsLevel]}
-                          className={REWARDS_LEVEL_COLORS[p.rewards_level as RewardsLevel]}
-                        />
-                      ) : (
-                        <span className="text-slate-400">—</span>
-                      )}
-                    </td>
+                    {rewardsEnabled && (
+                      <td className="px-4 py-3">
+                        {p.rewards_level ? (
+                          <Badge
+                            label={REWARDS_LEVEL_LABELS[p.rewards_level as RewardsLevel]}
+                            className={REWARDS_LEVEL_COLORS[p.rewards_level as RewardsLevel]}
+                          />
+                        ) : (
+                          <span className="text-slate-400">—</span>
+                        )}
+                      </td>
+                    )}
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1">
                         <Link

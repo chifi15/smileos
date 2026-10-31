@@ -22,14 +22,18 @@ settings_router = APIRouter(prefix="/settings", tags=["Configuración de Clínic
 users_router = APIRouter(prefix="/users", tags=["Gestión de Usuarios"])
 
 ALL_FEATURES = ["rewards", "booking", "costos", "finances", "reportes", "actividad", "inventario"]
+BASE_FEATURES = ["costos", "finances", "inventario"]
 
 
 def _resolve_features(settings_obj, user_email: str) -> list[str]:
-    """Admin de plataforma siempre ve todos los features."""
+    """Admin de plataforma siempre ve todos los features.
+    Clínicas normales siempre tienen BASE_FEATURES más lo que el admin haya habilitado."""
     cfg = _get_settings()
     if user_email == cfg.admin_email:
         return ALL_FEATURES
-    return settings_obj.features or []
+    stored = settings_obj.features or []
+    combined = list(dict.fromkeys(BASE_FEATURES + stored))
+    return combined
 
 
 # ─── Defaults ─────────────────────────────────────────────────────────────────
