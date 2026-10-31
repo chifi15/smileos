@@ -550,7 +550,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   function findTreatmentByProcId(procedureId: string): ApiTreatment | undefined {
     if (!procedureId) return undefined;
     return (
-      findTreatmentByProcId(procedureId) ??
+      apiTreatments.find((t) => t.procedure_catalog_id === procedureId) ??
       apiTreatments.find((t) => t.id === procedureId)
     );
   }
