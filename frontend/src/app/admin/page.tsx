@@ -913,9 +913,10 @@ const FEATURE_META: Record<string, { label: string; description: string }> = {
   booking:    { label: "Reserva online",   description: "Página pública /reservar/[slug] para que pacientes agenden" },
   costos:     { label: "Costos",           description: "Módulo de costos, honorarios e inventario" },
   finances:   { label: "Finanzas",         description: "Registro de ingresos y gastos por cita" },
-  reportes:   { label: "Reportes",         description: "Estadísticas y reportes de la clínica" },
-  actividad:  { label: "Actividad",        description: "Log de auditoría y actividad del sistema" },
-  inventario: { label: "Inventario",       description: "Gestión de inventario y stock de productos" },
+  reportes:      { label: "Reportes",         description: "Estadísticas y reportes de la clínica" },
+  actividad:     { label: "Actividad",        description: "Log de auditoría y actividad del sistema" },
+  inventario:    { label: "Inventario",       description: "Gestión de inventario y stock de productos" },
+  segmentacion:  { label: "Segmentación",     description: "Segmentación y análisis de la base de pacientes" },
 };
 
 const FEATURE_META_COMING_SOON: Record<string, { label: string; description: string }> = {

@@ -13,7 +13,7 @@ export interface WorkingHour {
   afternoon_close: string | null;
 }
 
-export const ALL_FEATURES = ["rewards", "booking", "costos", "finances", "reportes", "actividad", "inventario"] as const;
+export const ALL_FEATURES = ["rewards", "booking", "costos", "finances", "reportes", "actividad", "inventario", "segmentacion"] as const;
 export type FeatureName = typeof ALL_FEATURES[number];
 
 export function useClinicSettings() {

@@ -21,12 +21,12 @@ from app.services import settings_service, audit_service
 settings_router = APIRouter(prefix="/settings", tags=["Configuración de Clínica"])
 users_router = APIRouter(prefix="/users", tags=["Gestión de Usuarios"])
 
-ALL_FEATURES = ["rewards", "booking", "costos", "finances", "reportes", "actividad", "inventario"]
+ALL_FEATURES = ["rewards", "booking", "costos", "finances", "reportes", "actividad", "inventario", "segmentacion"]
 BASE_FEATURES = ["costos", "finances", "inventario"]
 PLAN_FEATURES: dict[str, list[str]] = {
     "free":   [],
-    "pro":    ["booking", "reportes", "actividad"],
-    "clinic": ["booking", "reportes", "actividad"],
+    "pro":    ["booking", "reportes", "actividad", "segmentacion"],
+    "clinic": ["booking", "reportes", "actividad", "segmentacion"],
 }
 
 
