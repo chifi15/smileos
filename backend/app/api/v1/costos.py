@@ -253,17 +253,21 @@ async def delete_product(
     current_user: CurrentUser,
     db: AsyncSession = Depends(get_db),
 ):
-    from sqlalchemy import select as _select
+    from sqlalchemy import delete as _delete
     from app.models.costos import CostProduct as _CP
-    res = await db.execute(_select(_CP.name).where(_CP.id == product_id, _CP.clinic_id == current_user.clinic_id))
-    target_name = res.scalar_one_or_none()
-    ok = await svc.delete_product(db, current_user.clinic_id, product_id)
-    if not ok:
+    result = await db.execute(
+        _delete(_CP)
+        .where(_CP.id == product_id, _CP.clinic_id == current_user.clinic_id)
+        .returning(_CP.name)
+    )
+    deleted_name = result.scalar_one_or_none()
+    if deleted_name is None:
         raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Producto no encontrado"})
+    await db.flush()
     await audit_service.log(
         db, clinic_id=current_user.clinic_id, user_id=current_user.id,
         action="product.deleted", resource_type="cost_product", resource_id=str(product_id),
-        description=f"Eliminó producto: {target_name or product_id}",
+        description=f"Eliminó producto: {deleted_name}",
     )
 
 
