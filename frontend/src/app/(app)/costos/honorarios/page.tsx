@@ -355,7 +355,7 @@ export default function HonorariosPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <span className="text-slate-500 dark:text-gray-400">× {SEMANAS_POR_MES.toFixed(2)} semanas/mes</span>
-                    <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">365 días ÷ 12 meses ÷ 7 días/sem</p>
+                    <p className="text-xs text-slate-400 dark:text-gray-500 mt-0.5">365 ÷ 12 ÷ 7 = {SEMANAS_POR_MES.toFixed(2)} sem/mes</p>
                   </div>
                   <span className="font-bold text-slate-800 dark:text-white tabular-nums text-base">{horasMes} h/mes</span>
                 </div>
