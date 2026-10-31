@@ -76,9 +76,17 @@ export default function HonorariosPage() {
   const [feeDraft, setFeeDraft] = useState("");
 
   // Calcular tarifa desde horario + meta
-  const [metaMensual, setMetaMensual] = useState(0);
+  const [metaMensual, setMetaMensual] = useState(() => {
+    if (typeof window === "undefined") return 0;
+    return parseFloat(localStorage.getItem("smileos-honorarios-meta") ?? "0") || 0;
+  });
   const [editingMeta, setEditingMeta] = useState(false);
   const [metaDraft, setMetaDraft] = useState("");
+
+  function saveMetaMensual(v: number) {
+    setMetaMensual(v);
+    localStorage.setItem("smileos-honorarios-meta", String(v));
+  }
 
   const [diasSemana, setDiasSemana] = useState(5);
   const [horasDia, setHorasDia] = useState(8);
@@ -242,13 +250,13 @@ export default function HonorariosPage() {
                   autoFocus type="number" min="0" step="100" value={metaDraft}
                   onChange={(e) => setMetaDraft(e.target.value)}
                   onKeyDown={(e) => {
-                    if (e.key === "Enter") { setMetaMensual(parseFloat(metaDraft) || 0); setEditingMeta(false); }
+                    if (e.key === "Enter") { saveMetaMensual(parseFloat(metaDraft) || 0); setEditingMeta(false); }
                     if (e.key === "Escape") setEditingMeta(false);
                   }}
-                  onBlur={() => { setMetaMensual(parseFloat(metaDraft) || 0); setEditingMeta(false); }}
+                  onBlur={() => { saveMetaMensual(parseFloat(metaDraft) || 0); setEditingMeta(false); }}
                   className="w-28 rounded-lg border border-blue-400 dark:border-blue-500 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm text-right focus:outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <button onClick={() => { setMetaMensual(parseFloat(metaDraft) || 0); setEditingMeta(false); }} className="text-green-600 dark:text-green-400"><Check size={13} /></button>
+                <button onClick={() => { saveMetaMensual(parseFloat(metaDraft) || 0); setEditingMeta(false); }} className="text-green-600 dark:text-green-400"><Check size={13} /></button>
                 <button onClick={() => setEditingMeta(false)} className="text-slate-400"><X size={13} /></button>
               </div>
             ) : (
