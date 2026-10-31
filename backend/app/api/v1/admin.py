@@ -16,6 +16,12 @@ from app.core.config import get_settings
 from app.core.database import get_db
 from app.models.clinic import Clinic, ClinicSettings
 from app.api.v1.settings import ALL_FEATURES, BASE_FEATURES
+
+PLAN_FEATURES: dict[str, list[str]] = {
+    "free":   [],
+    "pro":    ["booking", "reportes", "actividad", "rewards"],
+    "clinic": ["booking", "reportes", "actividad", "rewards"],
+}
 from app.models.user import User
 from app.models.patient import Patient
 from app.models.costos import CostProduct, CostTreatment, CostAppointment, FixedCostsConfig
@@ -216,14 +222,27 @@ async def update_plan(
     _: Annotated[None, AdminAuth],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    """Cambia el plan de una clínica."""
+    """Cambia el plan de una clínica y actualiza los features según el plan."""
     clinic = await db.scalar(select(Clinic).where(Clinic.id == clinic_id))
     if not clinic:
         raise HTTPException(status_code=404, detail="Clínica no encontrada.")
     clinic.plan = body.plan
     clinic.plan_expires_at = body.plan_expires_at
+    # Auto-aplicar features del plan (el admin puede sobreescribir luego)
+    cs = await db.scalar(select(ClinicSettings).where(ClinicSettings.clinic_id == clinic_id))
+    if cs is not None:
+        from sqlalchemy.orm.attributes import flag_modified
+        cs.features = PLAN_FEATURES.get(body.plan, [])
+        flag_modified(cs, "features")
     await db.commit()
-    return {"success": True, "data": {"plan": clinic.plan, "plan_expires_at": clinic.plan_expires_at}}
+    return {
+        "success": True,
+        "data": {
+            "plan": clinic.plan,
+            "plan_expires_at": clinic.plan_expires_at,
+            "features_applied": PLAN_FEATURES.get(body.plan, []),
+        },
+    }
 
 
 @router.post("/clinics/{clinic_id}/products", status_code=201)

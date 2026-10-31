@@ -9,7 +9,7 @@ import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, us
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import toast from "react-hot-toast";
-import { useClinicSettings, useUpdateSettings, useWorkingHours, useUpdateWorkingHours, useUpdateBookingAppointmentTypes, useClinicHolidays, useAddHoliday, useDeleteHoliday, useDoctorsDaysOff, useAddUserDayOff, useDeleteUserDayOff, WorkingHour, ClinicHoliday } from "@/hooks/useSettings";
+import { useClinicSettings, useUpdateSettings, useWorkingHours, useUpdateWorkingHours, useUpdateBookingAppointmentTypes, useClinicHolidays, useAddHoliday, useDeleteHoliday, useDoctorsDaysOff, useAddUserDayOff, useDeleteUserDayOff, WorkingHour, ClinicHoliday, useClinicFeatures } from "@/hooks/useSettings";
 import { usePlanStatus } from "@/hooks/useBilling";
 import { useSyncCalendar, useCalendarStatus, useDisconnectGoogleOAuth, useGcalEventColors, GCAL_COLOR_NAMES } from "@/hooks/useCalendar";
 import apiClient, { getAccessToken } from "@/lib/api-client";
@@ -791,7 +791,7 @@ function SettingsContent() {
 
       <DoctorDaysOffSection />
 
-      <BookingTypesSection />
+      <BookingTypesSectionGated />
 
       <PriceCatalogSection />
 
@@ -815,6 +815,8 @@ const DEFAULT_HOURS: WorkingHour[] = [0, 1, 2, 3, 4, 5, 6].map((day) => ({
 
 function WorkingHoursSection() {
   const { data: settingsData, isLoading } = useWorkingHours();
+  const { data: features } = useClinicFeatures();
+  const bookingEnabled = features?.includes("booking") ?? false;
   const savedHours = settingsData?.hours;
   const clinicSlug = settingsData?.clinic_slug;
   const updateHours = useUpdateWorkingHours();
@@ -856,7 +858,7 @@ function WorkingHoursSection() {
         <div>
           <h2 className="font-semibold text-slate-800 dark:text-white">Horario de atención</h2>
           <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">Define los días y horarios disponibles para reservas de pacientes</p>
-          {clinicSlug && (
+          {bookingEnabled && clinicSlug && (
             <div className="mt-2 flex items-center gap-2 flex-wrap">
               <span className="text-xs text-slate-400 dark:text-gray-500">Enlace para pacientes:</span>
               <code className="text-xs bg-slate-100 dark:bg-gray-700 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded">
@@ -944,7 +946,7 @@ function WorkingHoursSection() {
           ))}
         </div>
       )}
-      {showQr && clinicSlug && (
+      {bookingEnabled && showQr && clinicSlug && (
         <QrModal
           url={`${window.location.origin}/reservar/${clinicSlug}`}
           onClose={() => setShowQr(false)}
@@ -1212,6 +1214,12 @@ function DoctorDaysOffSection() {
       </div>
     </section>
   );
+}
+
+function BookingTypesSectionGated() {
+  const { data: features } = useClinicFeatures();
+  if (!features?.includes("booking")) return null;
+  return <BookingTypesSection />;
 }
 
 // ─── Tipos de consulta para reservas ─────────────────────────────────────────
