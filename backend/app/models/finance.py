@@ -37,6 +37,7 @@ class FinanceTransaction(UUIDMixin, TimestampMixin, Base):
     exchange_rate_used: Mapped[Decimal | None] = mapped_column(Numeric(10, 4), nullable=True)
     patient_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("patients.id"), nullable=True)
     procedure_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("procedure_catalog.id"), nullable=True)
+    cost_treatment_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("cost_treatments.id", ondelete="SET NULL"), nullable=True)
     procedure_quantity: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     operational_cost_snapshot: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     doctor_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -52,6 +53,7 @@ class FinanceTransaction(UUIDMixin, TimestampMixin, Base):
 
     patient: Mapped["Patient"] = relationship("Patient", foreign_keys=[patient_id])  # type: ignore  # noqa: F821
     procedure: Mapped["ProcedureCatalog"] = relationship("ProcedureCatalog", foreign_keys=[procedure_id])  # type: ignore  # noqa: F821
+    cost_treatment: Mapped["CostTreatment"] = relationship("CostTreatment", foreign_keys=[cost_treatment_id])  # type: ignore  # noqa: F821
     doctor: Mapped["User"] = relationship("User", foreign_keys=[doctor_id])  # type: ignore  # noqa: F821
     created_by: Mapped["User"] = relationship("User", foreign_keys=[created_by_id])  # type: ignore  # noqa: F821
 

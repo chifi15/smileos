@@ -16,6 +16,7 @@ from app.core.exceptions import NotFoundError
 _LOAD = [
     selectinload(FinanceTransaction.patient),
     selectinload(FinanceTransaction.procedure),
+    selectinload(FinanceTransaction.cost_treatment),
     selectinload(FinanceTransaction.doctor),
     selectinload(FinanceTransaction.created_by),
 ]
@@ -70,12 +71,13 @@ async def get_summary(
     egresos = sum(float(t.amount_cordobas) for t in rows if t.type == "egreso")
     from app.models.costos import CostTreatment
     treats_result = await db.execute(
-        select(CostTreatment)
-        .where(CostTreatment.clinic_id == clinic_id, CostTreatment.procedure_catalog_id.isnot(None))
+        select(CostTreatment).where(CostTreatment.clinic_id == clinic_id)
     )
-    treat_by_proc: dict[str, CostTreatment] = {
-        str(ct.procedure_catalog_id): ct for ct in treats_result.scalars()
+    all_treatments = list(treats_result.scalars())
+    treat_by_catalog: dict[str, CostTreatment] = {
+        str(ct.procedure_catalog_id): ct for ct in all_treatments if ct.procedure_catalog_id
     }
+    treat_by_id: dict[str, CostTreatment] = {str(ct.id): ct for ct in all_treatments}
 
     costos_op = 0.0
     ganancia_clinica = 0.0
@@ -84,8 +86,12 @@ async def get_summary(
             continue
         op = float(t.operational_cost_snapshot)
         costos_op += op
-        proc_id = str(t.procedure_id) if t.procedure_id else None
-        ct = treat_by_proc.get(proc_id) if proc_id else None
+        # Buscar el CostTreatment: standalone por cost_treatment_id, catálogo por procedure_id
+        ct = None
+        if t.cost_treatment_id:
+            ct = treat_by_id.get(str(t.cost_treatment_id))
+        elif t.procedure_id:
+            ct = treat_by_catalog.get(str(t.procedure_id))
         margin = float(ct.clinic_margin_pct) if ct else 0.15
         # snapshot = subtotal × (1+margin); ganancia ya está dentro
         ganancia_clinica += op * margin / (1 + margin)
@@ -106,13 +112,14 @@ async def get_ganancia_breakdown(
 ) -> dict:
     rows = await list_transactions(db, clinic_id, year, month)
     from app.models.costos import CostTreatment
-    treats_result = await db.execute(
-        select(CostTreatment)
-        .where(CostTreatment.clinic_id == clinic_id, CostTreatment.procedure_catalog_id.isnot(None))
+    treats_result2 = await db.execute(
+        select(CostTreatment).where(CostTreatment.clinic_id == clinic_id)
     )
-    treat_by_proc: dict[str, CostTreatment] = {
-        str(ct.procedure_catalog_id): ct for ct in treats_result.scalars()
+    all_treatments2 = list(treats_result2.scalars())
+    treat_by_catalog2: dict[str, CostTreatment] = {
+        str(ct.procedure_catalog_id): ct for ct in all_treatments2 if ct.procedure_catalog_id
     }
+    treat_by_id2: dict[str, CostTreatment] = {str(ct.id): ct for ct in all_treatments2}
 
     by_proc: dict[str, dict] = {}
     by_doc: dict[str, dict] = {}
@@ -121,9 +128,16 @@ async def get_ganancia_breakdown(
         if t.type != "ingreso" or not t.operational_cost_snapshot:
             continue
         op = float(t.operational_cost_snapshot)
-        proc_id = str(t.procedure_id) if t.procedure_id else None
-        proc_name = t.procedure.name if t.procedure else "Sin tratamiento"
-        ct = treat_by_proc.get(proc_id) if proc_id else None
+        proc_name = (t.procedure.name if t.procedure else t.cost_treatment.name if t.cost_treatment else "Sin tratamiento")
+        # Resolver el CostTreatment y el ID unificado para agrupar
+        ct = None
+        unified_id: str | None = None
+        if t.cost_treatment_id:
+            unified_id = str(t.cost_treatment_id)
+            ct = treat_by_id2.get(unified_id)
+        elif t.procedure_id:
+            unified_id = str(t.procedure_id)
+            ct = treat_by_catalog2.get(unified_id)
         margin = float(ct.clinic_margin_pct) if ct else 0.15
         # snapshot = subtotal × (1+margin); extraer la parte de ganancia
         ganancia = op * margin / (1 + margin)
@@ -132,9 +146,9 @@ async def get_ganancia_breakdown(
         doc_name = t.doctor.full_name if t.doctor else "Sin doctor asignado"
 
         # agrupar por procedimiento
-        pk = proc_id or "__none__"
+        pk = unified_id or "__none__"
         if pk not in by_proc:
-            by_proc[pk] = {"procedure_id": proc_id, "procedure_name": proc_name,
+            by_proc[pk] = {"procedure_id": unified_id, "procedure_name": proc_name,
                            "count": 0, "total_ingreso": 0.0, "total_op_cost": 0.0,
                            "ganancia": 0.0, "margin_pct": margin}
         by_proc[pk]["count"] += 1
@@ -194,26 +208,50 @@ async def create_transaction(
     quantity = max(1, int(data.get("quantity") or 1))
     sessions = max(1, int(data.get("sessions") or 1))
     cost_override = data.get("operational_cost_override")
+
+    # Un proc_id puede ser CostTreatment.id (standalone) o ProcedureCatalog.id (catálogo)
+    catalog_ref_id: uuid.UUID | None = None
+    cost_treatment_ref_id: uuid.UUID | None = None
+
     if proc_id:
-        if cost_override is not None:
-            op_cost = round(Decimal(str(cost_override)), 2)
+        pid = uuid.UUID(str(proc_id))
+        # Intentar encontrar como CostTreatment primero
+        ct_check = await db.scalar(
+            select(CostTreatment).where(
+                CostTreatment.id == pid,
+                CostTreatment.clinic_id == clinic_id,
+            )
+        )
+        if ct_check:
+            cost_treatment_ref_id = pid
+            if cost_override is not None:
+                op_cost = round(Decimal(str(cost_override)), 2)
+            else:
+                raw = Decimal(str(ct_check.fixed_costs or 0)) * quantity / sessions
+                margin = Decimal(str(ct_check.clinic_margin_pct or 0))
+                op_cost = round(raw * (1 + margin), 2)
         else:
+            # Intentar ProcedureCatalog (retrocompatibilidad)
             proc = await db.scalar(
                 select(ProcedureCatalog).where(
-                    ProcedureCatalog.id == uuid.UUID(str(proc_id)),
+                    ProcedureCatalog.id == pid,
                     ProcedureCatalog.clinic_id == clinic_id,
                 )
             )
-            if proc and proc.operational_cost:
-                treatment = await db.scalar(
-                    select(CostTreatment).where(
-                        CostTreatment.procedure_catalog_id == proc.id,
-                        CostTreatment.clinic_id == clinic_id,
+            if proc:
+                catalog_ref_id = pid
+                if cost_override is not None:
+                    op_cost = round(Decimal(str(cost_override)), 2)
+                elif proc.operational_cost:
+                    treatment = await db.scalar(
+                        select(CostTreatment).where(
+                            CostTreatment.procedure_catalog_id == proc.id,
+                            CostTreatment.clinic_id == clinic_id,
+                        )
                     )
-                )
-                margin = Decimal(str(treatment.clinic_margin_pct)) if treatment else Decimal("0.15")
-                raw = Decimal(str(proc.operational_cost)) * quantity / sessions
-                op_cost = round(raw * (1 + margin), 2)
+                    margin = Decimal(str(treatment.clinic_margin_pct)) if treatment else Decimal("0.15")
+                    raw = Decimal(str(proc.operational_cost)) * quantity / sessions
+                    op_cost = round(raw * (1 + margin), 2)
 
     tx = FinanceTransaction(
         clinic_id=clinic_id,
@@ -225,7 +263,8 @@ async def create_transaction(
         original_currency=currency,
         exchange_rate_used=exchange_rate,
         patient_id=uuid.UUID(str(data["patient_id"])) if data.get("patient_id") else None,
-        procedure_id=uuid.UUID(str(proc_id)) if proc_id else None,
+        procedure_id=catalog_ref_id,
+        cost_treatment_id=cost_treatment_ref_id,
         cost_appointment_id=data.get("cost_appointment_id") or None,
         procedure_quantity=quantity,
         operational_cost_snapshot=op_cost,
@@ -304,11 +343,9 @@ async def get_honorarios_by_procedure(
         .where(CostTreatment.clinic_id == clinic_id)
         .options(_sil(CostTreatment.appointments))
     )
-    cost_map = {
-        str(ct.procedure_catalog_id): ct
-        for ct in cost_treatments.scalars()
-        if ct.procedure_catalog_id
-    }
+    all_cts = list(cost_treatments.scalars())
+    cost_map_catalog = {str(ct.procedure_catalog_id): ct for ct in all_cts if ct.procedure_catalog_id}
+    cost_map_id = {str(ct.id): ct for ct in all_cts}
 
     procedure_totals: dict[str, dict] = {}
     # doctor_id -> { doctor_name, procedures: {proc_id -> {...}}, total }
@@ -316,9 +353,15 @@ async def get_honorarios_by_procedure(
     total_honorarios = 0.0
 
     for tx in rows:
-        if not tx.procedure_id:
-            continue
-        ct = cost_map.get(str(tx.procedure_id))
+        # Resolver CostTreatment: standalone (cost_treatment_id) o catálogo (procedure_id)
+        ct = None
+        unified_proc_id: str | None = None
+        if tx.cost_treatment_id:
+            unified_proc_id = str(tx.cost_treatment_id)
+            ct = cost_map_id.get(unified_proc_id)
+        elif tx.procedure_id:
+            unified_proc_id = str(tx.procedure_id)
+            ct = cost_map_catalog.get(unified_proc_id)
         if not ct:
             continue
         total_fee = ct.professional_fee_per_hour * ct.total_hours
@@ -330,19 +373,18 @@ async def get_honorarios_by_procedure(
             fee_per_unit = total_fee
         qty = tx.procedure_quantity or 1
         fee = fee_per_unit * qty
-        proc_id = str(tx.procedure_id)
-        proc_name = tx.procedure.name if tx.procedure else "—"
+        proc_name = (tx.procedure.name if tx.procedure else tx.cost_treatment.name if tx.cost_treatment else "—")
 
-        if proc_id not in procedure_totals:
-            procedure_totals[proc_id] = {
-                "procedure_id": proc_id,
+        if unified_proc_id not in procedure_totals:
+            procedure_totals[unified_proc_id] = {
+                "procedure_id": unified_proc_id,
                 "procedure_name": proc_name,
                 "fee_per_unit": round(fee_per_unit, 2),
                 "quantity": 0,
                 "total_honorarios": 0.0,
             }
-        procedure_totals[proc_id]["quantity"] += qty
-        procedure_totals[proc_id]["total_honorarios"] += fee
+        procedure_totals[unified_proc_id]["quantity"] += qty
+        procedure_totals[unified_proc_id]["total_honorarios"] += fee
         total_honorarios += fee
 
         # Group by doctor
@@ -357,15 +399,15 @@ async def get_honorarios_by_procedure(
             }
         doctor_totals[doc_key]["total_honorarios"] += fee
         doc_procs = doctor_totals[doc_key]["procedures"]
-        if proc_id not in doc_procs:
-            doc_procs[proc_id] = {
+        if unified_proc_id not in doc_procs:
+            doc_procs[unified_proc_id] = {
                 "procedure_name": proc_name,
                 "fee_per_unit": round(fee_per_unit, 2),
                 "quantity": 0,
                 "total_honorarios": 0.0,
             }
-        doc_procs[proc_id]["quantity"] += qty
-        doc_procs[proc_id]["total_honorarios"] += fee
+        doc_procs[unified_proc_id]["quantity"] += qty
+        doc_procs[unified_proc_id]["total_honorarios"] += fee
 
     by_procedure = sorted(
         procedure_totals.values(),
@@ -457,35 +499,55 @@ async def update_transaction(
 
     if "procedure_id" in data:
         proc_id = data["procedure_id"]
-        tx.procedure_id = uuid.UUID(str(proc_id)) if proc_id else None
-        if proc_id:
-            if upd_cost_override is not None:
-                tx.operational_cost_snapshot = round(Decimal(str(upd_cost_override)), 2)
+        if not proc_id:
+            tx.procedure_id = None
+            tx.cost_treatment_id = None
+            tx.operational_cost_snapshot = None
+        else:
+            pid = uuid.UUID(str(proc_id))
+            ct_check = await db.scalar(
+                select(CostTreatment).where(
+                    CostTreatment.id == pid,
+                    CostTreatment.clinic_id == clinic_id,
+                )
+            )
+            if ct_check:
+                tx.cost_treatment_id = pid
+                tx.procedure_id = None
+                if upd_cost_override is not None:
+                    tx.operational_cost_snapshot = round(Decimal(str(upd_cost_override)), 2)
+                else:
+                    raw = Decimal(str(ct_check.fixed_costs or 0)) * (upd_quantity or 1) / upd_sessions
+                    margin = Decimal(str(ct_check.clinic_margin_pct or 0))
+                    tx.operational_cost_snapshot = round(raw * (1 + margin), 2)
             else:
                 proc = await db.scalar(
                     select(ProcedureCatalog).where(
-                        ProcedureCatalog.id == uuid.UUID(str(proc_id)),
+                        ProcedureCatalog.id == pid,
                         ProcedureCatalog.clinic_id == clinic_id,
                     )
                 )
-                if proc and proc.operational_cost:
-                    treatment = await db.scalar(
-                        select(CostTreatment).where(
-                            CostTreatment.procedure_catalog_id == proc.id,
-                            CostTreatment.clinic_id == clinic_id,
+                if proc:
+                    tx.procedure_id = pid
+                    tx.cost_treatment_id = None
+                    if upd_cost_override is not None:
+                        tx.operational_cost_snapshot = round(Decimal(str(upd_cost_override)), 2)
+                    elif proc.operational_cost:
+                        treatment = await db.scalar(
+                            select(CostTreatment).where(
+                                CostTreatment.procedure_catalog_id == proc.id,
+                                CostTreatment.clinic_id == clinic_id,
+                            )
                         )
-                    )
-                    margin = Decimal(str(treatment.clinic_margin_pct)) if treatment else Decimal("0.15")
-                    raw = Decimal(str(proc.operational_cost)) * (upd_quantity or 1) / upd_sessions
-                    tx.operational_cost_snapshot = round(raw * (1 + margin), 2)
-                else:
-                    tx.operational_cost_snapshot = None
-        else:
-            tx.operational_cost_snapshot = None
-    elif upd_cost_override is not None and tx.procedure_id:
+                        margin = Decimal(str(treatment.clinic_margin_pct)) if treatment else Decimal("0.15")
+                        raw = Decimal(str(proc.operational_cost)) * (upd_quantity or 1) / upd_sessions
+                        tx.operational_cost_snapshot = round(raw * (1 + margin), 2)
+                    else:
+                        tx.operational_cost_snapshot = None
+    elif upd_cost_override is not None and (tx.procedure_id or tx.cost_treatment_id):
         tx.operational_cost_snapshot = round(Decimal(str(upd_cost_override)), 2)
     elif upd_quantity is not None and tx.procedure_id:
-        # Solo cambió la cantidad o sesiones, mismo procedimiento
+        # Solo cambió la cantidad o sesiones, mismo procedimiento del catálogo
         proc = await db.scalar(
             select(ProcedureCatalog).where(
                 ProcedureCatalog.id == tx.procedure_id,

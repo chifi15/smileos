@@ -36,7 +36,11 @@ def _serialize(t) -> dict:
         "original_currency": t.original_currency,
         "exchange_rate_used": float(t.exchange_rate_used) if t.exchange_rate_used else None,
         "patient": {"id": str(t.patient.id), "full_name": t.patient.full_name} if t.patient else None,
-        "procedure": {"id": str(t.procedure.id), "name": t.procedure.name} if t.procedure else None,
+        "procedure": (
+            {"id": str(t.procedure.id), "name": t.procedure.name} if t.procedure
+            else {"id": str(t.cost_treatment.id), "name": t.cost_treatment.name} if t.cost_treatment
+            else None
+        ),
         "procedure_quantity": t.procedure_quantity,
         "cost_appointment_id": t.cost_appointment_id,
         "deducted_materials": t.deducted_materials,
@@ -560,7 +564,7 @@ async def export_excel(
             ALL_CAT.get(t.category, t.category),
             t.description,
             t.patient.full_name if t.patient else "",
-            t.procedure.name if t.procedure else "",
+            (t.procedure.name if t.procedure else t.cost_treatment.name if t.cost_treatment else ""),
             t.invoice_number or "",
             t.original_currency or "NIO",
             float(t.original_amount) if t.original_amount else float(t.amount_cordobas),
