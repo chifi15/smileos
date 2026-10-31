@@ -129,12 +129,9 @@ function loadPrefs(): SidebarPrefs {
     for (const s of DEFAULT_ORDER) if (!order.includes(s)) order.push(s);
 
     const itemOrder: Record<string, string[]> = {};
-    for (const { section, items } of NAV_DEF) {
-      const defaultHrefs = items.map((i) => i.href);
+    for (const { section } of NAV_DEF) {
       const saved = ((p.itemOrder ?? {})[section] ?? []).filter((h) => ALL_HREFS.has(h));
-      // ensure all defaults are present, append new ones at the end
-      const merged = [...new Set([...saved, ...defaultHrefs])];
-      itemOrder[section] = merged;
+      itemOrder[section] = saved;
     }
 
     const itemSection: Record<string, string> = {};
@@ -442,10 +439,10 @@ export default function Sidebar() {
   function handleItemDragEnd(section: string, event: DragEndEvent) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
-    const current = prefs.itemOrder[section] ??
-      NAV_DEF.find((s) => s.section === section)!.items.map((i) => i.href);
+    const current = getOrderedItems(section).map((i) => i.href);
     const oldIdx = current.indexOf(active.id as string);
     const newIdx = current.indexOf(over.id as string);
+    if (oldIdx === -1 || newIdx === -1) return;
     updatePrefs({
       ...prefs,
       itemOrder: { ...prefs.itemOrder, [section]: arrayMove(current, oldIdx, newIdx) },
