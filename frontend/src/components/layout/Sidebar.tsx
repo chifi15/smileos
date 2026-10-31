@@ -344,7 +344,12 @@ function SortableSectionBlock({
 
 // ─── Main Sidebar ─────────────────────────────────────────────────────────────
 
-export default function Sidebar() {
+interface SidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarProps) {
   const pathname = usePathname();
   const { user } = useAuthStore();
   const logout = useLogout();
@@ -480,23 +485,49 @@ export default function Sidebar() {
 
   if (!mounted) {
     return (
-      <aside className="flex w-60 shrink-0 flex-col bg-[#1e3a5f] text-white">
-        <div className="flex h-16 items-center px-6 border-b border-white/10">
-          <span className="text-xl font-bold tracking-tight">
-            Smile<span className="text-blue-400">OS</span>
-          </span>
+      <>
+        <div className="hidden md:flex w-60 shrink-0 flex-col bg-[#1e3a5f] text-white">
+          <div className="flex h-16 items-center px-6 border-b border-white/10">
+            <span className="text-xl font-bold tracking-tight">
+              Smile<span className="text-blue-400">OS</span>
+            </span>
+          </div>
         </div>
-      </aside>
+      </>
     );
   }
 
   return (
-    <aside className="flex w-60 shrink-0 flex-col bg-[#1e3a5f] text-white">
+    <>
+      {/* Backdrop móvil */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/50 md:hidden"
+          onClick={onMobileClose}
+        />
+      )}
+
+      <aside className={cn(
+        "flex flex-col bg-[#1e3a5f] text-white",
+        // Móvil: drawer fixed deslizable
+        "fixed inset-y-0 left-0 z-50 w-72 transition-transform duration-300",
+        mobileOpen ? "translate-x-0" : "-translate-x-full",
+        // Desktop: sidebar estático normal
+        "md:relative md:w-60 md:shrink-0 md:translate-x-0 md:transition-none"
+      )}>
       {/* Logo */}
-      <div className="flex h-16 items-center px-6 border-b border-white/10">
+      <div className="flex h-14 items-center justify-between px-6 border-b border-white/10 md:h-16">
         <span className="text-xl font-bold tracking-tight">
           Smile<span className="text-blue-400">OS</span>
         </span>
+        {/* Botón cerrar — solo móvil */}
+        <button
+          onClick={onMobileClose}
+          className="md:hidden rounded-lg p-1.5 text-white/50 hover:text-white hover:bg-white/10 transition-colors"
+          aria-label="Cerrar menú"
+        >
+          <X size={18} />
+        </button>
       </div>
 
       {/* Navigation */}
@@ -691,5 +722,6 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }

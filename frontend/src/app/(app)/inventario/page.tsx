@@ -702,7 +702,7 @@ function InventarioContent() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl p-6">
+    <div className="mx-auto max-w-5xl p-4 sm:p-6">
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-xl font-bold text-slate-800 dark:text-white">Inventario</h1>
@@ -768,6 +768,7 @@ function InventarioContent() {
             <p className="text-slate-500 dark:text-gray-400 font-medium">Sin productos</p>
           </div>
         ) : (
+          <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50 text-xs text-slate-500 dark:text-gray-400">
@@ -786,6 +787,7 @@ function InventarioContent() {
               ))}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 

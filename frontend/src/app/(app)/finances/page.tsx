@@ -2441,7 +2441,7 @@ export default function FinancesPage() {
   }, [month]);
 
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
+    <div className="p-4 sm:p-6 space-y-5 sm:space-y-6 max-w-7xl mx-auto">
       {/* ── Barra sticky ── */}
       <div className="sticky top-0 z-20 -mx-6 px-6 -mt-6 pt-4 pb-4 bg-slate-50/95 dark:bg-gray-900/95 backdrop-blur-sm border-b border-slate-200 dark:border-gray-800">
         <div className="flex items-center justify-between flex-wrap gap-3">

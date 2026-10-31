@@ -156,7 +156,7 @@ export default function HonorariosPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl p-6 space-y-6">
+    <div className="mx-auto max-w-2xl p-4 sm:p-6 space-y-5 sm:space-y-6">
       {/* Header */}
       <div className="flex items-center gap-4">
         <button onClick={() => router.push("/costos")} className="flex items-center gap-1.5 text-sm text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200">
