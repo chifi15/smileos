@@ -803,9 +803,10 @@ export default function ProductosPage() {
   }
 
   function handleBulkDelete() {
-    const count = selectedIds.size;
-    if (!confirm(`¿Eliminar ${count} producto${count !== 1 ? "s" : ""} seleccionado${count !== 1 ? "s" : ""}?`)) return;
-    bulkDelete.mutate([...selectedIds], { onSuccess: () => setSelectedIds(new Set()) });
+    const ids = [...selectedIds];
+    if (!ids.length) return;
+    if (!confirm(`¿Eliminar ${ids.length} producto${ids.length !== 1 ? "s" : ""} seleccionado${ids.length !== 1 ? "s" : ""}?`)) return;
+    bulkDelete.mutate(ids, { onSuccess: () => setSelectedIds(new Set()) });
   }
 
   function handleRenameCategory(oldCat: string) {

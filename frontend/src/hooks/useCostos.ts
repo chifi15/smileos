@@ -120,9 +120,16 @@ export function useDeleteCostProduct() {
 export function useDeleteCostProducts() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (ids: string[]) =>
-      Promise.all(ids.map((id) => api.delete(`/api/v1/costos/products/${id}`))),
-    onSuccess: () => qc.invalidateQueries({ queryKey: PRODUCTS_KEY }),
+    mutationFn: async (ids: string[]) => {
+      for (const id of ids) {
+        await api.delete(`/api/v1/costos/products/${id}`);
+      }
+    },
+    onSuccess: (_data, ids) => {
+      qc.invalidateQueries({ queryKey: PRODUCTS_KEY });
+      toast.success(`${ids.length} producto${ids.length !== 1 ? "s" : ""} eliminado${ids.length !== 1 ? "s" : ""}.`);
+    },
+    onError: () => toast.error("Error al eliminar. Intenta de nuevo."),
   });
 }
 
