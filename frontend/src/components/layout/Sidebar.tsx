@@ -46,6 +46,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { cn } from "@/lib/utils";
 import { useAuthStore } from "@/stores/auth.store";
 import { useLogout } from "@/hooks/useAuth";
+import type { UserRole } from "@/types";
 
 // ─── Nav definition ───────────────────────────────────────────────────────────
 
@@ -63,7 +64,7 @@ const NAV_DEF = [
       { label: "Agenda", href: "/appointments", icon: Calendar },
       { label: "Tratamientos", href: "/treatments", icon: ClipboardList },
       { label: "Fotografías", href: "/photos", icon: Camera },
-      { label: "Smile Rewards", href: "/rewards", icon: Star },
+      { label: "Smile Rewards", href: "/rewards", icon: Star, roles: ["clinic_owner"] as UserRole[] },
       { label: "Finanzas", href: "/finances", icon: TrendingUp },
       { label: "Costos", href: "/costos", icon: Calculator },
       { label: "Inventario", href: "/inventario", icon: Package },
@@ -82,7 +83,7 @@ const NAV_DEF = [
   },
 ];
 
-type NavItem = (typeof NAV_DEF)[0]["items"][0];
+type NavItem = (typeof NAV_DEF)[0]["items"][0] & { roles?: UserRole[] };
 
 // ─── Preferences ──────────────────────────────────────────────────────────────
 
@@ -433,7 +434,9 @@ export default function Sidebar() {
             {visibleSections.map(({ section }) => {
               const isCollapsed = isSectionCollapsed(section);
               const items = getOrderedItems(section).filter(
-                (i) => !prefs.hiddenItems.includes(i.href)
+                (i) =>
+                  !prefs.hiddenItems.includes(i.href) &&
+                  (!i.roles || i.roles.includes(user?.role as UserRole))
               );
               return (
                 <div key={section} className="mb-1">
