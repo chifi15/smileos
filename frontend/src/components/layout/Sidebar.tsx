@@ -69,7 +69,7 @@ const NAV_DEF = [
       { label: "Tratamientos", href: "/treatments", icon: ClipboardList },
       { label: "Fotografías", href: "/photos", icon: Camera },
       { label: "Segmentación", href: "/patients/segments", icon: Filter },
-      { label: "Smile Rewards", href: "/rewards", icon: Star, roles: ["clinic_owner"] as UserRole[], feature: "rewards" as FeatureName },
+      { label: "Smile Rewards", href: "/rewards", icon: Star, feature: "rewards" as FeatureName },
       { label: "Finanzas", href: "/finances", icon: TrendingUp, feature: "finances" as FeatureName },
       { label: "Costos", href: "/costos", icon: Calculator, feature: "costos" as FeatureName },
       { label: "Inventario", href: "/inventario", icon: Package, feature: "inventario" as FeatureName },
