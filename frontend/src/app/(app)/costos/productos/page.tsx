@@ -617,7 +617,7 @@ function ImportProductsModal({ onClose }: { onClose: () => void }) {
   const [result, setResult] = useState<ImportResult | null>(null);
 
   function downloadTemplate() {
-    const csv = "Nombre,Categoría,Proveedor,Costo total (C$),Cantidad presentación,Unidad,Cantidad por porción,Notas\nAnestesia lidocaína,anestesia,Proveedor X,500,50,ml,2,\nGuantes de látex,desechable,,250,100,unidades,1,\n";
+    const csv = "Nombre,Categoría,Proveedor,Costo total (C$),Cantidad presentación,Unidad,Cantidad por porción,Precio por uso (C$),Notas\nAnestesia lidocaína,anestesia,Proveedor X,500,50,ml,2,10,\nGuantes de látex,desechable,,250,100,unidades,1,2.5,\n";
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -711,17 +711,23 @@ function ImportProductsModal({ onClose }: { onClose: () => void }) {
 
 function exportProductsToCSV(products: ApiProduct[]) {
   const rows = [
-    ["Nombre", "Categoría", "Proveedor", "Costo total (C$)", "Cantidad presentación", "Unidad", "Cantidad por porción", "Notas"],
-    ...products.map((p) => [
-      p.name,
-      p.category,
-      p.supplier ?? "",
-      p.total_cost ?? "",
-      p.presentation_qty ?? "",
-      p.presentation_unit ?? "",
-      p.portion_qty ?? "",
-      p.notes ?? "",
-    ]),
+    ["Nombre", "Categoría", "Proveedor", "Costo total (C$)", "Cantidad presentación", "Unidad", "Cantidad por porción", "Precio por uso (C$)", "Notas"],
+    ...products.map((p) => {
+      const portions = p.presentation_qty && p.portion_qty ? p.presentation_qty / p.portion_qty : null;
+      const unitPrice = p.unit_price > 0 ? p.unit_price
+        : (p.total_cost && portions ? p.total_cost / portions : null);
+      return [
+        p.name,
+        p.category,
+        p.supplier ?? "",
+        p.total_cost ?? "",
+        p.presentation_qty ?? "",
+        p.presentation_unit ?? "",
+        p.portion_qty ?? "",
+        unitPrice ?? "",
+        p.notes ?? "",
+      ];
+    }),
   ];
   const csv = "﻿" + rows.map((r) =>
     r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(",")
