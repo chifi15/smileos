@@ -264,6 +264,107 @@ async def delete_product(
     )
 
 
+_PROD_COL_MAP = {
+    "nombre": "name", "name": "name", "producto": "name", "material": "name",
+    "categoria": "category", "category": "category", "tipo": "category",
+    "proveedor": "supplier", "supplier": "supplier",
+    "costo_total": "total_cost", "costo": "total_cost", "total_cost": "total_cost",
+    "precio_total": "total_cost", "precio": "total_cost",
+    "cantidad_presentacion": "presentation_qty", "presentacion_qty": "presentation_qty",
+    "presentation_qty": "presentation_qty", "cantidad": "presentation_qty",
+    "unidad": "presentation_unit", "presentation_unit": "presentation_unit",
+    "unidad_presentacion": "presentation_unit",
+    "cantidad_porcion": "portion_qty", "porcion_qty": "portion_qty",
+    "portion_qty": "portion_qty", "porcion": "portion_qty",
+    "notas": "notes", "notes": "notes", "descripcion": "notes",
+}
+
+
+@router.post("/products/import", status_code=201)
+async def import_products(
+    file: Annotated[UploadFile, File()],
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Importa productos desde CSV directamente en Costos Operativos."""
+    content = await file.read()
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        try:
+            text = content.decode("latin-1")
+        except Exception:
+            raise HTTPException(status_code=400, detail="No se pudo leer el archivo. Guárdalo como CSV UTF-8.")
+
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        raise HTTPException(status_code=400, detail="El archivo CSV está vacío o no tiene encabezados.")
+
+    col_map: dict[str, str] = {}
+    for raw_col in reader.fieldnames:
+        normalized = _norm_header(raw_col)
+        if normalized in _PROD_COL_MAP:
+            col_map[raw_col] = _PROD_COL_MAP[normalized]
+
+    if "name" not in col_map.values():
+        raise HTTPException(
+            status_code=400,
+            detail="No se encontró la columna de nombre. Usa 'Nombre', 'Producto' o 'Material'."
+        )
+
+    created, skipped, errors = [], [], []
+
+    for i, row in enumerate(reader, start=2):
+        mapped: dict = {}
+        for raw_col, field in col_map.items():
+            val = (row.get(raw_col) or "").strip()
+            if not val:
+                continue
+            if field in ("total_cost", "presentation_qty", "portion_qty"):
+                val = val.replace("C$", "").replace("$", "").replace(",", "").strip()
+                try:
+                    mapped[field] = float(val)
+                except ValueError:
+                    pass
+            else:
+                mapped[field] = val
+
+        name = mapped.get("name", "").strip()
+        if not name:
+            skipped.append({"row": i, "reason": "Nombre vacío"})
+            continue
+
+        try:
+            data = {
+                "name": name,
+                "category": mapped.get("category", "otros"),
+                "supplier": mapped.get("supplier"),
+                "notes": mapped.get("notes"),
+                "total_cost": mapped.get("total_cost"),
+                "presentation_qty": mapped.get("presentation_qty"),
+                "presentation_unit": mapped.get("presentation_unit"),
+                "portion_qty": mapped.get("portion_qty"),
+                "unit_price": 0.0,
+                "presentation": "",
+                "portion_description": "",
+            }
+            obj = await svc.create_product(db, current_user.clinic_id, data)
+            created.append({"id": str(obj.id), "name": obj.name})
+        except Exception as e:
+            errors.append({"row": i, "name": name, "reason": str(e)})
+
+    return {
+        "success": True,
+        "data": {
+            "created": len(created),
+            "skipped": len(skipped),
+            "errors": len(errors),
+            "error_details": errors[:10],
+            "products": created,
+        },
+    }
+
+
 @router.post("/products/reorder", status_code=204)
 async def reorder_products(
     body: ReorderIn,

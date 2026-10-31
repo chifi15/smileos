@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, Search, X, Edit2, Package, Calculator, ChevronRight, GripVertical, ImagePlus, Users, Loader2, Check, Settings2, AlertTriangle, Download } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Search, X, Edit2, Package, Calculator, ChevronRight, GripVertical, ImagePlus, Users, Loader2, Check, Settings2, AlertTriangle, Download, Upload, CheckCircle2, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -17,7 +17,9 @@ import {
   useRenameCostCategory,
   useDeleteCostCategory,
   useDeleteCostProducts,
+  useImportCostProducts,
   ApiProduct,
+  type ImportResult,
 } from "@/hooks/useCostos";
 import {
   ProductCategory,
@@ -608,6 +610,105 @@ function SortableProductRow({ product, onEdit, onViewUsage, isDragDisabled, exch
 
 // ─── Página ───────────────────────────────────────────────────────────────────
 
+function ImportProductsModal({ onClose }: { onClose: () => void }) {
+  const importMutation = useImportCostProducts();
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [result, setResult] = useState<ImportResult | null>(null);
+
+  function downloadTemplate() {
+    const csv = "Nombre,Categoría,Proveedor,Costo total (C$),Cantidad presentación,Unidad,Cantidad por porción,Notas\nAnestesia lidocaína,anestesia,Proveedor X,500,50,ml,2,\nGuantes de látex,desechable,,250,100,unidades,1,\n";
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = "plantilla_productos.csv"; a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleImport() {
+    if (!file) return;
+    const res = await importMutation.mutateAsync(file);
+    setResult(res);
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-800 shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-700 px-6 py-4">
+          <h2 className="font-semibold text-slate-800 dark:text-white">Importar productos desde CSV</h2>
+          <button onClick={onClose} className="text-slate-400 hover:text-slate-600 dark:text-gray-500 dark:hover:text-gray-300"><X size={18} /></button>
+        </div>
+
+        <div className="px-6 py-5 space-y-4">
+          {!result ? (
+            <>
+              <div className="rounded-xl bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-800/30 p-4 text-sm text-blue-800 dark:text-blue-300 space-y-1">
+                <p className="font-semibold">Cómo preparar tu Excel:</p>
+                <ol className="list-decimal list-inside space-y-0.5 text-blue-700 dark:text-blue-400">
+                  <li>Guarda como <strong>CSV UTF-8</strong> desde Archivo → Guardar como</li>
+                  <li>Columnas: <em>Nombre, Categoría, Proveedor, Costo total, Cantidad presentación, Unidad, Cantidad por porción, Notas</em></li>
+                  <li>Solo <strong>Nombre</strong> es obligatorio — el resto lo completas luego</li>
+                </ol>
+              </div>
+
+              <button onClick={downloadTemplate} className="flex items-center gap-2 text-sm text-blue-600 dark:text-blue-400 hover:underline">
+                <Download size={14} /> Descargar plantilla de ejemplo
+              </button>
+
+              <div
+                onClick={() => fileRef.current?.click()}
+                className="flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-slate-200 dark:border-gray-600 py-8 cursor-pointer hover:border-blue-300 hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors"
+              >
+                <Upload size={24} className="text-slate-300 dark:text-gray-600" />
+                <p className="text-sm text-slate-500 dark:text-gray-400">
+                  {file ? <span className="font-medium text-blue-600">{file.name}</span> : "Haz clic para seleccionar tu archivo CSV"}
+                </p>
+                <input ref={fileRef} type="file" accept=".csv,text/csv" className="hidden" onChange={(e) => setFile(e.target.files?.[0] ?? null)} />
+              </div>
+            </>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3 rounded-xl bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800/30 px-4 py-3">
+                <CheckCircle2 size={20} className="text-green-600 shrink-0" />
+                <div>
+                  <p className="font-semibold text-green-800 dark:text-green-300">
+                    {result.created} producto{result.created !== 1 ? "s" : ""} agregado{result.created !== 1 ? "s" : ""}
+                  </p>
+                  {result.skipped > 0 && <p className="text-xs text-green-700 dark:text-green-400">{result.skipped} filas vacías omitidas</p>}
+                  <p className="text-xs text-green-700 dark:text-green-400 mt-0.5">Abre cada uno para completar precios y porciones.</p>
+                </div>
+              </div>
+              {result.error_details.length > 0 && (
+                <div className="rounded-xl bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-800/30 px-4 py-3">
+                  <div className="flex items-center gap-2 mb-2">
+                    <AlertCircle size={16} className="text-red-500 shrink-0" />
+                    <p className="text-sm font-semibold text-red-700 dark:text-red-400">{result.errors} fila{result.errors !== 1 ? "s" : ""} con error</p>
+                  </div>
+                  {result.error_details.map((e, i) => (
+                    <p key={i} className="text-xs text-red-600 dark:text-red-400">Fila {e.row}: {e.name} — {e.reason}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-3 border-t border-slate-100 dark:border-gray-700 px-6 py-4">
+          <button onClick={onClose} className="rounded-lg border border-slate-200 dark:border-gray-600 px-4 py-2 text-sm font-medium text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700">
+            {result ? "Cerrar" : "Cancelar"}
+          </button>
+          {!result && (
+            <button onClick={handleImport} disabled={!file || importMutation.isPending}
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50 flex items-center gap-2">
+              {importMutation.isPending ? "Importando…" : <><Upload size={14} /> Importar</>}
+            </button>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function exportProductsToCSV(products: ApiProduct[]) {
   const rows = [
     ["Nombre", "Categoría", "Proveedor", "Costo total (C$)", "Cantidad presentación", "Unidad", "Cantidad por porción", "Notas"],
@@ -647,6 +748,7 @@ export default function ProductosPage() {
     () => searchParams.get("stock") === "bajo" ? "bajo" : null
   );
   const [showNew, setShowNew] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
   const [showManageCategories, setShowManageCategories] = useState(false);
   const [usageProduct, setUsageProduct] = useState<ApiProduct | null>(null);
@@ -768,6 +870,7 @@ export default function ProductosPage() {
         </div>
         <div className="flex items-center gap-2">
           <Button variant="secondary" size="sm" onClick={() => exportProductsToCSV(products)} disabled={products.length === 0}><Download size={15} /> Exportar CSV</Button>
+          <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}><Upload size={15} /> Importar CSV</Button>
           <Button size="sm" onClick={() => setShowNew(true)}><Plus size={15} /> Nuevo producto</Button>
         </div>
       </div>
@@ -917,6 +1020,7 @@ export default function ProductosPage() {
         {isDragDisabled ? " · Limpia la búsqueda para reordenar" : " · Arrastra para reordenar · Pasa el mouse para editar"}
       </p>
 
+      {showImport && <ImportProductsModal onClose={() => setShowImport(false)} />}
       {showNew && (
         <ProductModal
           extraCategories={allCategoriesInUse}

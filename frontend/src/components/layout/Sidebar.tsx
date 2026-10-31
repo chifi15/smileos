@@ -568,7 +568,11 @@ export default function Sidebar({ mobileOpen = false, onMobileClose }: SidebarPr
                     <div className="space-y-0.5">
                       {items.map(({ label, href, icon: Icon }) => {
                         const active =
-                          pathname === href || pathname.startsWith(href + "/");
+                          pathname === href ||
+                          (pathname.startsWith(href + "/") &&
+                            !Array.from(ALL_HREFS).some(
+                              (h) => h !== href && h.length > href.length && pathname.startsWith(h)
+                            ));
                         return (
                           <Link
                             key={href}
