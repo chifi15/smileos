@@ -20,9 +20,10 @@ import {
   useDuplicateCostTreatment,
   useReorderCostTreatments,
   useUpdateCostTreatment,
+  useImportCostTreatments,
   ApiTreatment,
+  type ImportResult,
 } from "@/hooks/useCostos";
-import { useImportProcedures, useProcedures, type ImportResult } from "@/hooks/useCatalog";
 import { calculateTreatmentCosts, fmtC, apiProductToProduct, apiTreatmentToTreatment } from "@/lib/costos-utils";
 import { useEscapeKey } from "@/lib/utils";
 import Button from "@/components/ui/Button";
@@ -294,13 +295,13 @@ function TreatmentCard({ treatment, globalFixedCost }: { treatment: ApiTreatment
 
 function ImportModal({ onClose }: { onClose: () => void }) {
   useEscapeKey(onClose);
-  const importMutation = useImportProcedures();
+  const importMutation = useImportCostTreatments();
   const fileRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
 
   function downloadTemplate() {
-    const csv = "Nombre,Precio,Duración (minutos),Categoría,Descripción\nLimpieza dental,500,45,preventivo,Limpieza profesional\nExtracción simple,800,30,cirugia,\n";
+    const csv = "Nombre,Precio,Descripción\nLimpieza dental,500,Limpieza profesional\nExtracción simple,800,\n";
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -332,8 +333,8 @@ function ImportModal({ onClose }: { onClose: () => void }) {
                 <p className="font-semibold">Cómo preparar tu Excel:</p>
                 <ol className="list-decimal list-inside space-y-0.5 text-blue-700 dark:text-blue-400">
                   <li>Abre tu Excel y ve a <strong>Archivo → Guardar como → CSV UTF-8</strong></li>
-                  <li>Las columnas pueden llamarse: <em>Nombre, Precio, Duración, Categoría, Descripción</em></li>
-                  <li>Solo <strong>Nombre</strong> es obligatorio</li>
+                  <li>Las columnas pueden llamarse: <em>Nombre, Precio, Descripción</em></li>
+                  <li>Solo <strong>Nombre</strong> es obligatorio — el resto lo completas luego</li>
                 </ol>
               </div>
 
@@ -369,9 +370,10 @@ function ImportModal({ onClose }: { onClose: () => void }) {
                 <CheckCircle2 size={20} className="text-green-600 shrink-0" />
                 <div>
                   <p className="font-semibold text-green-800 dark:text-green-300">
-                    {result.created} tratamiento{result.created !== 1 ? "s" : ""} importado{result.created !== 1 ? "s" : ""}
+                    {result.created} tratamiento{result.created !== 1 ? "s" : ""} agregado{result.created !== 1 ? "s" : ""} a Costos Operativos
                   </p>
                   {result.skipped > 0 && <p className="text-xs text-green-700 dark:text-green-400">{result.skipped} filas vacías omitidas</p>}
+                  <p className="text-xs text-green-700 dark:text-green-400 mt-0.5">Abre cada uno para completar horas, materiales y margen.</p>
                 </div>
               </div>
 
@@ -414,15 +416,13 @@ function ImportModal({ onClose }: { onClose: () => void }) {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
-function exportProceduresToCSV(procedures: { name: string; default_price?: number | null; default_duration_minutes?: number | null; category?: string | null; description?: string | null }[]) {
+function exportTreatmentsToCSV(treatments: ApiTreatment[]) {
   const rows = [
-    ["Nombre", "Precio", "Duración (minutos)", "Categoría", "Descripción"],
-    ...procedures.map((p) => [
-      p.name,
-      p.default_price ?? "",
-      p.default_duration_minutes ?? "",
-      p.category ?? "",
-      p.description ?? "",
+    ["Nombre", "Precio", "Descripción"],
+    ...treatments.map((t) => [
+      t.name,
+      t.suggested_price ?? "",
+      t.description ?? "",
     ]),
   ];
   const csv = "﻿" + rows.map((r) =>
@@ -431,13 +431,12 @@ function exportProceduresToCSV(procedures: { name: string; default_price?: numbe
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
-  a.href = url; a.download = "tratamientos.csv"; a.click();
+  a.href = url; a.download = "costos_operativos.csv"; a.click();
   URL.revokeObjectURL(url);
 }
 
 export default function CostosPage() {
   const { data: treatments = [], isLoading } = useCostTreatments();
-  const { data: procedures = [] } = useProcedures();
   const { data: fixedCosts } = useFixedCosts();
   const { data: honorariosConfig } = useHonorariosConfig();
   const reorderTreatments = useReorderCostTreatments();
@@ -483,7 +482,7 @@ export default function CostosPage() {
           <Link href="/costos/productos">
             <Button variant="secondary" size="sm"><Package size={15} /> Productos</Button>
           </Link>
-          <Button variant="secondary" size="sm" onClick={() => exportProceduresToCSV(procedures)} disabled={procedures.length === 0}><Download size={15} /> Exportar CSV</Button>
+          <Button variant="secondary" size="sm" onClick={() => exportTreatmentsToCSV(treatments)} disabled={treatments.length === 0}><Download size={15} /> Exportar CSV</Button>
           <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}><Upload size={15} /> Importar CSV</Button>
           <Button size="sm" onClick={() => setShowModal(true)}><Plus size={15} /> Nuevo tratamiento</Button>
         </div>

@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import toast from "react-hot-toast";
 import api from "@/lib/api-client";
 
 // ─── Types (matching backend) ──────────────────────────────────────────────
@@ -471,5 +472,44 @@ export function useDeleteProductLot() {
     mutationFn: ({ productId, lotId }: { productId: string; lotId: string }) =>
       api.delete(`/api/v1/costos/products/${productId}/lots/${lotId}`),
     onSuccess: (_data, vars) => qc.invalidateQueries({ queryKey: ["costos", "lots", vars.productId] }),
+  });
+}
+
+// ─── Import ───────────────────────────────────────────────────────────────
+
+export interface ImportResult {
+  created: number;
+  skipped: number;
+  errors: number;
+  error_details: { row: number; name: string; reason: string }[];
+  treatments: { id: string; name: string }[];
+}
+
+export function useImportCostTreatments() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File): Promise<ImportResult> => {
+      const fd = new FormData();
+      fd.append("file", file);
+      const { data } = await api.post<{ data: ImportResult }>(
+        "/api/v1/costos/treatments/import",
+        fd,
+      );
+      return data.data;
+    },
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: TREATMENTS_KEY });
+      const n = result.created;
+      const s = n !== 1;
+      if (result.errors === 0) {
+        toast.success(`${n} tratamiento${s ? "s" : ""} importado${s ? "s" : ""} en Costos Operativos.`);
+      } else {
+        toast.error(`${n} importados, ${result.errors} con error.`);
+      }
+    },
+    onError: (err: unknown) => {
+      const e = err as { response?: { data?: { detail?: string } } };
+      toast.error(e?.response?.data?.detail ?? "Error al importar.");
+    },
   });
 }
