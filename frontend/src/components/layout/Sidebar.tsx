@@ -363,8 +363,8 @@ export default function Sidebar() {
   useEffect(() => {
     if (!editMode) return;
     const handler = (e: KeyboardEvent) => { if (e.key === "Escape") setEditMode(false); };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
+    document.addEventListener("keydown", handler, true);
+    return () => document.removeEventListener("keydown", handler, true);
   }, [editMode]);
 
   const sensors = useSensors(
