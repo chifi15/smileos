@@ -145,7 +145,7 @@ export default function CostosFijosPage() {
   const router = useRouter();
 
   const items = config?.items ?? [];
-  const patientsPerMonth = config?.patients_per_month ?? 40;
+  const patientsPerMonth = config?.patients_per_month ?? 0;
   const totalMensual = items.reduce((s, i) => s + i.amount, 0);
   const perPaciente = patientsPerMonth > 0 ? totalMensual / patientsPerMonth : 0;
 
@@ -265,10 +265,12 @@ export default function CostosFijosPage() {
               </div>
             ) : (
               <button
-                onClick={() => { setPatientsDraft(String(patientsPerMonth)); setEditingPatients(true); }}
+                onClick={() => { setPatientsDraft(patientsPerMonth > 0 ? String(patientsPerMonth) : ""); setEditingPatients(true); }}
                 className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-gray-600 px-4 py-2 hover:border-blue-300 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-colors group/p"
               >
-                <span className="text-sm font-semibold text-slate-800 dark:text-white">{patientsPerMonth} pacientes</span>
+                <span className="text-sm font-semibold text-slate-800 dark:text-white">
+                  {patientsPerMonth > 0 ? `${patientsPerMonth} pacientes` : "— Ingresar —"}
+                </span>
                 <Pencil size={12} className="text-slate-300 dark:text-gray-600 group-hover/p:text-blue-500" />
               </button>
             )}
@@ -281,11 +283,15 @@ export default function CostosFijosPage() {
             </div>
             <div className="flex items-center justify-between text-sm mb-3 pb-3 border-b border-slate-200 dark:border-gray-600">
               <span className="text-slate-500 dark:text-gray-400">÷ Pacientes por mes</span>
-              <span className="font-medium text-slate-700 dark:text-gray-300">{patientsPerMonth}</span>
+              <span className="font-medium text-slate-700 dark:text-gray-300">
+                {patientsPerMonth > 0 ? patientsPerMonth : "—"}
+              </span>
             </div>
             <div className="flex items-center justify-between">
               <span className="font-semibold text-slate-800 dark:text-white">= Costo fijo por paciente</span>
-              <span className="text-xl font-bold text-blue-700 dark:text-blue-400 tabular-nums">{fmtC(perPaciente)}</span>
+              <span className="text-xl font-bold text-blue-700 dark:text-blue-400 tabular-nums">
+                {patientsPerMonth > 0 ? fmtC(perPaciente) : "—"}
+              </span>
             </div>
           </div>
 
