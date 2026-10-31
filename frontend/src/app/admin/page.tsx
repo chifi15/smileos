@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   AlertTriangle,
   RefreshCw,
+  Copy,
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "https://smileos.onrender.com";
@@ -120,16 +121,18 @@ function PlanBadge({ plan }: { plan: string }) {
 
 // ─── Clinic Drawer ────────────────────────────────────────────────────────────
 
-type Tab = "plan" | "inventario" | "tratamientos" | "costos";
+type Tab = "plan" | "inventario" | "tratamientos" | "costos" | "copiar";
 
 function ClinicDrawer({
   clinic,
   secret,
+  allClinics,
   onClose,
   onPlanChanged,
 }: {
   clinic: ClinicRow;
   secret: string;
+  allClinics: ClinicRow[];
   onClose: () => void;
   onPlanChanged: (id: string, plan: string) => void;
 }) {
@@ -159,6 +162,7 @@ function ClinicDrawer({
     { key: "inventario", label: "Inventario", icon: Package },
     { key: "tratamientos", label: "Tratamientos", icon: Stethoscope },
     { key: "costos", label: "Costos Fijos", icon: DollarSign },
+    { key: "copiar", label: "Copiar Setup", icon: Copy },
   ];
 
   return (
@@ -210,6 +214,9 @@ function ClinicDrawer({
           )}
           {tab === "costos" && (
             <CostosFijosTab clinicId={clinic.id} secret={secret} detail={detail} loading={loadingDetail} onReload={loadDetail} />
+          )}
+          {tab === "copiar" && (
+            <CopiarSetupTab clinicId={clinic.id} secret={secret} allClinics={allClinics} />
           )}
         </div>
       </div>
@@ -895,6 +902,122 @@ function CostosFijosTab({
   );
 }
 
+// ─── CopiarSetupTab ───────────────────────────────────────────────────────────
+
+function CopiarSetupTab({
+  clinicId,
+  secret,
+  allClinics,
+}: {
+  clinicId: string;
+  secret: string;
+  allClinics: ClinicRow[];
+}) {
+  const [sourceId, setSourceId] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<{ products_copied: number; treatments_copied: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const options = allClinics.filter((c) => c.id !== clinicId);
+
+  async function handleCopy() {
+    if (!sourceId) return;
+    setLoading(true);
+    setResult(null);
+    setError(null);
+    try {
+      const { data } = await api(secret).post(
+        `/api/v1/admin/clinics/${clinicId}/copy-from/${sourceId}`
+      );
+      setResult(data.data);
+    } catch (e: unknown) {
+      const msg =
+        (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
+        "Error al copiar el setup.";
+      setError(msg);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  const sourceName = allClinics.find((c) => c.id === sourceId)?.display_name;
+
+  return (
+    <div className="p-6 space-y-5">
+      <div>
+        <h3 className="text-sm font-semibold text-slate-800 dark:text-white mb-1">
+          Copiar setup desde otra clínica
+        </h3>
+        <p className="text-xs text-slate-500 dark:text-gray-400 leading-relaxed">
+          Copia todos los <strong>productos</strong> (inventario) y{" "}
+          <strong>tratamientos de costos</strong> de la clínica seleccionada a esta clínica.
+          Los datos existentes <em>no</em> se borran — solo se agregan los nuevos.
+        </p>
+      </div>
+
+      <div className="rounded-lg border border-amber-200 bg-amber-50 dark:border-amber-800/40 dark:bg-amber-900/20 px-4 py-3 text-xs text-amber-700 dark:text-amber-400">
+        <AlertTriangle size={13} className="inline mr-1.5 -mt-0.5" />
+        Esta acción no se puede deshacer. Revisa que estés copiando a la clínica correcta.
+      </div>
+
+      <div className="space-y-2">
+        <label className="block text-xs font-medium text-slate-600 dark:text-gray-300">
+          Clínica origen
+        </label>
+        <select
+          value={sourceId}
+          onChange={(e) => { setSourceId(e.target.value); setResult(null); setError(null); }}
+          className="w-full rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm text-slate-800 dark:text-white focus:border-violet-400 focus:outline-none focus:ring-2 focus:ring-violet-100"
+        >
+          <option value="">Seleccionar clínica…</option>
+          {options.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.display_name} — {c.owner_email ?? c.slug}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {sourceId && (
+        <div className="rounded-lg border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-900 px-4 py-3 text-xs text-slate-600 dark:text-gray-400">
+          Se copiarán todos los productos e inventario y tratamientos de costos de{" "}
+          <span className="font-semibold text-slate-800 dark:text-white">{sourceName}</span>{" "}
+          a esta clínica.
+        </div>
+      )}
+
+      <button
+        onClick={handleCopy}
+        disabled={!sourceId || loading}
+        className="flex items-center gap-2 rounded-lg bg-violet-600 hover:bg-violet-700 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2.5 text-sm font-medium text-white transition-colors"
+      >
+        {loading ? <Loader2 size={15} className="animate-spin" /> : <Copy size={15} />}
+        {loading ? "Copiando…" : "Copiar Setup"}
+      </button>
+
+      {result && (
+        <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 dark:border-emerald-800/40 dark:bg-emerald-900/20 px-4 py-3">
+          <CheckCircle2 size={16} className="mt-0.5 text-emerald-600 dark:text-emerald-400 shrink-0" />
+          <div className="text-xs text-emerald-700 dark:text-emerald-400">
+            <p className="font-semibold mb-0.5">Setup copiado correctamente</p>
+            <p>
+              {result.products_copied} producto{result.products_copied !== 1 ? "s" : ""} y{" "}
+              {result.treatments_copied} tratamiento{result.treatments_copied !== 1 ? "s" : ""} agregados.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 dark:border-red-800/40 dark:bg-red-900/20 px-4 py-3 text-xs text-red-600 dark:text-red-400">
+          <AlertTriangle size={13} className="inline mr-1.5 -mt-0.5" />
+          {error}
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ─── Main Admin Page ──────────────────────────────────────────────────────────
 
 export default function AdminPage() {
@@ -1063,6 +1186,7 @@ export default function AdminPage() {
         <ClinicDrawer
           clinic={selected}
           secret={secret}
+          allClinics={clinics}
           onClose={() => setSelected(null)}
           onPlanChanged={handlePlanChanged}
         />

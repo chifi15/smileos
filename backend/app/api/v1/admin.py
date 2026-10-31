@@ -17,7 +17,7 @@ from app.core.database import get_db
 from app.models.clinic import Clinic, ClinicSettings
 from app.models.user import User
 from app.models.patient import Patient
-from app.models.costos import CostProduct, CostTreatment, FixedCostsConfig
+from app.models.costos import CostProduct, CostTreatment, CostAppointment, FixedCostsConfig
 from app.services import costos_service
 
 settings = get_settings()
@@ -298,6 +298,78 @@ async def delete_treatment(
         raise HTTPException(status_code=404, detail="Tratamiento no encontrado.")
     await db.delete(treatment)
     await db.commit()
+
+
+@router.post("/clinics/{clinic_id}/copy-from/{source_clinic_id}", status_code=200)
+async def copy_setup_from_clinic(
+    clinic_id: uuid.UUID,
+    source_clinic_id: uuid.UUID,
+    _: Annotated[None, AdminAuth],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Copia todos los productos y tratamientos de costos de una clínica origen a la clínica destino."""
+    if clinic_id == source_clinic_id:
+        raise HTTPException(status_code=400, detail="La clínica origen y destino no pueden ser la misma.")
+
+    # Verificar que ambas clínicas existen
+    for cid, label in [(clinic_id, "destino"), (source_clinic_id, "origen")]:
+        exists = await db.scalar(select(Clinic.id).where(Clinic.id == cid))
+        if not exists:
+            raise HTTPException(status_code=404, detail=f"Clínica {label} no encontrada.")
+
+    # Cargar productos de origen
+    products_result = await db.execute(
+        select(CostProduct)
+        .where(CostProduct.clinic_id == source_clinic_id)
+        .order_by(CostProduct.sort_order)
+    )
+    source_products = list(products_result.scalars().all())
+
+    # Cargar tratamientos con citas de origen
+    treatments_result = await db.execute(
+        select(CostTreatment)
+        .where(CostTreatment.clinic_id == source_clinic_id)
+        .options(selectinload(CostTreatment.appointments))
+        .order_by(CostTreatment.sort_order)
+    )
+    source_treatments = list(treatments_result.scalars().all())
+
+    # Copiar productos
+    products_copied = 0
+    for p in source_products:
+        data = {
+            "name": p.name, "category": p.category, "unit_price": p.unit_price,
+            "presentation": p.presentation, "portion_description": p.portion_description,
+            "supplier": p.supplier, "notes": p.notes, "total_cost": p.total_cost,
+            "presentation_qty": p.presentation_qty, "presentation_unit": p.presentation_unit,
+            "portion_qty": p.portion_qty, "stock_qty": p.stock_qty,
+            "min_stock_qty": p.min_stock_qty, "purchase_date": p.purchase_date,
+        }
+        await costos_service.create_product(db, clinic_id, data)
+        products_copied += 1
+
+    # Copiar tratamientos con sus citas
+    treatments_copied = 0
+    for t in source_treatments:
+        data = {
+            "name": t.name, "description": t.description,
+            "professional_fee_per_hour": t.professional_fee_per_hour,
+            "total_hours": t.total_hours, "fixed_costs": t.fixed_costs,
+            "clinic_margin_pct": t.clinic_margin_pct, "suggested_price": t.suggested_price,
+            "procedure_catalog_id": t.procedure_catalog_id,
+        }
+        appointments = [
+            {"number": a.number, "name": a.name, "materials": a.materials}
+            for a in t.appointments
+        ]
+        await costos_service.create_treatment(db, clinic_id, data, appointments)
+        treatments_copied += 1
+
+    await db.commit()
+    return {
+        "success": True,
+        "data": {"products_copied": products_copied, "treatments_copied": treatments_copied},
+    }
 
 
 @router.put("/clinics/{clinic_id}/fixed-costs")
