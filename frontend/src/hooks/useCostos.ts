@@ -121,22 +121,24 @@ export function useDeleteCostProducts() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (ids: string[]) => {
+      let deleted = 0;
       for (const id of ids) {
-        await api.delete(`/api/v1/costos/products/${id}`);
+        try {
+          await api.delete(`/api/v1/costos/products/${id}`);
+          deleted++;
+        } catch {
+          // skip products that can't be found and continue
+        }
       }
+      return { total: ids.length, deleted };
     },
-    onSuccess: (_data, ids) => {
+    onSuccess: ({ total, deleted }) => {
       qc.invalidateQueries({ queryKey: PRODUCTS_KEY });
-      toast.success(`${ids.length} producto${ids.length !== 1 ? "s" : ""} eliminado${ids.length !== 1 ? "s" : ""}.`);
-    },
-    onError: (err: unknown) => {
-      const e = err as { response?: { data?: { detail?: string | { message?: string } } }; message?: string };
-      const detail = e?.response?.data?.detail;
-      const msg = typeof detail === "string" ? detail
-        : (detail as { message?: string })?.message
-        ?? e?.message
-        ?? "Error al eliminar.";
-      toast.error(msg);
+      if (deleted === total) {
+        toast.success(`${deleted} producto${deleted !== 1 ? "s" : ""} eliminado${deleted !== 1 ? "s" : ""}.`);
+      } else {
+        toast.success(`${deleted} de ${total} productos eliminados.`);
+      }
     },
   });
 }
