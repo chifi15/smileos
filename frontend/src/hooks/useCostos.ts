@@ -513,3 +513,32 @@ export function useImportCostTreatments() {
     },
   });
 }
+
+export function useImportCostProducts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (file: File): Promise<ImportResult> => {
+      const fd = new FormData();
+      fd.append("file", file);
+      const { data } = await api.post<{ data: ImportResult }>(
+        "/api/v1/costos/products/import",
+        fd,
+      );
+      return data.data;
+    },
+    onSuccess: (result) => {
+      qc.invalidateQueries({ queryKey: PRODUCTS_KEY });
+      const n = result.created;
+      const s = n !== 1;
+      if (result.errors === 0) {
+        toast.success(`${n} producto${s ? "s" : ""} importado${s ? "s" : ""} en Productos.`);
+      } else {
+        toast.error(`${n} importados, ${result.errors} con error.`);
+      }
+    },
+    onError: (err: unknown) => {
+      const e = err as { response?: { data?: { detail?: string } } };
+      toast.error(e?.response?.data?.detail ?? "Error al importar.");
+    },
+  });
+}

@@ -479,9 +479,6 @@ export default function CostosPage() {
           <Link href="/costos/costos-fijos">
             <Button variant="secondary" size="sm"><Package size={15} /> Costos fijos</Button>
           </Link>
-          <Link href="/costos/productos">
-            <Button variant="secondary" size="sm"><Package size={15} /> Productos</Button>
-          </Link>
           <Button variant="secondary" size="sm" onClick={() => exportTreatmentsToCSV(treatments)} disabled={treatments.length === 0}><Download size={15} /> Exportar CSV</Button>
           <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}><Upload size={15} /> Importar CSV</Button>
           <Button size="sm" onClick={() => setShowModal(true)}><Plus size={15} /> Nuevo tratamiento</Button>
