@@ -129,7 +129,15 @@ export function useDeleteCostProducts() {
       qc.invalidateQueries({ queryKey: PRODUCTS_KEY });
       toast.success(`${ids.length} producto${ids.length !== 1 ? "s" : ""} eliminado${ids.length !== 1 ? "s" : ""}.`);
     },
-    onError: () => toast.error("Error al eliminar. Intenta de nuevo."),
+    onError: (err: unknown) => {
+      const e = err as { response?: { data?: { detail?: string | { message?: string } } }; message?: string };
+      const detail = e?.response?.data?.detail;
+      const msg = typeof detail === "string" ? detail
+        : (detail as { message?: string })?.message
+        ?? e?.message
+        ?? "Error al eliminar.";
+      toast.error(msg);
+    },
   });
 }
 
