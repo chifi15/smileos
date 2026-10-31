@@ -1,7 +1,9 @@
+import csv
+import io
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, UploadFile, File, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -9,6 +11,36 @@ from app.core.database import get_db
 from app.core.dependencies import require_permission
 from app.schemas.treatment import ProcedureCreate, ProcedureUpdate
 from app.services import treatment_service, audit_service
+
+# Mapeo flexible de nombres de columna (minúsculas sin tildes)
+_COL_MAP = {
+    # nombre
+    "nombre": "name", "name": "name", "tratamiento": "name",
+    "procedimiento": "name", "servicio": "name",
+    # precio
+    "precio": "default_price", "price": "default_price",
+    "valor": "default_price", "tarifa": "default_price", "costo": "default_price",
+    "precio_venta": "default_price",
+    # duración
+    "duracion": "default_duration_minutes", "duration": "default_duration_minutes",
+    "duracion_minutos": "default_duration_minutes", "minutos": "default_duration_minutes",
+    "tiempo": "default_duration_minutes",
+    # categoría
+    "categoria": "category", "category": "category", "tipo": "category",
+    # descripción
+    "descripcion": "description", "description": "description",
+    "notas": "description", "detalle": "description",
+    # código
+    "codigo": "code", "code": "code", "cod": "code",
+}
+
+
+def _normalize_header(h: str) -> str:
+    """Quita tildes, espacios y convierte a minúscula para comparación flexible."""
+    h = h.strip().lower()
+    for src, dst in [("á","a"),("é","e"),("í","i"),("ó","o"),("ú","u"),("ü","u"),("ñ","n")]:
+        h = h.replace(src, dst)
+    return h
 
 router = APIRouter(prefix="/catalog/procedures", tags=["Catálogo de Procedimientos"])
 
@@ -116,6 +148,93 @@ async def update_procedure(
         )
 
     return {"success": True, "data": _serialize(proc)}
+
+
+@router.post("/import", status_code=201)
+async def import_procedures(
+    file: Annotated[UploadFile, File()],
+    user: Annotated[object, require_permission("manage_catalog")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Importa procedimientos desde un archivo CSV. Columnas flexibles en español o inglés."""
+    content = await file.read()
+    try:
+        text = content.decode("utf-8-sig")  # utf-8-sig maneja el BOM de Excel
+    except UnicodeDecodeError:
+        try:
+            text = content.decode("latin-1")
+        except Exception:
+            raise HTTPException(status_code=400, detail="No se pudo leer el archivo. Guárdalo como CSV UTF-8.")
+
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        raise HTTPException(status_code=400, detail="El archivo CSV está vacío o no tiene encabezados.")
+
+    # Mapear encabezados del archivo a campos internos
+    col_map: dict[str, str] = {}
+    for raw_col in reader.fieldnames:
+        normalized = _normalize_header(raw_col)
+        if normalized in _COL_MAP:
+            col_map[raw_col] = _COL_MAP[normalized]
+
+    if "name" not in col_map.values():
+        raise HTTPException(
+            status_code=400,
+            detail="No se encontró la columna de nombre. Usa 'Nombre', 'Tratamiento' o 'Procedimiento'."
+        )
+
+    created, skipped, errors = [], [], []
+
+    for i, row in enumerate(reader, start=2):
+        mapped: dict = {}
+        for raw_col, field in col_map.items():
+            val = (row.get(raw_col) or "").strip()
+            if not val:
+                continue
+            if field == "default_price":
+                # Limpiar formato: "C$ 1,500.00" → 1500.0
+                val = val.replace("C$", "").replace("$", "").replace(",", "").strip()
+                try:
+                    mapped[field] = float(val)
+                except ValueError:
+                    pass
+            elif field == "default_duration_minutes":
+                try:
+                    mapped[field] = int(float(val))
+                except ValueError:
+                    pass
+            else:
+                mapped[field] = val
+
+        name = mapped.get("name", "").strip()
+        if not name:
+            skipped.append({"row": i, "reason": "Nombre vacío"})
+            continue
+
+        try:
+            proc_data = {
+                "name": name,
+                "default_price": mapped.get("default_price"),
+                "default_duration_minutes": mapped.get("default_duration_minutes", 30),
+                "category": mapped.get("category"),
+                "description": mapped.get("description"),
+                "code": mapped.get("code"),
+            }
+            proc = await treatment_service.create_procedure(db, user.clinic_id, proc_data)
+            created.append(_serialize(proc))
+        except Exception as e:
+            errors.append({"row": i, "name": name, "reason": str(e)})
+
+    return {
+        "success": True,
+        "data": {
+            "created": len(created),
+            "skipped": len(skipped),
+            "errors": len(errors),
+            "error_details": errors[:10],
+            "procedures": created,
+        },
+    }
 
 
 class ReorderBody(BaseModel):
