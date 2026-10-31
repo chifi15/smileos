@@ -1,7 +1,9 @@
+import csv
+import io
 import uuid
 from datetime import date
-from typing import Optional, Any, List
-from fastapi import APIRouter, Depends, HTTPException
+from typing import Annotated, Optional, Any, List
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -405,6 +407,101 @@ async def duplicate_treatment(
         description=f"Duplicó plantilla de tratamiento: {obj.name}",
     )
     return obj
+
+
+_TREAT_COL_MAP = {
+    "nombre": "name", "name": "name", "tratamiento": "name",
+    "procedimiento": "name", "servicio": "name",
+    "precio": "suggested_price", "price": "suggested_price",
+    "precio_sugerido": "suggested_price", "valor": "suggested_price",
+    "tarifa": "suggested_price", "costo": "suggested_price",
+    "descripcion": "description", "description": "description",
+    "notas": "description", "detalle": "description",
+}
+
+
+def _norm_header(h: str) -> str:
+    h = h.strip().lower()
+    for src, dst in [("á","a"),("é","e"),("í","i"),("ó","o"),("ú","u"),("ü","u"),("ñ","n")]:
+        h = h.replace(src, dst)
+    return h
+
+
+@router.post("/treatments/import", status_code=201)
+async def import_treatments(
+    file: Annotated[UploadFile, File()],
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Importa tratamientos desde CSV directamente en Costos Operativos."""
+    content = await file.read()
+    try:
+        text = content.decode("utf-8-sig")
+    except UnicodeDecodeError:
+        try:
+            text = content.decode("latin-1")
+        except Exception:
+            raise HTTPException(status_code=400, detail="No se pudo leer el archivo. Guárdalo como CSV UTF-8.")
+
+    reader = csv.DictReader(io.StringIO(text))
+    if not reader.fieldnames:
+        raise HTTPException(status_code=400, detail="El archivo CSV está vacío o no tiene encabezados.")
+
+    col_map: dict[str, str] = {}
+    for raw_col in reader.fieldnames:
+        normalized = _norm_header(raw_col)
+        if normalized in _TREAT_COL_MAP:
+            col_map[raw_col] = _TREAT_COL_MAP[normalized]
+
+    if "name" not in col_map.values():
+        raise HTTPException(
+            status_code=400,
+            detail="No se encontró la columna de nombre. Usa 'Nombre', 'Tratamiento' o 'Procedimiento'."
+        )
+
+    created, skipped, errors = [], [], []
+
+    for i, row in enumerate(reader, start=2):
+        mapped: dict = {}
+        for raw_col, field in col_map.items():
+            val = (row.get(raw_col) or "").strip()
+            if not val:
+                continue
+            if field == "suggested_price":
+                val = val.replace("C$", "").replace("$", "").replace(",", "").strip()
+                try:
+                    mapped[field] = float(val)
+                except ValueError:
+                    pass
+            else:
+                mapped[field] = val
+
+        name = mapped.get("name", "").strip()
+        if not name:
+            skipped.append({"row": i, "reason": "Nombre vacío"})
+            continue
+
+        try:
+            data = {
+                "name": name,
+                "description": mapped.get("description"),
+                "suggested_price": mapped.get("suggested_price"),
+            }
+            obj = await svc.create_treatment(db, current_user.clinic_id, data, [])
+            created.append({"id": str(obj.id), "name": obj.name})
+        except Exception as e:
+            errors.append({"row": i, "name": name, "reason": str(e)})
+
+    return {
+        "success": True,
+        "data": {
+            "created": len(created),
+            "skipped": len(skipped),
+            "errors": len(errors),
+            "error_details": errors[:10],
+            "treatments": created,
+        },
+    }
 
 
 @router.post("/treatments/reorder", status_code=204)

@@ -1,8 +1,10 @@
 services:
+  # ── Producción (rama master) ───────────────────────────────────────────────
   - type: web
     name: smileos-backend
     runtime: python
     rootDir: backend
+    branch: master
     buildCommand: pip install -r requirements.txt
     startCommand: alembic upgrade heads && uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
@@ -30,3 +32,37 @@ services:
         value: /tmp/smileos-media
       - key: FRONTEND_URL
         value: https://smileos-six.vercel.app
+
+  # ── Staging (rama develop) ─────────────────────────────────────────────────
+  - type: web
+    name: smileos-backend-staging
+    runtime: python
+    rootDir: backend
+    branch: develop
+    buildCommand: pip install -r requirements.txt
+    startCommand: alembic upgrade heads && uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: ENVIRONMENT
+        value: staging
+      - key: DATABASE_URL
+        sync: false
+      - key: SECRET_KEY
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        sync: false
+      - key: REDIS_URL
+        value: ""
+      - key: S3_ENDPOINT_URL
+        sync: false
+      - key: S3_ACCESS_KEY
+        sync: false
+      - key: S3_SECRET_KEY
+        sync: false
+      - key: S3_BUCKET_NAME
+        value: smileos-media-staging
+      - key: S3_REGION
+        value: auto
+      - key: LOCAL_MEDIA_PATH
+        value: /tmp/smileos-media-staging
+      - key: FRONTEND_URL
+        value: https://smileos-staging.vercel.app
