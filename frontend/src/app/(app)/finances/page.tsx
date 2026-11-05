@@ -838,9 +838,13 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         doctor_id: form.doctor_id || null,
         invoice_number: form.invoice_number.trim() || null,
         notes: form.notes.trim() || null,
-        deducted_materials: resolvedMaterials ? resolvedMaterials.map((m) => ({ productId: m.productId, qty: m.qty, altGroup: m.altGroup ?? null })) : null,
-        extra_procedures: extraProcedures.filter((ep) => !!ep.cost_treatment_id).map((ep) => ({ cost_treatment_id: ep.cost_treatment_id, appointment_id: ep.appointment_id })),
       };
+      // Solo sobreescribir materiales/extras si fueron inicializados en este modal;
+      // de lo contrario, el backend mantiene los valores guardados.
+      if (resolvedMaterials !== null) {
+        payload.deducted_materials = resolvedMaterials.map((m) => ({ productId: m.productId, qty: m.qty, altGroup: m.altGroup ?? null }));
+        payload.extra_procedures = extraProcedures.filter((ep) => !!ep.cost_treatment_id).map((ep) => ({ cost_treatment_id: ep.cost_treatment_id, appointment_id: ep.appointment_id }));
+      }
       if (opCostOverride !== null) payload.operational_cost_override = opCostOverride;
       update.mutate({ txId: editTx!.id, payload }, { onSuccess: onClose });
       return;

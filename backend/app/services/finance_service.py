@@ -515,7 +515,32 @@ async def update_transaction(
     if "cost_appointment_id" in data:
         tx.cost_appointment_id = data["cost_appointment_id"] or None
 
-    if "procedure_id" in data:
+    if "cost_treatment_id" in data:
+        new_ct_id = data["cost_treatment_id"]
+        if not new_ct_id:
+            tx.cost_treatment_id = None
+            tx.procedure_id = None
+            tx.operational_cost_snapshot = None
+        else:
+            ct = await db.scalar(
+                select(CostTreatment).where(
+                    CostTreatment.id == uuid.UUID(str(new_ct_id)),
+                    CostTreatment.clinic_id == clinic_id,
+                )
+            )
+            if ct:
+                tx.cost_treatment_id = uuid.UUID(str(new_ct_id))
+                tx.procedure_id = None
+                if upd_cost_override is not None:
+                    tx.operational_cost_snapshot = round(Decimal(str(upd_cost_override)), 2)
+                elif upd_quantity is not None:
+                    fee = Decimal(str(ct.professional_fee_per_hour or 0)) * Decimal(str(ct.total_hours or 0))
+                    fixed = Decimal(str(ct.fixed_costs or 0))
+                    margin = Decimal(str(ct.clinic_margin_pct or 0))
+                    raw = (fee + fixed) * upd_quantity / upd_sessions
+                    tx.operational_cost_snapshot = round(raw * (1 + margin), 2)
+
+    elif "procedure_id" in data:
         proc_id = data["procedure_id"]
         if not proc_id:
             tx.procedure_id = None
