@@ -360,22 +360,31 @@ function QuickPaymentModal({
               }
               return (
                 <div className="flex gap-1">
-                  <select value={dd} onChange={(e) => update(yyyy, mm, e.target.value)} className={selectCls + " w-16"}>
-                    {Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0")).map((d) => (
-                      <option key={d} value={d}>{d}</option>
-                    ))}
-                  </select>
-                  <select value={mm} onChange={(e) => update(yyyy, e.target.value, dd)} className={selectCls + " flex-1"}>
-                    {months.map((name, i) => {
-                      const val = String(i + 1).padStart(2, "0");
-                      return <option key={val} value={val}>{name}</option>;
-                    })}
-                  </select>
-                  <select value={yyyy} onChange={(e) => update(e.target.value, mm, dd)} className={selectCls + " w-24"}>
-                    {[currentYear - 1, currentYear, currentYear + 1].map((y) => (
-                      <option key={y} value={String(y)}>{y}</option>
-                    ))}
-                  </select>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] text-slate-400 text-center">Día</span>
+                    <select value={dd} onChange={(e) => update(yyyy, mm, e.target.value)} className={selectCls + " w-16"}>
+                      {Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0")).map((d) => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-0.5 flex-1">
+                    <span className="text-[10px] text-slate-400 text-center">Mes</span>
+                    <select value={mm} onChange={(e) => update(yyyy, e.target.value, dd)} className={selectCls + " w-full"}>
+                      {months.map((name, i) => {
+                        const val = String(i + 1).padStart(2, "0");
+                        return <option key={val} value={val}>{name}</option>;
+                      })}
+                    </select>
+                  </div>
+                  <div className="flex flex-col gap-0.5">
+                    <span className="text-[10px] text-slate-400 text-center">Año</span>
+                    <select value={yyyy} onChange={(e) => update(e.target.value, mm, dd)} className={selectCls + " w-24"}>
+                      {[currentYear - 1, currentYear, currentYear + 1].map((y) => (
+                        <option key={y} value={String(y)}>{y}</option>
+                      ))}
+                    </select>
+                  </div>
                 </div>
               );
             })()}
