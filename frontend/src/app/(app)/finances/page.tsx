@@ -1290,19 +1290,17 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
             );
           })()}
 
-          {isIngreso && (
-            <div>
-              <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Doctor que realizó el procedimiento</label>
-              <select value={form.doctor_id}
-                onChange={(e) => set("doctor_id", e.target.value)}
-                className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-                <option value="">— Sin asignar —</option>
-                {doctors.map((d) => (
-                  <option key={d.id} value={d.id}>{d.full_name}</option>
-                ))}
-              </select>
-            </div>
-          )}
+          <div>
+            <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Doctor</label>
+            <select value={form.doctor_id}
+              onChange={(e) => set("doctor_id", e.target.value)}
+              className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
+              <option value="">— Sin asignar —</option>
+              {doctors.map((d) => (
+                <option key={d.id} value={d.id}>{d.full_name}</option>
+              ))}
+            </select>
+          </div>
 
           {/* ── Panel de materiales ── */}
           {usedMaterials !== null && (
