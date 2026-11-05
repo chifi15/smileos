@@ -1,31 +1,21 @@
-"""add cost_treatment_id to finance_transactions
+"""backfill cost_treatment_id in finance_transactions via procedure_catalog_id link
 
 Revision ID: zf01costtreatid2026
-Revises: ze01doctordaysoff2026
+Revises: zh01costtxlink2026
 Create Date: 2026-11-05
 """
 from alembic import op
-import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 
 revision = "zf01costtreatid2026"
-down_revision = "ze01doctordaysoff2026"
+down_revision = "zh01costtxlink2026"
 branch_labels = None
 depends_on = None
 
 
 def upgrade() -> None:
-    op.add_column(
-        "finance_transactions",
-        sa.Column("cost_treatment_id", postgresql.UUID(as_uuid=True), nullable=True),
-    )
-    op.create_foreign_key(
-        "fk_finance_transactions_cost_treatment_id",
-        "finance_transactions", "cost_treatments",
-        ["cost_treatment_id"], ["id"],
-        ondelete="SET NULL",
-    )
-    # Migrate existing procedure_id -> cost_treatment_id via procedure_catalog_id link
+    # Column was already added by zh01costtxlink2026.
+    # Backfill cost_treatment_id for existing transactions that referenced a
+    # catalog procedure linked to a CostTreatment.
     op.execute("""
         UPDATE finance_transactions ft
         SET cost_treatment_id = ct.id
@@ -37,5 +27,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    op.drop_constraint("fk_finance_transactions_cost_treatment_id", "finance_transactions", type_="foreignkey")
-    op.drop_column("finance_transactions", "cost_treatment_id")
+    op.execute("""
+        UPDATE finance_transactions
+        SET cost_treatment_id = NULL
+        WHERE cost_treatment_id IS NOT NULL
+    """)
