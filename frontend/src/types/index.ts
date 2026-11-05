@@ -661,10 +661,12 @@ export interface FinanceTransaction {
   exchange_rate_used: number | null;
   patient: { id: string; full_name: string } | null;
   procedure: { id: string; name: string } | null;
+  cost_treatment_id: string | null;
+  cost_treatment: { id: string; name: string } | null;
   procedure_quantity: number;
   cost_appointment_id: string | null;
   deducted_materials: { productId: string; qty: number; altGroup?: string | null }[] | null;
-  extra_procedures: { procedure_id: string; appointment_id: string }[] | null;
+  extra_procedures: { cost_treatment_id?: string; procedure_id?: string; appointment_id: string }[] | null;
   operational_cost_snapshot: number | null;
   doctor: { id: string; full_name: string } | null;
   invoice_number: string | null;
@@ -694,6 +696,7 @@ export interface TransactionCreatePayload {
   original_currency: "NIO" | "USD";
   patient_id?: string;
   procedure_id?: string;
+  cost_treatment_id?: string;
   cost_appointment_id?: string;
   quantity?: number;
   sessions?: number;
@@ -703,7 +706,7 @@ export interface TransactionCreatePayload {
   transaction_date: string;
   notes?: string;
   deducted_materials?: { productId: string; qty: number; altGroup?: string | null }[] | null;
-  extra_procedures?: { procedure_id: string; appointment_id: string }[] | null;
+  extra_procedures?: { cost_treatment_id?: string; procedure_id?: string; appointment_id: string }[] | null;
 }
 
 

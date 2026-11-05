@@ -164,6 +164,7 @@ function DetailModal({ entry, onClose }: { entry: AuditLog; onClose: () => void 
       original_currency: (tx.original_currency ?? "NIO") as "NIO" | "USD",
       transaction_date: tx.transaction_date,
       patient_id: tx.patient?.id,
+      cost_treatment_id: tx.cost_treatment_id ?? undefined,
       procedure_id: tx.procedure?.id,
       cost_appointment_id: tx.cost_appointment_id ?? undefined,
       quantity: tx.procedure_quantity ?? 1,
@@ -265,7 +266,7 @@ function DetailModal({ entry, onClose }: { entry: AuditLog; onClose: () => void 
                   <Row icon={<FileText size={14} />} label="Descripción" value={tx.description} />
                   <Row icon={<Calendar size={14} />} label="Fecha" value={format(parseISO(tx.transaction_date), "d 'de' MMMM yyyy", { locale: es })} />
                   {tx.patient && <Row icon={<User size={14} />} label="Paciente" value={tx.patient.full_name} />}
-                  {tx.procedure && <Row icon={<Stethoscope size={14} />} label="Procedimiento" value={tx.procedure.name} />}
+                  {(tx.cost_treatment || tx.procedure) && <Row icon={<Stethoscope size={14} />} label="Procedimiento" value={tx.cost_treatment?.name ?? tx.procedure!.name} />}
                   {tx.doctor && <Row icon={<User size={14} />} label="Doctor" value={tx.doctor.full_name} />}
                   {tx.operational_cost_snapshot != null && (
                     <Row icon={<DollarSign size={14} />} label="Costo operativo" value={`C$ ${fmt(tx.operational_cost_snapshot)}`} />

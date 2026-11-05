@@ -55,7 +55,6 @@ import {
   type GananciaByProcedure,
   type GananciaByDoctor,
 } from "@/hooks/useFinances";
-import { useProcedures } from "@/hooks/useCatalog";
 import { usePatientSearch } from "@/hooks/usePatients";
 import {
   FinanceTransaction,
@@ -473,7 +472,7 @@ interface FormState {
   original_amount: string;
   original_currency: "NIO" | "USD";
   patient: PatientRef | null;
-  procedure_id: string;
+  cost_treatment_id: string;
   appointment_id: string;
   quantity: string;
   sessions: string;
@@ -495,7 +494,7 @@ function emptyForm(type: FinanceType): FormState {
     original_amount: "",
     original_currency: "NIO",
     patient: null,
-    procedure_id: "",
+    cost_treatment_id: "",
     appointment_id: "",
     quantity: "1",
     sessions: "1",
@@ -515,7 +514,7 @@ function formFromTx(tx: FinanceTransaction): FormState {
     original_amount: String(tx.original_amount ?? tx.amount_cordobas),
     original_currency: (tx.original_currency as "NIO" | "USD") ?? "NIO",
     patient: tx.patient ? { id: tx.patient.id, name: tx.patient.full_name } : null,
-    procedure_id: tx.procedure?.id ?? "",
+    cost_treatment_id: tx.cost_treatment_id ?? "",
     appointment_id: tx.cost_appointment_id ?? "",
     quantity: String(tx.procedure_quantity ?? 1),
     sessions: "1",
@@ -538,30 +537,10 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   const create = useCreateTransaction(year, month);
   const update = useUpdateTransaction(year, month);
   const uploadReceipt = useUploadReceipt(year, month);
-  const { data: procedures = [] } = useProcedures();
   const { data: apiTreatments = [] } = useCostTreatments();
   const { data: apiProducts = [] } = useCostProducts();
   const isIngreso = type === "ingreso";
 
-  // Tratamientos de Costos Operativos sin vínculo al catálogo — aparecen directamente en el selector
-  const standaloneT = apiTreatments.filter((t) => !t.procedure_catalog_id);
-
-  // Busca el CostTreatment por catalog ID o por su propio ID (tratamientos standalone)
-  function findTreatmentByProcId(procedureId: string): ApiTreatment | undefined {
-    if (!procedureId) return undefined;
-    return (
-      apiTreatments.find((t) => t.procedure_catalog_id === procedureId) ??
-      apiTreatments.find((t) => t.id === procedureId)
-    );
-  }
-
-  // Nombre del procedimiento: busca en catálogo primero, luego en CostTreatments standalone
-  function findProcName(procedureId: string): string {
-    const cat = procedures.find((p) => p.id === procedureId);
-    if (cat) return cat.name;
-    const ct = apiTreatments.find((t) => t.id === procedureId);
-    return ct?.name ?? "Procedimiento";
-  }
   const { data: expenseCats = [] } = useExpenseCategories();
   const { data: doctors = [] } = useDoctors();
   const incomeCategories = INCOME_CATEGORY_LABELS;
@@ -584,31 +563,35 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   const [addMatOpen, setAddMatOpen] = useState(false);
 
   // Extra procedures for multi-procedure visits
-  type ExtraProc = { procedure_id: string; appointment_id: string };
+  type ExtraProc = { cost_treatment_id: string; appointment_id: string };
   const [extraProcedures, setExtraProcedures] = useState<ExtraProc[]>([]);
 
   // En modo edición, restaurar extra procedures y materiales cuando cargan los tratamientos
   useEffect(() => {
-    if (isEdit && form.procedure_id && apiTreatments.length > 0 && usedMaterials === null) {
+    if (isEdit && form.cost_treatment_id && apiTreatments.length > 0 && usedMaterials === null) {
       // Restaurar procedimientos extra guardados
       if (editTx?.extra_procedures && editTx.extra_procedures.length > 0) {
-        setExtraProcedures(editTx.extra_procedures);
+        const extras = editTx.extra_procedures.map((ep) => ({
+          cost_treatment_id: ep.cost_treatment_id ?? ep.procedure_id ?? "",
+          appointment_id: ep.appointment_id,
+        }));
+        setExtraProcedures(extras);
       }
       // Si la transacción ya tiene un snapshot guardado, usarlo en vez del template
       if (editTx?.deducted_materials && editTx.deducted_materials.length >= 0) {
         setUsedMaterials(editTx.deducted_materials.map((m) => ({ productId: m.productId, qty: m.qty, altGroup: m.altGroup ?? null })));
         setMaterialsOpen(true);
       } else if (form.appointment_id) {
-        initMaterialsFromAppointment(form.procedure_id, form.appointment_id);
+        initMaterialsFromAppointment(form.cost_treatment_id, form.appointment_id);
       } else {
-        initMaterialsFromTreatment(form.procedure_id);
+        initMaterialsFromTreatment(form.cost_treatment_id);
       }
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [apiTreatments.length, isEdit, form.procedure_id]);
+  }, [apiTreatments.length, isEdit, form.cost_treatment_id]);
 
-  function getMaterialsForSpec(procedureId: string, appointmentId: string): { productId: string; qty: number; altGroup: string | null }[] {
-    const treatment = findTreatmentByProcId(procedureId);
+  function getMaterialsForSpec(costTreatmentId: string, appointmentId: string): { productId: string; qty: number; altGroup: string | null }[] {
+    const treatment = apiTreatments.find((t) => t.id === costTreatmentId);
     if (!treatment) return [];
     if (appointmentId) {
       const apt = treatment.appointments.find((a) => a.id === appointmentId);
@@ -626,7 +609,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     return Array.from(totals.entries()).map(([productId, qty]) => ({ productId, qty, altGroup: groups.get(productId) ?? null }));
   }
 
-  function mergeMaterialSpecs(specs: { procedure_id: string; appointment_id: string }[]): UsedMaterial[] {
+  function mergeMaterialSpecs(specs: { cost_treatment_id: string; appointment_id: string }[]): UsedMaterial[] {
     const maxQty = new Map<string, number>();
     const groups = new Map<string, string | null>();
     const countByProduct = new Map<string, number>();
@@ -635,8 +618,8 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     const validIds = new Set(apiProducts.map((p) => p.id));
 
     for (const spec of specs) {
-      if (!spec.procedure_id) continue;
-      const mats = getMaterialsForSpec(spec.procedure_id, spec.appointment_id);
+      if (!spec.cost_treatment_id) continue;
+      const mats = getMaterialsForSpec(spec.cost_treatment_id, spec.appointment_id);
       const seenAltGroupsInSpec = new Set<string>();
       for (const m of mats) {
         if (!validIds.has(m.productId)) continue;
@@ -683,10 +666,10 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     });
   }
 
-  function recomputeMerged(mainProcId: string, mainAptId: string, extras: ExtraProc[], _nPiezas = 1) {
-    const allSpecs = [{ procedure_id: mainProcId, appointment_id: mainAptId }, ...extras];
-    const hasAnyProc = allSpecs.some((s) => !!s.procedure_id);
-    if (!hasAnyProc) { setUsedMaterials(null); return; }
+  function recomputeMerged(mainCtId: string, mainAptId: string, extras: ExtraProc[], _nPiezas = 1) {
+    const allSpecs = [{ cost_treatment_id: mainCtId, appointment_id: mainAptId }, ...extras];
+    const hasAny = allSpecs.some((s) => !!s.cost_treatment_id);
+    if (!hasAny) { setUsedMaterials(null); return; }
     const merged = mergeMaterialSpecs(allSpecs);
     setUsedMaterials(merged.length > 0 ? merged : []);
     setMaterialsOpen(true);
@@ -704,11 +687,10 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     subtotal: number;
   };
 
-  function specBreakdown(s: { procedure_id: string; appointment_id: string }): SpecBreakdown {
-    const treatment = findTreatmentByProcId(s.procedure_id);
-    const proc = procedures.find((p) => p.id === s.procedure_id);
-    const matCost = calcMaterialsCost(getMaterialsForSpec(s.procedure_id, s.appointment_id));
-    const procName = findProcName(s.procedure_id);
+  function specBreakdown(s: { cost_treatment_id: string; appointment_id: string }): SpecBreakdown {
+    const treatment = apiTreatments.find((t) => t.id === s.cost_treatment_id);
+    const matCost = calcMaterialsCost(getMaterialsForSpec(s.cost_treatment_id, s.appointment_id));
+    const procName = treatment?.name ?? "Procedimiento";
     let citaLabel: string | null = null;
     if (s.appointment_id && treatment) {
       const apt = treatment.appointments.find((a) => a.id === s.appointment_id);
@@ -722,18 +704,17 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
       const fixedCost = s.appointment_id ? fixed : fixed * n;
       return { procName, citaLabel, matCost, honCost, fixedCost, subtotal: matCost + honCost + fixedCost };
     }
-    const fallback = proc?.operational_cost ?? matCost;
-    return { procName, citaLabel, matCost, honCost: 0, fixedCost: 0, subtotal: fallback };
+    return { procName, citaLabel, matCost, honCost: 0, fixedCost: 0, subtotal: matCost };
   }
 
   function calcCombinedOpCost(
-    mainProcId: string,
+    mainCtId: string,
     mainAptId: string,
     extras: ExtraProc[],
     merged: UsedMaterial[]
   ): { total: number; savings: number; individualSum: number; breakdowns: SpecBreakdown[] } {
-    const allSpecs = [{ procedure_id: mainProcId, appointment_id: mainAptId }, ...extras]
-      .filter((s) => !!s.procedure_id);
+    const allSpecs = [{ cost_treatment_id: mainCtId, appointment_id: mainAptId }, ...extras]
+      .filter((s) => !!s.cost_treatment_id);
 
     const breakdowns = allSpecs.map(specBreakdown);
     const individualSum = breakdowns.reduce((s, b) => s + b.subtotal, 0);
@@ -744,20 +725,20 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
 
     const maxIndividual = breakdowns.reduce((max, b) => Math.max(max, b.subtotal), 0);
 
-    const mainTreatment = findTreatmentByProcId(mainProcId);
+    const mainTreatment = apiTreatments.find((t) => t.id === mainCtId);
     const marginPct = mainTreatment?.clinic_margin_pct ?? 0.15;
     const subtotal = Math.max(individualSum - savings, maxIndividual);
     const total = Math.round(subtotal * (1 + marginPct) * 100) / 100;
     return { total, savings, individualSum, breakdowns };
   }
 
-  function initMaterialsFromTreatment(procedureId: string) {
-    if (!procedureId) { setUsedMaterials(null); return; }
-    recomputeMerged(procedureId, "", extraProcedures, parseInt(form.n_piezas) || 1);
+  function initMaterialsFromTreatment(ctId: string) {
+    if (!ctId) { setUsedMaterials(null); return; }
+    recomputeMerged(ctId, "", extraProcedures, parseInt(form.n_piezas) || 1);
   }
 
-  function initMaterialsFromAppointment(procedureId: string, aptId: string) {
-    recomputeMerged(procedureId, aptId, extraProcedures, parseInt(form.n_piezas) || 1);
+  function initMaterialsFromAppointment(ctId: string, aptId: string) {
+    recomputeMerged(ctId, aptId, extraProcedures, parseInt(form.n_piezas) || 1);
   }
 
   function handleNPiezasChange(val: string) {
@@ -765,19 +746,19 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
   }
 
   function addExtraProcedure() {
-    setExtraProcedures((prev) => [...prev, { procedure_id: "", appointment_id: "" }]);
+    setExtraProcedures((prev) => [...prev, { cost_treatment_id: "", appointment_id: "" }]);
   }
 
   function removeExtraProcedure(idx: number) {
     const updated = extraProcedures.filter((_, i) => i !== idx);
     setExtraProcedures(updated);
-    recomputeMerged(form.procedure_id, form.appointment_id, updated, parseInt(form.n_piezas) || 1);
+    recomputeMerged(form.cost_treatment_id, form.appointment_id, updated, parseInt(form.n_piezas) || 1);
   }
 
   function updateExtraProc(idx: number, field: keyof ExtraProc, value: string) {
-    const updated = extraProcedures.map((ep, i) => i === idx ? { ...ep, [field]: value, ...(field === "procedure_id" ? { appointment_id: "" } : {}) } : ep);
+    const updated = extraProcedures.map((ep, i) => i === idx ? { ...ep, [field]: value, ...(field === "cost_treatment_id" ? { appointment_id: "" } : {}) } : ep);
     setExtraProcedures(updated);
-    recomputeMerged(form.procedure_id, form.appointment_id, updated, parseInt(form.n_piezas) || 1);
+    recomputeMerged(form.cost_treatment_id, form.appointment_id, updated, parseInt(form.n_piezas) || 1);
   }
 
   function calcMaterialsCost(materials: { productId: string; qty: number }[]): number {
@@ -805,21 +786,16 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
 
     const qty = Math.max(1, parseInt(form.quantity) || 1);
     const sessions = Math.max(1, parseInt(form.sessions) || 1);
-    const isMultiProc = extraProcedures.some((ep) => !!ep.procedure_id);
+    const isMultiProc = extraProcedures.some((ep) => !!ep.cost_treatment_id);
 
     // Resolver alternativos antes de calcular costos para que ambos sean consistentes
     const resolvedMaterials = usedMaterials ? autoSelectAltGroups(usedMaterials) : null;
 
-    // Costo operativo a registrar:
-    // - Multi-proc: suma de costos individuales menos ahorro por materiales compartidos
-    // - Cita específica: materiales de esa cita + (honorarios + costos_fijos) / total de citas
-    // - Single proc con materiales cargados: materiales actuales + honorarios + costos_fijos
-    //   (así editar/eliminar materiales en el form siempre se refleja en el costo op.)
     let opCostOverride: number | null = null;
     if (isMultiProc && resolvedMaterials) {
-      opCostOverride = calcCombinedOpCost(form.procedure_id, form.appointment_id, extraProcedures, resolvedMaterials).total;
+      opCostOverride = calcCombinedOpCost(form.cost_treatment_id, form.appointment_id, extraProcedures, resolvedMaterials).total;
     } else if (form.appointment_id && resolvedMaterials) {
-      const apptTreatment = findTreatmentByProcId(form.procedure_id);
+      const apptTreatment = apiTreatments.find((t) => t.id === form.cost_treatment_id);
       const materialCost = calcMaterialsCost(resolvedMaterials);
       if (apptTreatment) {
         const profFees = (apptTreatment.professional_fee_per_hour || 0) * (apptTreatment.total_hours || 0);
@@ -832,8 +808,8 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
       } else {
         opCostOverride = materialCost;
       }
-    } else if (form.procedure_id && resolvedMaterials) {
-      const apptTreatment = findTreatmentByProcId(form.procedure_id);
+    } else if (form.cost_treatment_id && resolvedMaterials) {
+      const apptTreatment = apiTreatments.find((t) => t.id === form.cost_treatment_id);
       const materialCost = calcMaterialsCost(resolvedMaterials);
       if (apptTreatment) {
         const profFees = (apptTreatment.professional_fee_per_hour || 0) * (apptTreatment.total_hours || 0);
@@ -855,7 +831,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         original_currency: form.original_currency,
         transaction_date: form.transaction_date,
         patient_id: form.patient?.id ?? null,
-        procedure_id: form.procedure_id || null,
+        cost_treatment_id: form.cost_treatment_id || null,
         cost_appointment_id: form.appointment_id || null,
         quantity: qty,
         sessions,
@@ -863,7 +839,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         invoice_number: form.invoice_number.trim() || null,
         notes: form.notes.trim() || null,
         deducted_materials: resolvedMaterials ? resolvedMaterials.map((m) => ({ productId: m.productId, qty: m.qty, altGroup: m.altGroup ?? null })) : null,
-        extra_procedures: extraProcedures.filter((ep) => !!ep.procedure_id).map((ep) => ({ procedure_id: ep.procedure_id, appointment_id: ep.appointment_id })),
+        extra_procedures: extraProcedures.filter((ep) => !!ep.cost_treatment_id).map((ep) => ({ cost_treatment_id: ep.cost_treatment_id, appointment_id: ep.appointment_id })),
       };
       if (opCostOverride !== null) payload.operational_cost_override = opCostOverride;
       update.mutate({ txId: editTx!.id, payload }, { onSuccess: onClose });
@@ -881,8 +857,8 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     };
 
     if (form.patient?.id) payload.patient_id = form.patient.id;
-    if (form.procedure_id) {
-      payload.procedure_id = form.procedure_id;
+    if (form.cost_treatment_id) {
+      payload.cost_treatment_id = form.cost_treatment_id;
       if (form.appointment_id) payload.cost_appointment_id = form.appointment_id;
       payload.quantity = qty;
       if (sessions > 1) payload.sessions = sessions;
@@ -893,9 +869,9 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     if (resolvedMaterials !== null) {
       payload.deducted_materials = resolvedMaterials.map((m) => ({ productId: m.productId, qty: m.qty, altGroup: m.altGroup ?? null }));
     }
-    const filteredExtras = extraProcedures.filter((ep) => !!ep.procedure_id);
+    const filteredExtras = extraProcedures.filter((ep) => !!ep.cost_treatment_id);
     if (filteredExtras.length > 0) {
-      payload.extra_procedures = filteredExtras.map((ep) => ({ procedure_id: ep.procedure_id, appointment_id: ep.appointment_id }));
+      payload.extra_procedures = filteredExtras.map((ep) => ({ cost_treatment_id: ep.cost_treatment_id, appointment_id: ep.appointment_id }));
     }
 
     create.mutate(payload, {
@@ -1003,7 +979,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
           <div className="space-y-2">
             <div className="flex items-center justify-between">
               <label className="block text-xs font-medium text-slate-600 dark:text-gray-400">Procedimiento</label>
-              {form.procedure_id && extraProcedures.length === 0 && (
+              {form.cost_treatment_id && extraProcedures.length === 0 && (
                 <button
                   type="button"
                   onClick={addExtraProcedure}
@@ -1014,25 +990,25 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
               )}
             </div>
 
-            {/* Procedimiento principal */}
-            <select value={form.procedure_id}
+            {/* Tratamiento principal */}
+            <select value={form.cost_treatment_id}
               onChange={(e) => {
-                set("procedure_id", e.target.value);
+                set("cost_treatment_id", e.target.value);
                 set("appointment_id", "");
                 set("quantity", "1");
                 set("sessions", "1");
                 recomputeMerged(e.target.value, "", extraProcedures);
               }}
               className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500">
-              <option value="">— Sin procedimiento —</option>
-              {standaloneT.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
+              <option value="">— Sin tratamiento —</option>
+              {apiTreatments.map((t, i) => (
+                <option key={t.id} value={t.id}>{i + 1}. {t.name}</option>
               ))}
             </select>
 
-            {/* Selector de cita para el procedimiento principal (multi-sesión) */}
-            {form.procedure_id && (() => {
-              const treatment = findTreatmentByProcId(form.procedure_id);
+            {/* Selector de cita para el tratamiento principal (multi-sesión) */}
+            {form.cost_treatment_id && (() => {
+              const treatment = apiTreatments.find((t) => t.id === form.cost_treatment_id);
               if (!treatment || treatment.appointments.length <= 1) return null;
               return (
                 <select
@@ -1040,7 +1016,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                   onChange={(e) => {
                     const aptId = e.target.value;
                     set("appointment_id", aptId);
-                    recomputeMerged(form.procedure_id, aptId, extraProcedures, parseInt(form.n_piezas) || 1);
+                    recomputeMerged(form.cost_treatment_id, aptId, extraProcedures, parseInt(form.n_piezas) || 1);
                   }}
                   className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                 >
@@ -1057,7 +1033,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
             })()}
 
             {/* Campo # Piezas — solo para ingreso, sin extras */}
-            {isIngreso && form.procedure_id && extraProcedures.length === 0 && (
+            {isIngreso && form.cost_treatment_id && extraProcedures.length === 0 && (
               <div className="flex items-center gap-3">
                 <label className="text-xs font-medium text-slate-600 dark:text-gray-400 whitespace-nowrap">
                   # Piezas
@@ -1077,14 +1053,13 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
 
             {/* Procedimientos extra */}
             {extraProcedures.map((ep, idx) => {
-              const extraTreatment = ep.procedure_id
-                ? findTreatmentByProcId(ep.procedure_id)
+              const extraTreatment = ep.cost_treatment_id
+                ? apiTreatments.find((t) => t.id === ep.cost_treatment_id)
                 : null;
-              const usedIds = new Set<string>(); // sin filtro — permite repetir el mismo procedimiento para distintas citas/piezas
               return (
                 <div key={idx} className="space-y-1.5 rounded-xl bg-blue-50/60 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-800/30 p-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">+ Procedimiento {idx + 2}</span>
+                    <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 uppercase tracking-wide">+ Tratamiento {idx + 2}</span>
                     <button
                       type="button"
                       onClick={() => removeExtraProcedure(idx)}
@@ -1094,16 +1069,14 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                     </button>
                   </div>
                   <select
-                    value={ep.procedure_id}
-                    onChange={(e) => updateExtraProc(idx, "procedure_id", e.target.value)}
+                    value={ep.cost_treatment_id}
+                    onChange={(e) => updateExtraProc(idx, "cost_treatment_id", e.target.value)}
                     className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                   >
                     <option value="">— Seleccionar —</option>
-                    {standaloneT
-                      .filter((t) => !usedIds.has(t.id))
-                      .map((t) => <option key={t.id} value={t.id}>{t.name}</option>)}
+                    {apiTreatments.map((t, i) => <option key={t.id} value={t.id}>{t.name}</option>)}
                   </select>
-                  {ep.procedure_id && extraTreatment && extraTreatment.appointments.length > 1 && (
+                  {ep.cost_treatment_id && extraTreatment && extraTreatment.appointments.length > 1 && (
                     <select
                       value={ep.appointment_id}
                       onChange={(e) => updateExtraProc(idx, "appointment_id", e.target.value)}
@@ -1124,9 +1097,9 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
             })}
 
             {/* Botón agregar más procedimientos (cuando ya hay al menos uno extra) */}
-            {form.procedure_id && extraProcedures.length > 0 &&
-              extraProcedures.every((ep) => !!ep.procedure_id) &&
-              (extraProcedures.length + 1) < standaloneT.length && (
+            {form.cost_treatment_id && extraProcedures.length > 0 &&
+              extraProcedures.every((ep) => !!ep.cost_treatment_id) &&
+              (extraProcedures.length + 1) < apiTreatments.length && (
               <button
                 type="button"
                 onClick={addExtraProcedure}
@@ -1138,23 +1111,21 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
           </div>
 
           {/* ── Cantidad / Sesiones / Costo preview ── */}
-          {form.procedure_id && (() => {
-            const isMultiProc = extraProcedures.some((ep) => !!ep.procedure_id);
-            const proc = procedures.find((p) => p.id === form.procedure_id);
+          {form.cost_treatment_id && (() => {
+            const isMultiProc = extraProcedures.some((ep) => !!ep.cost_treatment_id);
+            const treatment = apiTreatments.find((t) => t.id === form.cost_treatment_id);
             const qty = Math.max(1, parseInt(form.quantity) || 1);
             const sess = Math.max(1, parseInt(form.sessions) || 1);
-            const unitCost = proc?.operational_cost ?? findTreatmentByProcId(form.procedure_id)?.fixed_costs ?? 0;
             const matCost = form.appointment_id && usedMaterials ? calcMaterialsCost(usedMaterials) : null;
 
             let costPreview: number;
             let costLabel: React.ReactNode;
             if (isMultiProc && usedMaterials) {
               const { total, savings, individualSum, breakdowns } = calcCombinedOpCost(
-                form.procedure_id, form.appointment_id, extraProcedures, usedMaterials
+                form.cost_treatment_id, form.appointment_id, extraProcedures, usedMaterials
               );
               costPreview = total;
-              const mainTreatmentForPreview = findTreatmentByProcId(form.procedure_id);
-              const marginPctMulti = mainTreatmentForPreview?.clinic_margin_pct ?? 0.15;
+              const marginPctMulti = treatment?.clinic_margin_pct ?? 0.15;
               const subtotalMulti = Math.max(individualSum - savings, 0);
               const gananciaMulti = subtotalMulti * marginPctMulti;
               costLabel = (
@@ -1208,7 +1179,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                 </span>
               );
             } else if (form.appointment_id && matCost !== null) {
-              const apptTreatment = findTreatmentByProcId(form.procedure_id);
+              const apptTreatment = treatment;
               if (apptTreatment) {
                 const profFees = (apptTreatment.professional_fee_per_hour || 0) * (apptTreatment.total_hours || 0);
                 const fixedCosts = apptTreatment.fixed_costs || 0;
@@ -1246,16 +1217,18 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                 costLabel = <>Costo op. esta cita: <strong>C${fmt(costPreview)}</strong></>;
               }
             } else {
-              const simpleTreatment = findTreatmentByProcId(form.procedure_id);
-              const marginPct = simpleTreatment?.clinic_margin_pct ?? 0;
-              const rawCost = unitCost * qty / sess;
+              const marginPct = treatment?.clinic_margin_pct ?? 0;
+              const profFees = (treatment?.professional_fee_per_hour || 0) * (treatment?.total_hours || 0);
+              const fixedCosts = treatment?.fixed_costs || 0;
+              const totalApts = treatment?.appointments.length || 1;
+              const rawCost = (profFees + fixedCosts * totalApts) * qty / sess;
               const ganancia = rawCost * marginPct;
               costPreview = Math.round((rawCost + ganancia) * 100) / 100;
               if (marginPct > 0) {
                 costLabel = (
                   <span className="flex flex-wrap gap-x-1 items-center">
                     {sess > 1
-                      ? <span>C${fmt(unitCost)} × {qty} ÷ {sess} ses. = C${fmt(rawCost)}</span>
+                      ? <span>C${fmt(rawCost * sess)} ÷ {sess} ses. = C${fmt(rawCost)}</span>
                       : <span>Costo op. C${fmt(rawCost)}</span>
                     }
                     <span className="text-slate-400">+</span>
@@ -1265,7 +1238,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                   </span>
                 );
               } else if (sess > 1) {
-                costLabel = <>Costo op.: C${fmt(unitCost)} ÷ {sess} ses. = <strong>C${fmt(rawCost)}</strong></>;
+                costLabel = <>Costo op.: C${fmt(rawCost * sess)} ÷ {sess} ses. = <strong>C${fmt(rawCost)}</strong></>;
               } else {
                 costLabel = <>Costo op.: <strong>C${fmt(rawCost)}</strong></>;
               }
@@ -1292,7 +1265,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                     )}
                   </>
                 )}
-                {(unitCost > 0 || matCost !== null) && (
+                {(costPreview > 0 || matCost !== null) && (
                   <p className="mb-2 text-xs text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 rounded-lg px-3 py-2 flex-1">
                     {costLabel}
                   </p>
@@ -1328,7 +1301,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                   <span className="text-xs font-semibold text-slate-700 dark:text-gray-300">
                     {isEdit
                       ? "Materiales del procedimiento"
-                      : extraProcedures.some((ep) => !!ep.procedure_id)
+                      : extraProcedures.some((ep) => !!ep.cost_treatment_id)
                         ? "Materiales fusionados a descontar"
                         : "Materiales a descontar del inventario"}
                   </span>
@@ -1346,7 +1319,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
 
               {materialsOpen && (
                 <div className="border-t border-slate-100 dark:border-gray-700 divide-y divide-slate-50 dark:divide-gray-700">
-                  {extraProcedures.some((ep) => !!ep.procedure_id) && usedMaterials && usedMaterials.some((m) => (m.sharedBy ?? 1) > 1) && (
+                  {extraProcedures.some((ep) => !!ep.cost_treatment_id) && usedMaterials && usedMaterials.some((m) => (m.sharedBy ?? 1) > 1) && (
                     <p className="px-4 py-2.5 text-[10px] text-violet-700 dark:text-violet-300 bg-violet-50 dark:bg-violet-900/20 border-b border-violet-100 dark:border-violet-800/30">
                       <strong>Compartido</strong> = aparece en ambos procedimientos, se cobra una vez. <strong>Único</strong> = solo pertenece a uno de los procedimientos.
                     </p>
@@ -1376,7 +1349,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                                   Alt {m.altGroup}
                                 </span>
                               )}
-                              {extraProcedures.some((ep) => !!ep.procedure_id) && (
+                              {extraProcedures.some((ep) => !!ep.cost_treatment_id) && (
                                 (m.sharedBy ?? 1) > 1 ? (
                                   <span className="inline-flex items-center rounded px-1 py-0.5 text-[9px] font-semibold bg-violet-50 dark:bg-violet-900/30 text-violet-600 dark:text-violet-300 border border-violet-200 dark:border-violet-700">
                                     Compartido
@@ -1637,7 +1610,7 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
         normalizeSearch(tx.patient?.full_name ?? "").includes(q) ||
         normalizeSearch(tx.description ?? "").includes(q) ||
         normalizeSearch(tx.invoice_number ?? "").includes(q) ||
-        normalizeSearch(tx.procedure?.name ?? "").includes(q) ||
+        normalizeSearch(tx.cost_treatment?.name ?? tx.procedure?.name ?? "").includes(q) ||
         normalizeSearch(tx.notes ?? "").includes(q) ||
         normalizeSearch(ALL_CATEGORY_LABELS[tx.category] ?? dynamicCategoryLabels[tx.category] ?? tx.category).includes(q)
       );
@@ -1875,7 +1848,7 @@ function TransactionsTab({ year, month }: { year: number; month: number }) {
                           <span className="text-slate-400 dark:text-gray-500">—</span>
                         )}
                       </td>
-                      <td className="px-4 py-3 text-slate-500 dark:text-gray-400 text-xs">{tx.procedure?.name ?? "—"}</td>
+                      <td className="px-4 py-3 text-slate-500 dark:text-gray-400 text-xs">{tx.cost_treatment?.name ?? tx.procedure?.name ?? "—"}</td>
                       <td className="px-4 py-3 text-slate-500 dark:text-gray-400 text-xs">{tx.invoice_number ?? "—"}</td>
                       <td className={`px-4 py-3 text-right font-mono text-sm font-semibold ${
                         tx.type === "ingreso" ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"
@@ -2039,7 +2012,7 @@ function PatientTransactionsModal({ patientId, patientName, onClose }: {
                       {tx.description}
                     </td>
                     <td className="px-5 py-3 text-xs text-slate-500 dark:text-gray-400">
-                      {tx.procedure?.name ?? "—"}
+                      {tx.cost_treatment?.name ?? tx.procedure?.name ?? "—"}
                     </td>
                     <td className={`px-5 py-3 text-right font-mono text-sm font-semibold ${
                       tx.type === "ingreso" ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"

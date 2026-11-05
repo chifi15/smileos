@@ -41,6 +41,8 @@ def _serialize(t) -> dict:
             else {"id": str(t.cost_treatment.id), "name": t.cost_treatment.name} if t.cost_treatment
             else None
         ),
+        "cost_treatment_id": str(t.cost_treatment_id) if t.cost_treatment_id else None,
+        "cost_treatment": {"id": str(t.cost_treatment.id), "name": t.cost_treatment.name} if t.cost_treatment else None,
         "procedure_quantity": t.procedure_quantity,
         "cost_appointment_id": t.cost_appointment_id,
         "deducted_materials": t.deducted_materials,
@@ -76,6 +78,7 @@ class TransactionCreate(BaseModel):
     original_currency: str = "NIO"
     patient_id: str | None = None
     procedure_id: str | None = None
+    cost_treatment_id: str | None = None
     cost_appointment_id: str | None = None
     quantity: int = 1
     sessions: int = 1
@@ -95,6 +98,7 @@ class TransactionUpdate(BaseModel):
     original_currency: str | None = None
     patient_id: str | None = None
     procedure_id: str | None = None
+    cost_treatment_id: str | None = None
     cost_appointment_id: str | None = None
     quantity: int | None = None
     sessions: int | None = None

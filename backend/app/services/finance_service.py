@@ -202,20 +202,41 @@ async def create_transaction(
     else:
         amount_nio = original_amount
 
-    # Snapshot del costo operativo si viene con procedimiento
+    # Snapshot del costo operativo si viene con procedimiento o tratamiento de costos
     op_cost = None
     proc_id = data.get("procedure_id")
+    ct_id = data.get("cost_treatment_id")
     quantity = max(1, int(data.get("quantity") or 1))
     sessions = max(1, int(data.get("sessions") or 1))
     cost_override = data.get("operational_cost_override")
 
-    # Un proc_id puede ser CostTreatment.id (standalone) o ProcedureCatalog.id (catálogo)
     catalog_ref_id: uuid.UUID | None = None
     cost_treatment_ref_id: uuid.UUID | None = None
 
-    if proc_id:
+    if cost_override is not None and (ct_id or proc_id):
+        op_cost = round(Decimal(str(cost_override)), 2)
+        if ct_id:
+            cost_treatment_ref_id = uuid.UUID(str(ct_id))
+        elif proc_id:
+            catalog_ref_id = uuid.UUID(str(proc_id))
+    elif ct_id:
+        # Tratamiento standalone de Costos Operativos — fórmula completa
+        ct_check = await db.scalar(
+            select(CostTreatment).where(
+                CostTreatment.id == uuid.UUID(str(ct_id)),
+                CostTreatment.clinic_id == clinic_id,
+            )
+        )
+        if ct_check:
+            cost_treatment_ref_id = uuid.UUID(str(ct_id))
+            fee = Decimal(str(ct_check.professional_fee_per_hour or 0)) * Decimal(str(ct_check.total_hours or 0))
+            fixed = Decimal(str(ct_check.fixed_costs or 0))
+            margin = Decimal(str(ct_check.clinic_margin_pct or 0))
+            raw = (fee + fixed) * quantity / sessions
+            op_cost = round(raw * (1 + margin), 2)
+    elif proc_id:
         pid = uuid.UUID(str(proc_id))
-        # Intentar encontrar como CostTreatment primero
+        # Intentar encontrar como CostTreatment primero (retrocompat — antes se enviaba procedure_id)
         ct_check = await db.scalar(
             select(CostTreatment).where(
                 CostTreatment.id == pid,
@@ -224,14 +245,13 @@ async def create_transaction(
         )
         if ct_check:
             cost_treatment_ref_id = pid
-            if cost_override is not None:
-                op_cost = round(Decimal(str(cost_override)), 2)
-            else:
-                raw = Decimal(str(ct_check.fixed_costs or 0)) * quantity / sessions
-                margin = Decimal(str(ct_check.clinic_margin_pct or 0))
-                op_cost = round(raw * (1 + margin), 2)
+            fee = Decimal(str(ct_check.professional_fee_per_hour or 0)) * Decimal(str(ct_check.total_hours or 0))
+            fixed = Decimal(str(ct_check.fixed_costs or 0))
+            margin = Decimal(str(ct_check.clinic_margin_pct or 0))
+            raw = (fee + fixed) * quantity / sessions
+            op_cost = round(raw * (1 + margin), 2)
         else:
-            # Intentar ProcedureCatalog (retrocompatibilidad)
+            # ProcedureCatalog (retrocompatibilidad)
             proc = await db.scalar(
                 select(ProcedureCatalog).where(
                     ProcedureCatalog.id == pid,
@@ -240,9 +260,7 @@ async def create_transaction(
             )
             if proc:
                 catalog_ref_id = pid
-                if cost_override is not None:
-                    op_cost = round(Decimal(str(cost_override)), 2)
-                elif proc.operational_cost:
+                if proc.operational_cost:
                     treatment = await db.scalar(
                         select(CostTreatment).where(
                             CostTreatment.procedure_catalog_id == proc.id,
