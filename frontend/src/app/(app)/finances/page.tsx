@@ -1116,13 +1116,14 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
             const treatment = apiTreatments.find((t) => t.id === form.cost_treatment_id);
             const qty = Math.max(1, parseInt(form.quantity) || 1);
             const sess = Math.max(1, parseInt(form.sessions) || 1);
-            const matCost = form.appointment_id && usedMaterials ? calcMaterialsCost(usedMaterials) : null;
+            const resolvedForPreview = usedMaterials ? autoSelectAltGroups(usedMaterials) : null;
+            const matCost = form.appointment_id && resolvedForPreview ? calcMaterialsCost(resolvedForPreview) : null;
 
             let costPreview: number;
             let costLabel: React.ReactNode;
-            if (isMultiProc && usedMaterials) {
+            if (isMultiProc && resolvedForPreview) {
               const { total, savings, individualSum, breakdowns } = calcCombinedOpCost(
-                form.cost_treatment_id, form.appointment_id, extraProcedures, usedMaterials
+                form.cost_treatment_id, form.appointment_id, extraProcedures, resolvedForPreview
               );
               costPreview = total;
               const marginPctMulti = treatment?.clinic_margin_pct ?? 0.15;
@@ -1145,7 +1146,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                     </span>
                   ))}
                   {savings > 0 && (() => {
-                    const sharedMats = usedMaterials.filter((m) => (m.sharedBy ?? 1) > 1);
+                    const sharedMats = (usedMaterials ?? resolvedForPreview ?? []).filter((m) => (m.sharedBy ?? 1) > 1);
                     return (
                       <span className="flex flex-wrap gap-1 items-center pl-1">
                         <span className="text-green-700 dark:text-green-400 font-medium">Mat. compartidos:</span>
@@ -1221,7 +1222,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
               const profFees = (treatment?.professional_fee_per_hour || 0) * (treatment?.total_hours || 0);
               const fixedCosts = treatment?.fixed_costs || 0;
               const totalApts = treatment?.appointments.length || 1;
-              const allMatCost = usedMaterials !== null ? calcMaterialsCost(usedMaterials) : 0;
+              const allMatCost = resolvedForPreview !== null ? calcMaterialsCost(resolvedForPreview) : 0;
               const honDisplay = profFees * qty / sess;
               const fixedDisplay = fixedCosts * totalApts * qty / sess;
               const rawCost = allMatCost + honDisplay + fixedDisplay;
