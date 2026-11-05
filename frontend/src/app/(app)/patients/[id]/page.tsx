@@ -350,6 +350,7 @@ function QuickPaymentModal({
             </label>
             <input
               type="date"
+              lang="es"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
