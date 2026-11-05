@@ -1221,23 +1221,27 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
               const profFees = (treatment?.professional_fee_per_hour || 0) * (treatment?.total_hours || 0);
               const fixedCosts = treatment?.fixed_costs || 0;
               const totalApts = treatment?.appointments.length || 1;
-              const rawCost = (profFees + fixedCosts * totalApts) * qty / sess;
+              const allMatCost = usedMaterials !== null ? calcMaterialsCost(usedMaterials) : 0;
               const honDisplay = profFees * qty / sess;
               const fixedDisplay = fixedCosts * totalApts * qty / sess;
+              const rawCost = allMatCost + honDisplay + fixedDisplay;
               const ganancia = rawCost * marginPct;
               costPreview = Math.round((rawCost + ganancia) * 100) / 100;
               costLabel = (
                 <span className="flex flex-wrap gap-x-1 items-center">
+                  {allMatCost > 0 && (
+                    <>
+                      <span>Mat. <strong>C${fmt(allMatCost)}</strong></span>
+                      <span className="text-slate-400">+</span>
+                    </>
+                  )}
                   <span>Hon. <strong>C${fmt(honDisplay)}</strong></span>
                   <span className="text-slate-400">+</span>
                   <span>C.Fijos <strong>C${fmt(fixedDisplay)}</strong></span>
-                  {sess > 1 && (
-                    <>
-                      <span className="text-slate-400 text-[10px]">÷{sess}ses.</span>
-                    </>
-                  )}
-                  {qty > 1 && (
-                    <span className="text-slate-400 text-[10px]">×{qty}</span>
+                  {(sess > 1 || qty > 1) && (
+                    <span className="text-slate-400 text-[10px]">
+                      {sess > 1 && `÷${sess}ses.`}{sess > 1 && qty > 1 && " "}{qty > 1 && `×${qty}`}
+                    </span>
                   )}
                   {marginPct > 0 && (
                     <>
