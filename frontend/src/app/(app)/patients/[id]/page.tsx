@@ -57,6 +57,10 @@ function QuickPaymentModal({
   const [currency, setCurrency] = useState<"NIO" | "USD">("NIO");
   const [description, setDescription] = useState("Pago de tratamiento");
   const [date, setDate] = useState(today);
+  const [displayDate, setDisplayDate] = useState(() => {
+    const [y, m, d] = today.split("-");
+    return `${d}/${m}/${y}`;
+  });
   const [ctId, setCtId] = useState("");
   const [aptId, setAptId] = useState("");
   const [usedMaterials, setUsedMaterials] = useState<UsedMaterial[] | null>(null);
@@ -126,6 +130,25 @@ function QuickPaymentModal({
       }
     } else {
       setDescription("Pago de tratamiento");
+    }
+  }
+
+  function handleDateInput(raw: string) {
+    const digits = raw.replace(/\D/g, "").slice(0, 8);
+    let formatted = digits;
+    if (digits.length >= 3) formatted = digits.slice(0, 2) + "/" + digits.slice(2);
+    if (digits.length >= 5) formatted = digits.slice(0, 2) + "/" + digits.slice(2, 4) + "/" + digits.slice(4);
+    setDisplayDate(formatted);
+    if (digits.length === 8) {
+      const d = digits.slice(0, 2), m = digits.slice(2, 4), y = digits.slice(4, 8);
+      const parsed = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+      if (
+        parsed.getFullYear() === parseInt(y) &&
+        parsed.getMonth() === parseInt(m) - 1 &&
+        parsed.getDate() === parseInt(d)
+      ) {
+        setDate(`${y}-${m}-${d}`);
+      }
     }
   }
 
@@ -343,51 +366,19 @@ function QuickPaymentModal({
             </select>
           </div>
 
-          {/* Date — three selects to guarantee DD/MM/YYYY order */}
+          {/* Date — typed input DD/MM/AAAA */}
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">
               Fecha
             </label>
-            {(() => {
-              const [yyyy, mm, dd] = date.split("-");
-              const selectCls = "rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
-              const months = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
-              const currentYear = new Date().getFullYear();
-              function update(newYyyy: string, newMm: string, newDd: string) {
-                const daysInMonth = new Date(parseInt(newYyyy), parseInt(newMm), 0).getDate();
-                const clampedDay = Math.min(parseInt(newDd), daysInMonth).toString().padStart(2, "0");
-                setDate(`${newYyyy}-${newMm}-${clampedDay}`);
-              }
-              return (
-                <div className="flex gap-1">
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] text-slate-400 text-center">Día</span>
-                    <select value={dd} onChange={(e) => update(yyyy, mm, e.target.value)} className={selectCls + " w-16"}>
-                      {Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0")).map((d) => (
-                        <option key={d} value={d}>{d}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-0.5 flex-1">
-                    <span className="text-[10px] text-slate-400 text-center">Mes</span>
-                    <select value={mm} onChange={(e) => update(yyyy, e.target.value, dd)} className={selectCls + " w-full"}>
-                      {months.map((name, i) => {
-                        const val = String(i + 1).padStart(2, "0");
-                        return <option key={val} value={val}>{name}</option>;
-                      })}
-                    </select>
-                  </div>
-                  <div className="flex flex-col gap-0.5">
-                    <span className="text-[10px] text-slate-400 text-center">Año</span>
-                    <select value={yyyy} onChange={(e) => update(e.target.value, mm, dd)} className={selectCls + " w-24"}>
-                      {[currentYear - 1, currentYear, currentYear + 1].map((y) => (
-                        <option key={y} value={String(y)}>{y}</option>
-                      ))}
-                    </select>
-                  </div>
-                </div>
-              );
-            })()}
+            <input
+              type="text"
+              inputMode="numeric"
+              placeholder="DD/MM/AAAA"
+              value={displayDate}
+              onChange={(e) => handleDateInput(e.target.value)}
+              className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+            />
           </div>
 
           <p className="text-xs text-slate-400">
