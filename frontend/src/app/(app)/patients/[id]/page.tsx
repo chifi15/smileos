@@ -26,7 +26,7 @@ import {
 } from "lucide-react";
 import { usePatient, useDeactivatePatient, useDeletePatientPermanent } from "@/hooks/usePatients";
 import { useCreateTransaction, useExchangeRate, useDoctors } from "@/hooks/useFinances";
-import { useProcedures } from "@/hooks/useCatalog";
+import { useCostTreatments, useCostProducts, type ApiTreatment } from "@/hooks/useCostos";
 import { useRewardsConfig } from "@/hooks/useRewards";
 import { useClinicFeatures } from "@/hooks/useSettings";
 import {
@@ -40,6 +40,8 @@ import Button from "@/components/ui/Button";
 import Spinner from "@/components/ui/Spinner";
 
 const today = new Date().toISOString().split("T")[0];
+
+type UsedMaterial = { productId: string; qty: number; altGroup?: string | null };
 
 function QuickPaymentModal({
   patientId,
@@ -55,13 +57,20 @@ function QuickPaymentModal({
   const [currency, setCurrency] = useState<"NIO" | "USD">("NIO");
   const [description, setDescription] = useState("Pago de tratamiento");
   const [date, setDate] = useState(today);
-  const [procedureId, setProcedureId] = useState("");
+  const [ctId, setCtId] = useState("");
+  const [aptId, setAptId] = useState("");
+  const [usedMaterials, setUsedMaterials] = useState<UsedMaterial[] | null>(null);
   const [quantity, setQuantity] = useState("1");
   const [doctorId, setDoctorId] = useState("");
+
   const { data: exchangeRate = 37 } = useExchangeRate();
-  const { data: procedures = [] } = useProcedures();
+  const { data: treatments = [] } = useCostTreatments();
+  const { data: products = [] } = useCostProducts();
   const { data: doctors = [] } = useDoctors();
   const create = useCreateTransaction(now.getFullYear(), now.getMonth() + 1);
+
+  const treatment: ApiTreatment | null = treatments.find((t) => t.id === ctId) ?? null;
+  const isMultiApt = (treatment?.appointments.length ?? 0) > 1;
 
   const amountNIO =
     currency === "USD" && amount
@@ -72,21 +81,93 @@ function QuickPaymentModal({
     return new Intl.NumberFormat("es-NI", { minimumFractionDigits: 2 }).format(n);
   }
 
-  function handleProcedureChange(id: string) {
-    setProcedureId(id);
-    setQuantity("1");
+  function autoSelectAltGroups(mats: UsedMaterial[]): UsedMaterial[] {
+    const seen = new Set<string>();
+    const result: UsedMaterial[] = [];
+    for (const m of mats) {
+      if (m.altGroup) {
+        if (seen.has(m.altGroup)) continue;
+        seen.add(m.altGroup);
+      }
+      result.push(m);
+    }
+    return result;
+  }
+
+  function calcMatCost(mats: UsedMaterial[]): number {
+    return mats.reduce((sum, m) => {
+      const p = products.find((pr) => pr.id === m.productId);
+      const unitCost = p?.total_cost ?? p?.unit_price ?? 0;
+      return sum + unitCost * m.qty;
+    }, 0);
+  }
+
+  function loadMaterials(treatId: string, appointmentId: string) {
+    const t = treatments.find((tr) => tr.id === treatId);
+    if (!t) { setUsedMaterials(null); return; }
+    const apt =
+      t.appointments.find((a) => a.id === appointmentId) ??
+      (t.appointments.length === 1 ? t.appointments[0] : null);
+    if (!apt) { setUsedMaterials(null); return; }
+    setUsedMaterials(apt.materials.map((m) => ({ productId: m.productId, qty: m.quantity, altGroup: m.altGroup ?? null })));
+  }
+
+  function handleTreatmentChange(id: string) {
+    setCtId(id);
+    setAptId("");
+    setUsedMaterials(null);
     if (id) {
-      const proc = procedures.find((p) => p.id === id);
-      if (proc) setDescription(proc.name);
+      const t = treatments.find((tr) => tr.id === id);
+      if (t) {
+        setDescription(t.name);
+        if (t.appointments.length === 1) {
+          loadMaterials(id, t.appointments[0].id);
+        }
+      }
     } else {
       setDescription("Pago de tratamiento");
     }
   }
 
+  function handleAptChange(id: string) {
+    setAptId(id);
+    setUsedMaterials(null);
+    if (id && ctId) loadMaterials(ctId, id);
+  }
+
+  // Cost preview
+  const resolvedForPreview = usedMaterials ? autoSelectAltGroups(usedMaterials) : null;
+  const qty = Math.max(1, parseInt(quantity) || 1);
+  let costLabel: React.ReactNode = null;
+
+  if (treatment) {
+    const marginPct = treatment.clinic_margin_pct ?? 0;
+    const profFees = (treatment.professional_fee_per_hour || 0) * (treatment.total_hours || 0);
+    const fixedCosts = treatment.fixed_costs || 0;
+    const totalApts = treatment.appointments.length || 1;
+    const matCost = resolvedForPreview !== null ? calcMatCost(resolvedForPreview) : 0;
+    const honDisplay = profFees * qty;
+    const fixedDisplay = fixedCosts * totalApts * qty;
+    const rawCost = matCost + honDisplay + fixedDisplay;
+    const ganancia = rawCost * marginPct;
+    const costPreview = Math.round((rawCost + ganancia) * 100) / 100;
+    costLabel = (
+      <span className="flex flex-wrap gap-x-1 items-center text-xs">
+        {matCost > 0 && <><span>Mat. <strong>C${fmt(matCost)}</strong></span><span className="text-slate-400">+</span></>}
+        <span>Hon. <strong>C${fmt(honDisplay)}</strong></span>
+        <span className="text-slate-400">+</span>
+        <span>C.Fijos <strong>C${fmt(fixedDisplay)}</strong></span>
+        {marginPct > 0 && <><span className="text-slate-400">+</span><span className="text-emerald-600">Gan. <strong>C${fmt(ganancia)}</strong></span></>}
+        <span className="text-slate-400">=</span>
+        <strong>C${fmt(costPreview)}</strong>
+      </span>
+    );
+  }
+
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!amount || parseFloat(amount) <= 0) return;
-    const qty = Math.max(1, parseInt(quantity) || 1);
+    const qtyVal = Math.max(1, parseInt(quantity) || 1);
     create.mutate(
       {
         type: "ingreso",
@@ -96,9 +177,15 @@ function QuickPaymentModal({
         original_currency: currency,
         transaction_date: date,
         patient_id: patientId,
-        procedure_id: procedureId || undefined,
-        quantity: procedureId ? qty : undefined,
         doctor_id: doctorId || undefined,
+        ...(ctId && {
+          cost_treatment_id: ctId,
+          cost_appointment_id: aptId || undefined,
+          quantity: qtyVal,
+          deducted_materials: usedMaterials !== null
+            ? usedMaterials.map((m) => ({ productId: m.productId, qty: m.qty, altGroup: m.altGroup ?? null }))
+            : undefined,
+        }),
       },
       { onSuccess: onClose }
     );
@@ -106,8 +193,8 @@ function QuickPaymentModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-800 shadow-2xl">
-        <div className="flex items-center justify-between rounded-t-2xl bg-green-600 px-5 py-4">
+      <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-800 shadow-2xl flex flex-col max-h-[90vh]">
+        <div className="flex items-center justify-between rounded-t-2xl bg-green-600 px-5 py-4 shrink-0">
           <div>
             <h2 className="text-base font-semibold text-white">Registrar pago</h2>
             <p className="text-xs text-green-100 mt-0.5">{patientName}</p>
@@ -117,7 +204,7 @@ function QuickPaymentModal({
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="p-5 space-y-4">
+        <form onSubmit={handleSubmit} className="p-5 space-y-4 overflow-y-auto">
           {/* Amount + currency */}
           <div>
             <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">
@@ -150,52 +237,81 @@ function QuickPaymentModal({
             )}
           </div>
 
-          {/* Procedure catalog */}
+          {/* Treatment selector */}
           <div>
             <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">
-              Procedimiento
+              Tratamiento (costo operativo)
             </label>
             <select
-              value={procedureId}
-              onChange={(e) => handleProcedureChange(e.target.value)}
+              value={ctId}
+              onChange={(e) => handleTreatmentChange(e.target.value)}
               className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
             >
-              <option value="">— Sin procedimiento —</option>
-              {procedures.map((p, i) => (
-                <option key={p.id} value={p.id}>
-                  {i + 1}. {p.name}{p.operational_cost ? ` (C$${p.operational_cost})` : ""}
-                </option>
+              <option value="">— Sin tratamiento —</option>
+              {treatments.map((t) => (
+                <option key={t.id} value={t.id}>{t.name}</option>
               ))}
             </select>
           </div>
 
-          {/* Quantity (only when procedure selected) */}
-          {procedureId && (() => {
-            const proc = procedures.find((p) => p.id === procedureId);
-            const qty = Math.max(1, parseInt(quantity) || 1);
-            const unitCost = proc?.operational_cost ?? 0;
-            const totalCost = unitCost * qty;
-            return (
-              <div className="flex items-end gap-3">
-                <div className="w-28 shrink-0">
-                  <label className="block text-xs font-medium text-slate-600 mb-1">Cantidad</label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="1"
-                    value={quantity}
-                    onChange={(e) => setQuantity(e.target.value)}
-                    className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-                  />
-                </div>
-                {unitCost > 0 && (
-                  <p className="mb-2 text-xs text-amber-700 bg-amber-50 rounded-lg px-3 py-2 flex-1">
-                    Costo op.: C${fmt(unitCost)} × {qty} = <strong>C${fmt(totalCost)}</strong>
-                  </p>
-                )}
+          {/* Appointment selector (multi-apt treatments only) */}
+          {isMultiApt && treatment && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">
+                Cita
+              </label>
+              <select
+                value={aptId}
+                onChange={(e) => handleAptChange(e.target.value)}
+                className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">— Seleccionar cita —</option>
+                {treatment.appointments.map((a) => (
+                  <option key={a.id} value={a.id}>
+                    Cita {a.number}: {a.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Cost preview */}
+          {costLabel && (
+            <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-amber-800 dark:text-amber-200">
+              <p className="text-[10px] font-medium mb-0.5 text-amber-600">Costo operativo estimado:</p>
+              {costLabel}
+            </div>
+          )}
+
+          {/* Materials list */}
+          {usedMaterials !== null && usedMaterials.length > 0 && (
+            <div>
+              <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">
+                Materiales utilizados
+              </label>
+              <div className="space-y-1 max-h-36 overflow-y-auto rounded-lg border border-slate-200 dark:border-gray-600 p-2">
+                {usedMaterials.map((m, i) => {
+                  const p = products.find((pr) => pr.id === m.productId);
+                  return (
+                    <div key={i} className="flex items-center gap-2 text-xs">
+                      <span className="flex-1 truncate text-slate-700 dark:text-gray-300">
+                        {p?.name ?? m.productId}
+                        {m.altGroup && <span className="ml-1 text-slate-400">[alt]</span>}
+                      </span>
+                      <span className="text-slate-400 shrink-0">×{m.qty}</span>
+                      <button
+                        type="button"
+                        onClick={() => setUsedMaterials((prev) => prev ? prev.filter((_, j) => j !== i) : prev)}
+                        className="text-red-400 hover:text-red-600 shrink-0"
+                      >
+                        <Trash2 size={13} />
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
-            );
-          })()}
+            </div>
+          )}
 
           {/* Description */}
           <div>
