@@ -1222,26 +1222,33 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
               const fixedCosts = treatment?.fixed_costs || 0;
               const totalApts = treatment?.appointments.length || 1;
               const rawCost = (profFees + fixedCosts * totalApts) * qty / sess;
+              const honDisplay = profFees * qty / sess;
+              const fixedDisplay = fixedCosts * totalApts * qty / sess;
               const ganancia = rawCost * marginPct;
               costPreview = Math.round((rawCost + ganancia) * 100) / 100;
-              if (marginPct > 0) {
-                costLabel = (
-                  <span className="flex flex-wrap gap-x-1 items-center">
-                    {sess > 1
-                      ? <span>C${fmt(rawCost * sess)} ÷ {sess} ses. = C${fmt(rawCost)}</span>
-                      : <span>Costo op. C${fmt(rawCost)}</span>
-                    }
-                    <span className="text-slate-400">+</span>
-                    <span className="text-emerald-600 dark:text-emerald-400">Gan. <strong>C${fmt(ganancia)}</strong> <span className="text-slate-400">({Math.round(marginPct * 100)}%)</span></span>
-                    <span className="text-slate-400">=</span>
-                    <strong>C${fmt(costPreview)}</strong>
-                  </span>
-                );
-              } else if (sess > 1) {
-                costLabel = <>Costo op.: C${fmt(rawCost * sess)} ÷ {sess} ses. = <strong>C${fmt(rawCost)}</strong></>;
-              } else {
-                costLabel = <>Costo op.: <strong>C${fmt(rawCost)}</strong></>;
-              }
+              costLabel = (
+                <span className="flex flex-wrap gap-x-1 items-center">
+                  <span>Hon. <strong>C${fmt(honDisplay)}</strong></span>
+                  <span className="text-slate-400">+</span>
+                  <span>C.Fijos <strong>C${fmt(fixedDisplay)}</strong></span>
+                  {sess > 1 && (
+                    <>
+                      <span className="text-slate-400 text-[10px]">÷{sess}ses.</span>
+                    </>
+                  )}
+                  {qty > 1 && (
+                    <span className="text-slate-400 text-[10px]">×{qty}</span>
+                  )}
+                  {marginPct > 0 && (
+                    <>
+                      <span className="text-slate-400">+</span>
+                      <span className="text-emerald-600 dark:text-emerald-400">Gan. <strong>C${fmt(ganancia)}</strong> <span className="text-slate-400">({Math.round(marginPct * 100)}%)</span></span>
+                    </>
+                  )}
+                  <span className="text-slate-400">=</span>
+                  <strong>C${fmt(costPreview)}</strong>
+                </span>
+              );
             }
 
             return (
