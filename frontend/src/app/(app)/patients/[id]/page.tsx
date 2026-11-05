@@ -343,18 +343,42 @@ function QuickPaymentModal({
             </select>
           </div>
 
-          {/* Date */}
+          {/* Date — three selects to guarantee DD/MM/YYYY order */}
           <div>
             <label className="block text-xs font-medium text-slate-600 mb-1">
               Fecha
             </label>
-            <input
-              type="date"
-              lang="es"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
-            />
+            {(() => {
+              const [yyyy, mm, dd] = date.split("-");
+              const selectCls = "rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500";
+              const months = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+              const currentYear = new Date().getFullYear();
+              function update(newYyyy: string, newMm: string, newDd: string) {
+                const daysInMonth = new Date(parseInt(newYyyy), parseInt(newMm), 0).getDate();
+                const clampedDay = Math.min(parseInt(newDd), daysInMonth).toString().padStart(2, "0");
+                setDate(`${newYyyy}-${newMm}-${clampedDay}`);
+              }
+              return (
+                <div className="flex gap-1">
+                  <select value={dd} onChange={(e) => update(yyyy, mm, e.target.value)} className={selectCls + " w-16"}>
+                    {Array.from({ length: 31 }, (_, i) => String(i + 1).padStart(2, "0")).map((d) => (
+                      <option key={d} value={d}>{d}</option>
+                    ))}
+                  </select>
+                  <select value={mm} onChange={(e) => update(yyyy, e.target.value, dd)} className={selectCls + " flex-1"}>
+                    {months.map((name, i) => {
+                      const val = String(i + 1).padStart(2, "0");
+                      return <option key={val} value={val}>{name}</option>;
+                    })}
+                  </select>
+                  <select value={yyyy} onChange={(e) => update(e.target.value, mm, dd)} className={selectCls + " w-24"}>
+                    {[currentYear - 1, currentYear, currentYear + 1].map((y) => (
+                      <option key={y} value={String(y)}>{y}</option>
+                    ))}
+                  </select>
+                </div>
+              );
+            })()}
           </div>
 
           <p className="text-xs text-slate-400">
