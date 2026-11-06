@@ -1762,12 +1762,12 @@ export default function ProductosPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm">
+              <table className="w-full min-w-[1200px] text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50 text-xs text-slate-500 dark:text-gray-400">
                     <th className="w-10 pl-3">
                       <input type="checkbox" checked={allSelected}
-                        onChange={(e) => setSelectedIds(e.target.checked ? new Set(filtered.map((p) => p.id)) : new Set())}
+                        onChange={(e) => setSelectedIds(e.target.checked ? new Set(inventoryFiltered.map((p) => p.id)) : new Set())}
                         ref={(el) => { if (el) el.indeterminate = someSelected; }}
                         className="rounded border-slate-300 dark:border-gray-600 cursor-pointer accent-blue-600" />
                     </th>
