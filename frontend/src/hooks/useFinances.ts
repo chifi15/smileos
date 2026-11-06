@@ -155,7 +155,13 @@ export function useCreateTransaction(year: number, month: number) {
       );
       return data.data;
     },
-    onSuccess: () => {
+    onSuccess: (newTx) => {
+      // Instant update — prepend to list caches without waiting for refetch
+      const prepend = (old: FinanceTransaction[] | undefined) =>
+        old ? [newTx, ...old] : [newTx];
+      qc.setQueryData(keys.transactions(year, month, "all"), prepend);
+      qc.setQueryData(keys.transactions(year, month, newTx.type), prepend);
+      // Background sync for summaries/honorarios/products
       invalidateFinanceRelated(qc, year, month);
       toast.success("Transacción registrada.");
     },
@@ -242,7 +248,14 @@ export function useUpdateTransaction(year: number, month: number) {
       );
       return data.data;
     },
-    onSuccess: () => {
+    onSuccess: (updatedTx) => {
+      // Instant update — replace in all list caches
+      const replace = (old: FinanceTransaction[] | undefined) =>
+        old ? old.map((tx) => (tx.id === updatedTx.id ? updatedTx : tx)) : old;
+      qc.setQueryData(keys.transactions(year, month, "all"), replace);
+      qc.setQueryData(keys.transactions(year, month, "ingreso"), replace);
+      qc.setQueryData(keys.transactions(year, month, "egreso"), replace);
+      // Background sync
       invalidateFinanceRelated(qc, year, month);
       qc.invalidateQueries({ queryKey: ["finances-by-patient"] });
       toast.success("Transacción actualizada.");
@@ -257,11 +270,28 @@ export function useDeleteTransaction(year: number, month: number) {
     mutationFn: async (txId: string) => {
       await apiClient.delete(`/api/v1/finances/${txId}`);
     },
+    onMutate: async (txId) => {
+      await qc.cancelQueries({ queryKey: ["finances", year, month] });
+      const remove = (old: FinanceTransaction[] | undefined) =>
+        old ? old.filter((tx) => tx.id !== txId) : old;
+      const prevAll = qc.getQueryData(keys.transactions(year, month, "all"));
+      const prevIn  = qc.getQueryData(keys.transactions(year, month, "ingreso"));
+      const prevEg  = qc.getQueryData(keys.transactions(year, month, "egreso"));
+      qc.setQueryData(keys.transactions(year, month, "all"), remove);
+      qc.setQueryData(keys.transactions(year, month, "ingreso"), remove);
+      qc.setQueryData(keys.transactions(year, month, "egreso"), remove);
+      return { prevAll, prevIn, prevEg };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prevAll) qc.setQueryData(keys.transactions(year, month, "all"), ctx.prevAll);
+      if (ctx?.prevIn)  qc.setQueryData(keys.transactions(year, month, "ingreso"), ctx.prevIn);
+      if (ctx?.prevEg)  qc.setQueryData(keys.transactions(year, month, "egreso"), ctx.prevEg);
+      toast.error("Error al eliminar la transacción.");
+    },
     onSuccess: () => {
       invalidateFinanceRelated(qc, year, month);
       toast.success("Transacción eliminada.");
     },
-    onError: () => toast.error("Error al eliminar la transacción."),
   });
 }
 
