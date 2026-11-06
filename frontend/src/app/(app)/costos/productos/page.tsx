@@ -1182,35 +1182,19 @@ function SortableProductRow({ product, onEdit, onViewUsage, onViewLinks, onAdjus
         ) : <span className="text-slate-300 dark:text-gray-600">—</span>}
       </td>
       <td className="px-4 py-3 text-right">
-        {product.total_cost != null ? (
-          <div>
-            <p className="text-sm text-slate-600 dark:text-gray-400 tabular-nums">{fmtC(product.total_cost)}</p>
-            <p className="text-xs text-slate-400 dark:text-gray-500 tabular-nums">{fmtUSD(product.total_cost, exchangeRate)}</p>
-          </div>
-        ) : <span className="text-slate-300 dark:text-gray-600 text-sm">—</span>}
-      </td>
-      <td className="px-5 py-3 text-right">
         <p className="font-semibold text-slate-800 dark:text-white tabular-nums">{fmtC(product.unit_price)}</p>
-        <p className="text-xs text-slate-400 dark:text-gray-500 tabular-nums">{fmtUSD(product.unit_price, exchangeRate)}</p>
+        {product.total_cost != null && (
+          <p className="text-[10px] text-slate-400 dark:text-gray-500 tabular-nums">{fmtC(product.total_cost)} total</p>
+        )}
         {hasCalc && <p className="text-[10px] text-green-600 dark:text-green-400">calculado</p>}
       </td>
-      <td className="px-4 py-3">
-        {product.stock_qty != null ? (
-          <div>
-            <p className="font-semibold text-slate-800 dark:text-gray-200 tabular-nums text-sm">{stockLabel(product)}</p>
-            {product.portion_qty && <p className="text-xs text-slate-400 dark:text-gray-500">{usosLabel(product)}</p>}
-          </div>
-        ) : (
-          <span className="text-xs text-slate-300 dark:text-gray-600">—</span>
-        )}
-      </td>
-      <td className="px-4 py-3 text-sm text-slate-400 dark:text-gray-500 tabular-nums">
-        {product.min_stock_qty != null ? `${fmt(product.min_stock_qty)} ${product.presentation_unit ?? "usos"}` : <span className="text-slate-200 dark:text-gray-700">—</span>}
-      </td>
-      <td className="px-4 py-3">
-        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${statusBg} ${statusColor}`}>
-          <StatusIcon size={11} /> {statusLabel}
+      <td className="px-3 py-3">
+        <span className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${statusBg} ${statusColor}`}>
+          <StatusIcon size={10} /> {statusLabel}
         </span>
+        {product.stock_qty != null && (
+          <p className="mt-0.5 text-xs text-slate-500 dark:text-gray-400 tabular-nums">{stockLabel(product)}{product.min_stock_qty != null ? ` / mín ${fmt(product.min_stock_qty)}` : ""}</p>
+        )}
       </td>
       <td className="pr-3 py-3">
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -1762,7 +1746,7 @@ export default function ProductosPage() {
             </div>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[1200px] text-sm">
+              <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50 text-xs text-slate-500 dark:text-gray-400">
                     <th className="w-10 pl-3">
@@ -1776,11 +1760,8 @@ export default function ProductosPage() {
                     <th className="px-3 py-3 text-left font-medium">Producto</th>
                     <th className="px-4 py-3 text-left font-medium">Categoría</th>
                     <th className="px-4 py-3 text-left font-medium">Presentación / uso</th>
-                    <th className="px-4 py-3 text-right font-medium">Costo total</th>
-                    <th className="px-5 py-3 text-right font-medium">C$/uso</th>
-                    <th className="px-4 py-3 text-left font-medium">Stock</th>
-                    <th className="px-4 py-3 text-left font-medium">Mínimo</th>
-                    <th className="px-4 py-3 text-left font-medium">Estado</th>
+                    <th className="px-4 py-3 text-right font-medium">C$/uso</th>
+                    <th className="px-3 py-3 text-left font-medium">Stock / Estado</th>
                     <th className="w-28 py-3" />
                   </tr>
                 </thead>
