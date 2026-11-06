@@ -1117,10 +1117,14 @@ function ProductLinksModal({ product, onClose }: { product: ApiProduct; onClose:
 
 // ─── Fila sortable ────────────────────────────────────────────────────────────
 
-function SortableProductRow({ product, onEdit, onViewUsage, onViewLinks, isDragDisabled, exchangeRate, rowNumber, isSelected, onSelect }: { product: ApiProduct; onEdit: () => void; onViewUsage: () => void; onViewLinks: () => void; isDragDisabled: boolean; exchangeRate: number; rowNumber: number; isSelected: boolean; onSelect: (shiftKey: boolean) => void }) {
+function SortableProductRow({ product, onEdit, onViewUsage, onViewLinks, onAdjust, onLots, isDragDisabled, exchangeRate, rowNumber, isSelected, onSelect }: { product: ApiProduct; onEdit: () => void; onViewUsage: () => void; onViewLinks: () => void; onAdjust: () => void; onLots: () => void; isDragDisabled: boolean; exchangeRate: number; rowNumber: number; isSelected: boolean; onSelect: (shiftKey: boolean) => void }) {
   const deleteProduct = useDeleteCostProduct();
+  const updateStock = useUpdateCostProductStock();
   const portions = calcPortions(product.presentation_qty, product.portion_qty);
   const hasCalc = portions != null && product.total_cost != null;
+  const status = getStatus(product);
+  const { label: statusLabel, icon: StatusIcon, color: statusColor, bg: statusBg } = STATUS_CFG[status];
+  const portionSize = product.presentation_qty ?? 1;
 
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: product.id, disabled: isDragDisabled });
   const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 10 : undefined };
@@ -1190,10 +1194,40 @@ function SortableProductRow({ product, onEdit, onViewUsage, onViewLinks, isDragD
         <p className="text-xs text-slate-400 dark:text-gray-500 tabular-nums">{fmtUSD(product.unit_price, exchangeRate)}</p>
         {hasCalc && <p className="text-[10px] text-green-600 dark:text-green-400">calculado</p>}
       </td>
+      <td className="px-4 py-3">
+        {product.stock_qty != null ? (
+          <div>
+            <p className="font-semibold text-slate-800 dark:text-gray-200 tabular-nums text-sm">{stockLabel(product)}</p>
+            {product.portion_qty && <p className="text-xs text-slate-400 dark:text-gray-500">{usosLabel(product)}</p>}
+          </div>
+        ) : (
+          <span className="text-xs text-slate-300 dark:text-gray-600">—</span>
+        )}
+      </td>
+      <td className="px-4 py-3 text-sm text-slate-400 dark:text-gray-500 tabular-nums">
+        {product.min_stock_qty != null ? `${fmt(product.min_stock_qty)} ${product.presentation_unit ?? "usos"}` : <span className="text-slate-200 dark:text-gray-700">—</span>}
+      </td>
+      <td className="px-4 py-3">
+        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${statusBg} ${statusColor}`}>
+          <StatusIcon size={11} /> {statusLabel}
+        </span>
+      </td>
       <td className="pr-3 py-3">
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button onClick={onViewUsage} className="rounded p-1.5 text-slate-400 hover:bg-violet-50 dark:hover:bg-violet-900/30 hover:text-violet-500" title="Ver uso por paciente"><Users size={13} /></button>
           <button onClick={onViewLinks} className="rounded p-1.5 text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-500" title="Ver tratamientos vinculados"><Link2 size={13} /></button>
+          {product.presentation_qty && (
+            <>
+              <button onClick={() => updateStock.mutate({ id: product.id, qty: portionSize, operation: "add" })}
+                title={`+1 (${fmt(portionSize)} ${product.presentation_unit ?? "u"})`}
+                className="rounded p-1.5 text-slate-400 hover:bg-green-50 dark:hover:bg-green-900/30 hover:text-green-600"><Plus size={13} /></button>
+              <button onClick={() => updateStock.mutate({ id: product.id, qty: -portionSize, operation: "add" })}
+                title="-1"
+                className="rounded p-1.5 text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500"><Minus size={13} /></button>
+            </>
+          )}
+          <button onClick={onAdjust} className="rounded p-1.5 text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-500" title="Ajustar stock"><Layers size={13} /></button>
+          <button onClick={onLots} className="rounded p-1.5 text-slate-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 hover:text-purple-500" title="Historial de lotes"><History size={13} /></button>
           <button onClick={onEdit} className="rounded p-1.5 text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-500" title="Editar"><Edit2 size={13} /></button>
           <button onClick={() => { if (confirm(`¿Eliminar "${product.name}"?`)) deleteProduct.mutate(product.id); }}
             className="rounded p-1.5 text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500" title="Eliminar"><Trash2 size={13} /></button>
@@ -1731,35 +1765,40 @@ export default function ProductosPage() {
               <p className="text-sm text-slate-400 dark:text-gray-500">Prueba con otro filtro o agrega un producto nuevo</p>
             </div>
           ) : (
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50 text-xs text-slate-500 dark:text-gray-400">
-                  <th className="w-10 pl-3">
-                    <input type="checkbox" checked={allSelected}
-                      onChange={(e) => setSelectedIds(e.target.checked ? new Set(filtered.map((p) => p.id)) : new Set())}
-                      ref={(el) => { if (el) el.indeterminate = someSelected; }}
-                      className="rounded border-slate-300 dark:border-gray-600 cursor-pointer accent-blue-600" />
-                  </th>
-                  <th className="w-7 pl-2" />
-                  <th className="pr-2 py-3 text-right font-medium w-8">#</th>
-                  <th className="px-3 py-3 text-left font-medium">Producto</th>
-                  <th className="px-4 py-3 text-left font-medium">Categoría</th>
-                  <th className="px-4 py-3 text-left font-medium">Presentación / uso</th>
-                  <th className="px-4 py-3 text-right font-medium">Costo total</th>
-                  <th className="px-5 py-3 text-right font-medium">C$/uso</th>
-                  <th className="w-16 py-3" />
-                </tr>
-              </thead>
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={filtered.map((p) => p.id)} strategy={verticalListSortingStrategy}>
-                  <tbody>
-                    {filtered.map((p, i) => (
-                      <SortableProductRow key={p.id} product={p} onEdit={() => setEditingProduct(p)} onViewUsage={() => setUsageProduct(p)} onViewLinks={() => setLinksProduct(p)} isDragDisabled={isDragDisabled} exchangeRate={exchangeRate} rowNumber={i + 1} isSelected={selectedIds.has(p.id)} onSelect={(shiftKey) => handleSelect(p.id, i, shiftKey)} />
-                    ))}
-                  </tbody>
-                </SortableContext>
-              </DndContext>
-            </table>
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50 text-xs text-slate-500 dark:text-gray-400">
+                    <th className="w-10 pl-3">
+                      <input type="checkbox" checked={allSelected}
+                        onChange={(e) => setSelectedIds(e.target.checked ? new Set(filtered.map((p) => p.id)) : new Set())}
+                        ref={(el) => { if (el) el.indeterminate = someSelected; }}
+                        className="rounded border-slate-300 dark:border-gray-600 cursor-pointer accent-blue-600" />
+                    </th>
+                    <th className="w-7 pl-2" />
+                    <th className="pr-2 py-3 text-right font-medium w-8">#</th>
+                    <th className="px-3 py-3 text-left font-medium">Producto</th>
+                    <th className="px-4 py-3 text-left font-medium">Categoría</th>
+                    <th className="px-4 py-3 text-left font-medium">Presentación / uso</th>
+                    <th className="px-4 py-3 text-right font-medium">Costo total</th>
+                    <th className="px-5 py-3 text-right font-medium">C$/uso</th>
+                    <th className="px-4 py-3 text-left font-medium">Stock</th>
+                    <th className="px-4 py-3 text-left font-medium">Mínimo</th>
+                    <th className="px-4 py-3 text-left font-medium">Estado</th>
+                    <th className="w-28 py-3" />
+                  </tr>
+                </thead>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={filtered.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                    <tbody>
+                      {filtered.map((p, i) => (
+                        <SortableProductRow key={p.id} product={p} onEdit={() => setEditingProduct(p)} onViewUsage={() => setUsageProduct(p)} onViewLinks={() => setLinksProduct(p)} onAdjust={() => setAdjusting(p)} onLots={() => setLotsProduct(p)} isDragDisabled={isDragDisabled} exchangeRate={exchangeRate} rowNumber={i + 1} isSelected={selectedIds.has(p.id)} onSelect={(shiftKey) => handleSelect(p.id, i, shiftKey)} />
+                      ))}
+                    </tbody>
+                  </SortableContext>
+                </DndContext>
+              </table>
+            </div>
           )}
         </div>
       )}
