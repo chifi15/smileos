@@ -1225,88 +1225,6 @@ function SortableProductRow({ product, onEdit, onViewUsage, onViewLinks, onAdjus
   );
 }
 
-// ─── Fila de inventario ───────────────────────────────────────────────────────
-
-function InventoryRow({ product, onAdjust, onLots, exchangeRate }: { product: ApiProduct; onAdjust: () => void; onLots: () => void; exchangeRate: number }) {
-  const updateStock = useUpdateCostProductStock();
-  const status = getStatus(product);
-  const { label, icon: Icon, color, bg } = STATUS_CFG[status];
-  const portionSize = product.presentation_qty ?? 1;
-
-  return (
-    <tr className="group border-b border-slate-50 dark:border-gray-700 hover:bg-slate-50/50 dark:hover:bg-gray-700/50">
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-2.5">
-          {product.image_url ? (
-            <img src={product.image_url} alt={product.name} className="h-9 w-9 rounded-lg object-cover border border-slate-100 dark:border-gray-700 shrink-0" />
-          ) : (
-            <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-gray-700 flex items-center justify-center shrink-0">
-              <Package size={14} className="text-slate-300 dark:text-gray-600" />
-            </div>
-          )}
-          <div className="min-w-0">
-            <p className="font-medium text-slate-800 dark:text-gray-200">{product.name}</p>
-            {product.supplier && <p className="text-xs text-slate-400 dark:text-gray-500">{product.supplier}</p>}
-          </div>
-        </div>
-      </td>
-      <td className="px-3 py-3">
-        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${categoryColor(product.category)}`}>
-          {categoryLabel(product.category)}
-        </span>
-      </td>
-      <td className="px-4 py-3">
-        {product.stock_qty != null ? (
-          <div>
-            <p className="font-semibold text-slate-800 dark:text-gray-200 tabular-nums">{stockLabel(product)}</p>
-            {product.portion_qty && <p className="text-xs text-slate-400 dark:text-gray-500">{usosLabel(product)}</p>}
-          </div>
-        ) : (
-          <span className="text-xs text-slate-300 dark:text-gray-600">No configurado</span>
-        )}
-      </td>
-      <td className="px-4 py-3 text-sm text-slate-400 dark:text-gray-500 tabular-nums">
-        {product.min_stock_qty != null ? `${fmt(product.min_stock_qty)} ${product.presentation_unit ?? "usos"}` : <span className="text-slate-200 dark:text-gray-700">—</span>}
-      </td>
-      <td className="px-4 py-3">
-        <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${bg} ${color}`}>
-          <Icon size={11} /> {label}
-        </span>
-      </td>
-      <td className="px-4 py-3 text-right">
-        <p className="font-medium text-slate-700 dark:text-gray-300 tabular-nums text-sm">{fmtC(product.unit_price)}</p>
-        <p className="text-xs text-slate-400 dark:text-gray-500 tabular-nums">{fmtUSD(product.unit_price, exchangeRate)}</p>
-      </td>
-      <td className="pr-4 py-3">
-        <div className="flex items-center gap-1">
-          {product.presentation_qty && (
-            <>
-              <button onClick={() => updateStock.mutate({ id: product.id, qty: portionSize, operation: "add" })}
-                title={`+1 (${fmt(portionSize)} ${product.presentation_unit ?? "u"})`}
-                className="rounded p-1.5 text-slate-300 dark:text-gray-600 hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 dark:hover:text-green-400">
-                <Plus size={13} />
-              </button>
-              <button onClick={() => updateStock.mutate({ id: product.id, qty: -portionSize, operation: "add" })}
-                title="-1"
-                className="rounded p-1.5 text-slate-300 dark:text-gray-600 hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-500 dark:hover:text-red-400">
-                <Minus size={13} />
-              </button>
-            </>
-          )}
-          <button onClick={onAdjust} title="Ajustar stock"
-            className="rounded p-1.5 text-slate-300 dark:text-gray-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-500 dark:hover:text-blue-400">
-            <Edit2 size={13} />
-          </button>
-          <button onClick={onLots} title="Historial de lotes"
-            className="rounded p-1.5 text-slate-300 dark:text-gray-600 hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-500 dark:hover:text-purple-400">
-            <History size={13} />
-          </button>
-        </div>
-      </td>
-    </tr>
-  );
-}
-
 // ─── Página ───────────────────────────────────────────────────────────────────
 
 function ImportProductsModal({ onClose }: { onClose: () => void }) {
@@ -1448,9 +1366,6 @@ export default function ProductosPage() {
   const reorderProducts = useReorderCostProducts();
 
   const searchParams = useSearchParams();
-  const [view, setView] = useState<"catalogo" | "inventario">(
-    () => searchParams.get("view") === "inventario" ? "inventario" : "catalogo"
-  );
   const [statusFilter, setStatusFilter] = useState<StockStatus | "all">("all");
   const [adjusting, setAdjusting] = useState<ApiProduct | null>(null);
   const [lotsProduct, setLotsProduct] = useState<ApiProduct | null>(null);
@@ -1593,41 +1508,14 @@ export default function ProductosPage() {
           <Link href="/costos" className="text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200 mt-0.5"><ArrowLeft size={18} /></Link>
           <div>
             <h1 className="text-xl font-bold text-slate-800 dark:text-white">Productos</h1>
-            <p className="text-sm text-slate-500 dark:text-gray-400 mt-0.5">
-              {view === "catalogo" ? "Precios y detalles de materiales" : "Control de stock y lotes"}
-            </p>
+            <p className="text-sm text-slate-500 dark:text-gray-400 mt-0.5">Precios, detalles y stock de materiales</p>
           </div>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {view === "catalogo" && (
-            <>
-              <Button variant="secondary" size="sm" onClick={() => exportProductsToCSV(products)} disabled={products.length === 0}><Download size={15} /> Exportar</Button>
-              <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}><Upload size={15} /> Importar</Button>
-            </>
-          )}
+          <Button variant="secondary" size="sm" onClick={() => exportProductsToCSV(products)} disabled={products.length === 0}><Download size={15} /> Exportar</Button>
+          <Button variant="secondary" size="sm" onClick={() => setShowImport(true)}><Upload size={15} /> Importar</Button>
           <Button size="sm" onClick={() => setShowNew(true)}><Plus size={15} /> Nuevo producto</Button>
         </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="mb-5 flex gap-1 rounded-xl border border-slate-200 dark:border-gray-700 bg-slate-50 dark:bg-gray-800 p-1 w-fit">
-        <button
-          onClick={() => setView("catalogo")}
-          className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all ${view === "catalogo" ? "bg-white dark:bg-gray-700 text-slate-800 dark:text-white shadow-sm" : "text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200"}`}
-        >
-          <Package size={14} /> Catálogo
-        </button>
-        <button
-          onClick={() => { setView("inventario"); setStatusFilter("all"); }}
-          className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-all ${view === "inventario" ? "bg-white dark:bg-gray-700 text-slate-800 dark:text-white shadow-sm" : "text-slate-500 dark:text-gray-400 hover:text-slate-700 dark:hover:text-gray-200"}`}
-        >
-          <Layers size={14} /> Inventario
-          {(stockCounts.low > 0 || stockCounts.empty > 0) && (
-            <span className="rounded-full bg-red-500 text-white text-[10px] font-bold w-4 h-4 flex items-center justify-center">
-              {stockCounts.low + stockCounts.empty}
-            </span>
-          )}
-        </button>
       </div>
 
       {/* KPI cards — estado de stock */}
@@ -1648,18 +1536,9 @@ export default function ProductosPage() {
           );
         })}
       </div>
-      {view === "inventario" && linkedCount === 0 && (
-        <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 dark:border-amber-800/30 bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
-          <Link2 size={16} className="text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-          <p className="text-sm text-amber-800 dark:text-amber-400">
-            <span className="font-semibold">El descuento automático no está configurado.</span>{" "}
-            Ve a <Link href="/settings" className="underline font-medium">Configuración → Catálogo</Link> y vincula cada procedimiento a su tratamiento de Costos.
-          </p>
-        </div>
-      )}
 
       <div className="mb-4 flex flex-col gap-3">
-        {view === "catalogo" && stockFilter === "bajo" && (
+        {stockFilter === "bajo" && (
           <div className="flex items-center gap-2 rounded-lg border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20 px-3 py-2">
             <AlertTriangle size={13} className="text-orange-500 shrink-0" />
             <span className="text-xs font-medium text-orange-700 dark:text-orange-300 flex-1">
@@ -1681,7 +1560,7 @@ export default function ProductosPage() {
           </button>
           {allCategoriesInUse.map((cat) => {
             const count = inventoryFiltered.filter((p) => p.category === cat).length;
-            if (view === "catalogo" && editingCategory === cat) {
+            if (editingCategory === cat) {
               return (
                 <div key={cat} className="flex items-center gap-1">
                   <input
@@ -1709,22 +1588,19 @@ export default function ProductosPage() {
                 <button onClick={() => setCategory(cat)} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === cat ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-gray-600"}`}>
                   {categoryLabel(cat)} <span className={`ml-1 tabular-nums ${category === cat ? "opacity-80" : "opacity-60"}`}>({count})</span>
                 </button>
-                {view === "catalogo" && (
-                  <div className="flex items-center gap-0.5 opacity-0 group-hover/chip:opacity-100 transition-opacity">
-                    <button onClick={() => { setEditingCategory(cat); setEditCategoryValue(cat); }} title="Renombrar categoría"
-                      className="rounded p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30"><Edit2 size={11} /></button>
-                    <button onClick={() => handleDeleteCategory(cat)} title="Eliminar categoría"
-                      className="rounded p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"><Trash2 size={11} /></button>
-                  </div>
-                )}
+                <div className="flex items-center gap-0.5 opacity-0 group-hover/chip:opacity-100 transition-opacity">
+                  <button onClick={() => { setEditingCategory(cat); setEditCategoryValue(cat); }} title="Renombrar categoría"
+                    className="rounded p-1 text-slate-400 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/30"><Edit2 size={11} /></button>
+                  <button onClick={() => handleDeleteCategory(cat)} title="Eliminar categoría"
+                    className="rounded p-1 text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30"><Trash2 size={11} /></button>
+                </div>
               </div>
             );
           })}
         </div>
       </div>
 
-      {/* Bulk delete bar — catálogo only */}
-      {view === "catalogo" && selectedIds.size > 0 && (
+      {selectedIds.size > 0 && (
         <div className="mb-3 flex items-center gap-3 rounded-xl border border-blue-200 dark:border-blue-800/40 bg-blue-50 dark:bg-blue-900/20 px-4 py-2.5">
           <span className="text-sm font-medium text-blue-700 dark:text-blue-300">
             {selectedIds.size} producto{selectedIds.size !== 1 ? "s" : ""} seleccionado{selectedIds.size !== 1 ? "s" : ""}
@@ -1739,9 +1615,7 @@ export default function ProductosPage() {
         </div>
       )}
 
-      {/* ── Vista Catálogo ── */}
-      {view === "catalogo" && (
-        <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
+      <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
           {inventoryFiltered.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-16 text-center">
               <Package size={32} className="text-slate-300 dark:text-gray-600" />
@@ -1783,47 +1657,9 @@ export default function ProductosPage() {
             </div>
           )}
         </div>
-      )}
-
-      {/* ── Vista Inventario ── */}
-      {view === "inventario" && (
-        <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
-          {inventoryFiltered.length === 0 ? (
-            <div className="flex flex-col items-center gap-2 py-16 text-center">
-              <Package size={32} className="text-slate-300 dark:text-gray-600" />
-              <p className="text-slate-500 dark:text-gray-400 font-medium">Sin productos</p>
-              <p className="text-sm text-slate-400 dark:text-gray-500">Prueba con otro filtro o estado</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/50 text-xs text-slate-500 dark:text-gray-400">
-                    <th className="px-4 py-3 text-left font-medium">Producto</th>
-                    <th className="px-3 py-3 text-left font-medium">Categoría</th>
-                    <th className="px-4 py-3 text-left font-medium">Stock actual</th>
-                    <th className="px-4 py-3 text-left font-medium">Mínimo</th>
-                    <th className="px-4 py-3 text-left font-medium">Estado</th>
-                    <th className="px-4 py-3 text-right font-medium">C$/uso</th>
-                    <th className="w-28 py-3" />
-                  </tr>
-                </thead>
-                <tbody>
-                  {inventoryFiltered.map((p) => (
-                    <InventoryRow key={p.id} product={p} onAdjust={() => setAdjusting(p)} onLots={() => setLotsProduct(p)} exchangeRate={exchangeRate} />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
 
       <p className="mt-3 text-xs text-slate-400 dark:text-gray-500 text-center">
-        {view === "catalogo"
-          ? `${inventoryFiltered.length} producto${inventoryFiltered.length !== 1 ? "s" : ""}${isDragDisabled ? " · Limpia los filtros para reordenar" : " · Arrastra para reordenar · Pasa el mouse para editar"}`
-          : `${inventoryFiltered.length} de ${products.length} producto${products.length !== 1 ? "s" : ""} · ${linkedCount} tratamiento${linkedCount !== 1 ? "s" : ""} vinculado${linkedCount !== 1 ? "s" : ""} para descuento automático`
-        }
+        {`${inventoryFiltered.length} producto${inventoryFiltered.length !== 1 ? "s" : ""}${isDragDisabled ? " · Limpia los filtros para reordenar" : " · Arrastra para reordenar · Pasa el mouse para editar"}`}
       </p>
 
       {/* Modales */}
