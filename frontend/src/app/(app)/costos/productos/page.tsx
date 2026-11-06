@@ -1550,8 +1550,8 @@ export default function ProductosPage() {
     });
   }
 
-  const hasFilter = search.trim() !== "" || category !== "all" || stockFilter !== null;
-  const isDragDisabled = search.trim() !== "" || stockFilter !== null;
+  const hasFilter = search.trim() !== "" || category !== "all" || stockFilter !== null || statusFilter !== "all";
+  const isDragDisabled = search.trim() !== "" || stockFilter !== null || statusFilter !== "all";
 
   const allCategoriesInUse: string[] = [
     ...ALL_CATEGORIES.filter((c) => products.some((p) => p.category === c)),
@@ -1642,36 +1642,32 @@ export default function ProductosPage() {
         </button>
       </div>
 
-      {/* KPI cards — solo en inventario */}
-      {view === "inventario" && (
-        <>
-          <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {(["ok", "low", "empty", "unconfigured"] as StockStatus[]).map((s) => {
-              const { label, icon: Icon, color, bg } = STATUS_CFG[s];
-              return (
-                <button key={s}
-                  onClick={() => setStatusFilter(statusFilter === s ? "all" : s)}
-                  className={`rounded-xl border p-4 text-left transition-all ${statusFilter === s ? "border-blue-300 dark:border-blue-700 ring-2 ring-blue-200 dark:ring-blue-800" : "border-slate-200 dark:border-gray-700 hover:border-slate-300 dark:hover:border-gray-600"} bg-white dark:bg-gray-800`}
-                >
-                  <div className={`mb-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${bg} ${color}`}>
-                    <Icon size={11} /> {label}
-                  </div>
-                  <p className="text-2xl font-bold text-slate-800 dark:text-white">{stockCounts[s]}</p>
-                  <p className="text-xs text-slate-400 dark:text-gray-500">producto{stockCounts[s] !== 1 ? "s" : ""}</p>
-                </button>
-              );
-            })}
-          </div>
-          {linkedCount === 0 && (
-            <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 dark:border-amber-800/30 bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
-              <Link2 size={16} className="text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
-              <p className="text-sm text-amber-800 dark:text-amber-400">
-                <span className="font-semibold">El descuento automático no está configurado.</span>{" "}
-                Ve a <Link href="/settings" className="underline font-medium">Configuración → Catálogo</Link> y vincula cada procedimiento a su tratamiento de Costos.
-              </p>
-            </div>
-          )}
-        </>
+      {/* KPI cards — estado de stock */}
+      <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
+        {(["ok", "low", "empty", "unconfigured"] as StockStatus[]).map((s) => {
+          const { label, icon: Icon, color, bg } = STATUS_CFG[s];
+          return (
+            <button key={s}
+              onClick={() => setStatusFilter(statusFilter === s ? "all" : s)}
+              className={`rounded-xl border p-4 text-left transition-all ${statusFilter === s ? "border-blue-300 dark:border-blue-700 ring-2 ring-blue-200 dark:ring-blue-800" : "border-slate-200 dark:border-gray-700 hover:border-slate-300 dark:hover:border-gray-600"} bg-white dark:bg-gray-800`}
+            >
+              <div className={`mb-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium ${bg} ${color}`}>
+                <Icon size={11} /> {label}
+              </div>
+              <p className="text-2xl font-bold text-slate-800 dark:text-white">{stockCounts[s]}</p>
+              <p className="text-xs text-slate-400 dark:text-gray-500">producto{stockCounts[s] !== 1 ? "s" : ""}</p>
+            </button>
+          );
+        })}
+      </div>
+      {view === "inventario" && linkedCount === 0 && (
+        <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-200 dark:border-amber-800/30 bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
+          <Link2 size={16} className="text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+          <p className="text-sm text-amber-800 dark:text-amber-400">
+            <span className="font-semibold">El descuento automático no está configurado.</span>{" "}
+            Ve a <Link href="/settings" className="underline font-medium">Configuración → Catálogo</Link> y vincula cada procedimiento a su tratamiento de Costos.
+          </p>
+        </div>
       )}
 
       <div className="mb-4 flex flex-col gap-3">
@@ -1693,10 +1689,10 @@ export default function ProductosPage() {
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
           <button onClick={() => setCategory("all")} className={`rounded-lg px-3 py-2 text-xs font-medium transition-colors ${category === "all" ? "bg-blue-600 text-white" : "bg-slate-100 dark:bg-gray-700 text-slate-600 dark:text-gray-300 hover:bg-slate-200 dark:hover:bg-gray-600"}`}>
-            Todos <span className={`ml-1 tabular-nums ${category === "all" ? "opacity-80" : "opacity-60"}`}>({view === "inventario" ? inventoryFiltered.length : products.length})</span>
+            Todos <span className={`ml-1 tabular-nums ${category === "all" ? "opacity-80" : "opacity-60"}`}>({inventoryFiltered.length})</span>
           </button>
           {allCategoriesInUse.map((cat) => {
-            const count = (view === "inventario" ? inventoryFiltered : products).filter((p) => p.category === cat).length;
+            const count = inventoryFiltered.filter((p) => p.category === cat).length;
             if (view === "catalogo" && editingCategory === cat) {
               return (
                 <div key={cat} className="flex items-center gap-1">
@@ -1758,7 +1754,7 @@ export default function ProductosPage() {
       {/* ── Vista Catálogo ── */}
       {view === "catalogo" && (
         <div className="rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 overflow-hidden">
-          {filtered.length === 0 ? (
+          {inventoryFiltered.length === 0 ? (
             <div className="flex flex-col items-center gap-2 py-16 text-center">
               <Package size={32} className="text-slate-300 dark:text-gray-600" />
               <p className="text-slate-500 dark:text-gray-400 font-medium">Sin productos</p>
@@ -1789,9 +1785,9 @@ export default function ProductosPage() {
                   </tr>
                 </thead>
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                  <SortableContext items={filtered.map((p) => p.id)} strategy={verticalListSortingStrategy}>
+                  <SortableContext items={inventoryFiltered.map((p) => p.id)} strategy={verticalListSortingStrategy}>
                     <tbody>
-                      {filtered.map((p, i) => (
+                      {inventoryFiltered.map((p, i) => (
                         <SortableProductRow key={p.id} product={p} onEdit={() => setEditingProduct(p)} onViewUsage={() => setUsageProduct(p)} onViewLinks={() => setLinksProduct(p)} onAdjust={() => setAdjusting(p)} onLots={() => setLotsProduct(p)} isDragDisabled={isDragDisabled} exchangeRate={exchangeRate} rowNumber={i + 1} isSelected={selectedIds.has(p.id)} onSelect={(shiftKey) => handleSelect(p.id, i, shiftKey)} />
                       ))}
                     </tbody>
@@ -1839,7 +1835,7 @@ export default function ProductosPage() {
 
       <p className="mt-3 text-xs text-slate-400 dark:text-gray-500 text-center">
         {view === "catalogo"
-          ? `${filtered.length} producto${filtered.length !== 1 ? "s" : ""}${isDragDisabled ? " · Limpia la búsqueda para reordenar" : " · Arrastra para reordenar · Pasa el mouse para editar"}`
+          ? `${inventoryFiltered.length} producto${inventoryFiltered.length !== 1 ? "s" : ""}${isDragDisabled ? " · Limpia los filtros para reordenar" : " · Arrastra para reordenar · Pasa el mouse para editar"}`
           : `${inventoryFiltered.length} de ${products.length} producto${products.length !== 1 ? "s" : ""} · ${linkedCount} tratamiento${linkedCount !== 1 ? "s" : ""} vinculado${linkedCount !== 1 ? "s" : ""} para descuento automático`
         }
       </p>
