@@ -1148,47 +1148,48 @@ function SortableProductRow({ product, onEdit, onViewUsage, onViewLinks, onAdjus
           </button>
         )}
       </td>
+      <td className="pr-2 py-3 text-right tabular-nums text-xs text-slate-400 dark:text-gray-500 w-8 select-none">{rowNumber}</td>
       <td className="px-3 py-3">
-        <div className="flex items-center gap-2.5">
+        <div className="flex items-center gap-2">
           {product.image_url ? (
-            <img src={product.image_url} alt={product.name} className="h-9 w-9 rounded-lg object-cover border border-slate-100 dark:border-gray-700 shrink-0" />
+            <img src={product.image_url} alt={product.name} className="h-8 w-8 rounded-lg object-cover border border-slate-100 dark:border-gray-700 shrink-0" />
           ) : (
-            <div className="h-9 w-9 rounded-lg bg-slate-100 dark:bg-gray-700 flex items-center justify-center shrink-0">
-              <Package size={14} className="text-slate-300 dark:text-gray-500" />
+            <div className="h-8 w-8 rounded-lg bg-slate-100 dark:bg-gray-700 flex items-center justify-center shrink-0">
+              <Package size={13} className="text-slate-300 dark:text-gray-500" />
             </div>
           )}
           <div className="min-w-0">
-            <p className="font-medium text-slate-800 dark:text-white">{product.name}</p>
+            <p className="font-medium text-slate-800 dark:text-white text-sm">{product.name}</p>
             {product.supplier && <p className="text-xs text-slate-400 dark:text-gray-500">{product.supplier}</p>}
-            {product.purchase_date && <p className="text-xs text-slate-400 dark:text-gray-500">Comprado: {fmtDate(product.purchase_date, { showWeekday: false })}</p>}
-            {product.notes && <p className="text-xs text-slate-300 dark:text-gray-600 italic truncate max-w-[160px]">{product.notes}</p>}
           </div>
         </div>
       </td>
-      <td className="px-4 py-3">
+      <td className="px-3 py-3">
         <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium ${categoryColor(product.category)}`}>
           {categoryLabel(product.category)}
         </span>
       </td>
-      <td className="px-4 py-3">
+      <td className="px-3 py-3">
         {hasCalc ? (
           <div className="text-xs space-y-0.5">
-            <p className="text-slate-600 dark:text-gray-400"><span className="font-medium">{fmt(product.presentation_qty!)}{product.presentation_unit}</span> total · {fmt(product.portion_qty!)}{product.presentation_unit}/uso</p>
-            <p className="text-slate-400 dark:text-gray-500">≈ {fmt(portions!)} usos por frasco</p>
+            <p className="text-slate-600 dark:text-gray-400"><span className="font-medium">{fmt(product.presentation_qty!)}{product.presentation_unit}</span> · {fmt(product.portion_qty!)}/uso</p>
+            <p className="text-slate-400 dark:text-gray-500">≈ {fmt(portions!)} usos</p>
           </div>
         ) : product.presentation ? (
-          <span className="text-sm text-slate-500 dark:text-gray-400">{product.presentation}</span>
+          <span className="text-xs text-slate-500 dark:text-gray-400">{product.presentation}</span>
         ) : <span className="text-slate-300 dark:text-gray-600">—</span>}
       </td>
-      <td className="px-4 py-3 text-right">
+      <td className="px-3 py-3 text-right">
+        {product.total_cost != null ? (
+          <div>
+            <p className="text-sm text-slate-600 dark:text-gray-400 tabular-nums">{fmtC(product.total_cost)}</p>
+            <p className="text-xs text-slate-400 dark:text-gray-500 tabular-nums">{fmtUSD(product.total_cost, exchangeRate)}</p>
+          </div>
+        ) : <span className="text-slate-300 dark:text-gray-600 text-sm">—</span>}
+      </td>
+      <td className="px-3 py-3 text-right">
         <p className="font-semibold text-slate-800 dark:text-white tabular-nums">{fmtC(product.unit_price)}</p>
         <p className="text-xs text-slate-400 dark:text-gray-500 tabular-nums">{fmtUSD(product.unit_price, exchangeRate)}</p>
-        {product.total_cost != null && (
-          <>
-            <p className="text-[10px] text-slate-400 dark:text-gray-500 tabular-nums mt-0.5">{fmtC(product.total_cost)} total</p>
-            <p className="text-[10px] text-slate-300 dark:text-gray-600 tabular-nums">{fmtUSD(product.total_cost, exchangeRate)} total</p>
-          </>
-        )}
         {hasCalc && <p className="text-[10px] text-green-600 dark:text-green-400">calculado</p>}
       </td>
       <td className="px-3 py-3">
@@ -1199,25 +1200,25 @@ function SortableProductRow({ product, onEdit, onViewUsage, onViewLinks, onAdjus
           <p className="mt-0.5 text-xs text-slate-500 dark:text-gray-400 tabular-nums">{stockLabel(product)}{product.min_stock_qty != null ? ` / mín ${fmt(product.min_stock_qty)}` : ""}</p>
         )}
       </td>
-      <td className="pr-3 py-3">
-        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button onClick={onViewUsage} className="rounded p-1.5 text-slate-400 hover:bg-violet-50 dark:hover:bg-violet-900/30 hover:text-violet-500" title="Ver uso por paciente"><Users size={13} /></button>
-          <button onClick={onViewLinks} className="rounded p-1.5 text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-500" title="Ver tratamientos vinculados"><Link2 size={13} /></button>
+      <td className="pr-2 py-3">
+        <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+          <button onClick={onViewUsage} className="rounded p-1 text-slate-400 hover:bg-violet-50 dark:hover:bg-violet-900/30 hover:text-violet-500" title="Ver uso por paciente"><Users size={12} /></button>
+          <button onClick={onViewLinks} className="rounded p-1 text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-500" title="Ver tratamientos vinculados"><Link2 size={12} /></button>
           {product.presentation_qty && (
             <>
               <button onClick={() => updateStock.mutate({ id: product.id, qty: portionSize, operation: "add" })}
-                title={`+1 (${fmt(portionSize)} ${product.presentation_unit ?? "u"})`}
-                className="rounded p-1.5 text-slate-400 hover:bg-green-50 dark:hover:bg-green-900/30 hover:text-green-600"><Plus size={13} /></button>
+                title={`+1 frasco (${fmt(portionSize)} ${product.presentation_unit ?? "u"})`}
+                className="rounded p-1 text-slate-400 hover:bg-green-50 dark:hover:bg-green-900/30 hover:text-green-600"><Plus size={12} /></button>
               <button onClick={() => updateStock.mutate({ id: product.id, qty: -portionSize, operation: "add" })}
-                title="-1"
-                className="rounded p-1.5 text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500"><Minus size={13} /></button>
+                title="-1 frasco"
+                className="rounded p-1 text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500"><Minus size={12} /></button>
             </>
           )}
-          <button onClick={onAdjust} className="rounded p-1.5 text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-500" title="Ajustar stock"><Layers size={13} /></button>
-          <button onClick={onLots} className="rounded p-1.5 text-slate-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 hover:text-purple-500" title="Historial de lotes"><History size={13} /></button>
-          <button onClick={onEdit} className="rounded p-1.5 text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-500" title="Editar"><Edit2 size={13} /></button>
+          <button onClick={onAdjust} className="rounded p-1 text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-500" title="Ajustar stock"><Layers size={12} /></button>
+          <button onClick={onLots} className="rounded p-1 text-slate-400 hover:bg-purple-50 dark:hover:bg-purple-900/30 hover:text-purple-500" title="Historial de lotes"><History size={12} /></button>
+          <button onClick={onEdit} className="rounded p-1 text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-500" title="Editar"><Edit2 size={12} /></button>
           <button onClick={() => { if (confirm(`¿Eliminar "${product.name}"?`)) deleteProduct.mutate(product.id); }}
-            className="rounded p-1.5 text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500" title="Eliminar"><Trash2 size={13} /></button>
+            className="rounded p-1 text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500" title="Eliminar"><Trash2 size={12} /></button>
         </div>
       </td>
     </tr>
@@ -1585,7 +1586,7 @@ export default function ProductosPage() {
   }
 
   return (
-    <div className="mx-auto max-w-5xl p-6">
+    <div className="mx-auto max-w-7xl p-6">
       {/* Header */}
       <div className="mb-4 flex items-start justify-between gap-4">
         <div className="flex items-center gap-3">
@@ -1759,12 +1760,14 @@ export default function ProductosPage() {
                         className="rounded border-slate-300 dark:border-gray-600 cursor-pointer accent-blue-600" />
                     </th>
                     <th className="w-7 pl-2" />
+                    <th className="pr-2 py-3 text-right font-medium w-8">#</th>
                     <th className="px-3 py-3 text-left font-medium">Producto</th>
-                    <th className="px-4 py-3 text-left font-medium">Categoría</th>
-                    <th className="px-4 py-3 text-left font-medium">Presentación / uso</th>
-                    <th className="px-4 py-3 text-right font-medium">C$/uso</th>
+                    <th className="px-3 py-3 text-left font-medium">Categoría</th>
+                    <th className="px-3 py-3 text-left font-medium">Presentación / uso</th>
+                    <th className="px-3 py-3 text-right font-medium">Costo total</th>
+                    <th className="px-3 py-3 text-right font-medium">C$/uso</th>
                     <th className="px-3 py-3 text-left font-medium">Stock / Estado</th>
-                    <th className="w-28 py-3" />
+                    <th className="py-3" />
                   </tr>
                 </thead>
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
