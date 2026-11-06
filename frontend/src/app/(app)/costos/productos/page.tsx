@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, Plus, Trash2, Search, X, Edit2, Package, Calculator, ChevronRight, GripVertical, ImagePlus, Users, Loader2, Check, Settings2, AlertTriangle, Download, Upload, CheckCircle2, AlertCircle } from "lucide-react";
+import { ArrowLeft, Plus, Trash2, Search, X, Edit2, Package, Calculator, ChevronRight, GripVertical, ImagePlus, Users, Loader2, Check, Settings2, AlertTriangle, Download, Upload, CheckCircle2, AlertCircle, Link2 } from "lucide-react";
+import toast from "react-hot-toast";
 import Link from "next/link";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, verticalListSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import {
   useCostProducts,
+  useCostTreatments,
   useCreateCostProduct,
   useUpdateCostProduct,
   useDeleteCostProduct,
@@ -18,6 +20,7 @@ import {
   useDeleteCostCategory,
   useDeleteCostProducts,
   useImportCostProducts,
+  useUpdateCostAppointment,
   ApiProduct,
   type ImportResult,
 } from "@/hooks/useCostos";
@@ -521,9 +524,220 @@ function ProductUsageModal({ product, onClose }: { product: ApiProduct; onClose:
   );
 }
 
+// ─── Modal de tratamientos vinculados ─────────────────────────────────────────
+
+interface LinkedTreatmentInfo {
+  treatmentId: string;
+  treatmentName: string;
+  appointmentId: string;
+  appointmentName: string;
+  quantity: number;
+}
+
+function ProductLinksModal({ product, onClose }: { product: ApiProduct; onClose: () => void }) {
+  useEscapeKey(onClose);
+  const { data: treatments = [], isLoading } = useCostTreatments();
+  const { data: products = [] } = useCostProducts();
+  const updateAppointment = useUpdateCostAppointment();
+
+  const links = useMemo<LinkedTreatmentInfo[]>(() => {
+    const seen = new Set<string>();
+    const result: LinkedTreatmentInfo[] = [];
+    for (const t of treatments) {
+      for (const a of t.appointments) {
+        if (seen.has(a.id)) continue;
+        const totalQty = a.materials
+          .filter((m) => m.productId === product.id)
+          .reduce((s, m) => s + m.quantity, 0);
+        if (totalQty > 0) {
+          seen.add(a.id);
+          result.push({
+            treatmentId: t.id,
+            treatmentName: t.name,
+            appointmentId: a.id,
+            appointmentName: a.name,
+            quantity: totalQty,
+          });
+        }
+      }
+    }
+    return result;
+  }, [treatments, product.id]);
+
+  const [replacingAptId, setReplacingAptId] = useState<string | null>(null);
+  const [replaceSearch, setReplaceSearch] = useState("");
+  const [selectedNewProductId, setSelectedNewProductId] = useState("");
+
+  const otherProducts = products.filter((p) => p.id !== product.id);
+  const filteredForReplace = replaceSearch.trim()
+    ? otherProducts.filter((p) => normalizeSearch(p.name).includes(normalizeSearch(replaceSearch)))
+    : otherProducts;
+
+  function cancelReplace() {
+    setReplacingAptId(null);
+    setReplaceSearch("");
+    setSelectedNewProductId("");
+  }
+
+  function handleUnlink(link: LinkedTreatmentInfo) {
+    if (!confirm(`¿Desvincular "${product.name}" de "${link.treatmentName} — ${link.appointmentName}"?`)) return;
+    const t = treatments.find((tr) => tr.id === link.treatmentId);
+    const a = t?.appointments.find((ap) => ap.id === link.appointmentId);
+    if (!a) return;
+    const newMaterials = a.materials.filter((m) => m.productId !== product.id);
+    updateAppointment.mutate(
+      { treatmentId: link.treatmentId, aptId: link.appointmentId, materials: newMaterials },
+      { onSuccess: () => toast.success("Material desvinculado.") }
+    );
+  }
+
+  function handleReplace(link: LinkedTreatmentInfo) {
+    if (!selectedNewProductId) return;
+    const t = treatments.find((tr) => tr.id === link.treatmentId);
+    const a = t?.appointments.find((ap) => ap.id === link.appointmentId);
+    if (!a) return;
+    const newMaterials = a.materials.map((m) =>
+      m.productId === product.id ? { ...m, productId: selectedNewProductId } : m
+    );
+    updateAppointment.mutate(
+      { treatmentId: link.treatmentId, aptId: link.appointmentId, materials: newMaterials },
+      {
+        onSuccess: () => {
+          cancelReplace();
+          toast.success("Material reemplazado.");
+        },
+      }
+    );
+  }
+
+  const uniqueTreatmentCount = new Set(links.map((l) => l.treatmentId)).size;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+      <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-800 shadow-xl flex flex-col max-h-[85vh]">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-700 px-6 py-4 shrink-0">
+          <div>
+            <h2 className="font-semibold text-slate-800 dark:text-white">Tratamientos vinculados</h2>
+            <p className="text-xs text-slate-500 dark:text-gray-400 mt-0.5">{product.name}</p>
+          </div>
+          <button onClick={onClose} className="rounded-lg p-1.5 text-slate-400 dark:text-gray-500 hover:bg-slate-100 dark:hover:bg-gray-700">
+            <X size={16} />
+          </button>
+        </div>
+
+        <div className="overflow-y-auto flex-1 px-4 py-3">
+          {isLoading ? (
+            <div className="flex items-center justify-center py-12 gap-2 text-slate-400 dark:text-gray-500">
+              <Loader2 size={18} className="animate-spin" />
+              <span className="text-sm">Cargando...</span>
+            </div>
+          ) : links.length === 0 ? (
+            <div className="flex flex-col items-center gap-2 py-12 text-center">
+              <Link2 size={28} className="text-slate-200 dark:text-gray-600" />
+              <p className="text-sm font-medium text-slate-500 dark:text-gray-400">Sin vínculos</p>
+              <p className="text-xs text-slate-400 dark:text-gray-500 max-w-xs">
+                Este producto no está vinculado a ningún tratamiento de costos operativos.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {links.map((link) => (
+                <div key={link.appointmentId} className="rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/40 p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium text-slate-800 dark:text-white text-sm truncate">{link.treatmentName}</p>
+                      <p className="text-xs text-slate-500 dark:text-gray-400">
+                        {link.appointmentName} · <span className="font-medium">{link.quantity % 1 === 0 ? link.quantity : link.quantity.toFixed(2)}</span> {link.quantity === 1 ? "uso" : "usos"}
+                      </p>
+                    </div>
+                    {replacingAptId !== link.appointmentId && (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          onClick={() => { setReplacingAptId(link.appointmentId); setReplaceSearch(""); setSelectedNewProductId(""); }}
+                          className="rounded-lg border border-slate-200 dark:border-gray-600 px-2.5 py-1.5 text-xs font-medium text-slate-600 dark:text-gray-300 hover:bg-white dark:hover:bg-gray-700 hover:text-blue-600 dark:hover:text-blue-400 transition-colors"
+                        >
+                          Reemplazar...
+                        </button>
+                        <button
+                          onClick={() => handleUnlink(link)}
+                          disabled={updateAppointment.isPending}
+                          className="rounded-lg border border-red-100 dark:border-red-800/40 px-2.5 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 dark:hover:bg-red-900/30 disabled:opacity-40 transition-colors"
+                        >
+                          Desvincular
+                        </button>
+                      </div>
+                    )}
+                  </div>
+
+                  {replacingAptId === link.appointmentId && (
+                    <div className="mt-3 space-y-2">
+                      <input
+                        autoFocus
+                        type="text"
+                        placeholder="Buscar nuevo producto..."
+                        value={replaceSearch}
+                        onChange={(e) => { setReplaceSearch(e.target.value); setSelectedNewProductId(""); }}
+                        className="w-full rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      />
+                      {filteredForReplace.length > 0 && (
+                        <div className="max-h-36 overflow-y-auto rounded-lg border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800 divide-y divide-slate-50 dark:divide-gray-700">
+                          {filteredForReplace.slice(0, 30).map((p) => (
+                            <button
+                              key={p.id}
+                              onClick={() => setSelectedNewProductId(p.id)}
+                              className={`w-full text-left px-3 py-2 text-sm transition-colors ${selectedNewProductId === p.id ? "bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300" : "text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700"}`}
+                            >
+                              {p.name}
+                              {p.supplier && <span className="text-xs text-slate-400 dark:text-gray-500 ml-1.5">· {p.supplier}</span>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {replaceSearch.trim() && filteredForReplace.length === 0 && (
+                        <p className="text-xs text-slate-400 dark:text-gray-500 px-1">Sin resultados para &ldquo;{replaceSearch}&rdquo;</p>
+                      )}
+                      <div className="flex gap-2 pt-1">
+                        <button
+                          onClick={() => handleReplace(link)}
+                          disabled={!selectedNewProductId || updateAppointment.isPending}
+                          className="flex-1 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700 disabled:opacity-50 flex items-center justify-center gap-1.5"
+                        >
+                          {updateAppointment.isPending && <Loader2 size={12} className="animate-spin" />}
+                          Confirmar reemplazo
+                        </button>
+                        <button
+                          onClick={cancelReplace}
+                          className="rounded-lg border border-slate-200 dark:border-gray-600 px-3 py-2 text-xs text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700"
+                        >
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div className="border-t border-slate-100 dark:border-gray-700 px-6 py-4 shrink-0">
+          {links.length > 0 && (
+            <p className="text-xs text-slate-400 dark:text-gray-500 mb-3">
+              {links.length} cita{links.length !== 1 ? "s" : ""} en {uniqueTreatmentCount} tratamiento{uniqueTreatmentCount !== 1 ? "s" : ""}
+            </p>
+          )}
+          <button onClick={onClose} className="w-full rounded-xl border border-slate-200 dark:border-gray-600 py-2 text-sm text-slate-600 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-700 transition-colors">
+            Cerrar
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ─── Fila sortable ────────────────────────────────────────────────────────────
 
-function SortableProductRow({ product, onEdit, onViewUsage, isDragDisabled, exchangeRate, rowNumber, isSelected, onSelect }: { product: ApiProduct; onEdit: () => void; onViewUsage: () => void; isDragDisabled: boolean; exchangeRate: number; rowNumber: number; isSelected: boolean; onSelect: (shiftKey: boolean) => void }) {
+function SortableProductRow({ product, onEdit, onViewUsage, onViewLinks, isDragDisabled, exchangeRate, rowNumber, isSelected, onSelect }: { product: ApiProduct; onEdit: () => void; onViewUsage: () => void; onViewLinks: () => void; isDragDisabled: boolean; exchangeRate: number; rowNumber: number; isSelected: boolean; onSelect: (shiftKey: boolean) => void }) {
   const deleteProduct = useDeleteCostProduct();
   const portions = calcPortions(product.presentation_qty, product.portion_qty);
   const hasCalc = portions != null && product.total_cost != null;
@@ -599,6 +813,7 @@ function SortableProductRow({ product, onEdit, onViewUsage, isDragDisabled, exch
       <td className="pr-3 py-3">
         <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
           <button onClick={onViewUsage} className="rounded p-1.5 text-slate-400 hover:bg-violet-50 dark:hover:bg-violet-900/30 hover:text-violet-500" title="Ver uso por paciente"><Users size={13} /></button>
+          <button onClick={onViewLinks} className="rounded p-1.5 text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 hover:text-indigo-500" title="Ver tratamientos vinculados"><Link2 size={13} /></button>
           <button onClick={onEdit} className="rounded p-1.5 text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/30 hover:text-blue-500" title="Editar"><Edit2 size={13} /></button>
           <button onClick={() => { if (confirm(`¿Eliminar "${product.name}"?`)) deleteProduct.mutate(product.id); }}
             className="rounded p-1.5 text-slate-400 hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-500" title="Eliminar"><Trash2 size={13} /></button>
@@ -758,6 +973,7 @@ export default function ProductosPage() {
   const [editingProduct, setEditingProduct] = useState<ApiProduct | null>(null);
   const [showManageCategories, setShowManageCategories] = useState(false);
   const [usageProduct, setUsageProduct] = useState<ApiProduct | null>(null);
+  const [linksProduct, setLinksProduct] = useState<ApiProduct | null>(null);
   const [editingCategory, setEditingCategory] = useState<string | null>(null);
   const [editCategoryValue, setEditCategoryValue] = useState("");
   const renameCategory = useRenameCostCategory();
@@ -1013,7 +1229,7 @@ export default function ProductosPage() {
               <SortableContext items={filtered.map((p) => p.id)} strategy={verticalListSortingStrategy}>
                 <tbody>
                   {filtered.map((p, i) => (
-                    <SortableProductRow key={p.id} product={p} onEdit={() => setEditingProduct(p)} onViewUsage={() => setUsageProduct(p)} isDragDisabled={isDragDisabled} exchangeRate={exchangeRate} rowNumber={i + 1} isSelected={selectedIds.has(p.id)} onSelect={(shiftKey) => handleSelect(p.id, i, shiftKey)} />
+                    <SortableProductRow key={p.id} product={p} onEdit={() => setEditingProduct(p)} onViewUsage={() => setUsageProduct(p)} onViewLinks={() => setLinksProduct(p)} isDragDisabled={isDragDisabled} exchangeRate={exchangeRate} rowNumber={i + 1} isSelected={selectedIds.has(p.id)} onSelect={(shiftKey) => handleSelect(p.id, i, shiftKey)} />
                   ))}
                 </tbody>
               </SortableContext>
@@ -1053,6 +1269,9 @@ export default function ProductosPage() {
       )}
       {usageProduct && (
         <ProductUsageModal product={usageProduct} onClose={() => setUsageProduct(null)} />
+      )}
+      {linksProduct && (
+        <ProductLinksModal product={linksProduct} onClose={() => setLinksProduct(null)} />
       )}
     </div>
   );
