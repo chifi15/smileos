@@ -1148,7 +1148,6 @@ function SortableProductRow({ product, onEdit, onViewUsage, onViewLinks, onAdjus
           </button>
         )}
       </td>
-      <td className="pr-2 py-3 text-right tabular-nums text-xs text-slate-400 dark:text-gray-500 w-8 select-none">{rowNumber}</td>
       <td className="px-3 py-3">
         <div className="flex items-center gap-2.5">
           {product.image_url ? (
@@ -1183,8 +1182,12 @@ function SortableProductRow({ product, onEdit, onViewUsage, onViewLinks, onAdjus
       </td>
       <td className="px-4 py-3 text-right">
         <p className="font-semibold text-slate-800 dark:text-white tabular-nums">{fmtC(product.unit_price)}</p>
+        <p className="text-xs text-slate-400 dark:text-gray-500 tabular-nums">{fmtUSD(product.unit_price, exchangeRate)}</p>
         {product.total_cost != null && (
-          <p className="text-[10px] text-slate-400 dark:text-gray-500 tabular-nums">{fmtC(product.total_cost)} total</p>
+          <>
+            <p className="text-[10px] text-slate-400 dark:text-gray-500 tabular-nums mt-0.5">{fmtC(product.total_cost)} total</p>
+            <p className="text-[10px] text-slate-300 dark:text-gray-600 tabular-nums">{fmtUSD(product.total_cost, exchangeRate)} total</p>
+          </>
         )}
         {hasCalc && <p className="text-[10px] text-green-600 dark:text-green-400">calculado</p>}
       </td>
@@ -1756,7 +1759,6 @@ export default function ProductosPage() {
                         className="rounded border-slate-300 dark:border-gray-600 cursor-pointer accent-blue-600" />
                     </th>
                     <th className="w-7 pl-2" />
-                    <th className="pr-2 py-3 text-right font-medium w-8">#</th>
                     <th className="px-3 py-3 text-left font-medium">Producto</th>
                     <th className="px-4 py-3 text-left font-medium">Categoría</th>
                     <th className="px-4 py-3 text-left font-medium">Presentación / uso</th>
