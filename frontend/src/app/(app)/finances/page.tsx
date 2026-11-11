@@ -277,7 +277,7 @@ function ReceiptModal({ tx, year, month, onClose }: {
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    upload.mutate({ txId: tx.id, file });
+    upload.mutate({ txId: tx.id, file }, { onSuccess: onClose });
   }
 
   function downloadReceipt() {
@@ -846,7 +846,23 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         payload.extra_procedures = extraProcedures.filter((ep) => !!ep.cost_treatment_id).map((ep) => ({ cost_treatment_id: ep.cost_treatment_id, appointment_id: ep.appointment_id }));
       }
       if (opCostOverride !== null) payload.operational_cost_override = opCostOverride;
-      update.mutate({ txId: editTx!.id, payload }, { onSuccess: onClose });
+      update.mutate({ txId: editTx!.id, payload }, {
+        onSuccess: async () => {
+          if (form.receiptFile) {
+            try {
+              await new Promise<void>((resolve, reject) => {
+                uploadReceipt.mutate(
+                  { txId: editTx!.id, file: form.receiptFile! },
+                  { onSuccess: () => resolve(), onError: reject },
+                );
+              });
+            } catch {
+              toast.error("Los cambios fueron guardados pero el comprobante no se pudo subir.");
+            }
+          }
+          onClose();
+        },
+      });
       return;
     }
 
