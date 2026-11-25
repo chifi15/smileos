@@ -42,6 +42,31 @@ import Spinner from "@/components/ui/Spinner";
 
 const today = new Date().toISOString().split("T")[0];
 
+function MaterialQtyInput({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const [raw, setRaw] = useState(String(value));
+  const [focused, setFocused] = useState(false);
+  const shown = focused ? raw : String(value);
+
+  return (
+    <input
+      type="text"
+      inputMode="decimal"
+      value={shown}
+      onFocus={(e) => { setRaw(String(value)); setFocused(true); e.target.select(); }}
+      onBlur={() => setFocused(false)}
+      onChange={(e) => {
+        const v = e.target.value.replace(",", ".");
+        if (!/^\d*\.?\d*$/.test(v)) return;
+        setRaw(v);
+        const n = parseFloat(v);
+        if (!isNaN(n) && n > 0) onChange(n);
+      }}
+      className="w-16 shrink-0 rounded-md border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1 text-right text-xs focus:outline-none focus:ring-2 focus:ring-green-500"
+      title="Cantidad usada"
+    />
+  );
+}
+
 function QuickPaymentModal({
   patientId,
   patientName,
@@ -357,7 +382,13 @@ function QuickPaymentModal({
                         {p?.name ?? m.productId}
                         {m.altGroup && <span className="ml-1 text-slate-400">[alt]</span>}
                       </span>
-                      <span className="text-slate-400 shrink-0">×{m.qty}</span>
+                      <span className="text-slate-400 shrink-0">×</span>
+                      <MaterialQtyInput
+                        value={m.qty}
+                        onChange={(v) =>
+                          setUsedMaterials((prev) => prev ? prev.map((x, j) => (j === i ? { ...x, qty: v } : x)) : prev)
+                        }
+                      />
                       <button
                         type="button"
                         onClick={() => setUsedMaterials((prev) => prev ? prev.filter((_, j) => j !== i) : prev)}
