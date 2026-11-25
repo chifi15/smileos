@@ -217,6 +217,40 @@ async def get_clinic(
     }
 
 
+@router.get("/clinics/{clinic_id}/activity")
+async def get_clinic_activity(
+    clinic_id: uuid.UUID,
+    _: Annotated[None, AdminAuth],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    limit: int = 60,
+):
+    """Últimos cambios registrados en la clínica (misma fuente que la pestaña Actividad)."""
+    from app.models.audit import AuditLog
+
+    limit = max(1, min(limit, 200))
+    rows = await db.execute(
+        select(AuditLog, User.full_name)
+        .outerjoin(User, User.id == AuditLog.user_id)
+        .where(AuditLog.clinic_id == clinic_id)
+        .order_by(AuditLog.created_at.desc())
+        .limit(limit)
+    )
+    return {
+        "success": True,
+        "data": [
+            {
+                "id": str(a.id),
+                "action": a.action,
+                "resource_type": a.resource_type,
+                "description": a.description,
+                "user_name": name,
+                "created_at": a.created_at.isoformat(),
+            }
+            for a, name in rows.all()
+        ],
+    }
+
+
 @router.patch("/clinics/{clinic_id}/plan")
 async def update_plan(
     clinic_id: uuid.UUID,

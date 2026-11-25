@@ -22,6 +22,7 @@ import {
   RefreshCw,
   Copy,
   Sparkles,
+  Activity,
 } from "lucide-react";
 
 const API = process.env.NEXT_PUBLIC_API_URL ?? "https://smileos.onrender.com";
@@ -123,7 +124,7 @@ function PlanBadge({ plan }: { plan: string }) {
 
 // ─── Clinic Drawer ────────────────────────────────────────────────────────────
 
-type Tab = "plan" | "inventario" | "tratamientos" | "costos" | "copiar" | "features";
+type Tab = "plan" | "inventario" | "tratamientos" | "costos" | "copiar" | "features" | "actividad";
 
 function ClinicDrawer({
   clinic,
@@ -165,6 +166,7 @@ function ClinicDrawer({
     { key: "inventario", label: "Inventario", icon: Package },
     { key: "tratamientos", label: "Tratamientos", icon: Stethoscope },
     { key: "costos", label: "Costos Fijos", icon: DollarSign },
+    { key: "actividad", label: "Actividad", icon: Activity },
     { key: "copiar", label: "Copiar Setup", icon: Copy },
   ];
 
@@ -221,11 +223,58 @@ function ClinicDrawer({
           {tab === "features" && (
             <FeaturesTab clinicId={clinic.id} secret={secret} />
           )}
+          {tab === "actividad" && (
+            <ActividadTab clinicId={clinic.id} secret={secret} />
+          )}
           {tab === "copiar" && (
             <CopiarSetupTab clinicId={clinic.id} secret={secret} allClinics={allClinics} />
           )}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ─── Actividad Tab ────────────────────────────────────────────────────────────
+
+interface ActivityEntry {
+  id: string;
+  action: string;
+  resource_type: string | null;
+  description: string | null;
+  user_name: string | null;
+  created_at: string;
+}
+
+function ActividadTab({ clinicId, secret }: { clinicId: string; secret: string }) {
+  const [items, setItems] = useState<ActivityEntry[] | null>(null);
+  const [error, setError] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    setItems(null);
+    setError(false);
+    api(secret)
+      .get(`/api/v1/admin/clinics/${clinicId}/activity?limit=80`)
+      .then(({ data }) => { if (active) setItems(data.data); })
+      .catch(() => { if (active) setError(true); });
+    return () => { active = false; };
+  }, [clinicId, secret]);
+
+  if (error) return <p className="p-6 text-sm text-red-500">No se pudo cargar la actividad.</p>;
+  if (!items) return <div className="flex justify-center py-12"><Loader2 className="animate-spin text-violet-500" size={20} /></div>;
+  if (items.length === 0) return <p className="p-6 text-sm text-slate-400 dark:text-gray-500">Esta clínica aún no tiene actividad registrada.</p>;
+
+  return (
+    <div className="divide-y divide-slate-100 dark:divide-gray-700">
+      {items.map((a) => (
+        <div key={a.id} className="px-6 py-3">
+          <p className="text-sm text-slate-800 dark:text-gray-200">{a.description ?? a.action}</p>
+          <p className="mt-0.5 text-xs text-slate-400 dark:text-gray-500">
+            {a.user_name ?? "Sistema"} · {format(parseISO(a.created_at), "d MMM yyyy, HH:mm", { locale: es })}
+          </p>
+        </div>
+      ))}
     </div>
   );
 }
