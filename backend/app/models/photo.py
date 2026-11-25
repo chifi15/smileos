@@ -7,6 +7,15 @@ from app.core.database import Base
 from app.models.base import UUIDMixin, TimestampMixin
 
 PHOTO_TYPES = (
+    "smile",
+    "lateral_right",
+    "lateral_left",
+    "occlusal_upper",
+    "occlusal_lower",
+    "hemi_sd",
+    "hemi_si",
+    "hemi_ii",
+    "hemi_id",
     "profile",
     "intraoral_frontal",
     "intraoral_lateral_right",

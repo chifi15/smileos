@@ -457,6 +457,15 @@ export interface ClinicUser {
 // ─── Photos ───────────────────────────────────────────────────────────────────
 
 export type PhotoType =
+  | "smile"
+  | "lateral_right"
+  | "lateral_left"
+  | "occlusal_upper"
+  | "occlusal_lower"
+  | "hemi_sd"
+  | "hemi_si"
+  | "hemi_ii"
+  | "hemi_id"
   | "profile"
   | "intraoral_frontal"
   | "intraoral_lateral_right"
@@ -467,6 +476,15 @@ export type PhotoType =
   | "other";
 
 export const PHOTO_TYPE_LABELS: Record<PhotoType, string> = {
+  smile: "Sonrisa",
+  lateral_right: "Lateral derecha",
+  lateral_left: "Lateral izquierda",
+  occlusal_upper: "Oclusal superior",
+  occlusal_lower: "Oclusal inferior",
+  hemi_sd: "Hemiarcada sup. derecha",
+  hemi_si: "Hemiarcada sup. izquierda",
+  hemi_ii: "Hemiarcada inf. izquierda",
+  hemi_id: "Hemiarcada inf. derecha",
   profile: "Perfil",
   intraoral_frontal: "Intraoral Frontal",
   intraoral_lateral_right: "Intraoral Lateral Der.",

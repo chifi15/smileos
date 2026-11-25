@@ -52,6 +52,15 @@ import Input from "@/components/ui/Input";
 import Spinner from "@/components/ui/Spinner";
 
 const PHOTO_TYPE_COLORS: Record<PhotoType, string> = {
+  smile: "bg-amber-100 text-amber-700",
+  lateral_right: "bg-orange-100 text-orange-700",
+  lateral_left: "bg-orange-100 text-orange-700",
+  occlusal_upper: "bg-lime-100 text-lime-700",
+  occlusal_lower: "bg-green-100 text-green-700",
+  hemi_sd: "bg-sky-100 text-sky-700",
+  hemi_si: "bg-sky-100 text-sky-700",
+  hemi_ii: "bg-rose-100 text-rose-700",
+  hemi_id: "bg-rose-100 text-rose-700",
   profile: "bg-indigo-100 text-indigo-700",
   intraoral_frontal: "bg-purple-100 text-purple-700",
   intraoral_lateral_right: "bg-violet-100 text-violet-700",
@@ -83,7 +92,7 @@ interface FileEntry {
 function UploadModal({ open, onClose, patientId }: UploadModalProps) {
   const qc = useQueryClient();
   const [entries, setEntries] = useState<FileEntry[]>([]);
-  const [photoType, setPhotoType] = useState<PhotoType>("intraoral_frontal");
+  const [photoType, setPhotoType] = useState<PhotoType>("smile");
   const [caption, setCaption] = useState("");
   const [takenAt, setTakenAt] = useState(format(new Date(), "yyyy-MM-dd"));
   const [uploading, setUploading] = useState(false);

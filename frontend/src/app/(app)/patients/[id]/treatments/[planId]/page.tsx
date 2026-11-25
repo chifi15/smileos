@@ -324,6 +324,15 @@ export default function TreatmentPlanDetailPage() {
     try { remembered = localStorage.getItem("smileos-pdf-doctor-id") ?? ""; } catch {}
     const valid = (id: string) => !!id && pdfDoctorOptions.some((d) => d.id === id);
     setPdfDoctorId(valid(remembered) ? remembered : valid(plan.created_by?.id ?? "") ? plan.created_by!.id : "");
+    // Preselección automática según la categoría de cada foto (orden fijo)
+    const OVERVIEW_ORDER = ["smile", "lateral_right", "lateral_left", "occlusal_upper", "occlusal_lower"];
+    const overview = OVERVIEW_ORDER.flatMap((t) => patientPhotos.filter((p) => p.photo_type === t).map((p) => p.id));
+    const groups: PdfPhotoSelection["groups"] = {};
+    for (const g of pdfPhotoGroups) {
+      const ph = patientPhotos.find((p) => p.photo_type === `hemi_${g.key}`);
+      if (ph) groups[g.key] = { photoId: ph.id, crop: null };
+    }
+    setPdfPhotos({ overview, groups });
     setShowPdfOptions(true);
   }
 

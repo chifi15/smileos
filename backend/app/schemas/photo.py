@@ -3,6 +3,15 @@ from typing import Literal
 from pydantic import BaseModel
 
 PhotoType = Literal[
+    "smile",
+    "lateral_right",
+    "lateral_left",
+    "occlusal_upper",
+    "occlusal_lower",
+    "hemi_sd",
+    "hemi_si",
+    "hemi_ii",
+    "hemi_id",
     "profile",
     "intraoral_frontal",
     "intraoral_lateral_right",

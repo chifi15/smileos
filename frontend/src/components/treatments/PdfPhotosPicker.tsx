@@ -51,7 +51,7 @@ export default function PdfPhotosPicker({ patientId, groups, value, onChange }: 
       <div>
         <p className="text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">Fotos generales</p>
         <p className="text-xs text-slate-400 dark:text-gray-500 mb-2">
-          Sonrisa, laterales, oclusales… se muestran juntas antes de la tabla de costos.
+          Se preseleccionan según la categoría de cada foto (sonrisa, laterales, oclusales). Puedes quitar o agregar otras; el número indica el orden en el PDF.
         </p>
         <div className="grid grid-cols-4 gap-2">
           {photos.map((p) => {
@@ -84,7 +84,7 @@ export default function PdfPhotosPicker({ patientId, groups, value, onChange }: 
         <div>
           <p className="text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">Foto por hemiarcada</p>
           <p className="text-xs text-slate-400 dark:text-gray-500 mb-2">
-            Elige la foto y recorta la zona: aparece bajo el costo de esa hemiarcada.
+            Se preselecciona la foto de categoría «Hemiarcada». Puedes cambiarla o recortar la zona: aparece bajo el costo de esa hemiarcada.
           </p>
           <div className="space-y-2">
             {groups.map((g) => {
