@@ -1,39 +1,52 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { RotateCcw, RotateCw, FlipHorizontal2, FlipVertical2 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Spinner from "@/components/ui/Spinner";
-import { fetchPhotoBlob, type PhotoCrop } from "@/lib/pdf-photos";
+import { loadPhotoImage, transformedCanvas, NO_EDIT, type PhotoEdit } from "@/lib/pdf-photos";
 
 interface Props {
   patientId: string;
   photoId: string;
   title: string;
-  initial: PhotoCrop | null;
-  onSave: (crop: PhotoCrop | null) => void;
+  initial: PhotoEdit;
+  onSave: (edit: PhotoEdit) => void;
   onClose: () => void;
 }
 
 const clamp = (n: number) => Math.min(1, Math.max(0, n));
 
-// Permite arrastrar sobre la foto para elegir la zona (hemiarcada) que se mostrará en el PDF.
+// Girar, invertir y recortar la foto antes de ponerla en el PDF.
 export default function PhotoCropModal({ patientId, photoId, title, initial, onSave, onClose }: Props) {
+  const [img, setImg] = useState<HTMLImageElement | null>(null);
+  const [edit, setEdit] = useState<PhotoEdit>(initial);
   const [src, setSrc] = useState<string | null>(null);
-  const [crop, setCrop] = useState<PhotoCrop | null>(initial);
   const imgRef = useRef<HTMLImageElement>(null);
   const start = useRef<{ x: number; y: number } | null>(null);
 
   useEffect(() => {
-    let url: string | null = null;
     let active = true;
-    fetchPhotoBlob(patientId, photoId).then((b) => {
-      if (!active) return;
-      url = URL.createObjectURL(b);
-      setSrc(url);
-    });
-    return () => { active = false; if (url) URL.revokeObjectURL(url); };
+    loadPhotoImage(patientId, photoId).then((i) => { if (active) setImg(i); });
+    return () => { active = false; };
   }, [patientId, photoId]);
+
+  // Vista previa con giro/inversión aplicados (JPEG liviano)
+  useEffect(() => {
+    if (!img) return;
+    const c = transformedCanvas(img, { ...edit, crop: null });
+    const scale = Math.min(1, 1400 / Math.max(c.width, c.height));
+    const out = document.createElement("canvas");
+    out.width = Math.round(c.width * scale);
+    out.height = Math.round(c.height * scale);
+    out.getContext("2d")!.drawImage(c, 0, 0, out.width, out.height);
+    setSrc(out.toDataURL("image/jpeg", 0.8));
+  }, [img, edit.rotation, edit.flipH, edit.flipV]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Cualquier giro/inversión invalida el recorte previo (cambian las coordenadas)
+  const transform = (patch: Partial<PhotoEdit>) => setEdit((e) => ({ ...e, ...patch, crop: null }));
+  const rotate = (delta: number) => transform({ rotation: (edit.rotation + delta + 360) % 360 });
 
   function point(e: React.PointerEvent) {
     const r = imgRef.current!.getBoundingClientRect();
@@ -42,23 +55,39 @@ export default function PhotoCropModal({ patientId, photoId, title, initial, onS
   function onDown(e: React.PointerEvent) {
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
     start.current = point(e);
-    setCrop({ ...start.current, w: 0, h: 0 });
+    setEdit((ed) => ({ ...ed, crop: { ...start.current!, w: 0, h: 0 } }));
   }
   function onMove(e: React.PointerEvent) {
     if (!start.current) return;
     const p = point(e);
     const s = start.current;
-    setCrop({ x: Math.min(s.x, p.x), y: Math.min(s.y, p.y), w: Math.abs(p.x - s.x), h: Math.abs(p.y - s.y) });
+    setEdit((ed) => ({
+      ...ed,
+      crop: { x: Math.min(s.x, p.x), y: Math.min(s.y, p.y), w: Math.abs(p.x - s.x), h: Math.abs(p.y - s.y) },
+    }));
   }
   function onUp() { start.current = null; }
 
-  const valid = crop && crop.w > 0.03 && crop.h > 0.03;
+  const crop = edit.crop;
+  const validCrop = crop && crop.w > 0.03 && crop.h > 0.03;
+
+  const tool = "flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-gray-600 px-2.5 py-1.5 text-xs text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700";
 
   return (
     <Modal open onClose={onClose} title={title} size="lg">
       <div className="space-y-3">
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" className={tool} onClick={() => rotate(-90)}><RotateCcw size={14} /> Girar izq.</button>
+          <button type="button" className={tool} onClick={() => rotate(90)}><RotateCw size={14} /> Girar der.</button>
+          <button type="button" className={tool} onClick={() => transform({ flipH: !edit.flipH })}>
+            <FlipHorizontal2 size={14} /> Invertir horizontal
+          </button>
+          <button type="button" className={tool} onClick={() => transform({ flipV: !edit.flipV })}>
+            <FlipVertical2 size={14} /> Invertir vertical
+          </button>
+        </div>
         <p className="text-xs text-slate-500 dark:text-gray-400">
-          Arrastra sobre la foto para marcar la zona que verá el paciente (por ejemplo, solo esa hemiarcada).
+          Opcional: arrastra sobre la foto para recortar la zona que verá el paciente.
         </p>
         <div className="flex justify-center rounded-lg bg-slate-100 dark:bg-gray-900 p-2">
           {!src ? (
@@ -71,7 +100,7 @@ export default function PhotoCropModal({ patientId, photoId, title, initial, onS
               onPointerUp={onUp}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img ref={imgRef} src={src} alt="" draggable={false} className="max-h-[55vh] max-w-full block" />
+              <img ref={imgRef} src={src} alt="" draggable={false} className="max-h-[50vh] max-w-full block" />
               {crop && crop.w > 0 && (
                 <div
                   className="absolute border-2 border-blue-500 pointer-events-none"
@@ -88,12 +117,12 @@ export default function PhotoCropModal({ patientId, photoId, title, initial, onS
           )}
         </div>
         <div className="flex justify-between gap-3">
-          <Button type="button" variant="secondary" onClick={() => setCrop(null)}>
-            Usar foto completa
+          <Button type="button" variant="secondary" onClick={() => setEdit(NO_EDIT)}>
+            Restablecer
           </Button>
           <div className="flex gap-3">
             <Button type="button" variant="secondary" onClick={onClose}>Cancelar</Button>
-            <Button type="button" onClick={() => onSave(valid ? crop : null)}>Aceptar</Button>
+            <Button type="button" onClick={() => onSave({ ...edit, crop: validCrop ? crop : null })}>Aceptar</Button>
           </div>
         </div>
       </div>

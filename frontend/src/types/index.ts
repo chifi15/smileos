@@ -258,7 +258,6 @@ export const EMPTY_PATIENT_FORM: PatientFormValues = {
 export const GENDER_LABELS: Record<string, string> = {
   M: "Masculino",
   F: "Femenino",
-  other: "Otro",
 };
 
 // ─── Treatments ───────────────────────────────────────────────────────────────
@@ -465,15 +464,7 @@ export type PhotoType =
   | "hemi_sd"
   | "hemi_si"
   | "hemi_ii"
-  | "hemi_id"
-  | "profile"
-  | "intraoral_frontal"
-  | "intraoral_lateral_right"
-  | "intraoral_lateral_left"
-  | "extraoral_frontal"
-  | "extraoral_profile"
-  | "xray"
-  | "other";
+  | "hemi_id";
 
 export const PHOTO_TYPE_LABELS: Record<PhotoType, string> = {
   smile: "Sonrisa",
@@ -485,20 +476,12 @@ export const PHOTO_TYPE_LABELS: Record<PhotoType, string> = {
   hemi_si: "Hemiarcada sup. izquierda",
   hemi_ii: "Hemiarcada inf. izquierda",
   hemi_id: "Hemiarcada inf. derecha",
-  profile: "Perfil",
-  intraoral_frontal: "Intraoral Frontal",
-  intraoral_lateral_right: "Intraoral Lateral Der.",
-  intraoral_lateral_left: "Intraoral Lateral Izq.",
-  extraoral_frontal: "Extraoral Frontal",
-  extraoral_profile: "Extraoral Perfil",
-  xray: "Radiografía",
-  other: "Otro",
 };
 
 export interface PatientPhoto {
   id: string;
   patient_id: string;
-  photo_type: PhotoType;
+  photo_type: PhotoType | string; // categorías antiguas pueden aparecer como «sin clasificar»
   caption: string | null;
   appointment_id: string | null;
   taken_at: string | null;

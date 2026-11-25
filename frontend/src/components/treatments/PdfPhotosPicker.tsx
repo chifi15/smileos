@@ -1,15 +1,23 @@
 "use client";
 
 import { useState } from "react";
-import { Crop, Check } from "lucide-react";
+import { SlidersHorizontal, Check } from "lucide-react";
 import AuthImage from "@/components/ui/AuthImage";
 import Select from "@/components/ui/Select";
 import PhotoCropModal from "@/components/treatments/PhotoCropModal";
 import { usePatientPhotos } from "@/hooks/usePhotos";
-import { photoUrl, type PdfPhotoSelection } from "@/lib/pdf-photos";
-import { PHOTO_TYPE_LABELS, type PatientPhoto } from "@/types";
+import { photoUrl, isEdited, NO_EDIT, type PdfPhotoSelection } from "@/lib/pdf-photos";
+import { PHOTO_TYPE_LABELS, type PatientPhoto, type PhotoType } from "@/types";
 
-export const photoLabel = (p: PatientPhoto) => p.caption?.trim() || PHOTO_TYPE_LABELS[p.photo_type];
+export const photoLabel = (p: PatientPhoto) =>
+  PHOTO_TYPE_LABELS[p.photo_type as PhotoType] ?? (p.caption?.trim() || "Sin clasificar");
+
+// Orden fijo de las fotos generales en el PDF
+export const OVERVIEW_ORDER: string[] = ["smile", "lateral_right", "lateral_left", "occlusal_upper", "occlusal_lower"];
+const rank = (type: string | undefined) => {
+  const i = OVERVIEW_ORDER.indexOf(type ?? "");
+  return i === -1 ? OVERVIEW_ORDER.length : i;
+};
 
 interface Props {
   patientId: string;
@@ -18,9 +26,11 @@ interface Props {
   onChange: (v: PdfPhotoSelection) => void;
 }
 
+type Editing = { kind: "overview"; photoId: string } | { kind: "group"; key: string } | null;
+
 export default function PdfPhotosPicker({ patientId, groups, value, onChange }: Props) {
   const { data: photos = [], isLoading } = usePatientPhotos(patientId);
-  const [cropping, setCropping] = useState<string | null>(null); // group key
+  const [editing, setEditing] = useState<Editing>(null);
 
   if (isLoading) return null;
   if (photos.length === 0) {
@@ -31,50 +41,110 @@ export default function PdfPhotosPicker({ patientId, groups, value, onChange }: 
     );
   }
 
+  const typeOf = (id: string) => photos.find((p) => p.id === id)?.photo_type;
+  const sortOverview = (list: PdfPhotoSelection["overview"]) =>
+    [...list].sort((a, b) => rank(typeOf(a.photoId)) - rank(typeOf(b.photoId)));
+
   function toggleOverview(id: string) {
-    const has = value.overview.includes(id);
-    onChange({ ...value, overview: has ? value.overview.filter((x) => x !== id) : [...value.overview, id] });
+    const has = value.overview.some((o) => o.photoId === id);
+    const next = has
+      ? value.overview.filter((o) => o.photoId !== id)
+      : [...value.overview, { photoId: id, edit: NO_EDIT }];
+    onChange({ ...value, overview: sortOverview(next) });
   }
 
   function setGroupPhoto(key: string, photoId: string) {
     const groupsNext = { ...value.groups };
     if (!photoId) delete groupsNext[key];
-    else groupsNext[key] = { photoId, crop: null };
+    else groupsNext[key] = { photoId, edit: NO_EDIT };
     onChange({ ...value, groups: groupsNext });
-    if (photoId) setCropping(key);
+    if (photoId) setEditing({ kind: "group", key });
   }
 
-  const cropGroup = cropping ? value.groups[cropping] : null;
+  let modal: React.ReactNode = null;
+  if (editing?.kind === "overview") {
+    const cur = value.overview.find((o) => o.photoId === editing.photoId);
+    if (cur) {
+      modal = (
+        <PhotoCropModal
+          patientId={patientId}
+          photoId={cur.photoId}
+          title={`Editar foto — ${photoLabel(photos.find((p) => p.id === cur.photoId)!)}`}
+          initial={cur.edit}
+          onClose={() => setEditing(null)}
+          onSave={(edit) => {
+            onChange({
+              ...value,
+              overview: value.overview.map((o) => (o.photoId === cur.photoId ? { ...o, edit } : o)),
+            });
+            setEditing(null);
+          }}
+        />
+      );
+    }
+  } else if (editing?.kind === "group") {
+    const cur = value.groups[editing.key];
+    if (cur) {
+      modal = (
+        <PhotoCropModal
+          patientId={patientId}
+          photoId={cur.photoId}
+          title={`Editar foto — ${groups.find((g) => g.key === editing.key)?.label ?? ""}`}
+          initial={cur.edit}
+          onClose={() => setEditing(null)}
+          onSave={(edit) => {
+            onChange({ ...value, groups: { ...value.groups, [editing.key]: { photoId: cur.photoId, edit } } });
+            setEditing(null);
+          }}
+        />
+      );
+    }
+  }
+
+  const editBtn =
+    "flex items-center gap-1 rounded-lg border border-slate-200 dark:border-gray-600 px-2.5 py-2 text-xs text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700";
 
   return (
     <div className="space-y-4">
       <div>
         <p className="text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">Fotos generales</p>
         <p className="text-xs text-slate-400 dark:text-gray-500 mb-2">
-          Se preseleccionan según la categoría de cada foto (sonrisa, laterales, oclusales). Puedes quitar o agregar otras; el número indica el orden en el PDF.
+          Se preseleccionan por categoría y salen en este orden: sonrisa, lateral derecha, lateral izquierda, oclusal
+          superior y oclusal inferior. Con el icono puedes girar, invertir o recortar cada foto.
         </p>
         <div className="grid grid-cols-4 gap-2">
           {photos.map((p) => {
-            const idx = value.overview.indexOf(p.id);
+            const idx = value.overview.findIndex((o) => o.photoId === p.id);
+            const sel = idx >= 0 ? value.overview[idx] : null;
             return (
-              <button
+              <div
                 key={p.id}
-                type="button"
-                onClick={() => toggleOverview(p.id)}
-                className={`relative overflow-hidden rounded-lg border-2 text-left ${
-                  idx >= 0 ? "border-blue-500" : "border-transparent"
-                }`}
+                className={`relative overflow-hidden rounded-lg border-2 ${sel ? "border-blue-500" : "border-transparent"}`}
               >
-                <AuthImage src={photoUrl(patientId, p.id)} className="h-16 w-full object-cover" />
-                <span className="absolute bottom-0 inset-x-0 truncate bg-black/55 px-1 py-0.5 text-[10px] text-white">
-                  {photoLabel(p)}
-                </span>
-                {idx >= 0 && (
-                  <span className="absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
-                    {idx + 1}
+                <button type="button" onClick={() => toggleOverview(p.id)} className="block w-full text-left">
+                  <AuthImage src={photoUrl(patientId, p.id)} className="h-16 w-full object-cover" />
+                  <span className="absolute bottom-0 inset-x-0 truncate bg-black/55 px-1 py-0.5 text-[10px] text-white">
+                    {photoLabel(p)}
                   </span>
+                </button>
+                {sel && (
+                  <>
+                    <span className="absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
+                      {idx + 1}
+                    </span>
+                    <button
+                      type="button"
+                      title="Girar / invertir / recortar"
+                      onClick={() => setEditing({ kind: "overview", photoId: p.id })}
+                      className={`absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full text-white ${
+                        isEdited(sel.edit) ? "bg-green-600" : "bg-black/60"
+                      }`}
+                    >
+                      <SlidersHorizontal size={11} />
+                    </button>
+                  </>
                 )}
-              </button>
+              </div>
             );
           })}
         </div>
@@ -84,7 +154,8 @@ export default function PdfPhotosPicker({ patientId, groups, value, onChange }: 
         <div>
           <p className="text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">Foto por hemiarcada</p>
           <p className="text-xs text-slate-400 dark:text-gray-500 mb-2">
-            Se preselecciona la foto de categoría «Hemiarcada». Puedes cambiarla o recortar la zona: aparece bajo el costo de esa hemiarcada.
+            Se preselecciona la foto de categoría «Hemiarcada». Aparece bajo el costo de esa hemiarcada; puedes girarla,
+            invertirla o recortarla.
           </p>
           <div className="space-y-2">
             {groups.map((g) => {
@@ -103,13 +174,9 @@ export default function PdfPhotosPicker({ patientId, groups, value, onChange }: 
                     />
                   </div>
                   {sel && (
-                    <button
-                      type="button"
-                      onClick={() => setCropping(g.key)}
-                      className="mb-0.5 flex items-center gap-1 rounded-lg border border-slate-200 dark:border-gray-600 px-2.5 py-2 text-xs text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700"
-                    >
-                      <Crop size={13} />
-                      {sel.crop ? <><Check size={12} className="text-green-600" /> Recortada</> : "Recortar"}
+                    <button type="button" onClick={() => setEditing({ kind: "group", key: g.key })} className={`mb-0.5 ${editBtn}`}>
+                      <SlidersHorizontal size={13} />
+                      {isEdited(sel.edit) ? <><Check size={12} className="text-green-600" /> Editada</> : "Editar"}
                     </button>
                   )}
                 </div>
@@ -119,20 +186,7 @@ export default function PdfPhotosPicker({ patientId, groups, value, onChange }: 
         </div>
       )}
 
-      {cropping && cropGroup && (
-        <PhotoCropModal
-          patientId={patientId}
-          photoId={cropGroup.photoId}
-          title={`Recortar — ${groups.find((g) => g.key === cropping)?.label ?? ""}`}
-          initial={cropGroup.crop}
-          onClose={() => setCropping(null)}
-          onSave={(crop) => {
-            onChange({ ...value, groups: { ...value.groups, [cropping]: { photoId: cropGroup.photoId, crop } } });
-            setCropping(null);
-          }}
-        />
-      )}
+      {modal}
     </div>
   );
 }
-

@@ -12,14 +12,6 @@ PhotoType = Literal[
     "hemi_si",
     "hemi_ii",
     "hemi_id",
-    "profile",
-    "intraoral_frontal",
-    "intraoral_lateral_right",
-    "intraoral_lateral_left",
-    "extraoral_frontal",
-    "extraoral_profile",
-    "xray",
-    "other",
 ]
 
 

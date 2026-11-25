@@ -41,6 +41,7 @@ import {
   usePatientPhotos,
   useDeletePhoto,
   useReorderPhotos,
+  useUpdatePhotoType,
 } from "@/hooks/usePhotos";
 import { PatientPhoto, PhotoType, PHOTO_TYPE_LABELS } from "@/types";
 import AuthImage from "@/components/ui/AuthImage";
@@ -61,15 +62,13 @@ const PHOTO_TYPE_COLORS: Record<PhotoType, string> = {
   hemi_si: "bg-sky-100 text-sky-700",
   hemi_ii: "bg-rose-100 text-rose-700",
   hemi_id: "bg-rose-100 text-rose-700",
-  profile: "bg-indigo-100 text-indigo-700",
-  intraoral_frontal: "bg-purple-100 text-purple-700",
-  intraoral_lateral_right: "bg-violet-100 text-violet-700",
-  intraoral_lateral_left: "bg-fuchsia-100 text-fuchsia-700",
-  extraoral_frontal: "bg-teal-100 text-teal-700",
-  extraoral_profile: "bg-cyan-100 text-cyan-700",
-  xray: "bg-blue-100 text-blue-700",
-  other: "bg-slate-100 text-slate-500",
 };
+
+type GroupKey = PhotoType | "unclassified";
+const GROUP_KEYS: GroupKey[] = [...(Object.keys(PHOTO_TYPE_LABELS) as PhotoType[]), "unclassified"];
+const groupLabel = (k: GroupKey) => (k === "unclassified" ? "Sin clasificar" : PHOTO_TYPE_LABELS[k]);
+const groupOf = (t: string): GroupKey => (t in PHOTO_TYPE_LABELS ? (t as PhotoType) : "unclassified");
+const colorOf = (t: string) => PHOTO_TYPE_COLORS[t as PhotoType] ?? "bg-slate-100 text-slate-500";
 
 const photoTypeOptions = (Object.keys(PHOTO_TYPE_LABELS) as PhotoType[]).map((k) => ({
   value: k,
@@ -102,7 +101,7 @@ function UploadModal({ open, onClose, patientId }: UploadModalProps) {
     entries.forEach((e) => URL.revokeObjectURL(e.previewUrl));
     setEntries([]);
     setCaption("");
-    setPhotoType("intraoral_frontal");
+    setPhotoType("smile");
     setTakenAt(format(new Date(), "yyyy-MM-dd"));
     setUploading(false);
     setProgress(0);
@@ -288,9 +287,11 @@ function PhotoLightbox({
   onNext,
 }: LightboxProps) {
   const photo = photos[index];
+  const updateType = useUpdatePhotoType(patientId);
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
+      if ((e.target as HTMLElement)?.tagName === "SELECT") return;
       if (e.key === "Escape") onClose();
       if (e.key === "ArrowLeft") onPrev();
       if (e.key === "ArrowRight") onNext();
@@ -347,9 +348,20 @@ function PhotoLightbox({
         />
         <div className="flex items-center gap-3">
           <Badge
-            label={PHOTO_TYPE_LABELS[photo.photo_type]}
-            className={PHOTO_TYPE_COLORS[photo.photo_type]}
+            label={groupLabel(groupOf(photo.photo_type))}
+            className={colorOf(photo.photo_type)}
           />
+          <select
+            value={groupOf(photo.photo_type) === "unclassified" ? "" : photo.photo_type}
+            onChange={(e) => e.target.value && updateType.mutate({ photoId: photo.id, photo_type: e.target.value })}
+            className="rounded-md border border-white/20 bg-white/10 px-2 py-1 text-xs text-white focus:outline-none"
+            title="Cambiar categoría"
+          >
+            <option value="" className="text-slate-800">Cambiar categoría…</option>
+            {photoTypeOptions.map((o) => (
+              <option key={o.value} value={o.value} className="text-slate-800">{o.label}</option>
+            ))}
+          </select>
           {photo.caption && (
             <p className="text-sm text-white/80">{photo.caption}</p>
           )}
@@ -491,24 +503,24 @@ export default function PatientPhotosPage() {
   // Group preserving custom order within each type
   const groupedPhotos = useMemo(
     () =>
-      (Object.keys(PHOTO_TYPE_LABELS) as PhotoType[]).reduce((acc, type) => {
-        const group = orderedPhotos.filter((p) => p.photo_type === type);
+      GROUP_KEYS.reduce((acc, type) => {
+        const group = orderedPhotos.filter((p) => groupOf(p.photo_type) === type);
         if (group.length > 0) acc[type] = group;
         return acc;
-      }, {} as Partial<Record<PhotoType, PatientPhoto[]>>),
+      }, {} as Partial<Record<GroupKey, PatientPhoto[]>>),
     [orderedPhotos]
   );
 
   // Flat list in visual display order (same sequence the user sees on screen)
   const displayOrderedPhotos = useMemo(
     () =>
-      (Object.keys(PHOTO_TYPE_LABELS) as PhotoType[]).flatMap(
+      GROUP_KEYS.flatMap(
         (type) => groupedPhotos[type] ?? []
       ),
     [groupedPhotos]
   );
 
-  function handleDragEnd(event: DragEndEvent, type: PhotoType) {
+  function handleDragEnd(event: DragEndEvent, type: GroupKey) {
     const { active, over } = event;
     if (!over || active.id === over.id) return;
 
@@ -518,7 +530,7 @@ export default function PatientPhotosPage() {
     const newGroup = arrayMove(group, oldIndex, newIndex);
 
     // Reconstruct full ordered list with this group replaced
-    const newOrderedIds = (Object.keys(PHOTO_TYPE_LABELS) as PhotoType[]).flatMap(
+    const newOrderedIds = GROUP_KEYS.flatMap(
       (t) => {
         if (t === type) return newGroup.map((p) => p.id);
         return (groupedPhotos[t] ?? []).map((p) => p.id);
@@ -611,11 +623,11 @@ export default function PatientPhotosPage() {
         </div>
       ) : (
         <div className="space-y-6">
-          {(Object.entries(groupedPhotos) as [PhotoType, PatientPhoto[]][]).map(
+          {(Object.entries(groupedPhotos) as [GroupKey, PatientPhoto[]][]).map(
             ([type, group]) => (
               <div key={type}>
                 <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-500 dark:text-gray-400">
-                  {PHOTO_TYPE_LABELS[type]}
+                  {groupLabel(type)}
                   <span className="ml-2 font-normal normal-case text-slate-400 dark:text-gray-500">
                     ({group.length})
                   </span>

@@ -20,10 +20,10 @@ import Select from "@/components/ui/Select";
 import Spinner from "@/components/ui/Spinner";
 import Modal from "@/components/ui/Modal";
 import EditPlanModal from "@/components/treatments/EditPlanModal";
-import PdfPhotosPicker, { photoLabel } from "@/components/treatments/PdfPhotosPicker";
+import PdfPhotosPicker, { photoLabel, OVERVIEW_ORDER } from "@/components/treatments/PdfPhotosPicker";
 import { usePatientPhotos } from "@/hooks/usePhotos";
 import { GROUPS, groupForTooth } from "@/lib/plan-groups";
-import { buildPdfPhotos, type PdfPhotoSelection } from "@/lib/pdf-photos";
+import { buildPdfPhotos, NO_EDIT, type PdfPhotoSelection } from "@/lib/pdf-photos";
 import {
   TreatmentPlanStatus,
   TreatmentItemStatus,
@@ -325,12 +325,13 @@ export default function TreatmentPlanDetailPage() {
     const valid = (id: string) => !!id && pdfDoctorOptions.some((d) => d.id === id);
     setPdfDoctorId(valid(remembered) ? remembered : valid(plan.created_by?.id ?? "") ? plan.created_by!.id : "");
     // Preselección automática según la categoría de cada foto (orden fijo)
-    const OVERVIEW_ORDER = ["smile", "lateral_right", "lateral_left", "occlusal_upper", "occlusal_lower"];
-    const overview = OVERVIEW_ORDER.flatMap((t) => patientPhotos.filter((p) => p.photo_type === t).map((p) => p.id));
+    const overview = OVERVIEW_ORDER.flatMap((t) =>
+      patientPhotos.filter((p) => p.photo_type === t).map((p) => ({ photoId: p.id, edit: NO_EDIT })),
+    );
     const groups: PdfPhotoSelection["groups"] = {};
     for (const g of pdfPhotoGroups) {
       const ph = patientPhotos.find((p) => p.photo_type === `hemi_${g.key}`);
-      if (ph) groups[g.key] = { photoId: ph.id, crop: null };
+      if (ph) groups[g.key] = { photoId: ph.id, edit: NO_EDIT };
     }
     setPdfPhotos({ overview, groups });
     setShowPdfOptions(true);

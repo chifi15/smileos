@@ -69,3 +69,16 @@ export function useReorderPhotos(patientId: string) {
     onError: () => toast.error("Error al guardar el orden."),
   });
 }
+
+export function useUpdatePhotoType(patientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ photoId, photo_type }: { photoId: string; photo_type: string }) =>
+      apiClient.patch(`/api/v1/patients/${patientId}/photos/${photoId}`, { photo_type }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["photos", patientId] });
+      toast.success("Categoría actualizada.");
+    },
+    onError: () => toast.error("No se pudo cambiar la categoría."),
+  });
+}
