@@ -362,6 +362,7 @@ export interface BudgetRow {
   budget: number;
   category_id: string | null;
   category_label: string | null;
+  category_key?: string | null;
   real: number | null;
   diff: number | null;
 }
@@ -394,5 +395,54 @@ export function useSetBudgetLink() {
       await apiClient.put(`${base}/budget-link`, v);
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["report-budget-vs-actual"] }),
+  });
+}
+
+
+export interface DoctorAccountRow {
+  doctor_id: string;
+  doctor_name: string;
+  pct: number | null;
+  n_cobros: number;
+  cobrado: number;
+  corresponde: number | null;
+  pagado: number;
+  saldo: number | null;
+  otros_pagos: number;
+}
+
+export interface DoctorAccount {
+  rows: DoctorAccountRow[];
+  doctors: { id: string; name: string }[];
+  categories: { id: string; label: string; is_doctor_payment: boolean }[];
+  has_payment_categories: boolean;
+  cobros_sin_doctor: {
+    n: number; total: number;
+    items: { id: string; date: string; patient_name: string | null; treatment_name: string | null; amount: number }[];
+  };
+  pagos_sin_doctor: {
+    n: number; total: number;
+    items: { id: string; date: string; category: string; description: string; amount: number }[];
+  };
+}
+
+export function useDoctorAccount(year: number, month: number | null) {
+  return useQuery({
+    queryKey: ["report-doctor-account", year, month],
+    queryFn: async () => {
+      const params = month ? `year=${year}&month=${month}` : `year=${year}`;
+      const { data } = await apiClient.get<{ data: DoctorAccount }>(`${base}/doctor-account?${params}`);
+      return data.data;
+    },
+  });
+}
+
+export function useSetDoctorCommission() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (v: { doctor_id: string; pct: number | null }) => {
+      await apiClient.put(`${base}/doctor-commission`, v);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["report-doctor-account"] }),
   });
 }

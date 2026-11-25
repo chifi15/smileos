@@ -720,6 +720,7 @@ async def create_expense_category(db: AsyncSession, clinic_id: uuid.UUID, label:
 async def update_expense_category(
     db: AsyncSession, clinic_id: uuid.UUID, cat_id: uuid.UUID,
     label: str | None = None, covered_by_op_costs: bool | None = None,
+    is_doctor_payment: bool | None = None,
 ):
     from app.models.finance import ExpenseCategory
     result = await db.execute(
@@ -732,6 +733,8 @@ async def update_expense_category(
         cat.label = label
     if covered_by_op_costs is not None:
         cat.covered_by_op_costs = covered_by_op_costs
+    if is_doctor_payment is not None:
+        cat.is_doctor_payment = is_doctor_payment
     await db.commit()
     await db.refresh(cat)
     return cat

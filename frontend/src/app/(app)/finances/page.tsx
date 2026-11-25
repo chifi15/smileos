@@ -442,6 +442,18 @@ function ExpenseCategoryManager({ onClose }: { onClose: () => void }) {
                     />
                     Ya cubierta
                   </label>
+                  <label
+                    className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-gray-400 cursor-pointer select-none"
+                    title="Los egresos de esta categoría con un doctor marcado cuentan como pago por tratamientos en la Cuenta del doctor (Reportes)"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!cat.is_doctor_payment}
+                      onChange={(e) => updateCat.mutate({ id: cat.id, is_doctor_payment: e.target.checked })}
+                      className="rounded border-slate-300 dark:border-gray-600"
+                    />
+                    Pago a doctor
+                  </label>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => startEdit(cat)} className="rounded p-1.5 text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-500" title="Editar"><Pencil size={13} /></button>
                     <button
@@ -457,7 +469,7 @@ function ExpenseCategoryManager({ onClose }: { onClose: () => void }) {
 
         <div className="border-t border-slate-100 dark:border-gray-700 px-5 py-4 shrink-0">
           <p className="mb-3 text-[11px] leading-snug text-slate-400 dark:text-gray-500">
-            <strong>Ya cubierta</strong>: marca las categorías cuyo gasto ya está incluido en honorarios, costos fijos o materiales de los tratamientos (luz, doctor, asistente, limpieza, materiales…). Se siguen registrando con su monto y fecha exactos, pero no se restan otra vez en la utilidad.
+            <strong>Pago a doctor</strong>: marca la categoría que usas para pagar tratamientos a un doctor (y elige al doctor en cada egreso); alimenta la Cuenta del doctor en Reportes. <strong>Ya cubierta</strong>: marca las categorías cuyo gasto ya está incluido en honorarios, costos fijos o materiales de los tratamientos (luz, doctor, asistente, limpieza, materiales…). Se siguen registrando con su monto y fecha exactos, pero no se restan otra vez en la utilidad.
           </p>
           <div className="flex gap-2">
             <input

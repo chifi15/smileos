@@ -81,3 +81,15 @@ class ExpenseCategory(Base):
     covered_by_op_costs: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false", default=False)
     # Id del costo fijo (Costos → Costos Fijos) que esta categoría representa, para comparar presupuesto vs real.
     fixed_cost_item_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # True: los egresos de esta categoría con un doctor marcado cuentan como pago por tratamientos a ese doctor.
+    is_doctor_payment: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false", default=False)
+
+
+class DoctorCommission(Base):
+    """Porcentaje de lo cobrado en sus tratamientos que le corresponde a un doctor."""
+    __tablename__ = "doctor_commissions"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    clinic_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("clinics.id", ondelete="CASCADE"), nullable=False, index=True)
+    doctor_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False)

@@ -612,6 +612,7 @@ class ExpenseCategoryOut(BaseModel):
     label: str
     sort_order: int
     covered_by_op_costs: bool = False
+    is_doctor_payment: bool = False
 
     class Config:
         from_attributes = True
@@ -624,12 +625,14 @@ class ExpenseCategoryIn(BaseModel):
 class ExpenseCategoryPatch(BaseModel):
     label: str | None = None
     covered_by_op_costs: bool | None = None
+    is_doctor_payment: bool | None = None
 
 
 def _cat_out(c) -> dict:
     return {
         "id": str(c.id), "key": c.key, "label": c.label, "sort_order": c.sort_order,
         "covered_by_op_costs": bool(c.covered_by_op_costs),
+        "is_doctor_payment": bool(c.is_doctor_payment),
     }
 
 
@@ -663,6 +666,7 @@ async def update_expense_category(
         db, user.clinic_id, cat_id,
         label=body.label.strip() if body.label else None,
         covered_by_op_costs=body.covered_by_op_costs,
+        is_doctor_payment=body.is_doctor_payment,
     )
     if not cat:
         from fastapi import HTTPException

@@ -944,6 +944,7 @@ async def get_budget_vs_actual(
             "budget": budget,
             "category_id": str(linked[0].id) if linked else None,
             "category_label": linked[0].label if linked else None,
+            "category_key": linked[0].key if linked else None,
             "real": real if linked else None,
             "diff": round(real - budget, 2) if linked else None,
         })
@@ -998,5 +999,155 @@ async def set_budget_link(
             await db.rollback()
             return False
         cat.fixed_cost_item_id = fixed_cost_id
+    await db.commit()
+    return True
+
+
+async def get_doctor_account(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    year: int,
+    month: int | None = None,
+) -> dict:
+    """Cuenta por doctor: cobrado en sus tratamientos, lo que le corresponde (según su %), lo pagado y el saldo."""
+    from app.models.finance import ExpenseCategory, DoctorCommission
+
+    doctors = list((await db.execute(
+        select(User).where(
+            User.clinic_id == clinic_id,
+            User.is_active == True,  # noqa: E712
+            User.role.in_(["clinic_owner", "admin", "dentist"]),
+        ).order_by(User.full_name)
+    )).scalars().all())
+    pct_by_doc = {
+        r.doctor_id: float(r.pct)
+        for r in (await db.execute(select(DoctorCommission).where(DoctorCommission.clinic_id == clinic_id))).scalars().all()
+    }
+    cats = list((await db.execute(
+        select(ExpenseCategory).where(ExpenseCategory.clinic_id == clinic_id).order_by(ExpenseCategory.sort_order, ExpenseCategory.label)
+    )).scalars().all())
+    pay_keys = {c.key for c in cats if c.is_doctor_payment}
+    cat_label = {c.key: c.label for c in cats}
+
+    base = [
+        FinanceTransaction.clinic_id == clinic_id,
+        FinanceTransaction.deleted_at.is_(None),
+        extract("year", FinanceTransaction.transaction_date) == year,
+    ]
+    if month:
+        base.append(extract("month", FinanceTransaction.transaction_date) == month)
+
+    cobrado = {
+        r.doctor_id: (float(r.total or 0), int(r.n))
+        for r in await db.execute(
+            select(FinanceTransaction.doctor_id, func.sum(FinanceTransaction.amount_cordobas).label("total"), func.count().label("n"))
+            .where(*base, FinanceTransaction.type == "ingreso", FinanceTransaction.doctor_id.isnot(None))
+            .group_by(FinanceTransaction.doctor_id)
+        )
+    }
+    pagos_rows = await db.execute(
+        select(FinanceTransaction.doctor_id, FinanceTransaction.category, func.sum(FinanceTransaction.amount_cordobas).label("total"))
+        .where(*base, FinanceTransaction.type == "egreso", FinanceTransaction.doctor_id.isnot(None))
+        .group_by(FinanceTransaction.doctor_id, FinanceTransaction.category)
+    )
+    pagado: dict = {}
+    otros: dict = {}
+    for r in pagos_rows:
+        bucket = pagado if r.category in pay_keys else otros
+        bucket[r.doctor_id] = bucket.get(r.doctor_id, 0.0) + float(r.total or 0)
+
+    rows = []
+    for d in doctors:
+        c_tot, c_n = cobrado.get(d.id, (0.0, 0))
+        pct = pct_by_doc.get(d.id)
+        paid = pagado.get(d.id, 0.0)
+        if c_tot == 0 and pct is None and paid == 0 and otros.get(d.id, 0.0) == 0:
+            continue
+        corresponde = round(c_tot * pct / 100, 2) if pct is not None else None
+        rows.append({
+            "doctor_id": str(d.id),
+            "doctor_name": d.full_name,
+            "pct": pct,
+            "n_cobros": c_n,
+            "cobrado": round(c_tot, 2),
+            "corresponde": corresponde,
+            "pagado": round(paid, 2),
+            "saldo": round(corresponde - paid, 2) if corresponde is not None else None,
+            "otros_pagos": round(otros.get(d.id, 0.0), 2),
+        })
+
+    # Revisión: cobros sin doctor
+    sin_doc = (await db.execute(
+        select(FinanceTransaction)
+        .where(*base, FinanceTransaction.type == "ingreso", FinanceTransaction.doctor_id.is_(None))
+        .options(selectinload(FinanceTransaction.patient), selectinload(FinanceTransaction.cost_treatment), selectinload(FinanceTransaction.procedure))
+        .order_by(FinanceTransaction.transaction_date.desc())
+    )).scalars().all()
+    # Revisión: pagos al personal sin doctor marcado (categorías de pago a doctor o de salario)
+    review_keys = pay_keys | {"salario"}
+    pagos_sin_doc = (await db.execute(
+        select(FinanceTransaction)
+        .where(*base, FinanceTransaction.type == "egreso", FinanceTransaction.doctor_id.is_(None), FinanceTransaction.category.in_(list(review_keys)))
+        .order_by(FinanceTransaction.transaction_date.desc())
+    )).scalars().all()
+
+    return {
+        "rows": rows,
+        "doctors": [{"id": str(d.id), "name": d.full_name} for d in doctors],
+        "categories": [{"id": str(c.id), "label": c.label, "is_doctor_payment": bool(c.is_doctor_payment)} for c in cats],
+        "has_payment_categories": bool(pay_keys),
+        "cobros_sin_doctor": {
+            "n": len(sin_doc),
+            "total": round(sum(float(t.amount_cordobas) for t in sin_doc), 2),
+            "items": [
+                {
+                    "id": str(t.id),
+                    "date": t.transaction_date.isoformat(),
+                    "patient_name": t.patient.full_name if t.patient else None,
+                    "treatment_name": t.procedure_display_name,
+                    "amount": round(float(t.amount_cordobas), 2),
+                }
+                for t in sin_doc[:30]
+            ],
+        },
+        "pagos_sin_doctor": {
+            "n": len(pagos_sin_doc),
+            "total": round(sum(float(t.amount_cordobas) for t in pagos_sin_doc), 2),
+            "items": [
+                {
+                    "id": str(t.id),
+                    "date": t.transaction_date.isoformat(),
+                    "category": cat_label.get(t.category, t.category),
+                    "description": t.description,
+                    "amount": round(float(t.amount_cordobas), 2),
+                }
+                for t in pagos_sin_doc[:30]
+            ],
+        },
+    }
+
+
+async def set_doctor_commission(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    doctor_id: uuid.UUID,
+    pct: float | None,
+) -> bool:
+    from decimal import Decimal
+    from app.models.finance import DoctorCommission
+
+    doc = await db.scalar(select(User).where(User.id == doctor_id, User.clinic_id == clinic_id))
+    if not doc:
+        return False
+    existing = await db.scalar(
+        select(DoctorCommission).where(DoctorCommission.clinic_id == clinic_id, DoctorCommission.doctor_id == doctor_id)
+    )
+    if pct is None:
+        if existing:
+            await db.delete(existing)
+    elif existing:
+        existing.pct = Decimal(str(round(pct, 2)))
+    else:
+        db.add(DoctorCommission(clinic_id=clinic_id, doctor_id=doctor_id, pct=Decimal(str(round(pct, 2)))))
     await db.commit()
     return True

@@ -203,3 +203,36 @@ async def budget_link(
     if not ok:
         raise HTTPException(status_code=404, detail="Categoría no encontrada")
     return {"success": True}
+
+
+@router.get("/finances/doctor-account")
+async def doctor_account(
+    user: Annotated[object, require_permission("view_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    year: int = Query(...),
+    month: int | None = Query(default=None),
+):
+    data = await reports_service.get_doctor_account(db, user.clinic_id, year, month)
+    return {"success": True, "data": data}
+
+
+@router.put("/finances/doctor-commission")
+async def doctor_commission(
+    body: dict,
+    user: Annotated[object, require_permission("manage_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    import uuid as _uuid
+    from fastapi import HTTPException
+    try:
+        doctor_id = _uuid.UUID(str(body.get("doctor_id")))
+        raw = body.get("pct")
+        pct = None if raw in (None, "") else float(raw)
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=422, detail="Datos inválidos")
+    if pct is not None and not (0 <= pct <= 100):
+        raise HTTPException(status_code=422, detail="El porcentaje debe estar entre 0 y 100")
+    ok = await reports_service.set_doctor_commission(db, user.clinic_id, doctor_id, pct)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Doctor no encontrado")
+    return {"success": True}
