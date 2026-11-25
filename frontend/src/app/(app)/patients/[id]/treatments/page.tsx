@@ -133,7 +133,7 @@ function PlanCard({
           </div>
           <Badge
             label={PLAN_STATUS_LABELS[plan.status as TreatmentPlanStatus]}
-            className={PLAN_STATUS_COLORS[plan.status as TreatmentPlanStatus]}
+            className={`${PLAN_STATUS_COLORS[plan.status as TreatmentPlanStatus]} shrink-0 transition-opacity group-hover:opacity-0`}
           />
         </div>
 
