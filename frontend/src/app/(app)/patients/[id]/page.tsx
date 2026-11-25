@@ -133,22 +133,37 @@ function QuickPaymentModal({
     }
   }
 
-  function handleDateInput(raw: string) {
-    const digits = raw.replace(/\D/g, "").slice(0, 8);
-    let formatted = digits;
-    if (digits.length >= 3) formatted = digits.slice(0, 2) + "/" + digits.slice(2);
-    if (digits.length >= 5) formatted = digits.slice(0, 2) + "/" + digits.slice(2, 4) + "/" + digits.slice(4);
-    setDisplayDate(formatted);
-    if (digits.length === 8) {
-      const d = digits.slice(0, 2), m = digits.slice(2, 4), y = digits.slice(4, 8);
-      const parsed = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
-      if (
-        parsed.getFullYear() === parseInt(y) &&
-        parsed.getMonth() === parseInt(m) - 1 &&
-        parsed.getDate() === parseInt(d)
-      ) {
-        setDate(`${y}-${m}-${d}`);
-      }
+  function handleDateInput(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = e.target.value;
+    const isDeleting = v.length < displayDate.length;
+    const atEnd = e.target.selectionStart === v.length;
+    let next = v.replace(/[^\d/]/g, "").slice(0, 10);
+
+    // Solo se autoformatea al escribir al final. Al borrar o editar en medio,
+    // el texto se respeta tal cual para no mover los demás números.
+    if (!isDeleting && atEnd) {
+      const digits = v.replace(/\D/g, "").slice(0, 8);
+      next = digits;
+      if (digits.length >= 3) next = digits.slice(0, 2) + "/" + digits.slice(2);
+      if (digits.length >= 5) next = digits.slice(0, 2) + "/" + digits.slice(2, 4) + "/" + digits.slice(4);
+    }
+    setDisplayDate(next);
+
+    const match = next.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+    if (!match) {
+      setDate("");
+      return;
+    }
+    const [, d, m, y] = match;
+    const parsed = new Date(parseInt(y), parseInt(m) - 1, parseInt(d));
+    if (
+      parsed.getFullYear() === parseInt(y) &&
+      parsed.getMonth() === parseInt(m) - 1 &&
+      parsed.getDate() === parseInt(d)
+    ) {
+      setDate(`${y}-${m.padStart(2, "0")}-${d.padStart(2, "0")}`);
+    } else {
+      setDate("");
     }
   }
 
@@ -190,6 +205,7 @@ function QuickPaymentModal({
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!amount || parseFloat(amount) <= 0) return;
+    if (!date) return; // fecha incompleta o inválida
     const qtyVal = Math.max(1, parseInt(quantity) || 1);
     create.mutate(
       {
@@ -376,9 +392,15 @@ function QuickPaymentModal({
               inputMode="numeric"
               placeholder="DD/MM/AAAA"
               value={displayDate}
-              onChange={(e) => handleDateInput(e.target.value)}
-              className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+              onChange={handleDateInput}
+              maxLength={10}
+              className={`w-full rounded-lg border dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500 ${
+                date ? "border-slate-200 dark:border-gray-600" : "border-red-400"
+              }`}
             />
+            {!date && (
+              <p className="mt-1 text-xs text-red-500">Escribe una fecha válida (DD/MM/AAAA).</p>
+            )}
           </div>
 
           <p className="text-xs text-slate-400">
