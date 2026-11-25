@@ -64,6 +64,8 @@ export const fdiDot = (v: string | null | undefined) =>
 
 // Ancho relativo de cada diente (1 = central … 8 = tercer molar) para repartirlos en la arcada
 const TOOTH_W: Record<number, number> = { 1: 8, 2: 6.5, 3: 7.5, 4: 7, 5: 7, 6: 10, 7: 9.5, 8: 9 };
+// Dientes temporales (1 = central … 5 = segundo molar)
+const DECID_W: Record<number, number> = { 1: 8, 2: 6.5, 3: 7.5, 4: 9, 5: 10 };
 
 type RGB = [number, number, number];
 // Colores bien diferenciables (todos legibles con texto blanco)
@@ -79,6 +81,7 @@ function drawToothChart(
   y0: number,
   width: number,
   marked: Map<string, RGB[]>,
+  showDeciduous: boolean,
   colors: { ink: [number, number, number]; muted: [number, number, number]; accent: [number, number, number]; line: [number, number, number] },
 ): number {
   const a = Math.min(40, width / 2 - 12); // semieje horizontal (arcada angosta)
@@ -86,7 +89,7 @@ function drawToothChart(
   const cx = x0 + width / 2;
   const r = 4.6; // radio máx. de los círculos
 
-  const arch = (nums: number[], baseY: number, up: boolean) => {
+  const arch = (nums: number[], baseY: number, up: boolean, a: number, b: number, rMax: number, small = false) => {
     // Longitud acumulada de la semielipse (muestreo)
     const N = 400;
     const pts: { x: number; y: number; len: number }[] = [];
@@ -98,14 +101,14 @@ function drawToothChart(
       if (i > 0) len += Math.hypot(x - pts[i - 1].x, y - pts[i - 1].y);
       pts.push({ x, y, len });
     }
-    const widths = nums.map((n) => TOOTH_W[n % 10]);
+    const widths = nums.map((n) => (small ? DECID_W : TOOTH_W)[n % 10]);
     const totalW = widths.reduce((s, w) => s + w, 0);
     let acc = 0;
     nums.forEach((n, i) => {
       const mid = ((acc + widths[i] / 2) / totalW) * len;
       acc += widths[i];
       const p = pts.find((q) => q.len >= mid) ?? pts[N];
-      const rad = Math.min(r, ((widths[i] / totalW) * len * 0.92) / 2);
+      const rad = Math.min(rMax, ((widths[i] / totalW) * len * 0.92) / 2);
       const procColors = marked.get(String(n));
       const isMarked = !!procColors;
       const main = procColors?.[0] ?? colors.accent;
@@ -121,7 +124,7 @@ function drawToothChart(
         doc.circle(p.x + rad * 0.78 - k * 2.6, p.y - rad * 0.78, 1.25, "FD");
       });
       doc.setFont("helvetica", isMarked ? "bold" : "normal");
-      doc.setFontSize(isMarked ? 6.6 : 6.2);
+      doc.setFontSize(small ? (isMarked ? 5.6 : 5.3) : isMarked ? 6.6 : 6.2);
       doc.setTextColor(...(isMarked ? ([255, 255, 255] as [number, number, number]) : colors.ink));
       doc.text(`${Math.floor(n / 10)}.${n % 10}`, p.x, p.y + 0.9, { align: "center" });
     });
@@ -129,9 +132,11 @@ function drawToothChart(
 
   const upperTop = y0 + 6;
   const upperBase = upperTop + b + r; // línea base (extremos) de la arcada superior
-  arch([18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28], upperBase, true);
+  arch([18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28], upperBase, true, a, b, r);
+  if (showDeciduous) arch([55, 54, 53, 52, 51, 61, 62, 63, 64, 65], upperBase, true, a - 12, b - 13, 3.7, true);
   const lowerTop = upperBase + r + 9;
-  arch([48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38], lowerTop, false);
+  arch([48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38], lowerTop, false, a, b, r);
+  if (showDeciduous) arch([85, 84, 83, 82, 81, 71, 72, 73, 74, 75], lowerTop, false, a - 12, b - 13, 3.7, true);
   const bottom = lowerTop + b + r;
 
   // Etiquetas
@@ -262,7 +267,8 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
   const marked = new Map<string, RGB[]>();
   for (const it of plan.items) {
     if (it.status === "cancelled") continue;
-    const teeth = it.tooth_fdi?.match(/[1-4][1-8]/g) ?? [];
+    // Permanentes 11–48, temporales 51–85
+    const teeth = (it.tooth_fdi?.match(/[1-8][1-8]/g) ?? []).filter((t) => (+t[0] <= 4 ? true : +t[1] <= 5));
     if (teeth.length === 0) continue;
     const k = procKey(it.procedure_name);
     if (!legendMap.has(k)) {
@@ -279,6 +285,7 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
       if (!list.includes(entry.color)) marked.set(t, [...list, entry.color]);
     }
   }
+  const hasDeciduous = [...marked.keys()].some((t) => +t[0] >= 5);
   const legend = [...legendMap.values()];
   const legendLines = legend.map((l) => {
     const teeth = [...l.teeth].sort().map((t) => `${t[0]}.${t[1]}`).join(", ");
@@ -297,12 +304,13 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
   doc.setTextColor(...MUTED);
   const guide = doc.splitTextToSize(
     "Vista oclusal. El primer número indica el cuadrante y el segundo la pieza (1.1 = incisivo central superior derecho). " +
-      "Compare el número de la pieza que se le indique con el diagrama. Cada color corresponde a un tratamiento.",
+      "Compare el número de la pieza que se le indique con el diagrama. Cada color corresponde a un tratamiento." +
+      (hasDeciduous ? " El arco interior (5.1 a 8.5) son los dientes temporales." : ""),
     contentW,
   );
   doc.text(guide, M, y + 1.5);
   y += guide.length * 3.6 + 3;
-  const chartH = drawToothChart(doc, M, y, contentW, marked, { ink: INK, muted: MUTED, accent: ACCENT, line: LINE });
+  const chartH = drawToothChart(doc, M, y, contentW, marked, hasDeciduous, { ink: INK, muted: MUTED, accent: ACCENT, line: LINE });
   y += chartH + 4;
   legend.forEach((l, i) => {
     doc.setFillColor(...l.color);
