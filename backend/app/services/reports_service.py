@@ -4,7 +4,7 @@ from sqlalchemy import select, func, extract, case
 from sqlalchemy.orm import selectinload
 from app.models.finance import FinanceTransaction
 from app.models.patient import Patient
-from app.models.treatment import ProcedureCatalog
+from app.models.costos import CostTreatment as _CT
 from app.models.user import User
 
 MONTH_NAMES = [
@@ -65,7 +65,7 @@ async def get_top_procedures(
     filters = [
         FinanceTransaction.clinic_id == clinic_id,
         FinanceTransaction.type == "ingreso",
-        FinanceTransaction.procedure_id.isnot(None),
+        FinanceTransaction.cost_treatment_id.isnot(None),
         extract("year", FinanceTransaction.transaction_date) == year,
     ]
     if month:
@@ -73,20 +73,20 @@ async def get_top_procedures(
 
     rows = await db.execute(
         select(
-            FinanceTransaction.procedure_id,
-            ProcedureCatalog.name.label("procedure_name"),
+            FinanceTransaction.cost_treatment_id,
+            _CT.name.label("procedure_name"),
             func.sum(FinanceTransaction.amount_cordobas).label("total"),
             func.sum(FinanceTransaction.procedure_quantity).label("quantity"),
         )
-        .join(ProcedureCatalog, ProcedureCatalog.id == FinanceTransaction.procedure_id)
+        .join(_CT, _CT.id == FinanceTransaction.cost_treatment_id)
         .where(*filters)
-        .group_by(FinanceTransaction.procedure_id, ProcedureCatalog.name)
+        .group_by(FinanceTransaction.cost_treatment_id, _CT.name)
         .order_by(func.sum(FinanceTransaction.amount_cordobas).desc())
         .limit(10)
     )
     return [
         {
-            "procedure_id": str(r.procedure_id),
+            "procedure_id": str(r.cost_treatment_id),
             "procedure_name": r.procedure_name,
             "total": round(float(r.total), 2),
             "quantity": int(r.quantity or 0),
@@ -105,7 +105,7 @@ async def get_top_procedures_quoted(
     filters = [
         FinanceTransaction.clinic_id == clinic_id,
         FinanceTransaction.type == "ingreso",
-        FinanceTransaction.procedure_id.isnot(None),
+        FinanceTransaction.cost_treatment_id.isnot(None),
         extract("year", FinanceTransaction.transaction_date) == year,
     ]
     if month:
@@ -113,20 +113,20 @@ async def get_top_procedures_quoted(
 
     rows = await db.execute(
         select(
-            FinanceTransaction.procedure_id,
-            ProcedureCatalog.name.label("procedure_name"),
+            FinanceTransaction.cost_treatment_id,
+            _CT.name.label("procedure_name"),
             func.count(FinanceTransaction.id).label("quoted"),
             func.sum(FinanceTransaction.amount_cordobas).label("total_cotizado"),
         )
-        .join(ProcedureCatalog, ProcedureCatalog.id == FinanceTransaction.procedure_id)
+        .join(_CT, _CT.id == FinanceTransaction.cost_treatment_id)
         .where(*filters)
-        .group_by(FinanceTransaction.procedure_id, ProcedureCatalog.name)
+        .group_by(FinanceTransaction.cost_treatment_id, _CT.name)
         .order_by(func.count(FinanceTransaction.id).desc())
         .limit(10)
     )
     return [
         {
-            "procedure_id": str(r.procedure_id),
+            "procedure_id": str(r.cost_treatment_id),
             "procedure_name": r.procedure_name,
             "quoted": int(r.quoted),
             "total_cotizado": round(float(r.total_cotizado or 0), 2),
@@ -290,7 +290,6 @@ async def get_materials_by_month(
         select(CostTreatment)
         .where(
             CostTreatment.clinic_id == clinic_id,
-            CostTreatment.procedure_catalog_id.isnot(None),
         )
         .options(selectinload(CostTreatment.appointments))
     )
@@ -300,7 +299,7 @@ async def get_materials_by_month(
 
     proc_to_materials: dict[str, dict[str, float]] = {}
     for treatment in treatments:
-        proc_str = str(treatment.procedure_catalog_id)
+        proc_str = str(treatment.id)
         merged: dict[str, float] = {}
         for apt in treatment.appointments:
             for mat in (apt.materials or []):
@@ -334,7 +333,7 @@ async def get_materials_by_month(
         .where(
             FinanceTransaction.clinic_id == clinic_id,
             FinanceTransaction.type == "ingreso",
-            FinanceTransaction.procedure_id.in_(proc_ids),
+            FinanceTransaction.cost_treatment_id.in_(proc_ids),
             extract("year", FinanceTransaction.transaction_date) == year,
         )
     )
@@ -354,7 +353,7 @@ async def get_materials_by_month(
                 if pid and qty > 0:
                     by_month[m][pid] = by_month[m].get(pid, 0.0) + qty * proc_qty
         else:
-            proc_str = str(tx.procedure_id)
+            proc_str = str(tx.cost_treatment_id)
             mats = proc_to_materials.get(proc_str, {})
             for pid, qty_per_proc in mats.items():
                 by_month[m][pid] = by_month[m].get(pid, 0.0) + qty_per_proc * proc_qty
@@ -412,6 +411,7 @@ async def get_income_detail(
         .options(
             selectinload(FinanceTransaction.patient),
             selectinload(FinanceTransaction.procedure),
+            selectinload(FinanceTransaction.cost_treatment),
             selectinload(FinanceTransaction.doctor),
         )
         .order_by(FinanceTransaction.transaction_date.desc(), FinanceTransaction.created_at.desc())
@@ -423,7 +423,7 @@ async def get_income_detail(
             "id": str(t.id),
             "date": t.transaction_date.isoformat(),
             "patient_name": t.patient.full_name if t.patient else None,
-            "procedure_name": t.procedure.name if t.procedure else None,
+            "procedure_name": t.procedure_display_name,
             "doctor_name": t.doctor.full_name if t.doctor else None,
             "description": t.description,
             "amount": float(t.amount_cordobas),
@@ -493,20 +493,20 @@ async def get_op_costs_breakdown(
 
     rows = await db.execute(
         select(
-            FinanceTransaction.procedure_id,
-            ProcedureCatalog.name.label("procedure_name"),
+            FinanceTransaction.cost_treatment_id,
+            _CT.name.label("procedure_name"),
             func.count(FinanceTransaction.id).label("count"),
             func.sum(FinanceTransaction.operational_cost_snapshot).label("total"),
             func.avg(FinanceTransaction.operational_cost_snapshot).label("avg"),
         )
-        .outerjoin(ProcedureCatalog, ProcedureCatalog.id == FinanceTransaction.procedure_id)
+        .outerjoin(_CT, _CT.id == FinanceTransaction.cost_treatment_id)
         .where(*filters)
-        .group_by(FinanceTransaction.procedure_id, ProcedureCatalog.name)
+        .group_by(FinanceTransaction.cost_treatment_id, _CT.name)
         .order_by(func.sum(FinanceTransaction.operational_cost_snapshot).desc())
     )
     return [
         {
-            "procedure_id": str(r.procedure_id) if r.procedure_id else None,
+            "procedure_id": str(r.cost_treatment_id) if r.cost_treatment_id else None,
             "procedure_name": r.procedure_name or "Sin procedimiento",
             "count": int(r.count),
             "avg_op_cost": round(float(r.avg or 0), 2),
@@ -538,12 +538,12 @@ async def get_material_usage(
     # Build full proc -> {pid -> qty} template map (fallback for txs without deducted_materials)
     tpl_result = await db.execute(
         select(CostTreatment)
-        .where(CostTreatment.clinic_id == clinic_id, CostTreatment.procedure_catalog_id.isnot(None))
+        .where(CostTreatment.clinic_id == clinic_id)
         .options(selectinload(CostTreatment.appointments))
     )
     proc_to_materials: dict[str, dict[str, float]] = {}
     for treatment in tpl_result.scalars().all():
-        proc_str = str(treatment.procedure_catalog_id)
+        proc_str = str(treatment.id)
         merged: dict[str, float] = {}
         for apt in treatment.appointments:
             for mat in (apt.materials or []):
@@ -580,6 +580,7 @@ async def get_material_usage(
         .options(
             selectinload(FinanceTransaction.patient),
             selectinload(FinanceTransaction.procedure),
+            selectinload(FinanceTransaction.cost_treatment),
             selectinload(FinanceTransaction.doctor),
         )
         .order_by(FinanceTransaction.transaction_date.desc(), FinanceTransaction.created_at.desc())
@@ -602,9 +603,9 @@ async def get_material_usage(
                 if p == pid_str:
                     units_of_selected = q
                 raw.append((p, q))
-        elif tx.procedure_id:
+        elif tx.cost_treatment_id:
             # Fallback: read from current template
-            for p, q_per in proc_to_materials.get(str(tx.procedure_id), {}).items():
+            for p, q_per in proc_to_materials.get(str(tx.cost_treatment_id), {}).items():
                 q = q_per * proc_qty
                 if q <= 0:
                     continue
@@ -635,7 +636,7 @@ async def get_material_usage(
             "date": dt.isoformat()[:10],
             "patient_name": tx.patient.full_name if tx.patient else None,
             "patient_id": str(tx.patient_id) if tx.patient_id else None,
-            "procedure_name": tx.procedure.name if tx.procedure else None,
+            "procedure_name": tx.procedure_display_name,
             "doctor_name": tx.doctor.full_name if tx.doctor else None,
             "units_used": round(units_of_selected, 4),
             "all_materials": all_materials,
@@ -662,7 +663,6 @@ async def get_top_materials(
         select(CostTreatment)
         .where(
             CostTreatment.clinic_id == clinic_id,
-            CostTreatment.procedure_catalog_id.isnot(None),
         )
         .options(selectinload(CostTreatment.appointments))
     )
@@ -673,7 +673,7 @@ async def get_top_materials(
     # 2. Map procedure_catalog_id -> {productId -> total_qty_per_procedure}
     proc_to_materials: dict[str, dict[str, float]] = {}
     for treatment in treatments:
-        proc_str = str(treatment.procedure_catalog_id)
+        proc_str = str(treatment.id)
         merged: dict[str, float] = {}
         for apt in treatment.appointments:
             for mat in (apt.materials or []):
@@ -696,7 +696,7 @@ async def get_top_materials(
     filters = [
         FinanceTransaction.clinic_id == clinic_id,
         FinanceTransaction.type == "ingreso",
-        FinanceTransaction.procedure_id.in_(proc_ids),
+        FinanceTransaction.cost_treatment_id.in_(proc_ids),
         extract("year", FinanceTransaction.transaction_date) == year,
     ]
     if month:
@@ -719,7 +719,7 @@ async def get_top_materials(
                 if pid and qty > 0:
                     material_units[pid] = material_units.get(pid, 0.0) + qty * proc_qty
         else:
-            proc_str = str(tx.procedure_id)
+            proc_str = str(tx.cost_treatment_id)
             mats = proc_to_materials.get(proc_str, {})
             for pid, qty_per_proc in mats.items():
                 material_units[pid] = material_units.get(pid, 0.0) + qty_per_proc * proc_qty

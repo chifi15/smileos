@@ -10,6 +10,7 @@ from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 
 from app.models.treatment import ProcedureCatalog, TreatmentPlan, TreatmentPlanItem, TreatmentPayment
+from app.models.costos import CostTreatment
 from app.models.appointment import Appointment
 from app.models.patient import Patient
 from app.models.rewards import RewardsAccount, RewardsTransaction
@@ -22,6 +23,7 @@ from app.services import rewards_service
 def _plan_load_options():
     return [
         selectinload(TreatmentPlan.items).selectinload(TreatmentPlanItem.procedure),
+        selectinload(TreatmentPlan.items).selectinload(TreatmentPlanItem.cost_treatment),
         selectinload(TreatmentPlan.created_by),
     ]
 
@@ -50,7 +52,7 @@ async def _get_item(
     result = await db.execute(
         select(TreatmentPlanItem)
         .where(TreatmentPlanItem.id == item_id, TreatmentPlanItem.clinic_id == clinic_id)
-        .options(selectinload(TreatmentPlanItem.procedure))
+        .options(selectinload(TreatmentPlanItem.procedure), selectinload(TreatmentPlanItem.cost_treatment))
     )
     item = result.scalar_one_or_none()
     if not item:
@@ -247,17 +249,30 @@ async def add_item(
     if plan.status not in ("active", "on_hold"):
         raise ValidationError("Solo se pueden agregar ítems a planes activos o en espera.")
 
-    proc_result = await db.execute(
-        select(ProcedureCatalog).where(
-            ProcedureCatalog.id == data["procedure_id"],
-            ProcedureCatalog.clinic_id == clinic_id,
-            ProcedureCatalog.is_active == True,  # noqa: E712
+    # "procedure_id" del API = id del tratamiento de Costos Operativos
+    data = dict(data)
+    treatment_id = data.pop("procedure_id")
+    ct_result = await db.execute(
+        select(CostTreatment.id).where(
+            CostTreatment.id == treatment_id,
+            CostTreatment.clinic_id == clinic_id,
         )
     )
-    if not proc_result.scalar_one_or_none():
-        raise NotFoundError("Procedimiento")
+    if not ct_result.scalar_one_or_none():
+        # Cotizaciones antiguas del odontograma guardan el id del catálogo: resolver su tratamiento vinculado
+        legacy = await db.execute(
+            select(CostTreatment.id).where(
+                CostTreatment.procedure_catalog_id == treatment_id,
+                CostTreatment.clinic_id == clinic_id,
+            ).order_by(CostTreatment.created_at).limit(1)
+        )
+        treatment_id = legacy.scalar_one_or_none()
+        if not treatment_id:
+            raise NotFoundError("Procedimiento")
 
-    item = TreatmentPlanItem(clinic_id=clinic_id, treatment_plan_id=plan_id, **data)
+    item = TreatmentPlanItem(
+        clinic_id=clinic_id, treatment_plan_id=plan_id, cost_treatment_id=treatment_id, **data
+    )
     db.add(item)
     await db.flush()
     return await get_treatment_plan(db, clinic_id, patient_id, plan_id)

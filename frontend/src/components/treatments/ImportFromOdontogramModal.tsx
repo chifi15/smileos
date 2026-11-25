@@ -6,7 +6,7 @@ import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Spinner from "@/components/ui/Spinner";
 import { useTreatmentQuote } from "@/hooks/useOdontogram";
-import { useProcedures } from "@/hooks/useCatalog";
+import { useTreatmentPrices } from "@/hooks/useTreatmentPrices";
 import { useAddMultipleItems } from "@/hooks/useTreatments";
 import { QuoteItem } from "@/types";
 
@@ -35,7 +35,7 @@ export default function ImportFromOdontogramModal({ open, onClose, patientId, pl
   const { data: quoteData, isLoading: loadingQuote } = useTreatmentQuote(patientId);
   const quote = quoteData?.items ?? [];
   const discountPct: number = quoteData?.discount_pct ?? 0;
-  const { data: procedures = [], isLoading: loadingProcs } = useProcedures();
+  const { treatments, isLoading: loadingProcs } = useTreatmentPrices();
   const addMultiple = useAddMultipleItems(patientId, planId, () => onClose());
 
   const [rows, setRows] = useState<ImportRow[]>([]);
@@ -73,10 +73,7 @@ export default function ImportFromOdontogramModal({ open, onClose, patientId, pl
 
   const procOptions = [
     { value: "", label: "Seleccionar..." },
-    ...procedures.filter((p) => p.is_active).map((p) => ({
-      value: p.id,
-      label: p.code ? `${p.code} — ${p.name}` : p.name,
-    })),
+    ...treatments.map((t) => ({ value: t.id, label: t.name })),
   ];
 
   function handleAdd() {
@@ -185,7 +182,7 @@ export default function ImportFromOdontogramModal({ open, onClose, patientId, pl
                           <select
                             value={row.procedureId}
                             onChange={(e) => {
-                              const proc = procedures.find((p) => p.id === e.target.value);
+                              const proc = treatments.find((t) => t.id === e.target.value);
                               setField(row.id, "procedureId", e.target.value);
                               if (proc) setField(row.id, "procedureName", proc.name);
                             }}

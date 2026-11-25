@@ -137,6 +137,7 @@ async def get_monthly_patient_transactions(
             selectinload(FinanceTransaction.patient),
             selectinload(FinanceTransaction.doctor),
             selectinload(FinanceTransaction.procedure),
+            selectinload(FinanceTransaction.cost_treatment),
         )
         .order_by(FinanceTransaction.transaction_date.desc(), FinanceTransaction.created_at.desc())
     )
@@ -146,13 +147,13 @@ async def get_monthly_patient_transactions(
     for tx in txs:
         patient = tx.patient
         doctor = tx.doctor
-        procedure = tx.procedure
+        procedure_name = tx.procedure_display_name
         rows.append({
             "transaction_id": str(tx.id),
             "date": tx.transaction_date.isoformat()[:10],
             "patient_id": str(patient.id) if patient else None,
             "patient_name": patient.full_name if patient else tx.description,
-            "procedure_name": procedure.name if procedure else None,
+            "procedure_name": procedure_name,
             "doctor_name": doctor.full_name if doctor else None,
             "amount": float(tx.amount_cordobas),
             "description": tx.description,

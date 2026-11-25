@@ -118,7 +118,7 @@ async def export_backup(
     result = await db.execute(
         select(FinanceTransaction)
         .where(FinanceTransaction.clinic_id == clinic_id)
-        .options(selectinload(FinanceTransaction.patient), selectinload(FinanceTransaction.procedure))
+        .options(selectinload(FinanceTransaction.patient), selectinload(FinanceTransaction.procedure), selectinload(FinanceTransaction.cost_treatment))
         .order_by(FinanceTransaction.transaction_date.desc())
     )
     txs = result.scalars().all()
@@ -132,7 +132,7 @@ async def export_backup(
     _header_row(ws, 1, cols)
     for i, tx in enumerate(txs, 2):
         patient_name = f"{tx.patient.first_name} {tx.patient.last_name}" if tx.patient else ""
-        proc_name = tx.procedure.name if tx.procedure else ""
+        proc_name = tx.procedure_display_name or ""
         row = [
             _fmt_date(tx.transaction_date),
             "Ingreso" if tx.type == "ingreso" else "Egreso",
@@ -369,7 +369,7 @@ async def export_json(
     result = await db.execute(
         select(FinanceTransaction)
         .where(FinanceTransaction.clinic_id == clinic_id)
-        .options(selectinload(FinanceTransaction.patient), selectinload(FinanceTransaction.procedure))
+        .options(selectinload(FinanceTransaction.patient), selectinload(FinanceTransaction.procedure), selectinload(FinanceTransaction.cost_treatment))
         .order_by(FinanceTransaction.transaction_date.desc())
     )
     txs = result.scalars().all()
@@ -386,8 +386,8 @@ async def export_json(
             "exchange_rate_used": float(tx.exchange_rate_used) if tx.exchange_rate_used else None,
             "patient_id": _str(tx.patient_id),
             "patient_name": f"{tx.patient.first_name} {tx.patient.last_name}" if tx.patient else None,
-            "procedure_id": _str(tx.procedure_id),
-            "procedure_name": tx.procedure.name if tx.procedure else None,
+            "procedure_id": _str(tx.cost_treatment_id or tx.procedure_id),
+            "procedure_name": tx.procedure_display_name,
             "procedure_quantity": tx.procedure_quantity,
             "operational_cost_snapshot": float(tx.operational_cost_snapshot) if tx.operational_cost_snapshot else None,
             "invoice_number": tx.invoice_number,

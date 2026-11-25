@@ -363,11 +363,11 @@ export default function OdontogramPage() {
 
   function handleAddQuoteItem() {
     const treatment = apiTreatments.find((t) => t.id === addProc);
-    if (!treatment?.procedure_catalog_id) return;
+    if (!treatment) return;
     const newItems: QuoteItem[] = [...quoteItems, {
       id: Math.random().toString(36).slice(2),
       toothNumber: addTooth ? parseInt(addTooth) : null,
-      procedureId: treatment.procedure_catalog_id,
+      procedureId: treatment.id,
       procedureName: treatment.name,
       price: priceByTreatmentId.get(treatment.id) ?? 0,
     }];
@@ -490,9 +490,8 @@ export default function OdontogramPage() {
               >
                 <option value="">Seleccionar...</option>
                 {apiTreatments.map((t, idx) => (
-                  <option key={t.id} value={t.id} disabled={!t.procedure_catalog_id}>
+                  <option key={t.id} value={t.id}>
                     {idx + 1}. {t.name} — C$ {Number(priceByTreatmentId.get(t.id) ?? 0).toLocaleString("es-NI")}
-                    {!t.procedure_catalog_id ? " (sin vincular)" : ""}
                   </option>
                 ))}
               </select>

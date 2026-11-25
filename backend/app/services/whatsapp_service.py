@@ -14,6 +14,7 @@ from app.models.clinic import Clinic, ClinicSettings
 from app.models.patient import Patient
 from app.models.appointment import Appointment
 from app.models.treatment import ProcedureCatalog
+from app.models.costos import CostTreatment
 from app.models.user import User
 
 logger = logging.getLogger("smileos")
@@ -122,13 +123,18 @@ async def _get_clinic(db: AsyncSession) -> Clinic | None:
 
 async def _get_catalog(db: AsyncSession, clinic_id: uuid.UUID) -> list[dict]:
     result = await db.execute(
-        select(ProcedureCatalog)
-        .where(ProcedureCatalog.clinic_id == clinic_id, ProcedureCatalog.is_active == True)
-        .order_by(ProcedureCatalog.sort_order)
+        select(CostTreatment, ProcedureCatalog.default_price)
+        .outerjoin(ProcedureCatalog, ProcedureCatalog.id == CostTreatment.procedure_catalog_id)
+        .where(CostTreatment.clinic_id == clinic_id)
+        .order_by(CostTreatment.sort_order)
     )
     return [
-        {"nombre": i.name, "precio": float(i.default_price or 0), "descripcion": i.description or ""}
-        for i in result.scalars()
+        {
+            "nombre": t.name,
+            "precio": float(t.suggested_price or legacy_price or 0),
+            "descripcion": t.description or "",
+        }
+        for t, legacy_price in result.all()
     ]
 
 

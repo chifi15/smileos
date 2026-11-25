@@ -1036,8 +1036,6 @@ async def get_product_patient_usage(db: AsyncSession, clinic_id: uuid.UUID, prod
     # Map procedure_catalog_id → {treatment_name, qty_per_procedure}
     procedure_usage: dict[str, dict] = {}
     for treatment in treatments:
-        if not treatment.procedure_catalog_id:
-            continue
         total_qty = sum(
             float(mat.get("quantity", 0))
             for apt in treatment.appointments
@@ -1045,7 +1043,7 @@ async def get_product_patient_usage(db: AsyncSession, clinic_id: uuid.UUID, prod
             if mat.get("productId") == product_id_str
         )
         if total_qty > 0:
-            proc_str = str(treatment.procedure_catalog_id)
+            proc_str = str(treatment.id)
             if proc_str not in procedure_usage:
                 procedure_usage[proc_str] = {"treatment_name": treatment.name, "qty": total_qty}
 
@@ -1058,12 +1056,13 @@ async def get_product_patient_usage(db: AsyncSession, clinic_id: uuid.UUID, prod
         select(FinanceTransaction)
         .where(
             FinanceTransaction.clinic_id == clinic_id,
-            FinanceTransaction.procedure_id.in_(proc_ids),
+            FinanceTransaction.cost_treatment_id.in_(proc_ids),
             FinanceTransaction.patient_id.isnot(None),
         )
         .options(
             selectinload(FinanceTransaction.patient),
             selectinload(FinanceTransaction.procedure),
+            selectinload(FinanceTransaction.cost_treatment),
         )
         .order_by(FinanceTransaction.transaction_date.desc())
     )
@@ -1071,7 +1070,7 @@ async def get_product_patient_usage(db: AsyncSession, clinic_id: uuid.UUID, prod
 
     usage = []
     for tx in transactions:
-        t_info = procedure_usage.get(str(tx.procedure_id))
+        t_info = procedure_usage.get(str(tx.cost_treatment_id))
         if not t_info:
             continue
         proc_qty = tx.procedure_quantity or 1
@@ -1079,7 +1078,7 @@ async def get_product_patient_usage(db: AsyncSession, clinic_id: uuid.UUID, prod
             "patient_id": str(tx.patient_id),
             "patient_name": tx.patient.full_name if tx.patient else "—",
             "date": tx.transaction_date.isoformat(),
-            "procedure_name": tx.procedure.name if tx.procedure else None,
+            "procedure_name": tx.procedure_display_name,
             "treatment_name": t_info["treatment_name"],
             "qty_per_procedure": t_info["qty"],
             "procedure_quantity": proc_qty,

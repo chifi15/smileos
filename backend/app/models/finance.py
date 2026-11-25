@@ -57,6 +57,14 @@ class FinanceTransaction(UUIDMixin, TimestampMixin, Base):
     procedure: Mapped["ProcedureCatalog"] = relationship("ProcedureCatalog", foreign_keys=[procedure_id])  # type: ignore  # noqa: F821
     cost_treatment: Mapped["CostTreatment"] = relationship("CostTreatment", foreign_keys=[cost_treatment_id])  # type: ignore  # noqa: F821
     doctor: Mapped["User"] = relationship("User", foreign_keys=[doctor_id])  # type: ignore  # noqa: F821
+
+    @property
+    def procedure_display_name(self) -> str | None:
+        """Nombre del procedimiento: tratamiento de Costos Operativos (o catálogo legado)."""
+        if self.cost_treatment:
+            return self.cost_treatment.name
+        return self.procedure.name if self.procedure else None
+
     created_by: Mapped["User"] = relationship("User", foreign_keys=[created_by_id])  # type: ignore  # noqa: F821
 
 

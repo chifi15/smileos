@@ -76,8 +76,13 @@ class TreatmentPlanItem(UUIDMixin, TimestampMixin, Base):
     treatment_plan_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("treatment_plans.id", ondelete="CASCADE"), nullable=False
     )
-    procedure_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("procedure_catalog.id"), nullable=False
+    # Legado: procedimiento del catálogo (ya no se usa para ítems nuevos)
+    procedure_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("procedure_catalog.id"), nullable=True
+    )
+    # Procedimiento = tratamiento de Costos Operativos
+    cost_treatment_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("cost_treatments.id", ondelete="SET NULL"), nullable=True, index=True
     )
     # Cita en la que se completó el ítem (solo cuando status='completed')
     completed_in_appointment_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -96,7 +101,18 @@ class TreatmentPlanItem(UUIDMixin, TimestampMixin, Base):
 
     # Relaciones
     treatment_plan: Mapped["TreatmentPlan"] = relationship(back_populates="items")
-    procedure: Mapped["ProcedureCatalog"] = relationship(back_populates="items")
+    procedure: Mapped["ProcedureCatalog | None"] = relationship(back_populates="items")
+    cost_treatment: Mapped["CostTreatment | None"] = relationship("CostTreatment", foreign_keys=[cost_treatment_id])  # type: ignore  # noqa: F821
+
+    @property
+    def display_id(self) -> uuid.UUID | None:
+        return self.cost_treatment_id or self.procedure_id
+
+    @property
+    def display_name(self) -> str | None:
+        if self.cost_treatment:
+            return self.cost_treatment.name
+        return self.procedure.name if self.procedure else None
 
 
 class TreatmentPayment(UUIDMixin, TimestampMixin, Base):

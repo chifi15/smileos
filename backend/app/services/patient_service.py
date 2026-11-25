@@ -396,10 +396,11 @@ async def get_patient_visit_history(db: AsyncSession, clinic_id: uuid.UUID, pati
 
     finance_sql = text("""
         SELECT ft.transaction_date, ft.description,
-               COALESCE(pc.name, ft.description) AS procedure_name,
+               COALESCE(ct.name, pc.name, ft.description) AS procedure_name,
                ft.notes, ft.amount_cordobas
         FROM finance_transactions ft
         LEFT JOIN procedure_catalog pc ON pc.id = ft.procedure_id
+        LEFT JOIN cost_treatments ct ON ct.id = ft.cost_treatment_id
         WHERE ft.patient_id = :pid AND ft.clinic_id = :cid AND ft.type = 'ingreso'
         ORDER BY ft.transaction_date DESC
     """)

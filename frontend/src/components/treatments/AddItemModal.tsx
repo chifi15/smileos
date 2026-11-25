@@ -5,7 +5,7 @@ import Modal from "@/components/ui/Modal";
 import Select from "@/components/ui/Select";
 import Input from "@/components/ui/Input";
 import Button from "@/components/ui/Button";
-import { useProcedures } from "@/hooks/useCatalog";
+import { useTreatmentPrices } from "@/hooks/useTreatmentPrices";
 import { useAddItem } from "@/hooks/useTreatments";
 
 interface Props {
@@ -16,7 +16,7 @@ interface Props {
 }
 
 export default function AddItemModal({ open, onClose, patientId, planId }: Props) {
-  const { data: procedures = [] } = useProcedures();
+  const { treatments, prices } = useTreatmentPrices();
   const [procedureId, setProcedureId] = useState("");
   const [toothFdi, setToothFdi] = useState("");
   const [priority, setPriority] = useState<"normal" | "urgent">("normal");
@@ -28,31 +28,17 @@ export default function AddItemModal({ open, onClose, patientId, planId }: Props
     setProcedureId(""); setToothFdi(""); setPriority("normal"); setPrice(""); setNotes("");
   });
 
-  // Group by category
-  const grouped = procedures.reduce<Record<string, typeof procedures>>((acc, p) => {
-    const cat = p.category ?? "Sin categoría";
-    if (!acc[cat]) acc[cat] = [];
-    acc[cat].push(p);
-    return acc;
-  }, {});
-
+  // Procedimientos = tratamientos de Costos Operativos
   const procedureOptions = [
     { value: "", label: "Seleccionar procedimiento..." },
-    ...Object.entries(grouped).flatMap(([cat, procs]) => [
-      { value: `__${cat}`, label: `── ${cat} ──`, disabled: true } as any,
-      ...procs.map((p) => ({
-        value: p.id,
-        label: p.code ? `${p.code} — ${p.name}` : p.name,
-      })),
-    ]),
+    ...treatments.map((t) => ({ value: t.id, label: t.name })),
   ];
 
-  // Pre-fill price from selected procedure
+  // Pre-fill price from the calculated price of the selected treatment
   function handleProcedureChange(id: string) {
     setProcedureId(id);
-    const proc = procedures.find((p) => p.id === id);
-    if (proc?.default_price != null) setPrice(String(proc.default_price));
-    else setPrice("");
+    const p = prices.get(id);
+    setPrice(p != null ? String(p) : "");
   }
 
   function handleSubmit(e: React.FormEvent) {

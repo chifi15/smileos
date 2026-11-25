@@ -43,8 +43,8 @@ def _iso(dt):
 def _serialize_item(item) -> dict:
     return {
         "id": str(item.id),
-        "procedure_id": str(item.procedure_id),
-        "procedure_name": item.procedure.name if item.procedure else None,
+        "procedure_id": str(item.display_id) if item.display_id else None,
+        "procedure_name": item.display_name,
         "procedure_code": item.procedure.code if item.procedure else None,
         "status": item.status,
         "priority": item.priority,
@@ -235,8 +235,8 @@ async def add_item(
     plan = await treatment_service.add_item(
         db, user.clinic_id, patient_id, plan_id, body.model_dump()
     )
-    new_item = next((i for i in plan.items if str(i.procedure_id) == str(body.procedure_id)), plan.items[-1] if plan.items else None)
-    proc_name = new_item.procedure.name if new_item and new_item.procedure else ""
+    new_item = next((i for i in plan.items if str(i.display_id) == str(body.procedure_id)), plan.items[-1] if plan.items else None)
+    proc_name = new_item.display_name if new_item and new_item.display_name else ""
     await audit_service.log(
         db, clinic_id=user.clinic_id, user_id=user.id,
         action="treatment_item.added", resource_type="treatment_item", resource_id=str(plan_id),
@@ -294,7 +294,7 @@ async def start_item(
         db, user.clinic_id, patient_id, plan_id, item_id
     )
     item = next((i for i in plan.items if i.id == item_id), None)
-    proc_name = item.procedure.name if item and item.procedure else ""
+    proc_name = item.display_name if item and item.display_name else ""
     await audit_service.log(
         db, clinic_id=user.clinic_id, user_id=user.id,
         action="treatment_item.started", resource_type="treatment_item", resource_id=str(item_id),
@@ -316,7 +316,7 @@ async def cancel_item(
         db, user.clinic_id, patient_id, plan_id, item_id
     )
     item = next((i for i in plan.items if i.id == item_id), None)
-    proc_name = item.procedure.name if item and item.procedure else ""
+    proc_name = item.display_name if item and item.display_name else ""
     await audit_service.log(
         db, clinic_id=user.clinic_id, user_id=user.id,
         action="treatment_item.cancelled", resource_type="treatment_item", resource_id=str(item_id),
@@ -338,7 +338,7 @@ async def reopen_item(
         db, user.clinic_id, patient_id, plan_id, item_id
     )
     item = next((i for i in plan.items if i.id == item_id), None)
-    proc_name = item.procedure.name if item and item.procedure else ""
+    proc_name = item.display_name if item and item.display_name else ""
     await audit_service.log(
         db, clinic_id=user.clinic_id, user_id=user.id,
         action="treatment_item.reopened", resource_type="treatment_item", resource_id=str(item_id),
@@ -361,7 +361,7 @@ async def complete_item(
         db, user.clinic_id, patient_id, plan_id, item_id, body.appointment_id
     )
     item = next((i for i in plan.items if i.id == item_id), None)
-    proc_name = item.procedure.name if item and item.procedure else ""
+    proc_name = item.display_name if item and item.display_name else ""
     await audit_service.log(
         db, clinic_id=user.clinic_id, user_id=user.id,
         action="treatment_item.completed", resource_type="treatment_item", resource_id=str(item_id),

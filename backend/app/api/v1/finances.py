@@ -571,7 +571,7 @@ async def export_excel(
             ALL_CAT.get(t.category, t.category),
             t.description,
             t.patient.full_name if t.patient else "",
-            (t.procedure.name if t.procedure else t.cost_treatment.name if t.cost_treatment else ""),
+            (t.procedure_display_name or ""),
             t.invoice_number or "",
             t.original_currency or "NIO",
             float(t.original_amount) if t.original_amount else float(t.amount_cordobas),
