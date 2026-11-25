@@ -257,6 +257,8 @@ export default function TreatmentPlanDetailPage() {
   const [editingPayment, setEditingPayment] = useState<{ id: string; amount: number; payment_date: string; notes: string | null } | null>(null);
   const [completeTarget, setCompleteTarget] = useState<CompleteTarget | null>(null);
   const [editPriceTarget, setEditPriceTarget] = useState<EditPriceTarget | null>(null);
+  const [editingTitle, setEditingTitle] = useState(false);
+  const [titleDraft, setTitleDraft] = useState("");
 
   const deleteItem = useDeleteItem(patientId, planId);
   const startItem = useStartItem(patientId, planId);
@@ -306,12 +308,61 @@ export default function TreatmentPlanDetailPage() {
         </Link>
       </div>
 
+
+      <Modal open={editingTitle} onClose={() => setEditingTitle(false)} title="Editar nombre del plan" size="sm">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const t = titleDraft.trim();
+            if (!t) return;
+            if (t === plan.title) {
+              setEditingTitle(false);
+              return;
+            }
+            updatePlan.mutate({ title: t }, { onSuccess: () => setEditingTitle(false) });
+          }}
+          className="space-y-4"
+        >
+          <input
+            type="text"
+            value={titleDraft}
+            onChange={(e) => setTitleDraft(e.target.value)}
+            maxLength={300}
+            autoFocus
+            required
+            className="w-full rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <div className="flex justify-end gap-3">
+            <Button variant="secondary" type="button" onClick={() => setEditingTitle(false)}>
+              Cancelar
+            </Button>
+            <Button type="submit" loading={updatePlan.isPending}>
+              Guardar
+            </Button>
+          </div>
+        </form>
+      </Modal>
+
       {/* Plan header */}
       <div className="rounded-xl bg-white dark:bg-gray-800 p-6 shadow-sm border border-slate-100 dark:border-gray-700">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-xl font-bold text-slate-800 dark:text-white">{plan.title}</h1>
+              {plan.status !== "completed" && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setTitleDraft(plan.title);
+                    setEditingTitle(true);
+                  }}
+                  className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors"
+                  title="Editar nombre del plan"
+                  aria-label="Editar nombre del plan"
+                >
+                  <Pencil size={15} />
+                </button>
+              )}
               <Badge
                 label={PLAN_STATUS_LABELS[plan.status as TreatmentPlanStatus]}
                 className={PLAN_STATUS_COLORS[plan.status as TreatmentPlanStatus]}
