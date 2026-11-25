@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback, useEffect } from "react";
-import { format, parseISO } from "date-fns";
+import { format, parseISO, formatDistanceToNow, differenceInDays } from "date-fns";
 import { es } from "date-fns/locale";
 import axios from "axios";
 import {
@@ -47,6 +47,7 @@ interface ClinicRow {
   owner_email: string | null;
   display_name: string;
   created_at: string;
+  last_seen_at: string | null;
 }
 
 interface ClinicDetail {
@@ -335,6 +336,7 @@ function PlanTab({
           { label: "Usuarios", value: clinic.user_count },
           { label: "Propietario", value: clinic.owner_email ?? "—" },
           { label: "Registrado", value: format(parseISO(clinic.created_at), "d MMM yyyy", { locale: es }) },
+          { label: "Última conexión", value: clinic.last_seen_at ? format(parseISO(clinic.last_seen_at), "d MMM yyyy, HH:mm", { locale: es }) : "Nunca" },
         ].map(({ label, value }) => (
           <div key={label} className="flex justify-between text-sm">
             <span className="text-slate-500 dark:text-gray-400">{label}</span>
@@ -1331,13 +1333,14 @@ export default function AdminPage() {
                   </th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Propietario</th>
                   <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Registro</th>
+                  <th className="px-4 py-3 text-left text-xs font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">Última conexión</th>
                   <th className="w-8" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
                 {filtered.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-5 py-10 text-center text-sm text-slate-400 dark:text-gray-500">
+                    <td colSpan={8} className="px-5 py-10 text-center text-sm text-slate-400 dark:text-gray-500">
                       No se encontraron clínicas
                     </td>
                   </tr>
@@ -1367,6 +1370,24 @@ export default function AdminPage() {
                     <td className="px-4 py-3.5 text-slate-500 dark:text-gray-400 text-xs">{clinic.owner_email ?? "—"}</td>
                     <td className="px-4 py-3.5 text-slate-400 dark:text-gray-500 text-xs whitespace-nowrap">
                       {format(parseISO(clinic.created_at), "d MMM yyyy", { locale: es })}
+                    </td>
+                    <td className="px-4 py-3.5 text-xs whitespace-nowrap">
+                      {clinic.last_seen_at ? (
+                        <span
+                          title={format(parseISO(clinic.last_seen_at), "d MMM yyyy, HH:mm", { locale: es })}
+                          className={
+                            differenceInDays(new Date(), parseISO(clinic.last_seen_at)) <= 7
+                              ? "text-green-600 dark:text-green-400"
+                              : differenceInDays(new Date(), parseISO(clinic.last_seen_at)) <= 30
+                                ? "text-amber-600 dark:text-amber-400"
+                                : "text-slate-400 dark:text-gray-500"
+                          }
+                        >
+                          {formatDistanceToNow(parseISO(clinic.last_seen_at), { addSuffix: true, locale: es })}
+                        </span>
+                      ) : (
+                        <span className="text-slate-300 dark:text-gray-600">Nunca</span>
+                      )}
                     </td>
                     <td className="px-3 py-3.5 text-slate-300">
                       <ChevronDown size={14} className="-rotate-90" />

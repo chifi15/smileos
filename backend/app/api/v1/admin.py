@@ -117,6 +117,13 @@ async def list_clinics(
     )
     patient_counts = {str(r.clinic_id): r.cnt for r in pt_rows}
 
+    # Última conexión por clínica: el último login/renovación de sesión de cualquiera de sus usuarios
+    seen_rows = await db.execute(
+        select(User.clinic_id, func.max(User.last_login_at).label("last_seen"))
+        .group_by(User.clinic_id)
+    )
+    last_seen = {str(r.clinic_id): r.last_seen for r in seen_rows}
+
     # User + owner per clinic
     user_rows = await db.execute(
         select(User.clinic_id, User.email, User.role, func.count(User.id).over(partition_by=User.clinic_id).label("total"))
@@ -146,6 +153,7 @@ async def list_clinics(
             "owner_email": ud.get("owner_email"),
             "display_name": c.settings.display_name if c.settings else c.name,
             "created_at": c.created_at.isoformat(),
+            "last_seen_at": last_seen[cid].isoformat() if last_seen.get(cid) else None,
         })
     return {"success": True, "data": rows}
 
