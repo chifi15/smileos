@@ -63,7 +63,7 @@ import {
   apiProductToProduct,
   apiTreatmentToTreatment,
 } from "@/lib/costos-utils";
-import { normalizeSearch } from "@/lib/utils";
+import { normalizeSearch, useEscapeKey } from "@/lib/utils";
 import { categoryLabel, categoryColor } from "@/types/costos";
 import { useProcedures } from "@/hooks/useCatalog";
 import CostSummaryBar from "@/components/costos/CostSummaryBar";
@@ -238,6 +238,7 @@ function AddMaterialModal({
   onClose: () => void;
   targetPhase?: string | null;
 }) {
+  useEscapeKey(onClose);
   const [search, setSearch] = useState("");
   // productId → qty string
   const [pending, setPending] = useState<Map<string, string>>(new Map());
@@ -275,8 +276,8 @@ function AddMaterialModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-800 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="flex max-h-[90vh] w-full max-w-lg flex-col rounded-2xl bg-white dark:bg-gray-800 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-700 px-6 py-4">
           <div>
             <h2 className="font-semibold text-slate-800 dark:text-white">Agregar materiales</h2>
@@ -292,7 +293,7 @@ function AddMaterialModal({
             <X size={16} />
           </button>
         </div>
-        <div className="px-6 py-4 space-y-3">
+        <div className="min-h-0 overflow-y-auto px-6 py-4 space-y-3">
           <Input
             placeholder="Buscar producto..."
             value={search}
@@ -364,6 +365,7 @@ function AddByCategoryModal({
   onUpdateApt: (data: { materials: ApiMaterial[] }) => void;
   onClose: () => void;
 }) {
+  useEscapeKey(onClose);
   const existingIds = new Set(apt.materials.map((m) => m.productId));
   const available = products.filter((p) => !existingIds.has(p.id));
 
@@ -381,8 +383,8 @@ function AddByCategoryModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-gray-800 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="flex max-h-[90vh] w-full max-w-md flex-col rounded-2xl bg-white dark:bg-gray-800 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-700 px-6 py-4">
           <div>
             <h2 className="font-semibold text-slate-800 dark:text-white">Agregar por categoría</h2>
@@ -393,7 +395,7 @@ function AddByCategoryModal({
           </button>
         </div>
 
-        <div className="px-6 py-4">
+        <div className="min-h-0 overflow-y-auto px-6 py-4">
           {byCategory.length === 0 ? (
             <p className="py-6 text-center text-sm text-slate-400 dark:text-gray-500">Todos los productos ya están en esta cita</p>
           ) : (
@@ -441,6 +443,7 @@ function MergeAppointmentModal({
   onMerge: (sourceId: string) => void;
   onClose: () => void;
 }) {
+  useEscapeKey(onClose);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const target = appointments.find((a) => a.id === targetAppointmentId);
@@ -460,8 +463,8 @@ function MergeAppointmentModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-      <div className="w-full max-w-md rounded-2xl bg-white dark:bg-gray-800 shadow-xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={onClose}>
+      <div className="flex max-h-[90vh] w-full max-w-md flex-col rounded-2xl bg-white dark:bg-gray-800 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-gray-700 px-6 py-4">
           <div>
             <h2 className="font-semibold text-slate-800 dark:text-white">Fusionar cita</h2>
@@ -475,7 +478,7 @@ function MergeAppointmentModal({
           </button>
         </div>
 
-        <div className="px-6 py-4 space-y-2">
+        <div className="min-h-0 overflow-y-auto px-6 py-4 space-y-2">
           {others.length === 0 && (
             <p className="py-6 text-center text-sm text-slate-400 dark:text-gray-500">No hay otras citas para fusionar</p>
           )}
