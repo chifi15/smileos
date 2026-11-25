@@ -11,6 +11,20 @@ export interface PlanPdfItem {
   status: string;
 }
 
+export interface PdfPhoto {
+  dataUrl: string; // JPEG
+  width: number;
+  height: number;
+  label?: string;
+}
+
+export interface PlanPdfPhotos {
+  /** Fotos generales (sonrisa, laterales, oclusales…) mostradas antes de la tabla. */
+  overview: PdfPhoto[];
+  /** Foto (recortada) para mostrar bajo el encabezado de cada hemiarcada. */
+  byGroup: Partial<Record<string, PdfPhoto>>;
+}
+
 export interface PlanPdfInput {
   clinic: {
     name: string;
@@ -29,6 +43,7 @@ export interface PlanPdfInput {
   };
   /** Fecha de elaboración/entrega del plan (por defecto, hoy). */
   issuedAt?: Date;
+  photos?: PlanPdfPhotos;
 }
 
 // ─── Reglas comerciales ──────────────────────────────────────────────────────
@@ -36,33 +51,9 @@ export const DISCOUNT_FULL_PCT = 10;
 export const DISCOUNT_HALF_PCT = 5;
 export const VALIDITY_DAYS = 15;
 
-// ─── Hemiarcadas (cuadrantes FDI) ────────────────────────────────────────────
-type GroupKey = "sd" | "si" | "ii" | "id" | "multi" | "general";
-
-const GROUPS: { key: GroupKey; label: string }[] = [
-  { key: "sd", label: "Hemiarcada superior derecha" },
-  { key: "si", label: "Hemiarcada superior izquierda" },
-  { key: "ii", label: "Hemiarcada inferior izquierda" },
-  { key: "id", label: "Hemiarcada inferior derecha" },
-  { key: "multi", label: "Más de una hemiarcada" },
-  { key: "general", label: "General (sin pieza específica)" },
-];
-
-// Primer dígito FDI: 1/5 sup. derecha, 2/6 sup. izquierda, 3/7 inf. izquierda, 4/8 inf. derecha
-const QUADRANT: Record<string, GroupKey> = {
-  "1": "sd", "5": "sd",
-  "2": "si", "6": "si",
-  "3": "ii", "7": "ii",
-  "4": "id", "8": "id",
-};
-
-export function groupForTooth(toothFdi: string | null): GroupKey {
-  if (!toothFdi) return "general";
-  const teeth = toothFdi.match(/[1-8][1-8]/g);
-  if (!teeth || teeth.length === 0) return "general";
-  const quadrants = new Set(teeth.map((t) => QUADRANT[t[0]]));
-  return quadrants.size === 1 ? [...quadrants][0] : "multi";
-}
+import { GROUPS, groupForTooth, type GroupKey } from "@/lib/plan-groups";
+export { GROUPS, groupForTooth };
+export type { GroupKey };
 
 // ─── Utilidades ──────────────────────────────────────────────────────────────
 const money = (n: number) =>
@@ -164,6 +155,41 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
   }
   y += 4;
 
+  // ── Fotos generales del paciente ──
+  const overview = input.photos?.overview ?? [];
+  if (overview.length > 0) {
+    ensure(60);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(...INK);
+    doc.text("Estado actual de su boca", M, y);
+    y += 4;
+    const cols = Math.min(3, overview.length);
+    const gap = 4;
+    const cellW = (contentW - gap * (cols - 1)) / cols;
+    const maxH = 52;
+    for (let i = 0; i < overview.length; i += cols) {
+      const row = overview.slice(i, i + cols);
+      const heights = row.map((p) => Math.min(maxH, (cellW * p.height) / p.width));
+      const rowH = Math.max(...heights) + 5;
+      ensure(rowH + 4);
+      row.forEach((p, j) => {
+        const h = heights[j];
+        const w = h === maxH ? (maxH * p.width) / p.height : cellW;
+        const x = M + j * (cellW + gap) + (cellW - w) / 2;
+        doc.addImage(p.dataUrl, "JPEG", x, y, w, h);
+        if (p.label) {
+          doc.setFont("helvetica", "normal");
+          doc.setFontSize(8);
+          doc.setTextColor(...MUTED);
+          doc.text(p.label, M + j * (cellW + gap) + cellW / 2, y + h + 3.4, { align: "center" });
+        }
+      });
+      y += rowH + 2;
+    }
+    y += 3;
+  }
+
   // ── Tabla de procedimientos por hemiarcada ──
   const items = plan.items.filter((i) => i.status !== "cancelled");
   const byGroup = new Map<GroupKey, PlanPdfItem[]>();
@@ -173,6 +199,7 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
   }
 
   const body: CellDef[][] = [];
+  const photoRows = new Map<number, { photo: PdfPhoto; w: number; h: number }>();
   let n = 0;
   let total = 0;
   for (const g of GROUPS) {
@@ -181,6 +208,13 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
     body.push([
       { content: g.label, colSpan: 4, styles: { fillColor: SOFT, fontStyle: "bold", textColor: ACCENT } },
     ]);
+    const gp = input.photos?.byGroup?.[g.key];
+    if (gp) {
+      const h = Math.min(50, (90 * gp.height) / gp.width);
+      const w = (h * gp.width) / gp.height;
+      photoRows.set(body.length, { photo: gp, w, h });
+      body.push([{ content: "", colSpan: 4, styles: { minCellHeight: h + 4 } }]);
+    }
     let sub = 0;
     for (const it of list) {
       n += 1;
@@ -219,6 +253,12 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
     headStyles: { fillColor: ACCENT, textColor: 255, fontStyle: "bold", halign: "center" },
     footStyles: { fillColor: INK, textColor: 255, fontStyle: "bold", fontSize: 10 },
     columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 22 }, 3: { cellWidth: 36 } },
+    didDrawCell: (d) => {
+      if (d.section !== "body") return;
+      const pr = photoRows.get(d.row.index);
+      if (!pr) return;
+      doc.addImage(pr.photo.dataUrl, "JPEG", d.cell.x + 2, d.cell.y + 2, pr.w, pr.h);
+    },
   });
   y = lastY() + 9;
 

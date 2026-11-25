@@ -20,6 +20,10 @@ import Select from "@/components/ui/Select";
 import Spinner from "@/components/ui/Spinner";
 import Modal from "@/components/ui/Modal";
 import EditPlanModal from "@/components/treatments/EditPlanModal";
+import PdfPhotosPicker, { photoLabel } from "@/components/treatments/PdfPhotosPicker";
+import { usePatientPhotos } from "@/hooks/usePhotos";
+import { GROUPS, groupForTooth } from "@/lib/plan-groups";
+import { buildPdfPhotos, type PdfPhotoSelection } from "@/lib/pdf-photos";
 import {
   TreatmentPlanStatus,
   TreatmentItemStatus,
@@ -260,6 +264,8 @@ export default function TreatmentPlanDetailPage() {
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [showPdfOptions, setShowPdfOptions] = useState(false);
   const [pdfDoctorId, setPdfDoctorId] = useState("");
+  const [pdfPhotos, setPdfPhotos] = useState<PdfPhotoSelection>({ overview: [], groups: {} });
+  const { data: patientPhotos = [] } = usePatientPhotos(patientId);
   const [showAddItem, setShowAddItem] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showAddPayment, setShowAddPayment] = useState(false);
@@ -306,6 +312,12 @@ export default function TreatmentPlanDetailPage() {
     return list;
   })();
 
+  // Hemiarcadas presentes en el plan (para asignarles una foto)
+  const pdfPhotoGroups = (() => {
+    const present = new Set((plan?.items ?? []).filter((i) => i.status !== "cancelled").map((i) => groupForTooth(i.tooth_fdi)));
+    return GROUPS.filter((g) => present.has(g.key));
+  })();
+
   function openPdfOptions() {
     if (!plan) return;
     let remembered = "";
@@ -321,7 +333,14 @@ export default function TreatmentPlanDetailPage() {
     setGeneratingPdf(true);
     try {
       const { downloadTreatmentPlanPdf } = await import("@/lib/treatment-plan-pdf");
+      const labelOf = (id: string) => {
+        const p = patientPhotos.find((x) => x.id === id);
+        return p ? photoLabel(p) : "";
+      };
+      const hasPhotos = pdfPhotos.overview.length > 0 || Object.keys(pdfPhotos.groups).length > 0;
+      const photos = hasPhotos ? await buildPdfPhotos(patientId, pdfPhotos, labelOf) : undefined;
       downloadTreatmentPlanPdf({
+        photos,
         clinic: {
           name: clinic?.display_name ?? "Clínica",
           legalName: clinic?.legal_name,
@@ -371,8 +390,8 @@ export default function TreatmentPlanDetailPage() {
       </div>
 
 
-      <Modal open={showPdfOptions} onClose={() => setShowPdfOptions(false)} title="PDF para el paciente" size="sm">
-        <div className="space-y-4">
+      <Modal open={showPdfOptions} onClose={() => setShowPdfOptions(false)} title="PDF para el paciente" size="lg">
+        <div className="space-y-4 max-h-[75vh] overflow-y-auto pr-1">
           <Select
             label="Doctor(a) que firma el plan"
             value={pdfDoctorId}
@@ -385,6 +404,12 @@ export default function TreatmentPlanDetailPage() {
           <p className="text-xs text-slate-400 dark:text-gray-500">
             Aparece en el PDF junto al espacio de firma. Se recuerda para la próxima vez.
           </p>
+          <PdfPhotosPicker
+            patientId={patientId}
+            groups={pdfPhotoGroups}
+            value={pdfPhotos}
+            onChange={setPdfPhotos}
+          />
           <div className="flex justify-end gap-3">
             <Button variant="secondary" type="button" onClick={() => setShowPdfOptions(false)}>
               Cancelar
