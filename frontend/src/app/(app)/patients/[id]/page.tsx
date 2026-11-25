@@ -28,6 +28,7 @@ import { usePatient, useDeactivatePatient, useDeletePatientPermanent } from "@/h
 import { useCreateTransaction, useExchangeRate, useDoctors } from "@/hooks/useFinances";
 import { useCostTreatments, useCostProducts, type ApiTreatment } from "@/hooks/useCostos";
 import { useRewardsConfig } from "@/hooks/useRewards";
+import { colorForProduct, materialColor } from "@/lib/material-colors";
 import { getMaterialsForSpec, autoSelectAltGroups, calcOpCost, type UsedMaterial } from "@/lib/finance-cost";
 import { useClinicFeatures } from "@/hooks/useSettings";
 import {
@@ -376,9 +377,11 @@ function QuickPaymentModal({
               <div className="space-y-1 max-h-36 overflow-y-auto rounded-lg border border-slate-200 dark:border-gray-600 p-2">
                 {usedMaterials.map((m, i) => {
                   const p = products.find((pr) => pr.id === m.productId);
+                  const markColor = materialColor(colorForProduct(treatment, m.productId));
                   return (
-                    <div key={i} className="flex items-center gap-2 text-xs">
+                    <div key={i} className={`flex items-center gap-2 text-xs rounded ${markColor ? `${markColor.row} border-l-4 ${markColor.border} pl-1.5 py-0.5` : ""}`}>
                       <span className="flex-1 truncate text-slate-700 dark:text-gray-300">
+                        {markColor && <span title={markColor.label} className={`mr-1.5 inline-block h-2 w-2 rounded-full align-middle ${markColor.dot}`} />}
                         {p?.name ?? m.productId}
                         {m.altGroup && <span className="ml-1 text-slate-400">[alt]</span>}
                       </span>

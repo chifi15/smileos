@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
+import { colorForProduct, materialColor } from "@/lib/material-colors";
 import { useCostTreatments, useCostProducts, type ApiTreatment } from "@/hooks/useCostos";
 import {
   TrendingUp,
@@ -760,6 +761,16 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     recomputeMerged(form.cost_treatment_id, form.appointment_id, updated, parseInt(form.n_piezas) || 1);
   }
 
+  // Color asignado al material en el/los tratamientos seleccionados (Costos Operativos)
+  function colorOfMaterial(productId: string) {
+    const ids = [form.cost_treatment_id, ...extraProcedures.map((ep) => ep.cost_treatment_id)].filter(Boolean);
+    for (const id of ids) {
+      const c = colorForProduct(apiTreatments.find((t) => t.id === id), productId);
+      if (c) return materialColor(c);
+    }
+    return null;
+  }
+
   function calcMaterialsCost(materials: { productId: string; qty: number }[]): number {
     return materials.reduce((sum, m) => {
       const product = apiProducts.find((p) => p.id === m.productId);
@@ -1362,10 +1373,12 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                   ) : (
                     usedMaterials.map((m) => {
                       const product = apiProducts.find((p) => p.id === m.productId);
+                      const markColor = colorOfMaterial(m.productId);
                       return (
-                        <div key={m.productId} className={`flex items-center gap-3 px-4 py-2 ${m.altGroup ? altFinanceColor(m.altGroup).row : ""}`}>
+                        <div key={m.productId} className={`flex items-center gap-3 px-4 py-2 ${markColor ? `${markColor.row} border-l-4 ${markColor.border}` : m.altGroup ? altFinanceColor(m.altGroup).row : ""}`}>
                           <span className="flex-1 min-w-0 flex flex-col gap-0.5">
                             <span className="text-xs text-slate-700 dark:text-gray-300 truncate">
+                              {markColor && <span title={markColor.label} className={`mr-1.5 inline-block h-2 w-2 rounded-full align-middle ${markColor.dot}`} />}
                               {product?.name ?? m.productId}
                               {product?.portion_description && (
                                 <span className="text-slate-400 dark:text-gray-500 ml-1">/ {product.portion_description}</span>

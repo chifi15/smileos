@@ -73,6 +73,7 @@ export interface MaterialUsage {
   quantity: number;
   altGroup?: string | null;
   phase?: string | null;
+  color?: string | null;
 }
 
 export interface TreatmentAppointment {
@@ -103,6 +104,7 @@ export interface AppointmentCostDetail {
     quantity: number;
     total: number;
     altGroup: string | null;
+    color: string | null;
     countsInCost: boolean;
   }>;
 }

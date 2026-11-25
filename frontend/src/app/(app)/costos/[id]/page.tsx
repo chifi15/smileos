@@ -22,6 +22,7 @@ import {
   GripVertical,
   Link2,
   Layers,
+  Palette,
   FolderPlus,
 } from "lucide-react";
 import {
@@ -69,6 +70,7 @@ import { useProcedures } from "@/hooks/useCatalog";
 import CostSummaryBar from "@/components/costos/CostSummaryBar";
 import Button from "@/components/ui/Button";
 import Input from "@/components/ui/Input";
+import { MATERIAL_COLORS, materialColor, type MaterialColorId } from "@/lib/material-colors";
 
 // ─── Alt Group Helpers ────────────────────────────────────────────────────────
 
@@ -536,6 +538,7 @@ function SortableMaterialRow({
   quantity,
   total,
   altGroup,
+  color,
   countsInCost,
   availableGroups,
   editQty,
@@ -546,6 +549,7 @@ function SortableMaterialRow({
   onEditQtyCancel,
   onRemove,
   onSetAltGroup,
+  onSetColor,
   isSelected,
   onToggleSelect,
   phase,
@@ -558,6 +562,7 @@ function SortableMaterialRow({
   quantity: number;
   total: number;
   altGroup: string | null;
+  color: string | null;
   countsInCost: boolean;
   availableGroups: string[];
   editQty: string | null;
@@ -568,6 +573,7 @@ function SortableMaterialRow({
   onEditQtyCancel: () => void;
   onRemove: () => void;
   onSetAltGroup: (g: string | null) => void;
+  onSetColor: (c: string | null) => void;
   isSelected: boolean;
   onToggleSelect: (shiftKey: boolean) => void;
   phase: string | null;
@@ -582,6 +588,24 @@ function SortableMaterialRow({
   const [phaseMenuStyle, setPhaseMenuStyle] = useState<React.CSSProperties>({});
   const groupBtnRef = useRef<HTMLButtonElement>(null);
   const phaseBtnRef = useRef<HTMLButtonElement>(null);
+  const [colorOpen, setColorOpen] = useState(false);
+  const [colorMenuStyle, setColorMenuStyle] = useState<React.CSSProperties>({});
+  const colorBtnRef = useRef<HTMLButtonElement>(null);
+  const colorInfo = materialColor(color);
+
+  const openColorMenu = useCallback(() => {
+    if (colorBtnRef.current) {
+      const rect = colorBtnRef.current.getBoundingClientRect();
+      const openUpward = window.innerHeight - rect.bottom < 120;
+      setColorMenuStyle({
+        position: "fixed",
+        ...(openUpward ? { bottom: window.innerHeight - rect.top + 4 } : { top: rect.bottom + 4 }),
+        right: window.innerWidth - rect.right,
+        zIndex: 9999,
+      });
+    }
+    setColorOpen(true);
+  }, []);
 
   const openGroupMenu = useCallback(() => {
     if (groupBtnRef.current) {
@@ -626,7 +650,7 @@ function SortableMaterialRow({
   const nextNewGroup = ALT_GROUP_LETTERS.find((l) => !availableGroups.includes(l)) ?? "A";
 
   return (
-    <tr ref={setNodeRef} style={style} className={`group hover:bg-slate-50/50 dark:hover:bg-gray-700/30 ${!countsInCost ? "opacity-60" : ""} ${isSelected ? "bg-blue-50/60 dark:bg-blue-900/20" : ""}`}>
+    <tr ref={setNodeRef} style={style} className={`group hover:bg-slate-50/50 dark:hover:bg-gray-700/30 ${!countsInCost ? "opacity-60" : ""} ${colorInfo ? `${colorInfo.row} border-l-4 ${colorInfo.border}` : ""} ${isSelected ? "bg-blue-50/60 dark:bg-blue-900/20" : ""}`}>
       <td className="pl-3 w-8 py-2.5" onClick={(e) => e.stopPropagation()}>
         <input
           type="checkbox"
@@ -651,6 +675,7 @@ function SortableMaterialRow({
       </td>
       <td className="px-5 py-2.5">
         <div className="flex items-center gap-1.5 flex-wrap">
+          {colorInfo && <span title={colorInfo.label} className={`h-2.5 w-2.5 shrink-0 rounded-full ${colorInfo.dot}`} />}
           <p className={`font-medium text-sm ${countsInCost ? "text-slate-700 dark:text-gray-300" : "text-slate-400 dark:text-gray-500 line-through"}`}>
             {product.name}
           </p>
@@ -701,6 +726,48 @@ function SortableMaterialRow({
       </td>
       <td className="pr-3 text-center">
         <div className="hidden group-hover:flex items-center justify-end gap-0.5">
+          {/* Botón de color */}
+          <div className="relative">
+            <button
+              ref={colorBtnRef}
+              title="Marcar con un color"
+              onClick={() => colorOpen ? setColorOpen(false) : openColorMenu()}
+              className="rounded p-1 transition-colors text-slate-300 hover:bg-slate-100 hover:text-slate-500"
+            >
+              {colorInfo ? <span className={`block h-3 w-3 rounded-full ${colorInfo.dot}`} /> : <Palette size={12} />}
+            </button>
+            {colorOpen && typeof window !== "undefined" && createPortal(
+              <>
+                <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => setColorOpen(false)} />
+                <div style={colorMenuStyle} className="rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg p-2">
+                  <p className="px-1 pb-1.5 text-[10px] font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wide">
+                    Color
+                  </p>
+                  <div className="flex items-center gap-1.5">
+                    {(Object.keys(MATERIAL_COLORS) as MaterialColorId[]).map((id) => (
+                      <button
+                        key={id}
+                        title={MATERIAL_COLORS[id].label}
+                        onClick={() => { onSetColor(id); setColorOpen(false); }}
+                        className={`flex h-6 w-6 items-center justify-center rounded-full ${MATERIAL_COLORS[id].dot} ${color === id ? "ring-2 ring-offset-1 ring-slate-500" : "hover:scale-110"} transition-transform`}
+                      >
+                        {color === id && <Check size={12} className="text-white" />}
+                      </button>
+                    ))}
+                  </div>
+                  {color && (
+                    <button
+                      onClick={() => { onSetColor(null); setColorOpen(false); }}
+                      className="mt-2 flex w-full items-center gap-1.5 rounded px-1 py-1 text-xs text-slate-500 hover:bg-slate-50 dark:hover:bg-gray-700"
+                    >
+                      <X size={11} /> Quitar color
+                    </button>
+                  )}
+                </div>
+              </>,
+              document.body
+            )}
+          </div>
           {/* Botón de grupo alternativo */}
           <div className="relative">
             <button
@@ -914,6 +981,10 @@ function EditableAppointment({
         m.productId === productId ? { ...m, altGroup: group } : m
       ),
     });
+  }
+
+  function setMaterialColor(productId: string, color: string | null) {
+    onUpdateApt({ materials: apt.materials.map((m) => (m.productId === productId ? { ...m, color } : m)) });
   }
 
   function saveName() {
@@ -1172,8 +1243,8 @@ function EditableAppointment({
                         </thead>
                         <SortableContext items={apt.materials.map((m) => m.productId)} strategy={verticalListSortingStrategy}>
                           <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
-                            {materials.map(({ product, quantity, total, altGroup, countsInCost }, idx) => (
-                              <SortableMaterialRow key={product.id} productId={product.id} rowIndex={idx + 1} product={product} quantity={quantity} total={total} altGroup={altGroup} countsInCost={countsInCost} availableGroups={usedGroups} editQty={editQty} editQtyValue={editQtyValue} onEditQtyStart={() => { setEditQty(product.id); setEditQtyValue(String(quantity)); }} onEditQtyChange={setEditQtyValue} onEditQtySave={() => saveQty(product.id)} onEditQtyCancel={() => setEditQty(null)} onRemove={() => removeMaterial(product.id)} onSetAltGroup={(g) => setAltGroup(product.id, g)} isSelected={selectedMaterials.has(product.id)} onToggleSelect={(shiftKey) => toggleSelect(product.id, idx, shiftKey)} phase={null} allPhases={namedPhases} onSetPhase={(p) => setMaterialPhase(product.id, p)} />
+                            {materials.map(({ product, quantity, total, altGroup, color, countsInCost }, idx) => (
+                              <SortableMaterialRow key={product.id} productId={product.id} rowIndex={idx + 1} product={product} quantity={quantity} total={total} altGroup={altGroup} color={color} countsInCost={countsInCost} availableGroups={usedGroups} editQty={editQty} editQtyValue={editQtyValue} onEditQtyStart={() => { setEditQty(product.id); setEditQtyValue(String(quantity)); }} onEditQtyChange={setEditQtyValue} onEditQtySave={() => saveQty(product.id)} onEditQtyCancel={() => setEditQty(null)} onRemove={() => removeMaterial(product.id)} onSetAltGroup={(g) => setAltGroup(product.id, g)} onSetColor={(c) => setMaterialColor(product.id, c)} isSelected={selectedMaterials.has(product.id)} onToggleSelect={(shiftKey) => toggleSelect(product.id, idx, shiftKey)} phase={null} allPhases={namedPhases} onSetPhase={(p) => setMaterialPhase(product.id, p)} />
                             ))}
                           </tbody>
                         </SortableContext>
@@ -1205,11 +1276,11 @@ function EditableAppointment({
                     </colgroup>
                     <SortableContext items={phaseIds} strategy={verticalListSortingStrategy}>
                       <tbody className="divide-y divide-slate-50 dark:divide-gray-700">
-                        {phaseItems.map(({ product, quantity, total, altGroup, countsInCost }) => {
+                        {phaseItems.map(({ product, quantity, total, altGroup, color, countsInCost }) => {
                           const globalIdx = apt.materials.findIndex(m => m.productId === product.id);
                           rowNum++;
                           return (
-                            <SortableMaterialRow key={product.id} productId={product.id} rowIndex={rowNum} product={product} quantity={quantity} total={total} altGroup={altGroup} countsInCost={countsInCost} availableGroups={usedGroups} editQty={editQty} editQtyValue={editQtyValue} onEditQtyStart={() => { setEditQty(product.id); setEditQtyValue(String(quantity)); }} onEditQtyChange={setEditQtyValue} onEditQtySave={() => saveQty(product.id)} onEditQtyCancel={() => setEditQty(null)} onRemove={() => removeMaterial(product.id)} onSetAltGroup={(g) => setAltGroup(product.id, g)} isSelected={selectedMaterials.has(product.id)} onToggleSelect={(shiftKey) => toggleSelect(product.id, globalIdx, shiftKey)} phase={phase} allPhases={namedPhases} onSetPhase={(p) => setMaterialPhase(product.id, p)} />
+                            <SortableMaterialRow key={product.id} productId={product.id} rowIndex={rowNum} product={product} quantity={quantity} total={total} altGroup={altGroup} color={color} countsInCost={countsInCost} availableGroups={usedGroups} editQty={editQty} editQtyValue={editQtyValue} onEditQtyStart={() => { setEditQty(product.id); setEditQtyValue(String(quantity)); }} onEditQtyChange={setEditQtyValue} onEditQtySave={() => saveQty(product.id)} onEditQtyCancel={() => setEditQty(null)} onRemove={() => removeMaterial(product.id)} onSetAltGroup={(g) => setAltGroup(product.id, g)} onSetColor={(c) => setMaterialColor(product.id, c)} isSelected={selectedMaterials.has(product.id)} onToggleSelect={(shiftKey) => toggleSelect(product.id, globalIdx, shiftKey)} phase={phase} allPhases={namedPhases} onSetPhase={(p) => setMaterialPhase(product.id, p)} />
                           );
                         })}
                       </tbody>

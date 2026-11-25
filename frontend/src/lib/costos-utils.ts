@@ -58,9 +58,10 @@ export function calculateTreatmentCosts(
           total: product.unitPrice * usage.quantity,
           altGroup: usage.altGroup ?? null,
           phase: usage.phase ?? null,
+          color: usage.color ?? null,
         };
       })
-      .filter(Boolean) as Array<{ product: Product; quantity: number; total: number; altGroup: string | null }>;
+      .filter(Boolean) as Array<{ product: Product; quantity: number; total: number; altGroup: string | null; color: string | null }>;
 
     // For each alt group, find the max cost — only ONE item counts (first with max cost)
     const groupMax = new Map<string, number>();
