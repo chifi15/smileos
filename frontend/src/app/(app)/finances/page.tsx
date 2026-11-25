@@ -2460,6 +2460,21 @@ export default function FinancesPage() {
   const [modal, setModal] = useState<"ingreso" | "egreso" | null>(null);
   const [showCatManager, setShowCatManager] = useState(false);
   const [showSummary, setShowSummary] = useState(true);
+
+  // Recordar si el resumen estaba oculto (se guarda en este navegador)
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("smileos-finances-hide-summary") === "1") setShowSummary(false);
+    } catch {}
+  }, []);
+
+  function toggleSummary() {
+    const next = !showSummary;
+    setShowSummary(next);
+    try {
+      localStorage.setItem("smileos-finances-hide-summary", next ? "0" : "1");
+    } catch {}
+  }
   const { data: summary, isLoading: loadingSummary } = useFinanceSummary(year, month);
   const { data: honorariosData } = useHonorarios(year, month);
   const { data: exchangeRate = 37 } = useExchangeRate();
@@ -2483,7 +2498,7 @@ export default function FinancesPage() {
             <div className="flex items-center gap-3">
               <h1 className="text-2xl font-bold text-slate-800 dark:text-white">Finanzas</h1>
               <button
-                onClick={() => setShowSummary((v) => !v)}
+                onClick={toggleSummary}
                 title={showSummary ? "Ocultar resumen financiero" : "Mostrar resumen financiero"}
                 className="flex items-center gap-2 rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm font-medium text-slate-500 dark:text-gray-400 hover:bg-slate-100 dark:hover:bg-gray-700"
               >
