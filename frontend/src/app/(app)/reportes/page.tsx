@@ -506,6 +506,7 @@ export default function ReportesPage() {
   const [selectedMaterial, setSelectedMaterial] = useState<SelectedMaterial | null>(null);
   const [drill, setDrill] = useState<DrilldownSelection | null>(null);
   const [showBreakEven, setShowBreakEven] = useState(false);
+  const [infoCard, setInfoCard] = useState<"ticket" | "flujo" | "stock" | null>(null);
   const openDrill = (kind: DrilldownSelection["kind"], key: string, title: string) =>
     setDrill({ kind, key, title, year, month: filterMonth });
 
@@ -641,12 +642,16 @@ export default function ReportesPage() {
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
               {/* Ticket promedio */}
-              <div className="rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/40 p-4">
+              <div
+                onClick={() => setInfoCard("ticket")}
+                title="Clic para ver qué significa y de dónde sale"
+                className="cursor-pointer rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/40 p-4 hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-100 dark:bg-blue-900/30">
                     <ShoppingCart size={15} className="text-blue-600 dark:text-blue-400" />
                   </div>
                   <span className="text-xs font-semibold text-slate-600 dark:text-gray-300 uppercase tracking-wide">Ticket promedio / paciente</span>
+                  <span className="ml-auto text-[10px] text-slate-400 dark:text-gray-500">ⓘ ver detalle</span>
                 </div>
                 <p className="text-2xl font-bold text-slate-800 dark:text-white">
                   {uniquePatients > 0 ? fmt(avgTicket) : "—"}
@@ -695,12 +700,16 @@ export default function ReportesPage() {
               </div>
 
               {/* Capital libre */}
-              <div className="rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/40 p-4">
+              <div
+                onClick={() => setInfoCard("flujo")}
+                title="Clic para ver qué significa y de dónde sale"
+                className="cursor-pointer rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/40 p-4 hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
                 <div className="flex items-center gap-2 mb-2">
                   <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${freeCapital >= 0 ? "bg-green-100 dark:bg-green-900/30" : "bg-red-100 dark:bg-red-900/30"}`}>
                     <Wallet size={15} className={freeCapital >= 0 ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"} />
                   </div>
                   <span className="text-xs font-semibold text-slate-600 dark:text-gray-300 uppercase tracking-wide">Flujo libre del mes</span>
+                  <span className="ml-auto text-[10px] text-slate-400 dark:text-gray-500">ⓘ ver detalle</span>
                 </div>
                 <p className={`text-2xl font-bold ${freeCapital >= 0 ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
                   {fmt(freeCapital)}
@@ -713,12 +722,16 @@ export default function ReportesPage() {
               </div>
 
               {/* Stock inmovilizado */}
-              <div className="rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/40 p-4">
+              <div
+                onClick={() => setInfoCard("stock")}
+                title="Clic para ver qué significa y de dónde sale"
+                className="cursor-pointer rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/40 p-4 hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
                 <div className="flex items-center gap-2 mb-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-violet-100 dark:bg-violet-900/30">
                     <Boxes size={15} className="text-violet-600 dark:text-violet-400" />
                   </div>
                   <span className="text-xs font-semibold text-slate-600 dark:text-gray-300 uppercase tracking-wide">Capital en stock</span>
+                  <span className="ml-auto text-[10px] text-slate-400 dark:text-gray-500">ⓘ ver detalle</span>
                 </div>
                 <p className="text-2xl font-bold text-violet-700 dark:text-violet-400">
                   {fmt(stockValue)}
@@ -1229,9 +1242,130 @@ export default function ReportesPage() {
                     <p>{totalFixed === 0 ? "Configura tus costos fijos para poder calcularlo." : "Este mes no hay ganancia por tratamiento, por eso no se puede calcular."}</p>
                   )}
                 </div>
+                <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/40 p-3">
+                  <p className="font-semibold text-slate-700 dark:text-gray-200 mb-1">¿Se toman en cuenta los egresos (facturas, laboratorio, limpieza, seguridad, pagos)?</p>
+                  <p className="mb-1.5">
+                    <strong>No directamente.</strong> Los egresos que registras en Finanzas ({fmt(summary.egresos)} este mes) no entran en esta cuenta. El cálculo solo usa dos cosas:
+                  </p>
+                  <ul className="list-disc pl-4 space-y-1">
+                    <li>Los <strong>costos fijos</strong> que configuraste en Costos → Costos Fijos (lo que pongas ahí, como renta, limpieza o seguridad, sí cuenta).</li>
+                    <li>El <strong>costo operativo de cada tratamiento</strong> (materiales + honorarios del doctor + parte de costos fijos), que sale de la plantilla del tratamiento en Costos, no de lo que pagaste realmente. Por eso el pago al doctor y los materiales sí están incluidos, pero como estimación de la plantilla.</li>
+                  </ul>
+                  <p className="mt-1.5">
+                    Quedan fuera los pagos reales de facturas a depósitos dentales, laboratorio, limpieza, seguridad, doctor y asistente. Si alguno de esos gastos no está en tus costos fijos ni en los tratamientos, el punto de equilibrio real es mayor al mostrado.
+                  </p>
+                  <p className="mt-1.5">
+                    Además, el costo operativo ya incluye una parte de los costos fijos, así que estos se restan una vez en la ganancia por tratamiento y otra vez en el numerador; esto hace que el número sea algo más alto de lo necesario.
+                  </p>
+                </div>
                 <p className="text-[11px] text-slate-400 dark:text-gray-500">
                   Es una estimación: cada ingreso registrado en Finanzas cuenta como un tratamiento y se usa el promedio del mes, así que cambia si cambia tu mezcla de tratamientos.
                 </p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {infoCard && summary && (() => {
+        const close = () => setInfoCard(null);
+        const uniquePatients = incomeByPatient.length;
+        const avgTicket = uniquePatients > 0 ? summary.ingresos_brutos / uniquePatients : 0;
+        const stockRows = allProducts
+          .map((p) => ({ id: p.id, name: p.name, qty: p.stock_qty ?? 0, price: p.unit_price, value: (p.stock_qty ?? 0) * p.unit_price }))
+          .filter((r) => r.value > 0)
+          .sort((a, b) => b.value - a.value);
+        const stockValue = allProducts.reduce((s, p) => s + (p.stock_qty ?? 0) * p.unit_price, 0);
+        const title = infoCard === "ticket" ? "Ticket promedio por paciente" : infoCard === "flujo" ? "Flujo libre del mes" : "Capital en stock";
+        const Row = ({ label, value, strong, color }: { label: string; value: string; strong?: boolean; color?: string }) => (
+          <tr className={strong ? "font-semibold text-slate-700 dark:text-gray-200" : ""}>
+            <td className={strong ? "pt-1.5" : "py-0.5"}>{label}</td>
+            <td className={`${strong ? "pt-1.5" : "py-0.5"} text-right ${color ?? ""}`}>{value}</td>
+          </tr>
+        );
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={close}>
+            <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-800 shadow-2xl flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 dark:border-gray-700">
+                <p className="flex-1 font-semibold text-sm text-slate-800 dark:text-white">{title} — {MONTHS[month - 1]} {year}</p>
+                <button onClick={close} className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-gray-700"><X size={15} /></button>
+              </div>
+              <div className="overflow-y-auto p-4 space-y-4 text-xs text-slate-600 dark:text-gray-300">
+                {infoCard === "ticket" && (
+                  <>
+                    <div>
+                      <p className="font-semibold text-slate-700 dark:text-gray-200 mb-1">¿Qué significa?</p>
+                      <p>Cuánto factura en promedio la clínica por cada paciente que pagó este mes. Sirve para saber el valor típico de un paciente.</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-700 dark:text-gray-200 mb-1">¿De dónde sale?</p>
+                      <table className="w-full"><tbody>
+                        <Row label="Ingresos del mes (Finanzas)" value={fmt(summary.ingresos_brutos)} color="text-green-600 dark:text-green-400" />
+                        <Row label="÷ Pacientes distintos con ingresos este mes" value={String(uniquePatients)} />
+                        <Row label="Ticket promedio" value={uniquePatients > 0 ? fmt(avgTicket) : "—"} strong />
+                      </tbody></table>
+                    </div>
+                    <p className="text-[11px] text-slate-400 dark:text-gray-500">Los ingresos sin paciente asignado suman al total pero no cuentan como paciente, por lo que pueden subir un poco el promedio.</p>
+                  </>
+                )}
+                {infoCard === "flujo" && (
+                  <>
+                    <div>
+                      <p className="font-semibold text-slate-700 dark:text-gray-200 mb-1">¿Qué significa?</p>
+                      <p>Lo que queda del mes después de restar los egresos y los costos operativos a los ingresos. Es el mismo número de “Utilidad neta”.</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-700 dark:text-gray-200 mb-1">¿De dónde sale?</p>
+                      <table className="w-full"><tbody>
+                        <Row label="Ingresos del mes (Finanzas)" value={fmt(summary.ingresos_brutos)} color="text-green-600 dark:text-green-400" />
+                        <Row label="− Egresos registrados (Finanzas: facturas, laboratorio, renta, pagos…)" value={fmt(summary.egresos)} color="text-red-500 dark:text-red-400" />
+                        <Row label="− Costos operativos de los tratamientos (materiales, honorarios, parte de costos fijos)" value={fmt(summary.costos_operativos)} color="text-amber-600 dark:text-amber-400" />
+                        <Row label="Flujo libre" value={fmt(summary.utilidad_neta)} strong />
+                      </tbody></table>
+                    </div>
+                    <p className="text-[11px] text-slate-400 dark:text-gray-500">
+                      Ojo: algunos gastos pueden contarse dos veces. Por ejemplo, un pago a un doctor o la compra de materiales registrados como egreso, que además ya van dentro del costo operativo del tratamiento. Si ves el flujo más bajo de lo real, revisa esto. Tampoco es dinero en caja: no distingue pagos pendientes ni cobros por recibir.
+                    </p>
+                  </>
+                )}
+                {infoCard === "stock" && (
+                  <>
+                    <div>
+                      <p className="font-semibold text-slate-700 dark:text-gray-200 mb-1">¿Qué significa?</p>
+                      <p>Dinero que tienes guardado en productos y materiales en inventario. No está disponible como efectivo hasta que se usen.</p>
+                    </div>
+                    <div>
+                      <p className="font-semibold text-slate-700 dark:text-gray-200 mb-1">¿De dónde sale? (Costos → Productos)</p>
+                      <p className="mb-1.5">Suma de cantidad en stock × costo unitario de cada producto. Es el valor actual, no cambia con el mes elegido.</p>
+                      {stockRows.length === 0 ? (
+                        <p className="text-slate-400">No hay productos con stock registrado.</p>
+                      ) : (
+                        <table className="w-full">
+                          <thead><tr className="text-left text-slate-400 dark:text-gray-500">
+                            <th className="py-1 font-medium">Producto</th>
+                            <th className="py-1 font-medium text-right">Stock</th>
+                            <th className="py-1 font-medium text-right">Costo unit.</th>
+                            <th className="py-1 font-medium text-right">Valor</th>
+                          </tr></thead>
+                          <tbody>
+                            {stockRows.map((r) => (
+                              <tr key={r.id} className="border-b border-slate-50 dark:border-gray-700/50">
+                                <td className="py-1">{r.name}</td>
+                                <td className="py-1 text-right">{r.qty}</td>
+                                <td className="py-1 text-right text-slate-400">{fmt(r.price)}</td>
+                                <td className="py-1 text-right font-semibold text-violet-600 dark:text-violet-400">{fmt(r.value)}</td>
+                              </tr>
+                            ))}
+                            <tr className="font-semibold text-slate-700 dark:text-gray-200">
+                              <td className="pt-1.5" colSpan={3}>Total</td>
+                              <td className="pt-1.5 text-right">{fmt(stockValue)}</td>
+                            </tr>
+                          </tbody>
+                        </table>
+                      )}
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>
