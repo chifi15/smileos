@@ -1154,47 +1154,77 @@ async def set_doctor_commission(
 
 
 async def get_distribution(db: AsyncSession, clinic_id: uuid.UUID, year: int, month: int | None = None) -> dict:
-    """Reparto sugerido de lo cobrado: doctores, reposición, fondo de mejoras y lo que queda para la dueña."""
+    """Reparto sugerido de lo cobrado con dinero real: doctores, reposición (materiales, laboratorio, gastos fijos),
+    fondo de mejoras (monto fijo mensual) y lo que queda para la dueña."""
     from app.models.finance import FinanceDistributionConfig
+    from app.models.costos import CostProduct, FixedCostsConfig
 
     cfg = await db.scalar(select(FinanceDistributionConfig).where(FinanceDistributionConfig.clinic_id == clinic_id))
-    rep_pct = float(cfg.reposicion_pct) if cfg else 25.0
-    mej_pct = float(cfg.mejoras_pct) if cfg else 10.0
+    mejoras_mensual = float(cfg.mejoras_monto) if cfg else 0.0
 
     acct = await get_doctor_account(db, clinic_id, year, month)
     base = [
         FinanceTransaction.clinic_id == clinic_id,
         FinanceTransaction.deleted_at.is_(None),
-        FinanceTransaction.type == "ingreso",
         extract("year", FinanceTransaction.transaction_date) == year,
     ]
     if month:
         base.append(extract("month", FinanceTransaction.transaction_date) == month)
-    cobrado = float(await db.scalar(select(func.coalesce(func.sum(FinanceTransaction.amount_cordobas), 0)).where(*base)) or 0)
+
+    ingresos = list((await db.execute(
+        select(FinanceTransaction).where(*base, FinanceTransaction.type == "ingreso")
+    )).scalars().all())
+    cobrado = sum(float(t.amount_cordobas) for t in ingresos)
+    n_meses = 1 if month else max(1, len({t.transaction_date.month for t in ingresos}))
+
+    # Materiales realmente usados en los tratamientos cobrados
+    products = {str(p.id): p for p in (await db.execute(select(CostProduct).where(CostProduct.clinic_id == clinic_id))).scalars().all()}
+    materiales = 0.0
+    for t in ingresos:
+        q = t.procedure_quantity or 1
+        for mat in (t.deducted_materials or []):
+            prod = products.get(mat.get("productId")) if mat.get("productId") else None
+            qty = float(mat.get("qty") or 0) * q
+            if prod and qty > 0:
+                materiales += qty * float(prod.unit_price or 0)
+
+    # Laboratorio pagado en el período
+    laboratorio = float(await db.scalar(
+        select(func.coalesce(func.sum(FinanceTransaction.amount_cordobas), 0))
+        .where(*base, FinanceTransaction.type == "egreso", FinanceTransaction.category == "laboratorio")
+    ) or 0)
+
+    # Gastos fijos mensuales configurados en Costos
+    fixed = await db.scalar(select(FixedCostsConfig).where(FixedCostsConfig.clinic_id == clinic_id))
+    fijos_mensual = sum(float(i.get("amount") or 0) for i in (fixed.items if fixed else []))
+    fijos = fijos_mensual * n_meses
 
     doctores = [
         {"doctor_name": r["doctor_name"], "pct": r["pct"], "monto": r["corresponde"] or 0.0}
         for r in acct["rows"] if r["corresponde"]
     ]
     doctores_total = round(sum(d["monto"] for d in doctores), 2)
-    reposicion = round(cobrado * rep_pct / 100, 2)
-    mejoras = round(cobrado * mej_pct / 100, 2)
+    reposicion = round(materiales + laboratorio + fijos, 2)
+    mejoras = round(mejoras_mensual * n_meses, 2)
     duena = round(cobrado - doctores_total - reposicion - mejoras, 2)
     sin_pct = [r["doctor_name"] for r in acct["rows"] if r["pct"] is None and r["cobrado"] > 0]
     return {
         "cobrado": round(cobrado, 2),
         "doctores": doctores,
         "doctores_total": doctores_total,
-        "reposicion_pct": rep_pct,
+        "materiales": round(materiales, 2),
+        "laboratorio": round(laboratorio, 2),
+        "fijos": round(fijos, 2),
         "reposicion": reposicion,
-        "mejoras_pct": mej_pct,
+        "mejoras_mensual": round(mejoras_mensual, 2),
         "mejoras": mejoras,
+        "n_meses": n_meses,
         "duena": duena,
         "doctores_sin_pct": sin_pct,
     }
 
 
-async def set_distribution_config(db: AsyncSession, clinic_id: uuid.UUID, reposicion_pct: float, mejoras_pct: float) -> None:
+async def set_distribution_config(db: AsyncSession, clinic_id: uuid.UUID, mejoras_monto: float) -> None:
     from decimal import Decimal
     from app.models.finance import FinanceDistributionConfig
 
@@ -1202,6 +1232,5 @@ async def set_distribution_config(db: AsyncSession, clinic_id: uuid.UUID, reposi
     if not cfg:
         cfg = FinanceDistributionConfig(clinic_id=clinic_id)
         db.add(cfg)
-    cfg.reposicion_pct = Decimal(str(round(reposicion_pct, 2)))
-    cfg.mejoras_pct = Decimal(str(round(mejoras_pct, 2)))
+    cfg.mejoras_monto = Decimal(str(round(mejoras_monto, 2)))
     await db.commit()

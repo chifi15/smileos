@@ -96,10 +96,9 @@ class DoctorCommission(Base):
 
 
 class FinanceDistributionConfig(Base):
-    """Porcentajes del reparto sugerido (sobre lo cobrado): reposición de materiales y fondo de mejoras."""
+    """Reparto sugerido: monto mensual que se aparta para el fondo de mejoras."""
     __tablename__ = "finance_distribution_config"
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     clinic_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("clinics.id", ondelete="CASCADE"), nullable=False, unique=True)
-    reposicion_pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False, server_default="25", default=Decimal("25"))
-    mejoras_pct: Mapped[Decimal] = mapped_column(Numeric(5, 2), nullable=False, server_default="10", default=Decimal("10"))
+    mejoras_monto: Mapped[Decimal] = mapped_column(Numeric(12, 2), nullable=False, server_default="0", default=Decimal("0"))

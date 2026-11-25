@@ -257,11 +257,10 @@ async def distribution_config(
 ):
     from fastapi import HTTPException
     try:
-        rep = float(body.get("reposicion_pct"))
-        mej = float(body.get("mejoras_pct"))
+        monto = float(body.get("mejoras_monto"))
     except (ValueError, TypeError):
         raise HTTPException(status_code=422, detail="Datos inválidos")
-    if not (0 <= rep <= 100 and 0 <= mej <= 100 and rep + mej <= 100):
-        raise HTTPException(status_code=422, detail="Los porcentajes deben estar entre 0 y 100 y sumar máximo 100")
-    await reports_service.set_distribution_config(db, user.clinic_id, rep, mej)
+    if monto < 0:
+        raise HTTPException(status_code=422, detail="El monto no puede ser negativo")
+    await reports_service.set_distribution_config(db, user.clinic_id, monto)
     return {"success": True}
