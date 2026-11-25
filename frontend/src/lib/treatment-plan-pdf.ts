@@ -44,6 +44,8 @@ export interface PlanPdfInput {
   /** Fecha de elaboración/entrega del plan (por defecto, hoy). */
   issuedAt?: Date;
   photos?: PlanPdfPhotos;
+  /** Mostrar precios, descuentos y totales (por defecto sí). */
+  showPrices?: boolean;
 }
 
 // ─── Reglas comerciales ──────────────────────────────────────────────────────
@@ -153,6 +155,7 @@ const LINE: [number, number, number] = [203, 213, 225];
 export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
   const { clinic, plan } = input;
   const issued = input.issuedAt ?? new Date();
+  const showPrices = input.showPrices !== false;
   const validUntil = new Date(issued);
   validUntil.setDate(validUntil.getDate() + VALIDITY_DAYS);
 
@@ -191,15 +194,15 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
   doc.setTextColor(...INK);
-  doc.text("PLAN DE TRATAMIENTO Y PRESUPUESTO", M, 37);
+  doc.text(showPrices ? "PLAN DE TRATAMIENTO Y PRESUPUESTO" : "PLAN DE TRATAMIENTO", M, 37);
 
   // ── Datos del paciente ──
   const info: [string, string][] = [
     ["Paciente", input.patientName],
     ["Plan", plan.title],
     ["Fecha de elaboración", longDate(issued)],
-    ["Vigente hasta", longDate(validUntil)],
   ];
+  if (showPrices) info.push(["Vigente hasta", longDate(validUntil)]);
   if (input.doctorName) info.push(["Doctor(a)", input.doctorName]);
 
   y = 43;
@@ -314,6 +317,7 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
     byGroup.set(k, [...(byGroup.get(k) ?? []), it]);
   }
 
+  const cols = showPrices ? 4 : 3;
   const body: CellDef[][] = [];
   const photoRows = new Map<number, { photo: PdfPhoto; w: number; h: number }>();
   let n = 0;
@@ -322,14 +326,14 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
     const list = byGroup.get(g.key);
     if (!list || list.length === 0) continue;
     body.push([
-      { content: g.label, colSpan: 4, styles: { fillColor: SOFT, fontStyle: "bold", textColor: ACCENT } },
+      { content: g.label, colSpan: cols, styles: { fillColor: SOFT, fontStyle: "bold", textColor: ACCENT } },
     ]);
     const gp = input.photos?.byGroup?.[g.key];
     if (gp) {
       const h = Math.min(50, (90 * gp.height) / gp.width);
       const w = (h * gp.width) / gp.height;
       photoRows.set(body.length, { photo: gp, w, h });
-      body.push([{ content: "", colSpan: 4, styles: { minCellHeight: h + 4 } }]);
+      body.push([{ content: "", colSpan: cols, styles: { minCellHeight: h + 4 } }]);
     }
     let sub = 0;
     for (const it of list) {
@@ -340,35 +344,39 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
         { content: String(n), styles: { halign: "center" } },
         { content: fdiDot(it.tooth_fdi?.trim()) || "—", styles: { halign: "center" } },
         { content: it.procedure_name ?? "Procedimiento" },
-        { content: it.quoted_price == null ? "—" : money(price), styles: { halign: "right" } },
+        ...(showPrices ? [{ content: it.quoted_price == null ? "—" : money(price), styles: { halign: "right" as const } }] : []),
       ]);
     }
     total += sub;
-    body.push([
-      { content: `Subtotal · ${g.label.toLowerCase()}`, colSpan: 3, styles: { halign: "right", fontStyle: "bold", textColor: MUTED } },
-      { content: money(sub), styles: { halign: "right", fontStyle: "bold" } },
-    ]);
+    if (showPrices) {
+      body.push([
+        { content: `Subtotal · ${g.label.toLowerCase()}`, colSpan: 3, styles: { halign: "right", fontStyle: "bold", textColor: MUTED } },
+        { content: money(sub), styles: { halign: "right", fontStyle: "bold" } },
+      ]);
+    }
   }
 
   if (body.length === 0) {
-    body.push([{ content: "Este plan aún no tiene procedimientos.", colSpan: 4, styles: { halign: "center", textColor: MUTED } }]);
+    body.push([{ content: "Este plan aún no tiene procedimientos.", colSpan: cols, styles: { halign: "center", textColor: MUTED } }]);
   }
 
   autoTable(doc, {
     startY: y,
     margin: { left: M, right: M, bottom: 22 },
-    head: [["#", "Pieza", "Procedimiento", "Costo"]],
+    head: [showPrices ? ["#", "Pieza", "Procedimiento", "Costo"] : ["#", "Pieza", "Procedimiento"]],
     body,
-    foot: [[
-      { content: "COSTO TOTAL DEL PLAN", colSpan: 3, styles: { halign: "right" } },
-      { content: money(total), styles: { halign: "right" } },
-    ]],
+    foot: showPrices
+      ? [[
+          { content: "COSTO TOTAL DEL PLAN", colSpan: 3, styles: { halign: "right" } },
+          { content: money(total), styles: { halign: "right" } },
+        ]]
+      : undefined,
     showFoot: "lastPage",
     theme: "grid",
     styles: { font: "helvetica", fontSize: 9, cellPadding: 2.2, textColor: INK, lineColor: LINE, lineWidth: 0.2 },
     headStyles: { fillColor: ACCENT, textColor: 255, fontStyle: "bold", halign: "center" },
     footStyles: { fillColor: INK, textColor: 255, fontStyle: "bold", fontSize: 10 },
-    columnStyles: { 0: { cellWidth: 10 }, 1: { cellWidth: 22 }, 3: { cellWidth: 36 } },
+    columnStyles: showPrices ? { 0: { cellWidth: 10 }, 1: { cellWidth: 22 }, 3: { cellWidth: 36 } } : { 0: { cellWidth: 10 }, 1: { cellWidth: 28 } },
     didDrawCell: (d) => {
       if (d.section !== "body") return;
       const pr = photoRows.get(d.row.index);
@@ -378,63 +386,67 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
   });
   y = lastY() + 9;
 
-  // ── Opciones de pago ──
-  ensure(48);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...INK);
-  doc.text("Opciones de pago", M, y);
-  y += 3;
+  if (showPrices) {
+    // ── Opciones de pago ──
+    ensure(48);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(...INK);
+    doc.text("Opciones de pago", M, y);
+    y += 3;
 
-  const full = total * (1 - DISCOUNT_FULL_PCT / 100);
-  const half = total * (1 - DISCOUNT_HALF_PCT / 100);
-  autoTable(doc, {
-    startY: y,
-    margin: { left: M, right: M, bottom: 22 },
-    head: [["Forma de pago", "Descuento", "Total a pagar", "Ahorro"]],
-    body: [
-      ["Pago completo del plan", `${DISCOUNT_FULL_PCT}%`, money(full), money(total - full)],
-      ["Pago de la mitad del plan", `${DISCOUNT_HALF_PCT}%`, money(half), money(total - half)],
-      ["Pago por tratamiento individual", "Sin descuento", money(total), money(0)],
-    ],
-    theme: "grid",
-    styles: { font: "helvetica", fontSize: 9, cellPadding: 2.2, textColor: INK, lineColor: LINE, lineWidth: 0.2 },
-    headStyles: { fillColor: SOFT, textColor: INK, fontStyle: "bold" },
-    columnStyles: {
-      1: { halign: "center", cellWidth: 28 },
-      2: { halign: "right", cellWidth: 36, fontStyle: "bold" },
-      3: { halign: "right", cellWidth: 30 },
-    },
-  });
-  y = lastY() + 9;
+    const full = total * (1 - DISCOUNT_FULL_PCT / 100);
+    const half = total * (1 - DISCOUNT_HALF_PCT / 100);
+    autoTable(doc, {
+      startY: y,
+      margin: { left: M, right: M, bottom: 22 },
+      head: [["Forma de pago", "Descuento", "Total a pagar", "Ahorro"]],
+      body: [
+        ["Pago completo del plan", `${DISCOUNT_FULL_PCT}%`, money(full), money(total - full)],
+        ["Pago de la mitad del plan", `${DISCOUNT_HALF_PCT}%`, money(half), money(total - half)],
+        ["Pago por tratamiento individual", "Sin descuento", money(total), money(0)],
+      ],
+      theme: "grid",
+      styles: { font: "helvetica", fontSize: 9, cellPadding: 2.2, textColor: INK, lineColor: LINE, lineWidth: 0.2 },
+      headStyles: { fillColor: SOFT, textColor: INK, fontStyle: "bold" },
+      columnStyles: {
+        1: { halign: "center", cellWidth: 28 },
+        2: { halign: "right", cellWidth: 36, fontStyle: "bold" },
+        3: { halign: "right", cellWidth: 30 },
+      },
+    });
+    y = lastY() + 9;
+  }
 
   // ── Términos y condiciones ──
-  const terms = [
+  const terms: string[] = showPrices ? [
     `Si el paciente paga el plan completo, se le otorga un ${DISCOUNT_FULL_PCT}% de descuento sobre el costo total.`,
     `Si el paciente paga la mitad del plan, se le otorga un ${DISCOUNT_HALF_PCT}% de descuento sobre el costo total.`,
     "Si el paciente paga por tratamiento individual, no se aplica ningún descuento.",
     `Los costos de este plan son vigentes por ${VALIDITY_DAYS} días a partir de la fecha de elaboración o entrega del plan (hasta el ${longDate(validUntil)}).`,
-  ];
+  ] : [];
   if (plan.notes?.trim()) terms.push(plan.notes.trim());
 
-  ensure(18 + terms.length * 9);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...INK);
-  doc.text("Términos y condiciones", M, y);
-  y += 6;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(9);
-  terms.forEach((t, i) => {
-    const lines = doc.splitTextToSize(t, contentW - 7);
-    ensure(lines.length * 4.4 + 2);
-    doc.setTextColor(...ACCENT);
-    doc.text(`${i + 1}.`, M, y);
+  if (terms.length > 0) {
+    ensure(18 + terms.length * 9);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
     doc.setTextColor(...INK);
-    doc.text(lines, M + 7, y);
-    y += lines.length * 4.4 + 2;
-  });
-  y += 4;
+    doc.text(showPrices ? "Términos y condiciones" : "Notas", M, y);
+    y += 6;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    terms.forEach((t, i) => {
+      const lines = doc.splitTextToSize(t, contentW - 7);
+      ensure(lines.length * 4.4 + 2);
+      doc.setTextColor(...ACCENT);
+      doc.text(`${i + 1}.`, M, y);
+      doc.setTextColor(...INK);
+      doc.text(lines, M + 7, y);
+      y += lines.length * 4.4 + 2;
+    });
+    y += 4;
+  }
 
   // ── Aceptación y firmas ──
   ensure(58);
@@ -446,7 +458,9 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
   const accept = doc.splitTextToSize(
-    "Declaro que se me ha explicado el plan de tratamiento y sus costos, y que estoy de acuerdo con las condiciones descritas.",
+    showPrices
+      ? "Declaro que se me ha explicado el plan de tratamiento y sus costos, y que estoy de acuerdo con las condiciones descritas."
+      : "Declaro que se me ha explicado el plan de tratamiento y que estoy de acuerdo con el mismo.",
     contentW
   );
   doc.text(accept, M, y);

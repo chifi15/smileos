@@ -264,6 +264,7 @@ export default function TreatmentPlanDetailPage() {
   const [generatingPdf, setGeneratingPdf] = useState(false);
   const [showPdfOptions, setShowPdfOptions] = useState(false);
   const [pdfDoctorId, setPdfDoctorId] = useState("");
+  const [pdfShowPrices, setPdfShowPrices] = useState(true);
   const [pdfPhotos, setPdfPhotos] = useState<PdfPhotoSelection>({ overview: [], groups: {} });
   const { data: patientPhotos = [] } = usePatientPhotos(patientId);
   const [showAddItem, setShowAddItem] = useState(false);
@@ -351,6 +352,7 @@ export default function TreatmentPlanDetailPage() {
       const photos = hasPhotos ? await buildPdfPhotos(patientId, pdfPhotos, labelOf) : undefined;
       downloadTreatmentPlanPdf({
         photos,
+        showPrices: pdfShowPrices,
         clinic: {
           name: clinic?.display_name ?? "Clínica",
           legalName: clinic?.legal_name,
@@ -414,6 +416,20 @@ export default function TreatmentPlanDetailPage() {
           <p className="text-xs text-slate-400 dark:text-gray-500">
             Aparece en el PDF junto al espacio de firma. Se recuerda para la próxima vez.
           </p>
+          <label className="flex items-start gap-2.5 rounded-lg border border-slate-200 dark:border-gray-600 px-3 py-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={pdfShowPrices}
+              onChange={(e) => setPdfShowPrices(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-blue-600"
+            />
+            <span>
+              <span className="block text-sm font-medium text-slate-700 dark:text-gray-300">Mostrar precios</span>
+              <span className="block text-xs text-slate-400 dark:text-gray-500">
+                Desmárcalo para enviar solo el plan, sin costos, descuentos ni totales.
+              </span>
+            </span>
+          </label>
           <PdfPhotosPicker
             patientId={patientId}
             groups={pdfPhotoGroups}
