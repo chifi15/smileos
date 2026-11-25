@@ -13,12 +13,26 @@ export interface PhotoEdit {
   rotation: number;
   flipH: boolean;
   flipV: boolean;
+  /** Inclinación fina en grados (-45..45), además del giro de 90° */
+  tilt: number;
   /** Recorte (normalizado 0..1) sobre la imagen ya girada/invertida */
   crop: PhotoCrop | null;
 }
 
-export const NO_EDIT: PhotoEdit = { rotation: 0, flipH: false, flipV: false, crop: null };
-export const isEdited = (e: PhotoEdit) => e.rotation !== 0 || e.flipH || e.flipV || !!e.crop;
+export const NO_EDIT: PhotoEdit = { rotation: 0, flipH: false, flipV: false, tilt: 0, crop: null };
+export const isEdited = (e: PhotoEdit) => e.rotation !== 0 || e.flipH || e.flipV || e.tilt !== 0 || !!e.crop;
+
+/** Normaliza lo guardado en el servidor (puede venir vacío o incompleto). */
+export function normalizeEdit(raw: Partial<PhotoEdit> | null | undefined): PhotoEdit {
+  if (!raw) return NO_EDIT;
+  return {
+    rotation: [0, 90, 180, 270].includes(raw.rotation as number) ? (raw.rotation as number) : 0,
+    flipH: !!raw.flipH,
+    flipV: !!raw.flipV,
+    tilt: typeof raw.tilt === "number" ? Math.max(-45, Math.min(45, raw.tilt)) : 0,
+    crop: raw.crop && raw.crop.w > 0 && raw.crop.h > 0 ? raw.crop : null,
+  };
+}
 
 export interface PdfPhotoSelection {
   /** fotos generales, en orden de aparición */
@@ -51,19 +65,39 @@ function loadImage(blob: Blob): Promise<HTMLImageElement> {
   });
 }
 
-/** Dibuja la imagen girada/invertida en un canvas (tamaño original). */
-export function transformedCanvas(img: HTMLImageElement, edit: PhotoEdit): HTMLCanvasElement {
-  const swap = edit.rotation === 90 || edit.rotation === 270;
-  const w = swap ? img.naturalHeight : img.naturalWidth;
-  const h = swap ? img.naturalWidth : img.naturalHeight;
+type Source = HTMLImageElement | HTMLCanvasElement;
+const dims = (src: Source) =>
+  src instanceof HTMLImageElement ? { w: src.naturalWidth, h: src.naturalHeight } : { w: src.width, h: src.height };
+
+/** Dibuja la imagen girada/inclinada/invertida en un canvas (el lienzo crece para no cortar esquinas). */
+export function transformedCanvas(src: Source, edit: PhotoEdit): HTMLCanvasElement {
+  const { w: iw, h: ih } = dims(src);
+  const rad = ((edit.rotation + edit.tilt) * Math.PI) / 180;
+  const cos = Math.abs(Math.cos(rad));
+  const sin = Math.abs(Math.sin(rad));
+  const w = Math.max(1, Math.round(iw * cos + ih * sin));
+  const h = Math.max(1, Math.round(iw * sin + ih * cos));
   const c = document.createElement("canvas");
   c.width = w;
   c.height = h;
   const ctx = c.getContext("2d")!;
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, w, h);
   ctx.translate(w / 2, h / 2);
-  ctx.rotate((edit.rotation * Math.PI) / 180);
+  ctx.rotate(rad);
   ctx.scale(edit.flipH ? -1 : 1, edit.flipV ? -1 : 1);
-  ctx.drawImage(img, -img.naturalWidth / 2, -img.naturalHeight / 2);
+  ctx.drawImage(src, -iw / 2, -ih / 2);
+  return c;
+}
+
+/** Copia reducida para vistas previas rápidas. */
+export function downscale(src: Source, maxSide: number): HTMLCanvasElement {
+  const { w, h } = dims(src);
+  const k = Math.min(1, maxSide / Math.max(w, h));
+  const c = document.createElement("canvas");
+  c.width = Math.max(1, Math.round(w * k));
+  c.height = Math.max(1, Math.round(h * k));
+  c.getContext("2d")!.drawImage(src, 0, 0, c.width, c.height);
   return c;
 }
 

@@ -70,6 +70,16 @@ export function useReorderPhotos(patientId: string) {
   });
 }
 
+export function useUpdatePhotoEdit(patientId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ photoId, pdf_edit }: { photoId: string; pdf_edit: unknown }) =>
+      apiClient.patch(`/api/v1/patients/${patientId}/photos/${photoId}`, { pdf_edit }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["photos", patientId] }),
+    onError: () => toast.error("No se pudo guardar la edición de la foto."),
+  });
+}
+
 export function useUpdatePhotoType(patientId: string) {
   const qc = useQueryClient();
   return useMutation({

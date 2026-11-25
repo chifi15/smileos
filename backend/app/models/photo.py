@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 from sqlalchemy import String, Boolean, DateTime, Text, ForeignKey, Integer
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.core.database import Base
 from app.models.base import UUIDMixin, TimestampMixin
 
@@ -48,6 +48,8 @@ class PatientPhoto(UUIDMixin, TimestampMixin, Base):
     taken_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Edición no destructiva para el PDF: {rotation, flipH, flipV, tilt, crop}. El original no se modifica.
+    pdf_edit: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     # Relaciones
     patient: Mapped["Patient"] = relationship(back_populates="photos")

@@ -30,6 +30,7 @@ def _serialize(p) -> dict:
         "caption": p.caption,
         "taken_at": p.taken_at.isoformat() if p.taken_at else None,
         "sort_order": p.sort_order,
+        "pdf_edit": p.pdf_edit,
         "uploaded_by": {
             "id": str(p.uploaded_by.id),
             "full_name": p.uploaded_by.full_name,

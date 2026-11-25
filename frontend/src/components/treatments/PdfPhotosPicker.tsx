@@ -5,8 +5,8 @@ import { SlidersHorizontal, Check } from "lucide-react";
 import AuthImage from "@/components/ui/AuthImage";
 import Select from "@/components/ui/Select";
 import PhotoCropModal from "@/components/treatments/PhotoCropModal";
-import { usePatientPhotos } from "@/hooks/usePhotos";
-import { photoUrl, isEdited, NO_EDIT, type PdfPhotoSelection } from "@/lib/pdf-photos";
+import { usePatientPhotos, useUpdatePhotoEdit } from "@/hooks/usePhotos";
+import { photoUrl, isEdited, normalizeEdit, type PhotoEdit, type PdfPhotoSelection } from "@/lib/pdf-photos";
 import { PHOTO_TYPE_LABELS, type PatientPhoto, type PhotoType } from "@/types";
 
 export const photoLabel = (p: PatientPhoto) =>
@@ -31,6 +31,7 @@ type Editing = { kind: "overview"; photoId: string } | { kind: "group"; key: str
 export default function PdfPhotosPicker({ patientId, groups, value, onChange }: Props) {
   const { data: photos = [], isLoading } = usePatientPhotos(patientId);
   const [editing, setEditing] = useState<Editing>(null);
+  const saveEdit = useUpdatePhotoEdit(patientId);
 
   if (isLoading) return null;
   if (photos.length === 0) {
@@ -42,6 +43,11 @@ export default function PdfPhotosPicker({ patientId, groups, value, onChange }: 
   }
 
   const typeOf = (id: string) => photos.find((p) => p.id === id)?.photo_type;
+  // La edición guardada de cada foto se recupera automáticamente
+  const editOf = (id: string) => normalizeEdit(photos.find((p) => p.id === id)?.pdf_edit as Partial<PhotoEdit> | null);
+  // Guarda la edición en la foto (queda para la próxima vez) y en la selección actual
+  const persist = (photoId: string, edit: PhotoEdit) =>
+    saveEdit.mutate({ photoId, pdf_edit: isEdited(edit) ? edit : null });
   const sortOverview = (list: PdfPhotoSelection["overview"]) =>
     [...list].sort((a, b) => rank(typeOf(a.photoId)) - rank(typeOf(b.photoId)));
 
@@ -49,14 +55,14 @@ export default function PdfPhotosPicker({ patientId, groups, value, onChange }: 
     const has = value.overview.some((o) => o.photoId === id);
     const next = has
       ? value.overview.filter((o) => o.photoId !== id)
-      : [...value.overview, { photoId: id, edit: NO_EDIT }];
+      : [...value.overview, { photoId: id, edit: editOf(id) }];
     onChange({ ...value, overview: sortOverview(next) });
   }
 
   function setGroupPhoto(key: string, photoId: string) {
     const groupsNext = { ...value.groups };
     if (!photoId) delete groupsNext[key];
-    else groupsNext[key] = { photoId, edit: NO_EDIT };
+    else groupsNext[key] = { photoId, edit: editOf(photoId) };
     onChange({ ...value, groups: groupsNext });
     if (photoId) setEditing({ kind: "group", key });
   }
@@ -77,6 +83,7 @@ export default function PdfPhotosPicker({ patientId, groups, value, onChange }: 
               ...value,
               overview: value.overview.map((o) => (o.photoId === cur.photoId ? { ...o, edit } : o)),
             });
+            persist(cur.photoId, edit);
             setEditing(null);
           }}
         />
@@ -94,6 +101,7 @@ export default function PdfPhotosPicker({ patientId, groups, value, onChange }: 
           onClose={() => setEditing(null)}
           onSave={(edit) => {
             onChange({ ...value, groups: { ...value.groups, [editing.key]: { photoId: cur.photoId, edit } } });
+            persist(cur.photoId, edit);
             setEditing(null);
           }}
         />
@@ -110,7 +118,7 @@ export default function PdfPhotosPicker({ patientId, groups, value, onChange }: 
         <p className="text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">Fotos generales</p>
         <p className="text-xs text-slate-400 dark:text-gray-500 mb-2">
           Se preseleccionan por categoría y salen en este orden: sonrisa, lateral derecha, lateral izquierda, oclusal
-          superior y oclusal inferior. Con el icono puedes girar, invertir o recortar cada foto.
+          superior y oclusal inferior. Con el icono puedes girar, inclinar, invertir o recortar cada foto; los cambios quedan guardados.
         </p>
         <div className="grid grid-cols-4 gap-2">
           {photos.map((p) => {

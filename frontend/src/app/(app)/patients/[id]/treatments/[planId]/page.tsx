@@ -23,7 +23,7 @@ import EditPlanModal from "@/components/treatments/EditPlanModal";
 import PdfPhotosPicker, { photoLabel, OVERVIEW_ORDER } from "@/components/treatments/PdfPhotosPicker";
 import { usePatientPhotos } from "@/hooks/usePhotos";
 import { GROUPS, groupForTooth } from "@/lib/plan-groups";
-import { buildPdfPhotos, NO_EDIT, type PdfPhotoSelection } from "@/lib/pdf-photos";
+import { buildPdfPhotos, normalizeEdit, type PhotoEdit, type PdfPhotoSelection } from "@/lib/pdf-photos";
 import {
   TreatmentPlanStatus,
   TreatmentItemStatus,
@@ -326,12 +326,12 @@ export default function TreatmentPlanDetailPage() {
     setPdfDoctorId(valid(remembered) ? remembered : valid(plan.created_by?.id ?? "") ? plan.created_by!.id : "");
     // Preselección automática según la categoría de cada foto (orden fijo)
     const overview = OVERVIEW_ORDER.flatMap((t) =>
-      patientPhotos.filter((p) => p.photo_type === t).map((p) => ({ photoId: p.id, edit: NO_EDIT })),
+      patientPhotos.filter((p) => p.photo_type === t).map((p) => ({ photoId: p.id, edit: normalizeEdit(p.pdf_edit as Partial<PhotoEdit> | null) })),
     );
     const groups: PdfPhotoSelection["groups"] = {};
     for (const g of pdfPhotoGroups) {
       const ph = patientPhotos.find((p) => p.photo_type === `hemi_${g.key}`);
-      if (ph) groups[g.key] = { photoId: ph.id, edit: NO_EDIT };
+      if (ph) groups[g.key] = { photoId: ph.id, edit: normalizeEdit(ph.pdf_edit as Partial<PhotoEdit> | null) };
     }
     setPdfPhotos({ overview, groups });
     setShowPdfOptions(true);

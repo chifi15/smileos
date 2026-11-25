@@ -481,6 +481,7 @@ export const PHOTO_TYPE_LABELS: Record<PhotoType, string> = {
 export interface PatientPhoto {
   id: string;
   patient_id: string;
+  pdf_edit?: Record<string, unknown> | null;
   photo_type: PhotoType | string; // categorías antiguas pueden aparecer como «sin clasificar»
   caption: string | null;
   appointment_id: string | null;

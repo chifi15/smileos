@@ -18,6 +18,7 @@ PhotoType = Literal[
 class PhotoUpdate(BaseModel):
     caption: str | None = None
     photo_type: PhotoType | None = None
+    pdf_edit: dict | None = None
     appointment_id: uuid.UUID | None = None
 
 

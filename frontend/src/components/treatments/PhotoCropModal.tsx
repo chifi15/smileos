@@ -1,11 +1,11 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { RotateCcw, RotateCw, FlipHorizontal2, FlipVertical2 } from "lucide-react";
 import Modal from "@/components/ui/Modal";
 import Button from "@/components/ui/Button";
 import Spinner from "@/components/ui/Spinner";
-import { loadPhotoImage, transformedCanvas, NO_EDIT, type PhotoEdit } from "@/lib/pdf-photos";
+import { loadPhotoImage, transformedCanvas, downscale, NO_EDIT, type PhotoEdit } from "@/lib/pdf-photos";
 
 interface Props {
   patientId: string;
@@ -33,16 +33,12 @@ export default function PhotoCropModal({ patientId, photoId, title, initial, onS
   }, [patientId, photoId]);
 
   // Vista previa con giro/inversión aplicados (JPEG liviano)
+  const small = useMemo(() => (img ? downscale(img, 1000) : null), [img]);
   useEffect(() => {
-    if (!img) return;
-    const c = transformedCanvas(img, { ...edit, crop: null });
-    const scale = Math.min(1, 1400 / Math.max(c.width, c.height));
-    const out = document.createElement("canvas");
-    out.width = Math.round(c.width * scale);
-    out.height = Math.round(c.height * scale);
-    out.getContext("2d")!.drawImage(c, 0, 0, out.width, out.height);
-    setSrc(out.toDataURL("image/jpeg", 0.8));
-  }, [img, edit.rotation, edit.flipH, edit.flipV]); // eslint-disable-line react-hooks/exhaustive-deps
+    if (!small) return;
+    const c = transformedCanvas(small, { ...edit, crop: null });
+    setSrc(c.toDataURL("image/jpeg", 0.8));
+  }, [small, edit.rotation, edit.flipH, edit.flipV, edit.tilt]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Cualquier giro/inversión invalida el recorte previo (cambian las coordenadas)
   const transform = (patch: Partial<PhotoEdit>) => setEdit((e) => ({ ...e, ...patch, crop: null }));
@@ -85,6 +81,21 @@ export default function PhotoCropModal({ patientId, photoId, title, initial, onS
           <button type="button" className={tool} onClick={() => transform({ flipV: !edit.flipV })}>
             <FlipVertical2 size={14} /> Invertir vertical
           </button>
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="text-xs text-slate-600 dark:text-gray-300 shrink-0">Inclinar</label>
+          <button type="button" className={tool} onClick={() => transform({ tilt: Math.max(-45, +(edit.tilt - 0.5).toFixed(1)) })}>−</button>
+          <input
+            type="range"
+            min={-45}
+            max={45}
+            step={0.5}
+            value={edit.tilt}
+            onChange={(e) => transform({ tilt: parseFloat(e.target.value) })}
+            className="flex-1 accent-blue-600"
+          />
+          <button type="button" className={tool} onClick={() => transform({ tilt: Math.min(45, +(edit.tilt + 0.5).toFixed(1)) })}>+</button>
+          <span className="w-12 text-right text-xs tabular-nums text-slate-600 dark:text-gray-300">{edit.tilt.toFixed(1)}°</span>
         </div>
         <p className="text-xs text-slate-500 dark:text-gray-400">
           Opcional: arrastra sobre la foto para recortar la zona que verá el paciente.
