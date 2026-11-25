@@ -610,36 +610,44 @@ function SortableMaterialRow({
   const openGroupMenu = useCallback(() => {
     if (groupBtnRef.current) {
       const rect = groupBtnRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const openUpward = spaceBelow < 260;
+      const spaceBelow = window.innerHeight - rect.bottom - 12;
+      const spaceAbove = rect.top - 12;
+      // Alto aproximado: título + grupos existentes + "Nuevo grupo" + "Quitar del grupo"
+      const needed = 40 + (availableGroups.length + 2) * 38;
+      const openUpward = spaceBelow < needed && spaceAbove > spaceBelow;
       setMenuStyle({
         position: "fixed",
         ...(openUpward
           ? { bottom: window.innerHeight - rect.top + 4 }
           : { top: rect.bottom + 4 }),
         right: window.innerWidth - rect.right,
+        // Si no cabe completo, el menú se achica y permite desplazarse dentro de él
+        maxHeight: Math.max(120, openUpward ? spaceAbove : spaceBelow),
         zIndex: 9999,
       });
     }
     setGroupOpen(true);
-  }, []);
+  }, [availableGroups.length]);
 
   const openPhaseMenu = useCallback(() => {
     if (phaseBtnRef.current) {
       const rect = phaseBtnRef.current.getBoundingClientRect();
-      const spaceBelow = window.innerHeight - rect.bottom;
-      const openUpward = spaceBelow < 200;
+      const spaceBelow = window.innerHeight - rect.bottom - 12;
+      const spaceAbove = rect.top - 12;
+      const needed = 40 + (allPhases.length + 1) * 38;
+      const openUpward = spaceBelow < needed && spaceAbove > spaceBelow;
       setPhaseMenuStyle({
         position: "fixed",
         ...(openUpward
           ? { bottom: window.innerHeight - rect.top + 4 }
           : { top: rect.bottom + 4 }),
         right: window.innerWidth - rect.right,
+        maxHeight: Math.max(120, openUpward ? spaceAbove : spaceBelow),
         zIndex: 9999,
       });
     }
     setPhaseOpen(true);
-  }, []);
+  }, [allPhases.length]);
 
   const style = {
     transform: CSS.Transform.toString(transform),
@@ -781,7 +789,7 @@ function SortableMaterialRow({
             {groupOpen && typeof window !== "undefined" && createPortal(
               <>
                 <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => setGroupOpen(false)} />
-                <div style={menuStyle} className="min-w-[150px] rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg overflow-hidden">
+                <div style={menuStyle} className="min-w-[150px] rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg overflow-y-auto">
                 <p className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wide border-b border-slate-100 dark:border-gray-700">
                   Grupo alternativo
                 </p>
@@ -833,7 +841,7 @@ function SortableMaterialRow({
             {phaseOpen && typeof window !== "undefined" && createPortal(
               <>
                 <div className="fixed inset-0" style={{ zIndex: 9998 }} onClick={() => setPhaseOpen(false)} />
-                <div style={phaseMenuStyle} className="min-w-[160px] rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg overflow-hidden">
+                <div style={phaseMenuStyle} className="min-w-[160px] rounded-xl border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 shadow-lg overflow-y-auto">
                   <p className="px-3 py-1.5 text-[10px] font-semibold text-slate-400 dark:text-gray-500 uppercase tracking-wide border-b border-slate-100 dark:border-gray-700">
                     Mover a fase
                   </p>
