@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ToothCondition, TOOTH_CONDITION_LABELS, OdontogramTooth } from "@/types";
+import { ToothCondition, TOOTH_CONDITION_LABELS, OdontogramTooth, ICDAS_LABELS } from "@/types";
 import { cn } from "@/lib/utils";
 
 const UPPER_ROW = [18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28];
@@ -136,7 +136,7 @@ function ToothCell({ tooth, number, isUpper, editable, onClick, isSelected }: To
         editable && "cursor-pointer",
       )}
       onClick={() => editable && onClick(number)}
-      title={`${number} — ${TOOTH_CONDITION_LABELS[condition]}`}
+      title={`${number} — ${TOOTH_CONDITION_LABELS[condition]}${tooth?.icdas != null ? ` (ICDAS ${tooth.icdas})` : ""}`}
     >
       {isUpper && (
         <span className="text-[9px] font-mono text-slate-500 dark:text-gray-500">
@@ -155,6 +155,9 @@ function ToothCell({ tooth, number, isUpper, editable, onClick, isSelected }: To
           {number}
         </span>
       )}
+      {tooth?.icdas != null && (
+        <span className="rounded bg-red-100 px-1 text-[8px] font-bold leading-3 text-red-700">I{tooth.icdas}</span>
+      )}
     </div>
   );
 }
@@ -162,13 +165,14 @@ function ToothCell({ tooth, number, isUpper, editable, onClick, isSelected }: To
 interface ToothEditorProps {
   tooth: OdontogramTooth | undefined;
   number: number;
-  onSave: (condition: ToothCondition, notes: string | null) => void;
+  onSave: (condition: ToothCondition, notes: string | null, icdas: number | null) => void;
   onClose: () => void;
 }
 
 function ToothEditor({ tooth, number, onSave, onClose }: ToothEditorProps) {
   const [condition, setCondition] = useState<ToothCondition>(tooth?.condition ?? "sano");
   const [notes, setNotes] = useState(tooth?.notes ?? "");
+  const [icdas, setIcdas] = useState<number | null>(tooth?.icdas ?? null);
 
   return (
     <div className="rounded-xl bg-white dark:bg-gray-800 shadow-2xl border border-slate-200 dark:border-gray-700 p-4 w-72">
@@ -212,6 +216,19 @@ function ToothEditor({ tooth, number, onSave, onClose }: ToothEditorProps) {
         })}
       </div>
 
+      {condition === "caries" && (
+        <select
+          value={icdas ?? ""}
+          onChange={(e) => setIcdas(e.target.value === "" ? null : parseInt(e.target.value))}
+          className="mb-2 w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 px-2 py-1.5 text-xs text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        >
+          <option value="">ICDAS (opcional)</option>
+          {Object.entries(ICDAS_LABELS).map(([k, label]) => (
+            <option key={k} value={k}>{label}</option>
+          ))}
+        </select>
+      )}
+
       <textarea
         className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-300 px-3 py-2 text-xs text-slate-700 placeholder-slate-400 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
         rows={2}
@@ -228,7 +245,7 @@ function ToothEditor({ tooth, number, onSave, onClose }: ToothEditorProps) {
           Cancelar
         </button>
         <button
-          onClick={() => { onSave(condition, notes.trim() || null); onClose(); }}
+          onClick={() => { onSave(condition, notes.trim() || null, condition === "caries" ? icdas : null); onClose(); }}
           className="px-4 py-1.5 text-xs font-medium bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
         >
           Aplicar
@@ -241,7 +258,7 @@ function ToothEditor({ tooth, number, onSave, onClose }: ToothEditorProps) {
 interface Props {
   teeth: OdontogramTooth[];
   editable?: boolean;
-  onChange?: (toothNumber: number, condition: ToothCondition, notes: string | null) => void;
+  onChange?: (toothNumber: number, condition: ToothCondition, notes: string | null, icdas: number | null) => void;
 }
 
 export default function OdontogramChart({ teeth, editable = false, onChange }: Props) {
@@ -252,8 +269,8 @@ export default function OdontogramChart({ teeth, editable = false, onChange }: P
     setSelectedTooth(num === selectedTooth ? null : num);
   }
 
-  function handleSave(num: number, condition: ToothCondition, notes: string | null) {
-    onChange?.(num, condition, notes);
+  function handleSave(num: number, condition: ToothCondition, notes: string | null, icdas: number | null) {
+    onChange?.(num, condition, notes, icdas);
     setSelectedTooth(null);
   }
 
@@ -331,7 +348,7 @@ export default function OdontogramChart({ teeth, editable = false, onChange }: P
             <ToothEditor
               number={selectedTooth}
               tooth={toothMap.get(selectedTooth)}
-              onSave={(condition, notes) => handleSave(selectedTooth, condition, notes)}
+              onSave={(condition, notes, icdas) => handleSave(selectedTooth, condition, notes, icdas)}
               onClose={() => setSelectedTooth(null)}
             />
           </div>

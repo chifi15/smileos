@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -23,6 +23,7 @@ def _serialize_tooth(t) -> dict:
         "tooth_number": t.tooth_number,
         "condition": t.condition,
         "notes": t.notes,
+        "icdas": t.icdas,
         "updated_at": t.updated_at.isoformat() if t.updated_at else None,
         "updated_by": {"id": str(t.updated_by.id), "full_name": t.updated_by.full_name}
         if t.updated_by else None,
@@ -43,6 +44,7 @@ def _serialize_snapshot(s) -> dict:
 class ToothUpdate(BaseModel):
     condition: str | None = None
     notes: str | None = None
+    icdas: int | None = Field(default=None, ge=0, le=6)
 
 
 class OdontogramUpdate(BaseModel):
@@ -69,7 +71,12 @@ async def update_odontogram(
     user: Annotated[object, require_permission("manage_patients")],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    updates = {num: data.model_dump(exclude_none=True) for num, data in body.teeth.items()}
+    updates = {}
+    for num, data in body.teeth.items():
+        d = data.model_dump(exclude_none=True)
+        if "icdas" in data.model_fields_set:  # permite limpiar el ICDAS enviando null
+            d["icdas"] = data.icdas
+        updates[num] = d
     teeth = await odontogram_service.update_odontogram(
         db, user.clinic_id, patient_id, user.id, updates, body.snapshot_notes, body.kind
     )
@@ -82,6 +89,26 @@ async def update_odontogram(
     )
     await db.commit()
     return {"success": True, "data": [_serialize_tooth(t) for t in teeth]}
+
+
+@router.post("/ai-analysis")
+async def ai_analysis(
+    patient_id: uuid.UUID,
+    user: Annotated[object, require_permission("manage_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Propone el estado de las piezas a partir de las fotos clasificadas del paciente (no guarda nada)."""
+    from app.services import odontogram_ai_service
+
+    data = await odontogram_ai_service.analyze_patient_photos(db, user.clinic_id, patient_id)
+    await audit_service.log(
+        db, clinic_id=user.clinic_id, user_id=user.id,
+        action="odontogram.ai_analysis", resource_type="odontogram", resource_id=str(patient_id),
+        description=f"Solicitó análisis de fotos con IA ({len(data['photos_used'])} foto(s))",
+        patient_id=patient_id,
+    )
+    await db.commit()
+    return {"success": True, "data": data}
 
 
 @router.get("/snapshots")
@@ -147,6 +174,7 @@ async def copy_inicial_to_tratamiento(
             tooth_number=t.tooth_number,
             condition=t.condition,
             notes=t.notes,
+            icdas=t.icdas,
             updated_at=now,
             updated_by_id=user.id,
         ))

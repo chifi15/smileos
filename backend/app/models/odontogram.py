@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, DateTime, Text, ForeignKey, Integer, JSON, Numeric
+from sqlalchemy import String, DateTime, Text, ForeignKey, Integer, SmallInteger, JSON, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 from app.core.database import Base
@@ -48,6 +48,8 @@ class OdontogramTooth(UUIDMixin, Base):
     tooth_number: Mapped[int] = mapped_column(Integer, nullable=False)
     condition: Mapped[str] = mapped_column(String(30), nullable=False, default="sano")
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Nivel ICDAS (0-6), solo cuando la condición es caries
+    icdas: Mapped[int | None] = mapped_column(SmallInteger, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=True)
     updated_by_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id"), nullable=True

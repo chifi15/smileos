@@ -57,6 +57,7 @@ async def get_odontogram(
                 tooth_number=num,
                 condition=src.condition if src else "sano",
                 notes=src.notes if src else None,
+                icdas=src.icdas if src else None,
             )
             db.add(tooth)
             existing[num] = tooth
@@ -97,13 +98,17 @@ async def update_odontogram(
             tooth.condition = data["condition"]
         if "notes" in data:
             tooth.notes = data["notes"] or None
+        if "icdas" in data:
+            tooth.icdas = data["icdas"] if tooth.condition == "caries" else None
+        elif "condition" in data and data["condition"] != "caries":
+            tooth.icdas = None
         tooth.updated_at = now
         tooth.updated_by_id = user_id
 
     await db.flush()
 
     snapshot_data = {
-        str(t.tooth_number): {"condition": t.condition, "notes": t.notes}
+        str(t.tooth_number): {"condition": t.condition, "notes": t.notes, "icdas": t.icdas}
         for t in tooth_map.values()
     }
     snapshot = OdontogramSnapshot(

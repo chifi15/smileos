@@ -26,7 +26,7 @@ export function useUpdateOdontogram(
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (body: {
-      teeth: Record<number, { condition?: string; notes?: string | null }>;
+      teeth: Record<number, { condition?: string; notes?: string | null; icdas?: number | null }>;
       snapshot_notes?: string | null;
     }) => {
       const { data } = await apiClient.patch(
@@ -128,6 +128,36 @@ export function useSaveTreatmentQuote(patientId: string) {
     },
     onError: () => {
       toast.error("Error al guardar la cotización. Verifica tu conexión.", { id: "quote-save" });
+    },
+  });
+}
+
+export interface AiToothSuggestion {
+  tooth: number;
+  condition: string;
+  icdas: number | null;
+  confidence: "alta" | "media" | "baja";
+  note: string;
+  photos: number[];
+}
+
+export interface AiAnalysis {
+  suggestions: AiToothSuggestion[];
+  general_notes: string;
+  limitations: string;
+  photos_used: { n: number; photo_id: string; label: string }[];
+}
+
+/** Propuesta de la IA a partir de las fotos clasificadas (no guarda nada). */
+export function useAiPhotoAnalysis(patientId: string) {
+  return useMutation({
+    mutationFn: async () => {
+      const { data } = await apiClient.post<{ data: AiAnalysis }>(
+        `/api/v1/patients/${patientId}/odontogram/ai-analysis`,
+        {},
+        { timeout: 150000 },
+      );
+      return data.data;
     },
   });
 }

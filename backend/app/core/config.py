@@ -40,6 +40,10 @@ class Settings(BaseSettings):
     # OpenAI (v1.0)
     openai_api_key: str = ""
 
+    # Anthropic (análisis de fotos clínicas con IA)
+    anthropic_api_key: str = ""
+    anthropic_model: str = "claude-sonnet-5-5"
+
     # Email (Resend)
     resend_api_key: str = ""
     resend_from: str = "SmileOS <onboarding@resend.dev>"

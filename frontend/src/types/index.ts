@@ -555,6 +555,16 @@ export type ToothCondition =
   | "resina"
   | "material_temporal";
 
+export const ICDAS_LABELS: Record<number, string> = {
+  0: "0 · Sano",
+  1: "1 · Primer cambio visual en esmalte",
+  2: "2 · Cambio visual claro en esmalte",
+  3: "3 · Ruptura localizada de esmalte",
+  4: "4 · Sombra oscura de dentina",
+  5: "5 · Cavidad con dentina visible",
+  6: "6 · Cavidad extensa",
+};
+
 export const TOOTH_CONDITION_LABELS: Record<ToothCondition, string> = {
   sano: "Sano",
   caries: "Caries",
@@ -592,6 +602,7 @@ export interface OdontogramTooth {
   tooth_number: number;
   condition: ToothCondition;
   notes: string | null;
+  icdas?: number | null;
   updated_at: string | null;
   updated_by: { id: string; full_name: string } | null;
 }

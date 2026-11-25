@@ -7,7 +7,7 @@ import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import {
   ChevronLeft, History, Plus, Trash2, Calculator,
-  Stethoscope, ClipboardList, Copy, GripVertical, Tag,
+  Stethoscope, ClipboardList, Copy, GripVertical, Tag, Sparkles,
 } from "lucide-react";
 import {
   DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors,
@@ -30,6 +30,7 @@ import {
   TOOTH_CONDITION_LABELS, TOOTH_CONDITION_COLORS, QuoteItem,
 } from "@/types";
 import OdontogramChart from "@/components/odontogram/OdontogramChart";
+import AiPhotoAnalysisModal from "@/components/odontogram/AiPhotoAnalysisModal";
 import Button from "@/components/ui/Button";
 import Spinner from "@/components/ui/Spinner";
 import Modal from "@/components/ui/Modal";
@@ -92,6 +93,7 @@ function SortableQuoteRow({
 interface PendingChange {
   condition: ToothCondition;
   notes: string | null;
+  icdas?: number | null;
 }
 
 // ─── Snapshot Viewer ──────────────────────────────────────────────────────────
@@ -187,6 +189,7 @@ function OdontogramSection({ patientId, kind }: { patientId: string; kind: strin
   const [pendingChanges, setPendingChanges] = useState<Record<number, PendingChange>>({});
   const [showHistory, setShowHistory] = useState(false);
   const [confirmCopy, setConfirmCopy] = useState(false);
+  const [showAi, setShowAi] = useState(false);
 
   const update = useUpdateOdontogram(
     patientId,
@@ -210,13 +213,19 @@ function OdontogramSection({ patientId, kind }: { patientId: string; kind: strin
       updated_by: null,
     };
     const pending = pendingChanges[num];
-    return pending ? { ...base, condition: pending.condition, notes: pending.notes } : base;
+    return pending ? { ...base, condition: pending.condition, notes: pending.notes, icdas: pending.icdas ?? null } : base;
   });
 
-  function handleToothChange(num: number, condition: ToothCondition, notes: string | null) {
+  function handleToothChange(num: number, condition: ToothCondition, notes: string | null, icdas: number | null) {
     // Optimistic update for immediate visual feedback; save persists to DB right away.
-    setPendingChanges((prev) => ({ ...prev, [num]: { condition, notes } }));
-    update.mutate({ teeth: { [num]: { condition, notes } }, snapshot_notes: null });
+    setPendingChanges((prev) => ({ ...prev, [num]: { condition, notes, icdas } }));
+    update.mutate({ teeth: { [num]: { condition, notes, icdas } }, snapshot_notes: null });
+  }
+
+  // Aplica en bloque las propuestas de la IA ya revisadas por el odontólogo
+  function handleApplyAi(changes: Record<number, { condition: ToothCondition; icdas: number | null; notes: string | null }>) {
+    setPendingChanges((prev) => ({ ...prev, ...changes }));
+    update.mutate({ teeth: changes, snapshot_notes: "Propuesta de IA (fotos) revisada por el odontólogo" });
   }
 
   const affected = previewTeeth.filter((t) => t.condition !== "sano");
@@ -251,10 +260,23 @@ function OdontogramSection({ patientId, kind }: { patientId: string; kind: strin
             )
           )}
         </div>
-        <Button variant="secondary" size="sm" onClick={() => setShowHistory(true)}>
-          <History size={15} />
-          Historial
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="secondary" size="sm" onClick={() => setShowAi(true)}>
+            <Sparkles size={15} />
+            Analizar fotos con IA
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => setShowHistory(true)}>
+            <History size={15} />
+            Historial
+          </Button>
+        </div>
+        <AiPhotoAnalysisModal
+          open={showAi}
+          onClose={() => setShowAi(false)}
+          patientId={patientId}
+          currentTeeth={previewTeeth}
+          onApply={handleApplyAi}
+        />
       </div>
 
       {isLoading ? (
@@ -289,7 +311,7 @@ function OdontogramSection({ patientId, kind }: { patientId: string; kind: strin
                       </span>
                       <div>
                         <span className={`font-mono font-bold mr-1.5 ${colors.text}`}>{t.tooth_number}</span>
-                        <span className={`font-medium ${colors.text}`}>{TOOTH_CONDITION_LABELS[t.condition]}</span>
+                        <span className={`font-medium ${colors.text}`}>{TOOTH_CONDITION_LABELS[t.condition]}{t.icdas != null ? ` · ICDAS ${t.icdas}` : ""}</span>
                         {t.notes && (
                           <p className="text-slate-500 dark:text-gray-400 truncate mt-0.5">{t.notes}</p>
                         )}
