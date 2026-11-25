@@ -65,13 +65,20 @@ export const fdiDot = (v: string | null | undefined) =>
 // Ancho relativo de cada diente (1 = central … 8 = tercer molar) para repartirlos en la arcada
 const TOOTH_W: Record<number, number> = { 1: 8, 2: 6.5, 3: 7.5, 4: 7, 5: 7, 6: 10, 7: 9.5, 8: 9 };
 
+type RGB = [number, number, number];
+// Colores bien diferenciables (todos legibles con texto blanco)
+const PROC_COLORS: RGB[] = [
+  [37, 99, 235], [220, 38, 38], [22, 163, 74], [234, 88, 12], [147, 51, 234],
+  [13, 148, 136], [219, 39, 119], [161, 98, 7], [71, 85, 105], [8, 145, 178],
+];
+
 /** Dibuja la guía de piezas FDI (vista oclusal) resaltando las piezas del plan. */
 function drawToothChart(
   doc: jsPDF,
   x0: number,
   y0: number,
   width: number,
-  marked: Set<string>,
+  marked: Map<string, RGB[]>,
   colors: { ink: [number, number, number]; muted: [number, number, number]; accent: [number, number, number]; line: [number, number, number] },
 ): number {
   const a = Math.min(40, width / 2 - 12); // semieje horizontal (arcada angosta)
@@ -99,11 +106,20 @@ function drawToothChart(
       acc += widths[i];
       const p = pts.find((q) => q.len >= mid) ?? pts[N];
       const rad = Math.min(r, ((widths[i] / totalW) * len * 0.92) / 2);
-      const isMarked = marked.has(String(n));
+      const procColors = marked.get(String(n));
+      const isMarked = !!procColors;
+      const main = procColors?.[0] ?? colors.accent;
       doc.setLineWidth(isMarked ? 0.5 : 0.25);
-      doc.setDrawColor(...(isMarked ? colors.accent : colors.line));
-      doc.setFillColor(...(isMarked ? colors.accent : ([255, 255, 255] as [number, number, number])));
+      doc.setDrawColor(...(isMarked ? main : colors.line));
+      doc.setFillColor(...(isMarked ? main : ([255, 255, 255] as [number, number, number])));
       doc.circle(p.x, p.y, rad, "FD");
+      // Más de un tratamiento en la misma pieza: puntos de color adicionales
+      (procColors ?? []).slice(1).forEach((c, k) => {
+        doc.setFillColor(...c);
+        doc.setDrawColor(255, 255, 255);
+        doc.setLineWidth(0.3);
+        doc.circle(p.x + rad * 0.78 - k * 2.6, p.y - rad * 0.78, 1.25, "FD");
+      });
       doc.setFont("helvetica", isMarked ? "bold" : "normal");
       doc.setFontSize(isMarked ? 6.6 : 6.2);
       doc.setTextColor(...(isMarked ? ([255, 255, 255] as [number, number, number]) : colors.ink));
@@ -240,12 +256,37 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
   y += 4;
 
   // ── Guía de piezas dentales (FDI) ──
-  const marked = new Set<string>();
+  // Cada tipo de procedimiento tiene su color; la leyenda indica qué piezas lleva cada uno.
+  const procKey = (name: string | null) => (name ?? "Procedimiento").trim().toLowerCase();
+  const legendMap = new Map<string, { name: string; color: RGB; teeth: Set<string> }>();
+  const marked = new Map<string, RGB[]>();
   for (const it of plan.items) {
     if (it.status === "cancelled") continue;
-    for (const m of it.tooth_fdi?.match(/[1-4][1-8]/g) ?? []) marked.add(m);
+    const teeth = it.tooth_fdi?.match(/[1-4][1-8]/g) ?? [];
+    if (teeth.length === 0) continue;
+    const k = procKey(it.procedure_name);
+    if (!legendMap.has(k)) {
+      legendMap.set(k, {
+        name: it.procedure_name?.trim() || "Procedimiento",
+        color: PROC_COLORS[legendMap.size % PROC_COLORS.length],
+        teeth: new Set(),
+      });
+    }
+    const entry = legendMap.get(k)!;
+    for (const t of teeth) {
+      entry.teeth.add(t);
+      const list = marked.get(t) ?? [];
+      if (!list.includes(entry.color)) marked.set(t, [...list, entry.color]);
+    }
   }
-  ensure(145);
+  const legend = [...legendMap.values()];
+  const legendLines = legend.map((l) => {
+    const teeth = [...l.teeth].sort().map((t) => `${t[0]}.${t[1]}`).join(", ");
+    return doc.splitTextToSize(`${l.name}: ${teeth}`, contentW - 8) as string[];
+  });
+  const legendH = legendLines.reduce((sum, ls) => sum + ls.length * 4 + 1.5, 0);
+
+  ensure(138 + legendH);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...INK);
@@ -256,22 +297,22 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
   doc.setTextColor(...MUTED);
   const guide = doc.splitTextToSize(
     "Vista oclusal. El primer número indica el cuadrante y el segundo la pieza (1.1 = incisivo central superior derecho). " +
-      "Compare el número de la pieza que se le indique con el diagrama.",
+      "Compare el número de la pieza que se le indique con el diagrama. Cada color corresponde a un tratamiento.",
     contentW,
   );
   doc.text(guide, M, y + 1.5);
   y += guide.length * 3.6 + 3;
   const chartH = drawToothChart(doc, M, y, contentW, marked, { ink: INK, muted: MUTED, accent: ACCENT, line: LINE });
-  y += chartH + 3;
-  if (marked.size > 0) {
-    doc.setFillColor(...ACCENT);
-    doc.circle(M + 2, y + 1, 1.6, "F");
+  y += chartH + 4;
+  legend.forEach((l, i) => {
+    doc.setFillColor(...l.color);
+    doc.circle(M + 2, y + 1.2, 1.7, "F");
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
-    doc.setTextColor(...MUTED);
-    doc.text("Piezas que se tratarán en este plan", M + 5.5, y + 2.1);
-    y += 4;
-  }
+    doc.setFontSize(8.5);
+    doc.setTextColor(...INK);
+    doc.text(legendLines[i], M + 6.5, y + 2.2);
+    y += legendLines[i].length * 4 + 1.5;
+  });
   y += 6;
 
   // ── Fotos generales del paciente ──
