@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { categoryLabel, categoryColor } from "@/types/costos";
 import Spinner from "@/components/ui/Spinner";
+import BudgetVsActualCard from "@/components/reports/BudgetVsActualCard";
 import DrilldownModal, { type DrilldownSelection } from "@/components/reports/DrilldownModal";
 import PlanGate from "@/components/ui/PlanGate";
 import { useUiPreferences, useUpdateUiPreference } from "@/hooks/useSettings";
@@ -912,6 +913,8 @@ export default function ReportesPage() {
           </table>
         </TableCard>
       </div>
+
+      <BudgetVsActualCard year={year} month={filterMonth} />
 
       {/* Row 3: Top pacientes + Materiales más usados */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

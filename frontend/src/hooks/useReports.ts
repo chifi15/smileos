@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import apiClient from "@/lib/api-client";
 
 export interface MonthTrend {
@@ -352,5 +352,46 @@ export function useDrilldown(
       );
       return data.data;
     },
+  });
+}
+
+export interface BudgetRow {
+  fixed_cost_id: string;
+  name: string;
+  budget: number;
+  category_id: string | null;
+  category_label: string | null;
+  real: number | null;
+  diff: number | null;
+}
+
+export interface BudgetVsActual {
+  months: number;
+  rows: BudgetRow[];
+  others: { category_id: string; label: string; real: number }[];
+  categories: { id: string; label: string }[];
+  total_budget: number;
+  total_real_linked: number;
+  total_budget_linked: number;
+}
+
+export function useBudgetVsActual(year: number, month: number | null) {
+  return useQuery({
+    queryKey: ["report-budget-vs-actual", year, month],
+    queryFn: async () => {
+      const params = month ? `year=${year}&month=${month}` : `year=${year}`;
+      const { data } = await apiClient.get<{ data: BudgetVsActual }>(`${base}/budget-vs-actual?${params}`);
+      return data.data;
+    },
+  });
+}
+
+export function useSetBudgetLink() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (v: { fixed_cost_id: string; category_id: string | null }) => {
+      await apiClient.put(`${base}/budget-link`, v);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["report-budget-vs-actual"] }),
   });
 }

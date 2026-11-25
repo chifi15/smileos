@@ -79,3 +79,5 @@ class ExpenseCategory(Base):
     # True: el gasto ya está incluido en costos operativos (honorarios, costos fijos o materiales).
     # Se registra igual, pero no se resta de la utilidad para no contarlo dos veces.
     covered_by_op_costs: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false", default=False)
+    # Id del costo fijo (Costos → Costos Fijos) que esta categoría representa, para comparar presupuesto vs real.
+    fixed_cost_item_id: Mapped[str | None] = mapped_column(String(64), nullable=True)

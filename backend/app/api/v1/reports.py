@@ -170,3 +170,36 @@ async def drilldown(
     except ValueError:
         raise HTTPException(status_code=422, detail="Parámetros inválidos")
     return {"success": True, "data": data}
+
+
+@router.get("/finances/budget-vs-actual")
+async def budget_vs_actual(
+    user: Annotated[object, require_permission("view_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    year: int = Query(...),
+    month: int | None = Query(default=None),
+):
+    data = await reports_service.get_budget_vs_actual(db, user.clinic_id, year, month)
+    return {"success": True, "data": data}
+
+
+@router.put("/finances/budget-link")
+async def budget_link(
+    body: dict,
+    user: Annotated[object, require_permission("manage_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    import uuid as _uuid
+    from fastapi import HTTPException
+    fixed_id = str(body.get("fixed_cost_id") or "")
+    cat = body.get("category_id")
+    if not fixed_id:
+        raise HTTPException(status_code=422, detail="fixed_cost_id requerido")
+    try:
+        cat_id = _uuid.UUID(cat) if cat else None
+    except ValueError:
+        raise HTTPException(status_code=422, detail="category_id inválido")
+    ok = await reports_service.set_budget_link(db, user.clinic_id, fixed_id, cat_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+    return {"success": True}

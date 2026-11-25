@@ -873,3 +873,114 @@ async def get_drilldown(
         "total_op_cost": round(sum(r["op_cost"] for r in rows), 2),
         "truncated": len(txs) >= 500,
     }
+
+
+async def get_budget_vs_actual(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    year: int,
+    month: int | None = None,
+) -> dict:
+    """Presupuesto (costos fijos configurados, por mes) vs gasto real (egresos de las categorías vinculadas).
+
+    Sin mes se compara el año completo (presupuesto × 12).
+    """
+    from app.models.finance import ExpenseCategory
+    from app.services.costos_service import get_fixed_costs
+
+    months = 1 if month else 12
+    config = await get_fixed_costs(db, clinic_id)
+    items = [i for i in (config.items or []) if isinstance(i, dict)]
+
+    cats = list((await db.execute(
+        select(ExpenseCategory)
+        .where(ExpenseCategory.clinic_id == clinic_id)
+        .order_by(ExpenseCategory.sort_order, ExpenseCategory.label)
+    )).scalars().all())
+
+    filters = [
+        FinanceTransaction.clinic_id == clinic_id,
+        FinanceTransaction.type == "egreso",
+        FinanceTransaction.deleted_at.is_(None),
+        extract("year", FinanceTransaction.transaction_date) == year,
+    ]
+    if month:
+        filters.append(extract("month", FinanceTransaction.transaction_date) == month)
+    sums = await db.execute(
+        select(FinanceTransaction.category, func.sum(FinanceTransaction.amount_cordobas))
+        .where(*filters)
+        .group_by(FinanceTransaction.category)
+    )
+    real_by_key = {k: float(v or 0) for k, v in sums}
+
+    item_ids = {str(i.get("id")) for i in items}
+    rows = []
+    linked_cat_ids: set[str] = set()
+    for it in items:
+        iid = str(it.get("id"))
+        linked = [c for c in cats if c.fixed_cost_item_id == iid]
+        linked_cat_ids.update(str(c.id) for c in linked)
+        budget = round(float(it.get("amount") or 0) * months, 2)
+        real = round(sum(real_by_key.get(c.key, 0.0) for c in linked), 2)
+        rows.append({
+            "fixed_cost_id": iid,
+            "name": it.get("name") or "Sin nombre",
+            "budget": budget,
+            "category_id": str(linked[0].id) if linked else None,
+            "category_label": linked[0].label if linked else None,
+            "real": real if linked else None,
+            "diff": round(real - budget, 2) if linked else None,
+        })
+
+    # Categorías "ya cubiertas" sin vínculo a un costo fijo: solo gasto real (doctor, materiales…)
+    others = []
+    for c in cats:
+        if str(c.id) in linked_cat_ids:
+            continue
+        if c.covered_by_op_costs and c.fixed_cost_item_id not in item_ids:
+            others.append({
+                "category_id": str(c.id),
+                "label": c.label,
+                "real": round(real_by_key.get(c.key, 0.0), 2),
+            })
+
+    return {
+        "months": months,
+        "rows": rows,
+        "others": others,
+        "categories": [{"id": str(c.id), "label": c.label} for c in cats],
+        "total_budget": round(sum(r["budget"] for r in rows), 2),
+        "total_real_linked": round(sum(r["real"] or 0 for r in rows), 2),
+        "total_budget_linked": round(sum(r["budget"] for r in rows if r["category_id"]), 2),
+    }
+
+
+async def set_budget_link(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    fixed_cost_id: str,
+    category_id: uuid.UUID | None,
+) -> bool:
+    """Vincula un costo fijo con una categoría de egreso (o lo desvincula si category_id es None)."""
+    from app.models.finance import ExpenseCategory
+
+    current = (await db.execute(
+        select(ExpenseCategory).where(
+            ExpenseCategory.clinic_id == clinic_id,
+            ExpenseCategory.fixed_cost_item_id == fixed_cost_id,
+        )
+    )).scalars().all()
+    for c in current:
+        c.fixed_cost_item_id = None
+    if category_id is not None:
+        cat = (await db.execute(
+            select(ExpenseCategory).where(
+                ExpenseCategory.id == category_id, ExpenseCategory.clinic_id == clinic_id
+            )
+        )).scalar_one_or_none()
+        if not cat:
+            await db.rollback()
+            return False
+        cat.fixed_cost_item_id = fixed_cost_id
+    await db.commit()
+    return True
