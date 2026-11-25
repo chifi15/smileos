@@ -753,3 +753,99 @@ async def get_top_materials(
 
     rows.sort(key=lambda x: x["total_units"], reverse=True)
     return rows[:20]
+
+
+async def get_drilldown(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    kind: str,
+    key: str,
+    year: int,
+    month: int | None = None,
+) -> dict:
+    """Transacciones que componen una fila de un reporte (doctor, tratamiento, paciente o categoría de egreso).
+
+    Usa los mismos filtros que los reportes agregados para que los totales coincidan.
+    """
+    from app.models.costos import CostProduct
+
+    filters = [
+        FinanceTransaction.clinic_id == clinic_id,
+        extract("year", FinanceTransaction.transaction_date) == year,
+    ]
+    if month:
+        filters.append(extract("month", FinanceTransaction.transaction_date) == month)
+
+    if kind == "doctor":
+        filters.append(FinanceTransaction.type == "ingreso")
+        if key == "none":
+            filters.append(FinanceTransaction.doctor_id.is_(None))
+        else:
+            filters.append(FinanceTransaction.doctor_id == uuid.UUID(key))
+    elif kind == "treatment":
+        filters.append(FinanceTransaction.type == "ingreso")
+        filters.append(FinanceTransaction.cost_treatment_id == uuid.UUID(key))
+    elif kind == "patient":
+        filters.append(FinanceTransaction.type == "ingreso")
+        filters.append(FinanceTransaction.patient_id == uuid.UUID(key))
+    elif kind == "expense":
+        filters.append(FinanceTransaction.type == "egreso")
+        filters.append(FinanceTransaction.category == key)
+    else:
+        raise ValueError("kind inválido")
+
+    result = await db.execute(
+        select(FinanceTransaction)
+        .where(*filters)
+        .options(
+            selectinload(FinanceTransaction.patient),
+            selectinload(FinanceTransaction.procedure),
+            selectinload(FinanceTransaction.cost_treatment),
+            selectinload(FinanceTransaction.doctor),
+        )
+        .order_by(FinanceTransaction.transaction_date.desc(), FinanceTransaction.created_at.desc())
+        .limit(500)
+    )
+    txs = list(result.scalars().all())
+
+    prods_result = await db.execute(select(CostProduct).where(CostProduct.clinic_id == clinic_id))
+    products = {str(p.id): p for p in prods_result.scalars().all()}
+
+    rows = []
+    for t in txs:
+        proc_qty = t.procedure_quantity or 1
+        materials = []
+        for mat in (t.deducted_materials or []):
+            pid = mat.get("productId")
+            qty = float(mat.get("qty") or 0) * proc_qty
+            prod = products.get(pid) if pid else None
+            if not prod or qty <= 0:
+                continue
+            price = float(prod.unit_price or 0)
+            materials.append({
+                "name": prod.name,
+                "units": round(qty, 4),
+                "unit_price": price,
+                "total_cost": round(qty * price, 2),
+            })
+        rows.append({
+            "id": str(t.id),
+            "date": t.transaction_date.isoformat(),
+            "patient_id": str(t.patient_id) if t.patient_id else None,
+            "patient_name": t.patient.full_name if t.patient else None,
+            "treatment_name": t.procedure_display_name,
+            "doctor_name": t.doctor.full_name if t.doctor else None,
+            "description": t.description,
+            "quantity": proc_qty,
+            "amount": round(float(t.amount_cordobas), 2),
+            "op_cost": round(float(t.operational_cost_snapshot), 2) if t.operational_cost_snapshot else 0.0,
+            "materials": materials,
+        })
+
+    return {
+        "kind": kind,
+        "rows": rows,
+        "total_amount": round(sum(r["amount"] for r in rows), 2),
+        "total_op_cost": round(sum(r["op_cost"] for r in rows), 2),
+        "truncated": len(txs) >= 500,
+    }

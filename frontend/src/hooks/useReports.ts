@@ -302,3 +302,54 @@ export function useTopMaterials(year: number, month: number | null) {
     },
   });
 }
+
+export type DrilldownKind = "doctor" | "treatment" | "patient" | "expense";
+
+export interface DrilldownMaterial {
+  name: string;
+  units: number;
+  unit_price: number;
+  total_cost: number;
+}
+
+export interface DrilldownRow {
+  id: string;
+  date: string;
+  patient_id: string | null;
+  patient_name: string | null;
+  treatment_name: string | null;
+  doctor_name: string | null;
+  description: string;
+  quantity: number;
+  amount: number;
+  op_cost: number;
+  materials: DrilldownMaterial[];
+}
+
+export interface Drilldown {
+  kind: DrilldownKind;
+  rows: DrilldownRow[];
+  total_amount: number;
+  total_op_cost: number;
+  truncated: boolean;
+}
+
+export function useDrilldown(
+  kind: DrilldownKind | null,
+  key: string | null,
+  year: number,
+  month: number | null,
+) {
+  return useQuery({
+    queryKey: ["report-drilldown", kind, key, year, month],
+    enabled: !!kind && !!key,
+    queryFn: async () => {
+      const params = new URLSearchParams({ kind: kind!, key: key!, year: String(year) });
+      if (month) params.set("month", String(month));
+      const { data } = await apiClient.get<{ data: Drilldown }>(
+        `${base}/drilldown?${params.toString()}`
+      );
+      return data.data;
+    },
+  });
+}

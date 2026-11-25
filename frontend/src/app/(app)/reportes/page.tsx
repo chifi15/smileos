@@ -36,6 +36,7 @@ import {
 } from "lucide-react";
 import { categoryLabel, categoryColor } from "@/types/costos";
 import Spinner from "@/components/ui/Spinner";
+import DrilldownModal, { type DrilldownSelection } from "@/components/reports/DrilldownModal";
 import PlanGate from "@/components/ui/PlanGate";
 import { useUiPreferences, useUpdateUiPreference } from "@/hooks/useSettings";
 import { useFixedCosts, useCostProducts } from "@/hooks/useCostos";
@@ -503,6 +504,9 @@ export default function ReportesPage() {
   const [filterMonth, setFilterMonth] = useState<number | null>(now.getMonth() + 1);
   const [materialMonth, setMaterialMonth] = useState<number>(now.getMonth() + 1);
   const [selectedMaterial, setSelectedMaterial] = useState<SelectedMaterial | null>(null);
+  const [drill, setDrill] = useState<DrilldownSelection | null>(null);
+  const openDrill = (kind: DrilldownSelection["kind"], key: string, title: string) =>
+    setDrill({ kind, key, title, year, month: filterMonth });
 
   const { data: summary, isLoading: loadingSummary } = useReportSummary(year, month);
   const { data: trend, isLoading: loadingTrend } = useMonthlyTrend(year);
@@ -787,7 +791,7 @@ export default function ReportesPage() {
             </thead>
             <tbody>
               {topProc?.map((p, i) => (
-                <tr key={p.procedure_id} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
+                <tr key={p.procedure_id} onClick={() => openDrill("treatment", p.procedure_id, p.procedure_name)} className="cursor-pointer border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
                   <td className="px-4 py-2.5 text-slate-400 dark:text-gray-500">{i + 1}</td>
                   <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-gray-200">{p.procedure_name}</td>
                   <td className="px-4 py-2.5 text-right text-slate-600 dark:text-gray-300">{p.quantity}</td>
@@ -810,7 +814,7 @@ export default function ReportesPage() {
             </thead>
             <tbody>
               {topQuoted?.map((p, i) => (
-                <tr key={p.procedure_id} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
+                <tr key={p.procedure_id} onClick={() => openDrill("treatment", p.procedure_id, p.procedure_name)} className="cursor-pointer border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
                   <td className="px-4 py-2.5 text-slate-400 dark:text-gray-500">{i + 1}</td>
                   <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-gray-200">{p.procedure_name}</td>
                   <td className="px-4 py-2.5 text-right text-slate-600 dark:text-gray-300">{p.quoted}×</td>
@@ -836,7 +840,7 @@ export default function ReportesPage() {
             </thead>
             <tbody>
               {topExp?.map((e) => (
-                <tr key={e.category} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
+                <tr key={e.category} onClick={() => openDrill("expense", e.category, e.category_label)} className="cursor-pointer border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
                   <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-gray-200">
                     {e.category_label}
                   </td>
@@ -871,7 +875,7 @@ export default function ReportesPage() {
             </thead>
             <tbody>
               {doctors?.map((d) => (
-                <tr key={d.doctor_id ?? "sin"} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
+                <tr key={d.doctor_id ?? "sin"} onClick={() => openDrill("doctor", d.doctor_id ?? "none", d.doctor_name)} className="cursor-pointer border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
                   <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-gray-200">
                     <div className="flex items-center gap-2">
                       <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-[10px] font-bold">
@@ -904,7 +908,7 @@ export default function ReportesPage() {
             </thead>
             <tbody>
               {topPatients?.map((p, i) => (
-                <tr key={p.patient_id} className="border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
+                <tr key={p.patient_id} onClick={() => openDrill("patient", p.patient_id, p.patient_name)} className="cursor-pointer border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
                   <td className="px-4 py-2.5 text-slate-400 dark:text-gray-500">{i + 1}</td>
                   <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-gray-200">
                     <div className="flex items-center gap-2">
@@ -1143,6 +1147,8 @@ export default function ReportesPage() {
           onClose={() => setSelectedMaterial(null)}
         />
       )}
+
+      {drill && <DrilldownModal selected={drill} onClose={() => setDrill(null)} />}
 
       {/* ── Detalle: Costos operativos + Utilidad mensual ── */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

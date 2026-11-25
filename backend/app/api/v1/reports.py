@@ -153,3 +153,20 @@ async def top_materials(
 ):
     data = await reports_service.get_top_materials(db, user.clinic_id, year, month)
     return {"success": True, "data": data}
+
+
+@router.get("/finances/drilldown")
+async def drilldown(
+    user: Annotated[object, require_permission("view_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    kind: str = Query(..., pattern="^(doctor|treatment|patient|expense)$"),
+    key: str = Query(...),
+    year: int = Query(...),
+    month: int | None = Query(default=None),
+):
+    from fastapi import HTTPException
+    try:
+        data = await reports_service.get_drilldown(db, user.clinic_id, kind, key, year, month)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Parámetros inválidos")
+    return {"success": True, "data": data}
