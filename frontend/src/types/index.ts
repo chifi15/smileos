@@ -664,6 +664,7 @@ export interface FinanceTransaction {
   cost_treatment_id: string | null;
   cost_treatment: { id: string; name: string } | null;
   procedure_quantity: number;
+  scale_fees_by_quantity?: boolean;
   cost_appointment_id: string | null;
   deducted_materials: { productId: string; qty: number; altGroup?: string | null }[] | null;
   extra_procedures: { cost_treatment_id?: string; procedure_id?: string; appointment_id: string }[] | null;
@@ -700,6 +701,7 @@ export interface TransactionCreatePayload {
   cost_appointment_id?: string;
   quantity?: number;
   sessions?: number;
+  scale_fees_by_quantity?: boolean;
   operational_cost_override?: number;
   doctor_id?: string | null;
   invoice_number?: string;

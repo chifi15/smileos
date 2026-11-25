@@ -44,6 +44,7 @@ def _serialize(t) -> dict:
         "cost_treatment_id": str(t.cost_treatment_id) if t.cost_treatment_id else None,
         "cost_treatment": {"id": str(t.cost_treatment.id), "name": t.cost_treatment.name} if t.cost_treatment else None,
         "procedure_quantity": t.procedure_quantity,
+        "scale_fees_by_quantity": t.scale_fees_by_quantity,
         "cost_appointment_id": t.cost_appointment_id,
         "deducted_materials": t.deducted_materials,
         "extra_procedures": t.extra_procedures,
@@ -82,6 +83,7 @@ class TransactionCreate(BaseModel):
     cost_appointment_id: str | None = None
     quantity: int = 1
     sessions: int = 1
+    scale_fees_by_quantity: bool = True
     operational_cost_override: float | None = None
     doctor_id: str | None = None
     invoice_number: str | None = None
@@ -102,6 +104,7 @@ class TransactionUpdate(BaseModel):
     cost_appointment_id: str | None = None
     quantity: int | None = None
     sessions: int | None = None
+    scale_fees_by_quantity: bool | None = None
     operational_cost_override: float | None = None
     doctor_id: str | None = None
     invoice_number: str | None = None

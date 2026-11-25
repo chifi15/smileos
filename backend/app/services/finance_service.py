@@ -209,6 +209,9 @@ async def create_transaction(
     quantity = max(1, int(data.get("quantity") or 1))
     sessions = max(1, int(data.get("sessions") or 1))
     cost_override = data.get("operational_cost_override")
+    scale_fees = data.get("scale_fees_by_quantity")
+    scale_fees = True if scale_fees is None else bool(scale_fees)
+    fee_qty = quantity if scale_fees else 1
 
     catalog_ref_id: uuid.UUID | None = None
     cost_treatment_ref_id: uuid.UUID | None = None
@@ -232,7 +235,7 @@ async def create_transaction(
             fee = Decimal(str(ct_check.professional_fee_per_hour or 0)) * Decimal(str(ct_check.total_hours or 0))
             fixed = Decimal(str(ct_check.fixed_costs or 0))
             margin = Decimal(str(ct_check.clinic_margin_pct or 0))
-            raw = (fee + fixed) * quantity / sessions
+            raw = (fee + fixed) * fee_qty / sessions
             op_cost = round(raw * (1 + margin), 2)
     elif proc_id:
         pid = uuid.UUID(str(proc_id))
@@ -248,7 +251,7 @@ async def create_transaction(
             fee = Decimal(str(ct_check.professional_fee_per_hour or 0)) * Decimal(str(ct_check.total_hours or 0))
             fixed = Decimal(str(ct_check.fixed_costs or 0))
             margin = Decimal(str(ct_check.clinic_margin_pct or 0))
-            raw = (fee + fixed) * quantity / sessions
+            raw = (fee + fixed) * fee_qty / sessions
             op_cost = round(raw * (1 + margin), 2)
         else:
             # ProcedureCatalog (retrocompatibilidad)
@@ -285,6 +288,7 @@ async def create_transaction(
         cost_treatment_id=cost_treatment_ref_id,
         cost_appointment_id=data.get("cost_appointment_id") or None,
         procedure_quantity=quantity,
+        scale_fees_by_quantity=scale_fees,
         operational_cost_snapshot=op_cost,
         doctor_id=uuid.UUID(str(data["doctor_id"])) if data.get("doctor_id") else None,
         invoice_number=data.get("invoice_number"),
@@ -390,7 +394,7 @@ async def get_honorarios_by_procedure(
         else:
             fee_per_unit = total_fee
         qty = tx.procedure_quantity or 1
-        fee = fee_per_unit * qty
+        fee = fee_per_unit * (qty if tx.scale_fees_by_quantity else 1)
         proc_name = (tx.procedure.name if tx.procedure else tx.cost_treatment.name if tx.cost_treatment else "—")
 
         if unified_proc_id not in procedure_totals:
@@ -511,6 +515,10 @@ async def update_transaction(
     upd_quantity = max(1, int(data["quantity"])) if data.get("quantity") else None
     upd_sessions = max(1, int(data["sessions"])) if data.get("sessions") else 1
     upd_cost_override = data.get("operational_cost_override")
+    upd_scale = data.get("scale_fees_by_quantity")
+    upd_scale = tx.scale_fees_by_quantity if upd_scale is None else bool(upd_scale)
+    # Cantidad efectiva por la que se multiplican honorarios y costos fijos
+    upd_fee_qty = (upd_quantity or tx.procedure_quantity or 1) if upd_scale else 1
 
     if "cost_appointment_id" in data:
         tx.cost_appointment_id = data["cost_appointment_id"] or None
@@ -537,7 +545,7 @@ async def update_transaction(
                     fee = Decimal(str(ct.professional_fee_per_hour or 0)) * Decimal(str(ct.total_hours or 0))
                     fixed = Decimal(str(ct.fixed_costs or 0))
                     margin = Decimal(str(ct.clinic_margin_pct or 0))
-                    raw = (fee + fixed) * upd_quantity / upd_sessions
+                    raw = (fee + fixed) * upd_fee_qty / upd_sessions
                     tx.operational_cost_snapshot = round(raw * (1 + margin), 2)
 
     elif "procedure_id" in data:
@@ -560,7 +568,7 @@ async def update_transaction(
                 if upd_cost_override is not None:
                     tx.operational_cost_snapshot = round(Decimal(str(upd_cost_override)), 2)
                 else:
-                    raw = Decimal(str(ct_check.fixed_costs or 0)) * (upd_quantity or 1) / upd_sessions
+                    raw = Decimal(str(ct_check.fixed_costs or 0)) * upd_fee_qty / upd_sessions
                     margin = Decimal(str(ct_check.clinic_margin_pct or 0))
                     tx.operational_cost_snapshot = round(raw * (1 + margin), 2)
             else:
@@ -602,6 +610,7 @@ async def update_transaction(
 
     if upd_quantity is not None:
         tx.procedure_quantity = upd_quantity
+    tx.scale_fees_by_quantity = upd_scale
 
     if "deducted_materials" in data:
         tx.deducted_materials = data["deducted_materials"]

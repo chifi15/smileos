@@ -476,6 +476,7 @@ interface FormState {
   appointment_id: string;
   quantity: string;
   sessions: string;
+  scale_fees: boolean; // true: honorarios y costos fijos ×cantidad; false: ×1
   n_piezas: string;
   doctor_id: string;
   invoice_number: string;
@@ -498,6 +499,7 @@ function emptyForm(type: FinanceType): FormState {
     appointment_id: "",
     quantity: "1",
     sessions: "1",
+    scale_fees: true,
     n_piezas: "1",
     doctor_id: "",
     invoice_number: "",
@@ -518,6 +520,7 @@ function formFromTx(tx: FinanceTransaction): FormState {
     appointment_id: tx.cost_appointment_id ?? "",
     quantity: String(tx.procedure_quantity ?? 1),
     sessions: "1",
+    scale_fees: tx.scale_fees_by_quantity ?? true,
     n_piezas: "1",
     doctor_id: tx.doctor?.id ?? "",
     invoice_number: tx.invoice_number ?? "",
@@ -741,10 +744,6 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
     recomputeMerged(ctId, aptId, extraProcedures, parseInt(form.n_piezas) || 1);
   }
 
-  function handleNPiezasChange(val: string) {
-    set("n_piezas", val);
-  }
-
   function addExtraProcedure() {
     setExtraProcedures((prev) => [...prev, { cost_treatment_id: "", appointment_id: "" }]);
   }
@@ -802,8 +801,8 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         const fixedCosts = apptTreatment.fixed_costs || 0;
         const marginPct = apptTreatment.clinic_margin_pct || 0;
         const totalApts = apptTreatment.appointments.length || 1;
-        const nPiezas = Math.max(1, parseInt(form.n_piezas) || 1);
-        const subtotal = materialCost + (profFees / totalApts) * nPiezas + fixedCosts * nPiezas;
+        const feeQty = form.scale_fees ? qty : 1;
+        const subtotal = materialCost + (profFees / totalApts) * feeQty + fixedCosts * feeQty;
         opCostOverride = Math.round(subtotal * (1 + marginPct) * 100) / 100;
       } else {
         opCostOverride = materialCost;
@@ -816,7 +815,8 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         const fixedCosts = apptTreatment.fixed_costs || 0;
         const marginPct = apptTreatment.clinic_margin_pct || 0;
         const totalApts = apptTreatment.appointments.length || 1;
-        const subtotal = materialCost + profFees + fixedCosts * totalApts;
+        const feeQty = form.scale_fees ? qty : 1;
+        const subtotal = materialCost + ((profFees + fixedCosts * totalApts) * feeQty) / sessions;
         opCostOverride = Math.round(subtotal * (1 + marginPct) * 100) / 100;
       } else {
         opCostOverride = materialCost;
@@ -835,6 +835,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
         cost_appointment_id: form.appointment_id || null,
         quantity: qty,
         sessions,
+        scale_fees_by_quantity: form.scale_fees,
         doctor_id: form.doctor_id || null,
         invoice_number: form.invoice_number.trim() || null,
         notes: form.notes.trim() || null,
@@ -881,6 +882,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
       payload.cost_treatment_id = form.cost_treatment_id;
       if (form.appointment_id) payload.cost_appointment_id = form.appointment_id;
       payload.quantity = qty;
+      payload.scale_fees_by_quantity = form.scale_fees;
       if (sessions > 1) payload.sessions = sessions;
       if (opCostOverride !== null) payload.operational_cost_override = opCostOverride;
     }
@@ -1052,25 +1054,6 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
               );
             })()}
 
-            {/* Campo # Piezas — solo para ingreso, sin extras */}
-            {isIngreso && form.cost_treatment_id && extraProcedures.length === 0 && (
-              <div className="flex items-center gap-3">
-                <label className="text-xs font-medium text-slate-600 dark:text-gray-400 whitespace-nowrap">
-                  # Piezas
-                </label>
-                <input
-                  type="number" min="1" max="16" value={form.n_piezas}
-                  onChange={(e) => handleNPiezasChange(e.target.value)}
-                  className="w-16 rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-1.5 text-sm text-center focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-                {(parseInt(form.n_piezas) || 1) > 1 && (
-                  <span className="text-xs text-slate-400 dark:text-gray-500">
-                    Honorarios y costos fijos ×{parseInt(form.n_piezas)}
-                  </span>
-                )}
-              </div>
-            )}
-
             {/* Procedimientos extra */}
             {extraProcedures.map((ep, idx) => {
               const extraTreatment = ep.cost_treatment_id
@@ -1207,7 +1190,7 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                 const marginPct = apptTreatment.clinic_margin_pct || 0;
                 const totalApts = apptTreatment.appointments.length || 1;
                 const honPorCita = profFees / totalApts;
-                const nPiezas = Math.max(1, parseInt(form.n_piezas) || 1);
+                const nPiezas = form.scale_fees ? qty : 1;
                 const honTotal = honPorCita * nPiezas;
                 const fixedTotal = fixedCosts * nPiezas;
                 const subtotal = matCost + honTotal + fixedTotal;
@@ -1220,12 +1203,12 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                     <span className="text-slate-400">+</span>
                     <span>
                       Hon. <strong>C${fmt(honTotal)}</strong>
-                      <span className="text-slate-400"> ({totalApts} citas{nPiezas > 1 ? ` ×${nPiezas}pz` : ""})</span>
+                      <span className="text-slate-400"> ({totalApts} citas{nPiezas > 1 ? ` ×${nPiezas}` : ""})</span>
                     </span>
                     <span className="text-slate-400">+</span>
                     <span>
                       C.Fijos <strong>C${fmt(fixedTotal)}</strong>
-                      {nPiezas > 1 && <span className="text-slate-400 text-[10px]"> ×{nPiezas}pz</span>}
+                      {nPiezas > 1 && <span className="text-slate-400 text-[10px]"> ×{nPiezas}</span>}
                     </span>
                     <span className="text-slate-400">+</span>
                     <span className="text-emerald-600 dark:text-emerald-400">Gan. <strong>C${fmt(ganancia)}</strong> <span className="text-slate-400">({Math.round(marginPct * 100)}%)</span></span>
@@ -1243,8 +1226,9 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
               const fixedCosts = treatment?.fixed_costs || 0;
               const totalApts = treatment?.appointments.length || 1;
               const allMatCost = resolvedForPreview !== null ? calcMaterialsCost(resolvedForPreview) : 0;
-              const honDisplay = profFees * qty / sess;
-              const fixedDisplay = fixedCosts * totalApts * qty / sess;
+              const feeQty = form.scale_fees ? qty : 1;
+              const honDisplay = profFees * feeQty / sess;
+              const fixedDisplay = fixedCosts * totalApts * feeQty / sess;
               const rawCost = allMatCost + honDisplay + fixedDisplay;
               const ganancia = rawCost * marginPct;
               costPreview = Math.round((rawCost + ganancia) * 100) / 100;
@@ -1259,9 +1243,9 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                   <span>Hon. <strong>C${fmt(honDisplay)}</strong></span>
                   <span className="text-slate-400">+</span>
                   <span>C.Fijos <strong>C${fmt(fixedDisplay)}</strong></span>
-                  {(sess > 1 || qty > 1) && (
+                  {(sess > 1 || feeQty > 1) && (
                     <span className="text-slate-400 text-[10px]">
-                      {sess > 1 && `÷${sess}ses.`}{sess > 1 && qty > 1 && " "}{qty > 1 && `×${qty}`}
+                      {sess > 1 && `÷${sess}ses.`}{sess > 1 && feeQty > 1 && " "}{feeQty > 1 && `×${feeQty}`}
                     </span>
                   )}
                   {marginPct > 0 && (
@@ -1286,6 +1270,20 @@ function TransactionModal({ type, year, month, exchangeRate, editTx, onClose }: 
                         onChange={(e) => set("quantity", e.target.value)}
                         className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500" />
                     </div>
+                    {qty > 1 && (
+                      <div className="shrink-0">
+                        <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Hon. y costos fijos</label>
+                        <select
+                          value={form.scale_fees ? "qty" : "one"}
+                          onChange={(e) => set("scale_fees", e.target.value === "qty")}
+                          className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          title="Elige si honorarios y costos fijos se cobran por cada unidad (×cantidad) o una sola vez (×1)."
+                        >
+                          <option value="qty">×{qty} (por cada uno)</option>
+                          <option value="one">×1 (una sola vez)</option>
+                        </select>
+                      </div>
+                    )}
                     {!form.appointment_id && (
                       <div className="w-24 shrink-0">
                         <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Sesiones</label>

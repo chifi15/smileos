@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime, date
 from decimal import Decimal
-from sqlalchemy import String, DateTime, Text, ForeignKey, Numeric, Date, Integer
+from sqlalchemy import String, DateTime, Text, ForeignKey, Numeric, Date, Integer, Boolean
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from app.core.database import Base
@@ -39,6 +39,8 @@ class FinanceTransaction(UUIDMixin, TimestampMixin, Base):
     procedure_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("procedure_catalog.id"), nullable=True)
     cost_treatment_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("cost_treatments.id", ondelete="SET NULL"), nullable=True)
     procedure_quantity: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+    # True: honorarios y costos fijos se multiplican por la cantidad (x2). False: se cobran una sola vez (x1).
+    scale_fees_by_quantity: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="true", default=True)
     operational_cost_snapshot: Mapped[Decimal | None] = mapped_column(Numeric(12, 2), nullable=True)
     doctor_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True, index=True)
     invoice_number: Mapped[str | None] = mapped_column(String(50), nullable=True)
