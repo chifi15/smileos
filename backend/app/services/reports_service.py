@@ -183,15 +183,18 @@ async def get_top_expenses(
     )
 
     cat_rows = await db.execute(
-        select(ExpenseCategory.key, ExpenseCategory.label)
+        select(ExpenseCategory.key, ExpenseCategory.label, ExpenseCategory.covered_by_op_costs)
         .where(ExpenseCategory.clinic_id == clinic_id)
     )
+    cat_rows = list(cat_rows)
     cat_labels: dict[str, str] = {r.key: r.label for r in cat_rows}
+    covered_keys = {r.key for r in cat_rows if r.covered_by_op_costs}
 
     results = [
         {
             "category": r.category,
             "category_label": cat_labels.get(r.category, r.category),
+            "covered": r.category in covered_keys,
             "total": round(float(r.total), 2),
             "count": int(r.count),
         }

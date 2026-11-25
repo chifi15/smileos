@@ -507,6 +507,7 @@ export default function ReportesPage() {
   const [selectedMaterial, setSelectedMaterial] = useState<SelectedMaterial | null>(null);
   const [drill, setDrill] = useState<DrilldownSelection | null>(null);
   const [showBreakEven, setShowBreakEven] = useState(false);
+  const [expenseFilter, setExpenseFilter] = useState<"all" | "covered" | "uncovered">("all");
   const [infoCard, setInfoCard] = useState<"ticket" | "flujo" | "stock" | null>(null);
   const openDrill = (kind: DrilldownSelection["kind"], key: string, title: string) =>
     setDrill({ kind, key, title, year, month: filterMonth });
@@ -849,6 +850,35 @@ export default function ReportesPage() {
       {/* Row 2: Gastos por categoría + Por doctor */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <TableCard title="Mayores gastos por categoría" empty={!topExp?.length}>
+          {(() => {
+            const coveredTotal = topExp?.filter((e) => e.covered).reduce((s, e) => s + e.total, 0) ?? 0;
+            const uncoveredTotal = topExp?.filter((e) => !e.covered).reduce((s, e) => s + e.total, 0) ?? 0;
+            const opts: { key: typeof expenseFilter; label: string; total: number }[] = [
+              { key: "all", label: "Todos", total: coveredTotal + uncoveredTotal },
+              { key: "covered", label: "Ya cubiertos", total: coveredTotal },
+              { key: "uncovered", label: "No cubiertos", total: uncoveredTotal },
+            ];
+            return (
+              <div className="flex flex-wrap gap-1.5 px-4 py-2.5 border-b border-slate-100 dark:border-gray-700">
+                {opts.map((o) => (
+                  <button
+                    key={o.key}
+                    onClick={() => setExpenseFilter(o.key)}
+                    className={`rounded-lg px-2.5 py-1 text-[11px] font-medium transition-colors ${
+                      expenseFilter === o.key
+                        ? "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300"
+                        : "bg-slate-100 text-slate-500 dark:bg-gray-700 dark:text-gray-400 hover:bg-slate-200 dark:hover:bg-gray-600"
+                    }`}
+                  >
+                    {o.label}: {fmt(o.total)}
+                  </button>
+                ))}
+                <p className="basis-full text-[10px] text-slate-400 dark:text-gray-500">
+                  “Ya cubiertos” no se restan de la utilidad porque ya están en honorarios, costos fijos o materiales. “No cubiertos” sí se restan.
+                </p>
+              </div>
+            );
+          })()}
           <table className="w-full text-xs">
             <thead>
               <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
@@ -859,10 +889,13 @@ export default function ReportesPage() {
               </tr>
             </thead>
             <tbody>
-              {topExp?.map((e) => (
+              {topExp?.filter((e) => expenseFilter === "all" || (expenseFilter === "covered" ? e.covered : !e.covered)).map((e) => (
                 <tr key={e.category} onClick={() => openDrill("expense", e.category, e.category_label)} className="cursor-pointer border-b border-slate-50 dark:border-gray-700/50 hover:bg-slate-50 dark:hover:bg-gray-700/30 transition-colors">
                   <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-gray-200">
                     {e.category_label}
+                    {e.covered && (
+                      <span className="ml-2 rounded px-1.5 py-0.5 text-[10px] font-medium bg-slate-100 text-slate-500 dark:bg-gray-700 dark:text-gray-400">Ya cubierta</span>
+                    )}
                   </td>
                   <td className="px-4 py-2.5 text-right text-slate-600 dark:text-gray-300">{e.count}</td>
                   <td className="px-4 py-2.5 text-right">
