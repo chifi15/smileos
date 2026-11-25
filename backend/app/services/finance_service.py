@@ -324,6 +324,7 @@ async def get_income_by_patient(
         FinanceTransaction.clinic_id == clinic_id,
         FinanceTransaction.type == "ingreso",
         FinanceTransaction.patient_id.isnot(None),
+        FinanceTransaction.deleted_at.is_(None),
     ]
     if year:
         filters.append(extract("year", FinanceTransaction.transaction_date) == year)

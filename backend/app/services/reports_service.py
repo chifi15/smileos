@@ -54,6 +54,7 @@ async def get_monthly_trend(db: AsyncSession, clinic_id: uuid.UUID, year: int) -
         )
         .where(
             FinanceTransaction.clinic_id == clinic_id,
+            FinanceTransaction.deleted_at.is_(None),
             extract("year", FinanceTransaction.transaction_date) == year,
         )
         .group_by(extract("month", FinanceTransaction.transaction_date))
@@ -84,6 +85,7 @@ async def get_top_procedures(
 ) -> list[dict]:
     filters = [
         FinanceTransaction.clinic_id == clinic_id,
+        FinanceTransaction.deleted_at.is_(None),
         FinanceTransaction.type == "ingreso",
         FinanceTransaction.cost_treatment_id.isnot(None),
         extract("year", FinanceTransaction.transaction_date) == year,
@@ -124,6 +126,7 @@ async def get_top_procedures_quoted(
     """Procedimientos más frecuentes en transacciones de finanzas."""
     filters = [
         FinanceTransaction.clinic_id == clinic_id,
+        FinanceTransaction.deleted_at.is_(None),
         FinanceTransaction.type == "ingreso",
         FinanceTransaction.cost_treatment_id.isnot(None),
         extract("year", FinanceTransaction.transaction_date) == year,
@@ -165,6 +168,7 @@ async def get_top_expenses(
 
     filters = [
         FinanceTransaction.clinic_id == clinic_id,
+        FinanceTransaction.deleted_at.is_(None),
         FinanceTransaction.type == "egreso",
         extract("year", FinanceTransaction.transaction_date) == year,
     ]
@@ -214,6 +218,7 @@ async def get_doctor_report(
 ) -> list[dict]:
     filters = [
         FinanceTransaction.clinic_id == clinic_id,
+        FinanceTransaction.deleted_at.is_(None),
         FinanceTransaction.type == "ingreso",
         extract("year", FinanceTransaction.transaction_date) == year,
     ]
@@ -254,6 +259,7 @@ async def get_full_summary(
     covered = await _covered_expr(db, clinic_id)
     filters = [
         FinanceTransaction.clinic_id == clinic_id,
+        FinanceTransaction.deleted_at.is_(None),
         extract("year", FinanceTransaction.transaction_date) == year,
         extract("month", FinanceTransaction.transaction_date) == month,
     ]
@@ -359,6 +365,7 @@ async def get_materials_by_month(
         select(FinanceTransaction)
         .where(
             FinanceTransaction.clinic_id == clinic_id,
+            FinanceTransaction.deleted_at.is_(None),
             FinanceTransaction.type == "ingreso",
             FinanceTransaction.cost_treatment_id.in_(proc_ids),
             extract("year", FinanceTransaction.transaction_date) == year,
@@ -426,6 +433,7 @@ async def get_income_detail(
 ) -> list[dict]:
     filters = [
         FinanceTransaction.clinic_id == clinic_id,
+        FinanceTransaction.deleted_at.is_(None),
         FinanceTransaction.type == "ingreso",
         extract("year", FinanceTransaction.transaction_date) == year,
     ]
@@ -469,6 +477,7 @@ async def get_expense_detail(
 
     filters = [
         FinanceTransaction.clinic_id == clinic_id,
+        FinanceTransaction.deleted_at.is_(None),
         FinanceTransaction.type == "egreso",
         extract("year", FinanceTransaction.transaction_date) == year,
     ]
@@ -511,6 +520,7 @@ async def get_op_costs_breakdown(
 ) -> list[dict]:
     filters = [
         FinanceTransaction.clinic_id == clinic_id,
+        FinanceTransaction.deleted_at.is_(None),
         FinanceTransaction.type == "ingreso",
         FinanceTransaction.operational_cost_snapshot.isnot(None),
         extract("year", FinanceTransaction.transaction_date) == year,
@@ -595,6 +605,7 @@ async def get_material_usage(
     # the transaction was recorded; the source of truth is deducted_materials.
     filters = [
         FinanceTransaction.clinic_id == clinic_id,
+        FinanceTransaction.deleted_at.is_(None),
         FinanceTransaction.type == "ingreso",
         extract("year", FinanceTransaction.transaction_date) == year,
     ]
@@ -722,6 +733,7 @@ async def get_top_materials(
     proc_ids = [uuid.UUID(pid) for pid in proc_to_materials.keys()]
     filters = [
         FinanceTransaction.clinic_id == clinic_id,
+        FinanceTransaction.deleted_at.is_(None),
         FinanceTransaction.type == "ingreso",
         FinanceTransaction.cost_treatment_id.in_(proc_ids),
         extract("year", FinanceTransaction.transaction_date) == year,
@@ -798,6 +810,7 @@ async def get_drilldown(
 
     filters = [
         FinanceTransaction.clinic_id == clinic_id,
+        FinanceTransaction.deleted_at.is_(None),
         extract("year", FinanceTransaction.transaction_date) == year,
     ]
     if month:
