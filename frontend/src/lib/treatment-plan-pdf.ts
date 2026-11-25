@@ -143,16 +143,24 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
     y += Math.max(1, lines.length) * 4.8;
   });
 
-  if (plan.diagnosis) {
+  // Uno o varios diagnósticos (uno por línea). Con varios se muestra "Diagnósticos" y una lista.
+  const diagnoses = (plan.diagnosis ?? "")
+    .split(/\r?\n/)
+    .map((d) => d.trim().replace(/^[-•*]\s*/, ""))
+    .filter(Boolean);
+  if (diagnoses.length > 0) {
     y += 1;
     doc.setFont("helvetica", "bold");
     doc.setTextColor(...MUTED);
-    doc.text("Diagnóstico:", M, y);
+    doc.text(diagnoses.length > 1 ? "Diagnósticos:" : "Diagnóstico:", M, y);
     doc.setFont("helvetica", "normal");
     doc.setTextColor(...INK);
-    const lines = doc.splitTextToSize(plan.diagnosis, contentW - 42);
-    doc.text(lines, M + 42, y);
-    y += lines.length * 4.8;
+    for (const d of diagnoses) {
+      const text = diagnoses.length > 1 ? `•  ${d}` : d;
+      const lines = doc.splitTextToSize(text, contentW - 42);
+      doc.text(lines, M + 42, y);
+      y += lines.length * 4.8;
+    }
   }
   y += 4;
 

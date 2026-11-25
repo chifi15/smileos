@@ -51,11 +51,11 @@ export default function NewTreatmentPlanPage() {
             autoFocus
           />
           <Textarea
-            label="Diagnóstico"
+            label="Diagnósticos"
             value={diagnosis}
             onChange={(e) => setDiagnosis(e.target.value)}
             rows={3}
-            placeholder="Hallazgos clínicos y diagnóstico..."
+            placeholder="Hallazgos clínicos. Uno por línea si son varios..."
           />
           <Textarea
             label="Notas"

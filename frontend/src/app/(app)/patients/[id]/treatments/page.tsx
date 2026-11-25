@@ -7,7 +7,7 @@ import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
 import { ChevronLeft, Plus, ClipboardList, Trash2, RotateCcw, Pencil } from "lucide-react";
 import { usePatient } from "@/hooks/usePatients";
-import { usePatientPlans, useDeletePlan, useDeletedPlans, useRestorePlan, useUpdatePlan } from "@/hooks/useTreatments";
+import { usePatientPlans, useDeletePlan, useDeletedPlans, useRestorePlan } from "@/hooks/useTreatments";
 import {
   TreatmentPlan,
   PLAN_STATUS_LABELS,
@@ -18,6 +18,7 @@ import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Spinner from "@/components/ui/Spinner";
 import Modal from "@/components/ui/Modal";
+import EditPlanModal from "@/components/treatments/EditPlanModal";
 
 function DeletePlanModal({
   plan,
@@ -50,54 +51,6 @@ function DeletePlanModal({
           </Button>
         </div>
       </div>
-    </Modal>
-  );
-}
-
-function RenamePlanModal({
-  plan,
-  patientId,
-  onClose,
-}: {
-  plan: TreatmentPlan;
-  patientId: string;
-  onClose: () => void;
-}) {
-  const [title, setTitle] = useState(plan.title);
-  const update = useUpdatePlan(patientId, plan.id, onClose);
-
-  function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const t = title.trim();
-    if (!t) return;
-    if (t === plan.title) {
-      onClose();
-      return;
-    }
-    update.mutate({ title: t });
-  }
-
-  return (
-    <Modal open onClose={onClose} title="Editar nombre del plan" size="sm">
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => setTitle(e.target.value)}
-          maxLength={300}
-          autoFocus
-          required
-          className="w-full rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-        />
-        <div className="flex justify-end gap-3">
-          <Button variant="secondary" type="button" onClick={onClose}>
-            Cancelar
-          </Button>
-          <Button type="submit" loading={update.isPending}>
-            Guardar
-          </Button>
-        </div>
-      </form>
     </Modal>
   );
 }
@@ -162,13 +115,13 @@ function PlanCard({
         </div>
       </Link>
 
-      {/* Botón editar nombre — visible al hacer hover */}
+      {/* Botón editar plan — visible al hacer hover */}
       {plan.status !== "completed" && (
         <button
           onClick={(e) => { e.preventDefault(); onRename(plan); }}
           className="absolute top-3 right-11 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-300 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
-          title="Editar nombre"
-          aria-label="Editar nombre del plan"
+          title="Editar plan"
+          aria-label="Editar plan"
         >
           <Pencil size={15} />
         </button>
@@ -304,7 +257,7 @@ export default function PatientTreatmentsPage() {
       )}
 
       {planToRename && (
-        <RenamePlanModal
+        <EditPlanModal
           plan={planToRename}
           patientId={id}
           onClose={() => setPlanToRename(null)}

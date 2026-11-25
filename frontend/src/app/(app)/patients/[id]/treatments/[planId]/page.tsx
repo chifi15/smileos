@@ -9,6 +9,7 @@ import { ChevronLeft, Plus, Trash2, Play, CheckCircle2, XCircle, ScanLine, Rotat
 import { usePlan, useDeleteItem, useStartItem, useCancelItem, useUpdatePlan, useReopenItem, usePlanPayments, useCreatePayment, useDeletePayment, useUpdateItem, useUpdatePayment } from "@/hooks/useTreatments";
 import { usePatient } from "@/hooks/usePatients";
 import { useClinicSettings } from "@/hooks/useSettings";
+import { useDoctors } from "@/hooks/useFinances";
 import toast from "react-hot-toast";
 import AddItemModal from "@/components/treatments/AddItemModal";
 import CompleteItemModal from "@/components/treatments/CompleteItemModal";
@@ -18,6 +19,7 @@ import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
 import Spinner from "@/components/ui/Spinner";
 import Modal from "@/components/ui/Modal";
+import EditPlanModal from "@/components/treatments/EditPlanModal";
 import {
   TreatmentPlanStatus,
   TreatmentItemStatus,
@@ -254,7 +256,10 @@ export default function TreatmentPlanDetailPage() {
   const { data: plan, isLoading } = usePlan(patientId, planId);
   const { data: payments = [] } = usePlanPayments(patientId, planId);
   const { data: clinic } = useClinicSettings();
+  const { data: doctors = [] } = useDoctors();
   const [generatingPdf, setGeneratingPdf] = useState(false);
+  const [showPdfOptions, setShowPdfOptions] = useState(false);
+  const [pdfDoctorId, setPdfDoctorId] = useState("");
   const [showAddItem, setShowAddItem] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showAddPayment, setShowAddPayment] = useState(false);
@@ -262,7 +267,6 @@ export default function TreatmentPlanDetailPage() {
   const [completeTarget, setCompleteTarget] = useState<CompleteTarget | null>(null);
   const [editPriceTarget, setEditPriceTarget] = useState<EditPriceTarget | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
-  const [titleDraft, setTitleDraft] = useState("");
 
   const deleteItem = useDeleteItem(patientId, planId);
   const startItem = useStartItem(patientId, planId);
@@ -293,8 +297,27 @@ export default function TreatmentPlanDetailPage() {
   const saldo = totalPrice - totalAbonado;
   const pctPago = totalPrice > 0 ? Math.min(100, Math.round((totalAbonado / totalPrice) * 100)) : 0;
 
+  // Doctores elegibles para el PDF: los de la clínica + quien creó el plan (si no está en la lista)
+  const pdfDoctorOptions = (() => {
+    const list = doctors.map((d) => ({ id: d.id, name: d.full_name }));
+    if (plan?.created_by && !list.some((d) => d.id === plan.created_by!.id)) {
+      list.unshift({ id: plan.created_by.id, name: plan.created_by.full_name });
+    }
+    return list;
+  })();
+
+  function openPdfOptions() {
+    if (!plan) return;
+    let remembered = "";
+    try { remembered = localStorage.getItem("smileos-pdf-doctor-id") ?? ""; } catch {}
+    const valid = (id: string) => !!id && pdfDoctorOptions.some((d) => d.id === id);
+    setPdfDoctorId(valid(remembered) ? remembered : valid(plan.created_by?.id ?? "") ? plan.created_by!.id : "");
+    setShowPdfOptions(true);
+  }
+
   async function handleDownloadPdf() {
     if (!plan) return;
+    try { localStorage.setItem("smileos-pdf-doctor-id", pdfDoctorId); } catch {}
     setGeneratingPdf(true);
     try {
       const { downloadTreatmentPlanPdf } = await import("@/lib/treatment-plan-pdf");
@@ -307,7 +330,7 @@ export default function TreatmentPlanDetailPage() {
           address: clinic?.address_line1,
         },
         patientName: patient?.full_name ?? "Paciente",
-        doctorName: plan.created_by?.full_name,
+        doctorName: pdfDoctorOptions.find((d) => d.id === pdfDoctorId)?.name ?? null,
         plan: {
           title: plan.title,
           diagnosis: plan.diagnosis,
@@ -324,6 +347,7 @@ export default function TreatmentPlanDetailPage() {
       toast.error("No se pudo generar el PDF.");
     } finally {
       setGeneratingPdf(false);
+      setShowPdfOptions(false);
     }
   }
 
@@ -347,39 +371,35 @@ export default function TreatmentPlanDetailPage() {
       </div>
 
 
-      <Modal open={editingTitle} onClose={() => setEditingTitle(false)} title="Editar nombre del plan" size="sm">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            const t = titleDraft.trim();
-            if (!t) return;
-            if (t === plan.title) {
-              setEditingTitle(false);
-              return;
-            }
-            updatePlan.mutate({ title: t }, { onSuccess: () => setEditingTitle(false) });
-          }}
-          className="space-y-4"
-        >
-          <input
-            type="text"
-            value={titleDraft}
-            onChange={(e) => setTitleDraft(e.target.value)}
-            maxLength={300}
-            autoFocus
-            required
-            className="w-full rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+      <Modal open={showPdfOptions} onClose={() => setShowPdfOptions(false)} title="PDF para el paciente" size="sm">
+        <div className="space-y-4">
+          <Select
+            label="Doctor(a) que firma el plan"
+            value={pdfDoctorId}
+            onChange={(e) => setPdfDoctorId(e.target.value)}
+            options={[
+              { value: "", label: "— Sin doctor —" },
+              ...pdfDoctorOptions.map((d) => ({ value: d.id, label: d.name })),
+            ]}
           />
+          <p className="text-xs text-slate-400 dark:text-gray-500">
+            Aparece en el PDF junto al espacio de firma. Se recuerda para la próxima vez.
+          </p>
           <div className="flex justify-end gap-3">
-            <Button variant="secondary" type="button" onClick={() => setEditingTitle(false)}>
+            <Button variant="secondary" type="button" onClick={() => setShowPdfOptions(false)}>
               Cancelar
             </Button>
-            <Button type="submit" loading={updatePlan.isPending}>
-              Guardar
+            <Button type="button" onClick={handleDownloadPdf} loading={generatingPdf}>
+              <FileDown size={16} />
+              Descargar PDF
             </Button>
           </div>
-        </form>
+        </div>
       </Modal>
+
+      {editingTitle && (
+        <EditPlanModal plan={plan} patientId={patientId} onClose={() => setEditingTitle(false)} />
+      )}
 
       {/* Plan header */}
       <div className="rounded-xl bg-white dark:bg-gray-800 p-6 shadow-sm border border-slate-100 dark:border-gray-700">
@@ -390,13 +410,10 @@ export default function TreatmentPlanDetailPage() {
               {plan.status !== "completed" && (
                 <button
                   type="button"
-                  onClick={() => {
-                    setTitleDraft(plan.title);
-                    setEditingTitle(true);
-                  }}
+                  onClick={() => setEditingTitle(true)}
                   className="rounded-md p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-gray-700 dark:hover:text-gray-200 transition-colors"
-                  title="Editar nombre del plan"
-                  aria-label="Editar nombre del plan"
+                  title="Editar plan (nombre, diagnósticos y notas)"
+                  aria-label="Editar plan"
                 >
                   <Pencil size={15} />
                 </button>
@@ -407,7 +424,7 @@ export default function TreatmentPlanDetailPage() {
               />
             </div>
             {plan.diagnosis && (
-              <p className="mt-1 text-sm text-slate-600 dark:text-gray-400">{plan.diagnosis}</p>
+              <p className="mt-1 text-sm text-slate-600 dark:text-gray-400 whitespace-pre-line">{plan.diagnosis}</p>
             )}
             {plan.notes && (
               <p className="mt-1 text-xs text-slate-400 dark:text-gray-500 italic">{plan.notes}</p>
@@ -420,8 +437,7 @@ export default function TreatmentPlanDetailPage() {
           <div className="flex items-center gap-2 shrink-0">
             <Button
               variant="secondary"
-              onClick={handleDownloadPdf}
-              loading={generatingPdf}
+              onClick={openPdfOptions}
               title="Descargar el plan y sus costos en PDF para el paciente"
             >
               <FileDown size={16} />
