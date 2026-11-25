@@ -72,8 +72,8 @@ function drawToothChart(
   marked: Set<string>,
   colors: { ink: [number, number, number]; muted: [number, number, number]; accent: [number, number, number]; line: [number, number, number] },
 ): number {
-  const a = Math.min(66, width / 2 - 12); // semieje horizontal
-  const b = 22; // profundidad de la arcada
+  const a = Math.min(40, width / 2 - 12); // semieje horizontal (arcada angosta)
+  const b = 46; // profundidad de la arcada (alargada)
   const cx = x0 + width / 2;
   const r = 4.6; // radio máx. de los círculos
 
@@ -124,8 +124,8 @@ function drawToothChart(
   doc.text("INFERIOR", cx, lowerTop + b * 0.45 + 2, { align: "center" });
   doc.setFont("helvetica", "normal");
   doc.setFontSize(7);
-  doc.text("Derecha del paciente", x0, (upperBase + lowerTop) / 2 + 1);
-  doc.text("Izquierda del paciente", x0 + width, (upperBase + lowerTop) / 2 + 1, { align: "right" });
+  doc.text("Derecha del\npaciente", cx - a - r - 4, (upperBase + lowerTop) / 2 - 1, { align: "right" });
+  doc.text("Izquierda del\npaciente", cx + a + r + 4, (upperBase + lowerTop) / 2 - 1, { align: "left" });
   // Línea media
   doc.setDrawColor(...colors.line);
   doc.setLineWidth(0.2);
@@ -242,7 +242,7 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
     if (it.status === "cancelled") continue;
     for (const m of it.tooth_fdi?.match(/[1-4][1-8]/g) ?? []) marked.add(m);
   }
-  ensure(92);
+  ensure(145);
   doc.setFont("helvetica", "bold");
   doc.setFontSize(11);
   doc.setTextColor(...INK);
@@ -253,7 +253,7 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
   doc.setTextColor(...MUTED);
   const guide = doc.splitTextToSize(
     "Vista oclusal. El primer número indica el cuadrante y el segundo la pieza (1.1 = incisivo central superior derecho). " +
-      "Compare el número de la pieza que se le indique con las fotos.",
+      "Compare el número de la pieza que se le indique con el diagrama.",
     contentW,
   );
   doc.text(guide, M, y + 1.5);
