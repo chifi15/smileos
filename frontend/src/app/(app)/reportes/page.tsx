@@ -505,6 +505,7 @@ export default function ReportesPage() {
   const [materialMonth, setMaterialMonth] = useState<number>(now.getMonth() + 1);
   const [selectedMaterial, setSelectedMaterial] = useState<SelectedMaterial | null>(null);
   const [drill, setDrill] = useState<DrilldownSelection | null>(null);
+  const [showBreakEven, setShowBreakEven] = useState(false);
   const openDrill = (kind: DrilldownSelection["kind"], key: string, title: string) =>
     setDrill({ kind, key, title, year, month: filterMonth });
 
@@ -658,12 +659,17 @@ export default function ReportesPage() {
               </div>
 
               {/* Punto de equilibrio */}
-              <div className="rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/40 p-4">
+              <div
+                onClick={() => setShowBreakEven(true)}
+                title="Clic para ver qué significa y de dónde sale"
+                className="cursor-pointer rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/40 p-4 hover:border-amber-300 dark:hover:border-amber-600 transition-colors"
+              >
                 <div className="flex items-center gap-2 mb-2">
                   <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-amber-100 dark:bg-amber-900/30">
                     <Target size={15} className="text-amber-600 dark:text-amber-400" />
                   </div>
                   <span className="text-xs font-semibold text-slate-600 dark:text-gray-300 uppercase tracking-wide">Punto de equilibrio</span>
+                  <span className="ml-auto text-[10px] text-slate-400 dark:text-gray-500">ⓘ ver detalle</span>
                 </div>
                 {breakEven !== null ? (
                   <>
@@ -1147,6 +1153,90 @@ export default function ReportesPage() {
           onClose={() => setSelectedMaterial(null)}
         />
       )}
+
+      {showBreakEven && summary && (() => {
+        const items = fixedCosts?.items ?? [];
+        const totalFixed = items.reduce((s, i) => s + i.amount, 0);
+        const n = summary.count_ingresos;
+        const margin = n > 0 ? (summary.ingresos_brutos - summary.costos_operativos) / n : 0;
+        const be = margin > 0 ? Math.ceil(totalFixed / margin) : null;
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowBreakEven(false)}>
+            <div className="w-full max-w-lg rounded-2xl bg-white dark:bg-gray-800 shadow-2xl flex flex-col max-h-[90vh]" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2 px-4 py-3 border-b border-slate-100 dark:border-gray-700">
+                <Target size={16} className="text-amber-600 dark:text-amber-400" />
+                <p className="flex-1 font-semibold text-sm text-slate-800 dark:text-white">Punto de equilibrio — {MONTHS[month - 1]} {year}</p>
+                <button onClick={() => setShowBreakEven(false)} className="rounded-lg p-1.5 text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-gray-700">
+                  <X size={15} />
+                </button>
+              </div>
+              <div className="overflow-y-auto p-4 space-y-4 text-xs text-slate-600 dark:text-gray-300">
+                <div>
+                  <p className="font-semibold text-slate-700 dark:text-gray-200 mb-1">¿Qué significa?</p>
+                  <p>Es la cantidad de tratamientos que la clínica necesita hacer en el mes para cubrir todos sus costos fijos. Antes de llegar a ese número se trabaja para pagar los gastos fijos; a partir de ahí, cada tratamiento adicional ya deja ganancia.</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-700 dark:text-gray-200 mb-1">¿Cómo se calcula?</p>
+                  <p className="rounded-lg bg-slate-50 dark:bg-gray-700/40 border border-slate-100 dark:border-gray-700 p-2.5 font-medium">
+                    Costos fijos del mes ÷ ganancia promedio por tratamiento
+                  </p>
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-700 dark:text-gray-200 mb-1">1. Costos fijos (Costos → Costos Fijos)</p>
+                  {items.length === 0 ? (
+                    <p className="text-slate-400">No has configurado costos fijos.</p>
+                  ) : (
+                    <table className="w-full">
+                      <tbody>
+                        {items.map((i) => (
+                          <tr key={i.id} className="border-b border-slate-50 dark:border-gray-700/50">
+                            <td className="py-1">{i.name}</td>
+                            <td className="py-1 text-right">{fmt(i.amount)}</td>
+                          </tr>
+                        ))}
+                        <tr className="font-semibold text-slate-700 dark:text-gray-200">
+                          <td className="pt-1.5">Total costos fijos</td>
+                          <td className="pt-1.5 text-right">{fmt(totalFixed)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+                <div>
+                  <p className="font-semibold text-slate-700 dark:text-gray-200 mb-1">2. Ganancia promedio por tratamiento (de las finanzas del mes)</p>
+                  <table className="w-full">
+                    <tbody>
+                      <tr><td className="py-0.5">Ingresos del mes</td><td className="py-0.5 text-right text-green-600 dark:text-green-400">{fmt(summary.ingresos_brutos)}</td></tr>
+                      <tr><td className="py-0.5">− Costos operativos (materiales y honorarios de cada tratamiento)</td><td className="py-0.5 text-right text-amber-600 dark:text-amber-400">{fmt(summary.costos_operativos)}</td></tr>
+                      <tr><td className="py-0.5">÷ Ingresos registrados</td><td className="py-0.5 text-right">{n}</td></tr>
+                      <tr className="font-semibold text-slate-700 dark:text-gray-200"><td className="pt-1.5">Ganancia promedio por tratamiento</td><td className="pt-1.5 text-right">{fmt(margin)}</td></tr>
+                    </tbody>
+                  </table>
+                </div>
+                <div className="rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-100 dark:border-amber-900/40 p-3">
+                  {be !== null ? (
+                    <>
+                      <p className="font-semibold text-slate-700 dark:text-gray-200">
+                        {fmt(totalFixed)} ÷ {fmt(margin)} = {be} tratamiento{be !== 1 ? "s" : ""}
+                      </p>
+                      <p className="mt-1">
+                        {n >= be
+                          ? `Este mes llevas ${n}: ya cubriste tus costos fijos.`
+                          : `Este mes llevas ${n}: te faltan ${be - n} para cubrir tus costos fijos.`}
+                      </p>
+                    </>
+                  ) : (
+                    <p>{totalFixed === 0 ? "Configura tus costos fijos para poder calcularlo." : "Este mes no hay ganancia por tratamiento, por eso no se puede calcular."}</p>
+                  )}
+                </div>
+                <p className="text-[11px] text-slate-400 dark:text-gray-500">
+                  Es una estimación: cada ingreso registrado en Finanzas cuenta como un tratamiento y se usa el promedio del mes, así que cambia si cambia tu mezcla de tratamientos.
+                </p>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
 
       {drill && <DrilldownModal selected={drill} onClose={() => setDrill(null)} />}
 
