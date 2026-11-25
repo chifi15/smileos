@@ -23,7 +23,6 @@ import {
   useOdontogram, useUpdateOdontogram, useOdontogramSnapshots,
   useCopyInicialToTratamiento, useTreatmentQuote, useSaveTreatmentQuote,
 } from "@/hooks/useOdontogram";
-import { useProcedures } from "@/hooks/useCatalog";
 import { useCostTreatments, useCostProducts, useFixedCosts } from "@/hooks/useCostos";
 import { calculateTreatmentCosts, apiTreatmentToTreatment, apiProductToProduct } from "@/lib/costos-utils";
 import {
@@ -316,7 +315,6 @@ function OdontogramSection({ patientId, kind }: { patientId: string; kind: strin
 export default function OdontogramPage() {
   const { id } = useParams<{ id: string }>();
   const { data: patient } = usePatient(id);
-  const { data: procedures = [] } = useProcedures();
   const { data: apiTreatments = [] } = useCostTreatments();
   const { data: apiProducts = [] } = useCostProducts();
   const { data: fixedCosts } = useFixedCosts();
@@ -329,11 +327,12 @@ export default function OdontogramPage() {
     : 0;
   const products = apiProducts.map(apiProductToProduct);
 
-  const priceByProcedureId = new Map<string, number>();
+  // Los procedimientos del odontograma vienen de Costos Operativos (precio calculado).
+  // Para poder pasarlos a un plan deben estar vinculados a un procedimiento del catálogo.
+  const priceByTreatmentId = new Map<string, number>();
   for (const t of apiTreatments) {
-    if (!t.procedure_catalog_id) continue;
     const breakdown = calculateTreatmentCosts(apiTreatmentToTreatment(t), products, perPaciente);
-    priceByProcedureId.set(t.procedure_catalog_id, breakdown.finalPrice);
+    priceByTreatmentId.set(t.id, breakdown.finalPrice);
   }
 
   const [activeTab, setActiveTab] = useState<"inicial" | "tratamiento">("inicial");
@@ -363,14 +362,14 @@ export default function OdontogramPage() {
   }
 
   function handleAddQuoteItem() {
-    const proc = procedures.find((p) => p.id === addProc);
-    if (!proc) return;
+    const treatment = apiTreatments.find((t) => t.id === addProc);
+    if (!treatment?.procedure_catalog_id) return;
     const newItems: QuoteItem[] = [...quoteItems, {
       id: Math.random().toString(36).slice(2),
       toothNumber: addTooth ? parseInt(addTooth) : null,
-      procedureId: proc.id,
-      procedureName: proc.name,
-      price: priceByProcedureId.get(proc.id) ?? proc.default_price ?? 0,
+      procedureId: treatment.procedure_catalog_id,
+      procedureName: treatment.name,
+      price: priceByTreatmentId.get(treatment.id) ?? 0,
     }];
     setQuoteItems(newItems);
     save(newItems, discountPct);
@@ -490,9 +489,10 @@ export default function OdontogramPage() {
                 className="w-full rounded-lg border border-slate-200 dark:border-gray-600 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 bg-white dark:bg-gray-700 dark:text-white"
               >
                 <option value="">Seleccionar...</option>
-                {procedures.map((p, idx) => (
-                  <option key={p.id} value={p.id}>
-                    {idx + 1}. {p.name}{(priceByProcedureId.get(p.id) ?? p.default_price) != null ? ` — C$ ${Number(priceByProcedureId.get(p.id) ?? p.default_price).toLocaleString("es-NI")}` : ""}
+                {apiTreatments.map((t, idx) => (
+                  <option key={t.id} value={t.id} disabled={!t.procedure_catalog_id}>
+                    {idx + 1}. {t.name} — C$ {Number(priceByTreatmentId.get(t.id) ?? 0).toLocaleString("es-NI")}
+                    {!t.procedure_catalog_id ? " (sin vincular)" : ""}
                   </option>
                 ))}
               </select>
