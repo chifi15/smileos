@@ -265,6 +265,7 @@ export default function TreatmentPlanDetailPage() {
   const [showPdfOptions, setShowPdfOptions] = useState(false);
   const [pdfDoctorId, setPdfDoctorId] = useState("");
   const [pdfShowPrices, setPdfShowPrices] = useState(true);
+  const [pdfShowChart, setPdfShowChart] = useState(true);
   const [pdfPhotos, setPdfPhotos] = useState<PdfPhotoSelection>({ overview: [], groups: {} });
   const { data: patientPhotos = [] } = usePatientPhotos(patientId);
   const [showAddItem, setShowAddItem] = useState(false);
@@ -353,6 +354,7 @@ export default function TreatmentPlanDetailPage() {
       downloadTreatmentPlanPdf({
         photos,
         showPrices: pdfShowPrices,
+        showChart: pdfShowChart,
         clinic: {
           name: clinic?.display_name ?? "Clínica",
           legalName: clinic?.legal_name,
@@ -427,6 +429,20 @@ export default function TreatmentPlanDetailPage() {
               <span className="block text-sm font-medium text-slate-700 dark:text-gray-300">Mostrar precios</span>
               <span className="block text-xs text-slate-400 dark:text-gray-500">
                 Desmárcalo para enviar solo el plan, sin costos, descuentos ni totales.
+              </span>
+            </span>
+          </label>
+          <label className="flex items-start gap-2.5 rounded-lg border border-slate-200 dark:border-gray-600 px-3 py-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={pdfShowChart}
+              onChange={(e) => setPdfShowChart(e.target.checked)}
+              className="mt-0.5 h-4 w-4 rounded border-slate-300 accent-blue-600"
+            />
+            <span>
+              <span className="block text-sm font-medium text-slate-700 dark:text-gray-300">Mostrar diagrama de piezas (FDI)</span>
+              <span className="block text-xs text-slate-400 dark:text-gray-500">
+                Dibujo de las arcadas con las piezas a tratar marcadas por colores.
               </span>
             </span>
           </label>

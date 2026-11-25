@@ -46,6 +46,8 @@ export interface PlanPdfInput {
   photos?: PlanPdfPhotos;
   /** Mostrar precios, descuentos y totales (por defecto sí). */
   showPrices?: boolean;
+  /** Mostrar la guía de piezas FDI (por defecto sí). */
+  showChart?: boolean;
 }
 
 // ─── Reglas comerciales ──────────────────────────────────────────────────────
@@ -293,35 +295,37 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
   });
   const legendH = legendLines.reduce((sum, ls) => sum + ls.length * 4 + 1.5, 0);
 
-  ensure(138 + legendH);
-  doc.setFont("helvetica", "bold");
-  doc.setFontSize(11);
-  doc.setTextColor(...INK);
-  doc.text("Guía de piezas dentales (sistema FDI)", M, y);
-  y += 3;
-  doc.setFont("helvetica", "normal");
-  doc.setFontSize(8);
-  doc.setTextColor(...MUTED);
-  const guide = doc.splitTextToSize(
-    "Vista oclusal. El primer número indica el cuadrante y el segundo la pieza (1.1 = incisivo central superior derecho). " +
-      "Compare el número de la pieza que se le indique con el diagrama. Cada color corresponde a un tratamiento." +
-      (hasDeciduous ? " El arco interior (5.1 a 8.5) son los dientes temporales." : ""),
-    contentW,
-  );
-  doc.text(guide, M, y + 1.5);
-  y += guide.length * 3.6 + 3;
-  const chartH = drawToothChart(doc, M, y, contentW, marked, hasDeciduous, { ink: INK, muted: MUTED, accent: ACCENT, line: LINE });
-  y += chartH + 4;
-  legend.forEach((l, i) => {
-    doc.setFillColor(...l.color);
-    doc.circle(M + 2, y + 1.2, 1.7, "F");
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
+  if (input.showChart !== false) {
+    ensure(138 + legendH);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
     doc.setTextColor(...INK);
-    doc.text(legendLines[i], M + 6.5, y + 2.2);
-    y += legendLines[i].length * 4 + 1.5;
-  });
-  y += 6;
+    doc.text("Guía de piezas dentales (sistema FDI)", M, y);
+    y += 3;
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    const guide = doc.splitTextToSize(
+      "Vista oclusal. El primer número indica el cuadrante y el segundo la pieza (1.1 = incisivo central superior derecho). " +
+        "Compare el número de la pieza que se le indique con el diagrama. Cada color corresponde a un tratamiento." +
+        (hasDeciduous ? " El arco interior (5.1 a 8.5) son los dientes temporales." : ""),
+      contentW,
+    );
+    doc.text(guide, M, y + 1.5);
+    y += guide.length * 3.6 + 3;
+    const chartH = drawToothChart(doc, M, y, contentW, marked, hasDeciduous, { ink: INK, muted: MUTED, accent: ACCENT, line: LINE });
+    y += chartH + 4;
+    legend.forEach((l, i) => {
+      doc.setFillColor(...l.color);
+      doc.circle(M + 2, y + 1.2, 1.7, "F");
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(8.5);
+      doc.setTextColor(...INK);
+      doc.text(legendLines[i], M + 6.5, y + 2.2);
+      y += legendLines[i].length * 4 + 1.5;
+    });
+    y += 6;
+  }
 
   // ── Fotos generales del paciente ──
   const overview = input.photos?.overview ?? [];
