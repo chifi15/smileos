@@ -90,6 +90,10 @@ function SortableQuoteRow({
   );
 }
 
+// Análisis de fotos con IA: desactivado por defecto (requiere ANTHROPIC_API_KEY en el backend).
+// Para activarlo: NEXT_PUBLIC_ENABLE_AI_PHOTOS=true en Vercel.
+const AI_PHOTOS_ENABLED = process.env.NEXT_PUBLIC_ENABLE_AI_PHOTOS === "true";
+
 interface PendingChange {
   condition: ToothCondition;
   notes: string | null;
@@ -261,10 +265,12 @@ function OdontogramSection({ patientId, kind }: { patientId: string; kind: strin
           )}
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="secondary" size="sm" onClick={() => setShowAi(true)}>
-            <Sparkles size={15} />
-            Analizar fotos con IA
-          </Button>
+          {AI_PHOTOS_ENABLED && (
+            <Button variant="secondary" size="sm" onClick={() => setShowAi(true)}>
+              <Sparkles size={15} />
+              Analizar fotos con IA
+            </Button>
+          )}
           <Button variant="secondary" size="sm" onClick={() => setShowHistory(true)}>
             <History size={15} />
             Historial
