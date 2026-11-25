@@ -55,14 +55,16 @@ export const DISCOUNT_FULL_PCT = 10;
 export const DISCOUNT_HALF_PCT = 5;
 export const VALIDITY_DAYS = 15;
 
-import { GROUPS, groupForTooth, type GroupKey } from "@/lib/plan-groups";
+import { GROUPS, groupForTooth, parseTeeth, type GroupKey } from "@/lib/plan-groups";
 export { GROUPS, groupForTooth };
 export type { GroupKey };
 
 // ─── Notación FDI con punto (1.1, 2.6…) ──────────────────────────────────────
 /** "16, 26" → "1.6, 2.6" */
-export const fdiDot = (v: string | null | undefined) =>
-  (v ?? "").replace(/([1-8])([1-8])/g, "$1.$2");
+export const fdiDot = (v: string | null | undefined) => {
+  const t = parseTeeth(v);
+  return t.length > 0 ? t.map((x) => `${x[0]}.${x[1]}`).join(", ") : (v ?? "");
+};
 
 // Ancho relativo de cada diente (1 = central … 8 = tercer molar) para repartirlos en la arcada
 const TOOTH_W: Record<number, number> = { 1: 8, 2: 6.5, 3: 7.5, 4: 7, 5: 7, 6: 10, 7: 9.5, 8: 9 };
@@ -270,7 +272,7 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
   for (const it of plan.items) {
     if (it.status === "cancelled") continue;
     // Permanentes 11–48, temporales 51–85
-    const teeth = (it.tooth_fdi?.match(/[1-8][1-8]/g) ?? []).filter((t) => (+t[0] <= 4 ? true : +t[1] <= 5));
+    const teeth = parseTeeth(it.tooth_fdi).filter((t) => (+t[0] <= 4 ? true : +t[1] <= 5));
     if (teeth.length === 0) continue;
     const k = procKey(it.procedure_name);
     if (!legendMap.has(k)) {

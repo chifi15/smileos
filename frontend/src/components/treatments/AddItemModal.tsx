@@ -66,7 +66,7 @@ export default function AddItemModal({ open, onClose, patientId, planId }: Props
 
         <div className="grid grid-cols-2 gap-3">
           <Input
-            label="Diente (FDI)"
+            label="Diente (FDI, ej: 16 o 5.4 si es temporal)"
             value={toothFdi}
             onChange={(e) => setToothFdi(e.target.value)}
             placeholder="Ej: 16, 36..."
