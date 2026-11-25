@@ -47,7 +47,7 @@ function Op({ children }: { children: ReactNode }) {
  *  2) Ganancia: ingresos − costos de los tratamientos − egresos que NO están ya cubiertos.
  */
 export default function FinanceSummaryPanel({
-  ingresos, egresos, egresosCubiertos, costosOp, countIngresos, countEgresos, onUtilityClick, extras,
+  ingresos, egresos, egresosCubiertos, costosOp, countIngresos, countEgresos, onUtilityClick, extras, breakdown,
 }: {
   ingresos: number;
   egresos: number;
@@ -57,6 +57,8 @@ export default function FinanceSummaryPanel({
   countEgresos?: number;
   onUtilityClick?: () => void;
   extras?: ReactNode;
+  /** Egresos del mes por categoría, para mostrar de dónde sale cada número. */
+  breakdown?: { key: string; label: string; total: number; covered: boolean }[];
 }) {
   const egresosQueRestan = egresos - egresosCubiertos;
   const dineroQueQuedo = ingresos - egresos;
@@ -117,6 +119,49 @@ export default function FinanceSummaryPanel({
           </div>
         </div>
       </section>
+
+      {breakdown && breakdown.length > 0 && (
+        <details className="rounded-lg border border-slate-100 dark:border-gray-700 px-3 py-2 text-xs">
+          <summary className="cursor-pointer font-medium text-slate-600 dark:text-gray-300">
+            ¿De dónde salen los egresos? Ver por categoría
+          </summary>
+          <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-4">
+            {([
+              { title: "Egresos que sí se restan de la utilidad", covered: false, tone: "text-red-600 dark:text-red-400" },
+              { title: "Egresos “Ya cubierta” (no se restan)", covered: true, tone: "text-slate-500 dark:text-gray-400" },
+            ] as const).map((g) => {
+              const rows = breakdown.filter((b) => b.covered === g.covered).sort((a, b) => b.total - a.total);
+              const sum = rows.reduce((s, r) => s + r.total, 0);
+              return (
+                <div key={g.title}>
+                  <p className="mb-1 font-semibold text-slate-700 dark:text-gray-200">{g.title}</p>
+                  {rows.length === 0 ? (
+                    <p className="text-slate-400 dark:text-gray-500">Ninguno este mes.</p>
+                  ) : (
+                    <table className="w-full">
+                      <tbody>
+                        {rows.map((r) => (
+                          <tr key={r.key} className="border-b border-slate-50 dark:border-gray-700/50">
+                            <td className="py-1 text-slate-600 dark:text-gray-300">{r.label}</td>
+                            <td className={`py-1 text-right ${g.tone}`}>{money(r.total)}</td>
+                          </tr>
+                        ))}
+                        <tr className="font-semibold text-slate-700 dark:text-gray-200">
+                          <td className="pt-1.5">Total</td>
+                          <td className="pt-1.5 text-right">{money(sum)}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          <p className="mt-3 text-[11px] text-slate-400 dark:text-gray-500">
+            Las categorías “Ya cubierta” se eligen en Finanzas → Categorías de egreso. Si una categoría debería estar en el otro grupo, cámbiala ahí.
+          </p>
+        </details>
+      )}
 
       {extras && (
         <section>

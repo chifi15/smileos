@@ -6,7 +6,7 @@ import { useAuthStore } from "@/stores/auth.store";
 import { setAccessToken } from "@/lib/api-client";
 import Sidebar from "@/components/layout/Sidebar";
 import Spinner from "@/components/ui/Spinner";
-import { Menu } from "lucide-react";
+import { Menu, PanelLeftOpen } from "lucide-react";
 
 const REFRESH_INTERVAL_MS = 7 * 60 * 60 * 1000;
 
@@ -31,6 +31,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // Recordar si la barra lateral estaba oculta (se guarda en este navegador)
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("smileos-sidebar-collapsed") === "1") setSidebarCollapsed(true);
+    } catch {}
+  }, []);
+
+  function toggleSidebar() {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      try { localStorage.setItem("smileos-sidebar-collapsed", next ? "1" : "0"); } catch {}
+      return next;
+    });
+  }
 
   // Cierra el drawer al navegar
   useEffect(() => {
@@ -87,9 +103,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <Sidebar
         mobileOpen={mobileSidebarOpen}
         onMobileClose={() => setMobileSidebarOpen(false)}
+        desktopCollapsed={sidebarCollapsed}
+        onToggleCollapse={toggleSidebar}
       />
 
-      <main className="flex-1 overflow-auto pt-14 md:pt-0">
+      {sidebarCollapsed && (
+        <button
+          onClick={toggleSidebar}
+          className="hidden md:flex fixed top-3 left-3 z-30 items-center justify-center rounded-lg bg-[#1e3a5f] p-2 text-white/80 shadow-md hover:text-white hover:bg-[#274b7a] transition-colors"
+          aria-label="Mostrar barra lateral"
+          title="Mostrar barra lateral"
+        >
+          <PanelLeftOpen size={18} />
+        </button>
+      )}
+
+      <main className={`flex-1 overflow-auto pt-14 md:pt-0 ${sidebarCollapsed ? "md:pl-14" : ""}`}>
         {children}
       </main>
     </div>

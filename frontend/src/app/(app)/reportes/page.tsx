@@ -73,6 +73,14 @@ const EXPENSE_LABELS: Record<string, string> = {
   otro_egreso: "Otro egreso",
 };
 
+// El stock está en unidades de presentación (ml, g…) y unit_price es el costo por porción:
+// valor = (stock ÷ tamaño de porción) × costo por porción.
+function productStockValue(p: { stock_qty?: number | null; unit_price: number; portion_qty?: number | null }) {
+  const qty = p.stock_qty ?? 0;
+  const portions = p.portion_qty ? qty / p.portion_qty : qty;
+  return portions * p.unit_price;
+}
+
 function fmt(n: number) {
   return `C$${n.toLocaleString("es-NI", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
@@ -479,6 +487,7 @@ export default function ReportesPage() {
   const { data: topProc } = useTopProcedures(year, filterMonth);
   const { data: topQuoted } = useTopProceduresQuoted(year, filterMonth);
   const { data: topExp } = useTopExpenses(year, filterMonth);
+  const { data: topExpMonth } = useTopExpenses(year, month);
   const { data: doctors } = useDoctorReport(year, filterMonth);
   const { data: topPatients } = useTopPatients(year, filterMonth);
   const { data: topMaterials } = useTopMaterials(year, filterMonth);
@@ -529,6 +538,7 @@ export default function ReportesPage() {
       {loadingSummary ? (
         <div className="flex justify-center py-8"><Spinner /></div>
       ) : summary ? (
+        <>
         <FinanceSummaryPanel
           ingresos={summary.ingresos_brutos}
           egresos={summary.egresos}
@@ -537,7 +547,18 @@ export default function ReportesPage() {
           countIngresos={summary.count_ingresos}
           countEgresos={summary.count_egresos}
           onUtilityClick={() => setInfoCard("flujo")}
+          breakdown={topExpMonth?.map((e) => ({ key: e.category, label: e.category_label, total: e.total, covered: !!e.covered }))}
         />
+
+        <div className="rounded-xl border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/20 px-4 py-3 text-xs text-amber-900 dark:text-amber-200 leading-snug">
+          <p className="font-semibold mb-1">Recordatorio: el material guardado también es dinero</p>
+          <ul className="list-disc pl-4 space-y-1">
+            <li>Comprar mucho material baja tu <strong>dinero real</strong> ese mes, pero no tu utilidad: el material cuenta cuando lo usas en un tratamiento.</li>
+            <li>El material en el estante (Capital en stock) <strong>no es efectivo</strong>. Si se vence, se daña o se pierde, ese dinero se pierde.</li>
+            <li>Cuando pase, regístralo en Costos → Productos → Ajustar stock → <strong>Dar de baja</strong>. Descuenta el stock y registra la pérdida como egreso, para que se vea en la utilidad.</li>
+          </ul>
+        </div>
+        </>
       ) : null}
 
       {/* ── Métricas Clave ── */}
@@ -549,7 +570,7 @@ export default function ReportesPage() {
           ? (summary.ingresos_brutos - summary.costos_operativos) / summary.count_ingresos
           : 0;
         const breakEven = avgMargin > 0 ? Math.ceil(totalFixedCosts / avgMargin) : null;
-        const stockValue = allProducts.reduce((s, p) => s + (p.stock_qty ?? 0) * p.unit_price, 0);
+        const stockValue = allProducts.reduce((s, p) => s + productStockValue(p), 0);
         
         return (
           <div className="rounded-xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shadow-sm p-5">
@@ -1199,10 +1220,10 @@ export default function ReportesPage() {
         const uniquePatients = incomeByPatient.length;
         const avgTicket = uniquePatients > 0 ? summary.ingresos_brutos / uniquePatients : 0;
         const stockRows = allProducts
-          .map((p) => ({ id: p.id, name: p.name, qty: p.stock_qty ?? 0, price: p.unit_price, value: (p.stock_qty ?? 0) * p.unit_price }))
+          .map((p) => ({ id: p.id, name: p.name, qty: p.stock_qty ?? 0, price: p.unit_price, value: productStockValue(p) }))
           .filter((r) => r.value > 0)
           .sort((a, b) => b.value - a.value);
-        const stockValue = allProducts.reduce((s, p) => s + (p.stock_qty ?? 0) * p.unit_price, 0);
+        const stockValue = allProducts.reduce((s, p) => s + productStockValue(p), 0);
         const title = infoCard === "ticket" ? "Ticket promedio por paciente" : infoCard === "flujo" ? "Utilidad del mes" : "Capital en stock";
         const Row = ({ label, value, strong, color }: { label: string; value: string; strong?: boolean; color?: string }) => (
           <tr className={strong ? "font-semibold text-slate-700 dark:text-gray-200" : ""}>

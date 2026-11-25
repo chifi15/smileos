@@ -2493,6 +2493,19 @@ export default function FinancesPage() {
   }
   const { data: summary, isLoading: loadingSummary } = useFinanceSummary(year, month);
   const { data: honorariosData } = useHonorarios(year, month);
+  const { data: egresoTxs = [] } = useTransactions(year, month, "egreso");
+  const { data: catsForSummary = [] } = useExpenseCategories();
+  const egresoBreakdown = (() => {
+    const meta = new Map(catsForSummary.map((c) => [c.key, c]));
+    const acc = new Map<string, { key: string; label: string; total: number; covered: boolean }>();
+    for (const t of egresoTxs) {
+      const m = meta.get(t.category);
+      const row = acc.get(t.category) ?? { key: t.category, label: m?.label ?? String(t.category), total: 0, covered: !!m?.covered_by_op_costs };
+      row.total += Number(t.amount_cordobas) || 0;
+      acc.set(t.category, row);
+    }
+    return Array.from(acc.values());
+  })();
   const { data: exchangeRate = 37 } = useExchangeRate();
 
   const prevMonth = useCallback(() => {
@@ -2569,6 +2582,7 @@ export default function FinancesPage() {
           costosOp={summary.costos_operativos}
           countIngresos={summary.count_ingresos}
           countEgresos={summary.count_egresos}
+          breakdown={egresoBreakdown}
           extras={
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <SummaryCard label="Ganancia Clínica (15%)" value={summary.ganancia_clinica ?? 0}

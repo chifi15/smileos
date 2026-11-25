@@ -22,6 +22,7 @@ import {
   useImportCostProducts,
   useUpdateCostAppointment,
   useUpdateCostProductStock,
+  useWriteOffCostProduct,
   useUpdateCostProductMinStock,
   useProductLots,
   useOpenProductLot,
@@ -122,6 +123,18 @@ function AdjustModal({ product, onClose }: { product: ApiProduct; onClose: () =>
   const [recibirQty, setRecibirQty] = useState("");
   const [ajusteQty, setAjusteQty] = useState(product.stock_qty != null ? String(product.stock_qty) : "");
   const [minQty, setMinQty] = useState(product.min_stock_qty != null ? String(product.min_stock_qty) : "");
+  const writeOff = useWriteOffCostProduct();
+  const [bajaQty, setBajaQty] = useState("");
+  const [bajaReason, setBajaReason] = useState("vencido");
+  const bajaN = parseFloat(bajaQty);
+  const bajaValue = bajaN > 0
+    ? (product.portion_qty ? bajaN / product.portion_qty : bajaN) * (product.unit_price ?? 0)
+    : 0;
+
+  function handleBaja() {
+    if (!bajaN || bajaN <= 0) return;
+    writeOff.mutate({ id: product.id, qty: bajaN, reason: bajaReason }, { onSuccess: onClose });
+  }
 
   function handleRecibir() {
     const n = parseFloat(recibirQty); if (!n || n <= 0) return;
@@ -186,6 +199,35 @@ function AdjustModal({ product, onClose }: { product: ApiProduct; onClose: () =>
             <button onClick={handleAjustar}
               className="w-full rounded-lg border border-slate-300 dark:border-gray-600 py-2 text-sm font-medium text-slate-700 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700">
               Guardar ajuste
+            </button>
+          </div>
+        </div>
+        <div className="px-6 pb-5">
+          <div className="rounded-xl border border-red-100 dark:border-red-800/30 bg-red-50/50 dark:bg-red-900/20 p-4 space-y-3">
+            <p className="text-sm font-semibold text-red-800 dark:text-red-300">Dar de baja material (vencido, dañado o perdido)</p>
+            <p className="text-xs text-slate-500 dark:text-gray-400">
+              Descuenta del stock y registra un egreso en Finanzas por su valor, para que la pérdida se vea en la utilidad del mes.
+            </p>
+            <div className="flex items-center gap-2">
+              <input type="number" min="0" step="any" value={bajaQty} onChange={(e) => setBajaQty(e.target.value)}
+                placeholder={`Cantidad en ${unit}`}
+                className="flex-1 rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-red-400" />
+              <select value={bajaReason} onChange={(e) => setBajaReason(e.target.value)}
+                className="rounded-lg border border-slate-300 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-2 py-2 text-sm">
+                <option value="vencido">Vencido</option>
+                <option value="dañado">Dañado</option>
+                <option value="perdido">Perdido</option>
+                <option value="otro">Otro</option>
+              </select>
+            </div>
+            {bajaValue > 0 && (
+              <p className="text-xs text-red-700 dark:text-red-400">
+                Se registrará un egreso de ≈ C${bajaValue.toLocaleString("es-NI", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+              </p>
+            )}
+            <button onClick={handleBaja} disabled={!bajaN || bajaN <= 0 || writeOff.isPending}
+              className="w-full rounded-lg bg-red-600 py-2 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-40">
+              Dar de baja y registrar pérdida
             </button>
           </div>
         </div>

@@ -66,6 +66,12 @@ class StockIn(BaseModel):
     operation: str = "set"
 
 
+class WriteOffIn(BaseModel):
+    qty: float  # en las unidades de stock del producto (ml, g, unidades…)
+    reason: str = "vencido"  # vencido | dañado | perdido | otro
+    note: Optional[str] = None
+
+
 class MinStockIn(BaseModel):
     min_qty: Optional[float]
 
@@ -423,6 +429,74 @@ async def update_stock(
         description=f"Inventario: {action_label} {abs(body.qty):.2g} unidades de {obj.name} (stock actual: {obj.stock_qty:.2g})",
     )
     return obj
+
+
+@router.post("/products/{product_id}/write-off")
+async def write_off_product(
+    product_id: uuid.UUID,
+    body: WriteOffIn,
+    current_user: CurrentUser,
+    db: AsyncSession = Depends(get_db),
+):
+    """Da de baja material vencido/dañado/perdido: descuenta el stock y registra el egreso por su valor."""
+    from datetime import date as _date
+    from decimal import Decimal
+    from sqlalchemy import select
+    from app.models.costos import CostProduct
+    from app.models.finance import FinanceTransaction, ExpenseCategory
+    from app.services import finance_service
+
+    if body.qty <= 0:
+        raise HTTPException(status_code=422, detail={"code": "INVALID", "message": "La cantidad debe ser mayor a 0"})
+    prod = (await db.execute(
+        select(CostProduct).where(CostProduct.id == product_id, CostProduct.clinic_id == current_user.clinic_id)
+    )).scalar_one_or_none()
+    if not prod:
+        raise HTTPException(status_code=404, detail={"code": "NOT_FOUND", "message": "Producto no encontrado"})
+
+    available = float(prod.stock_qty or 0)
+    qty = min(body.qty, available) if available > 0 else body.qty
+    # unit_price es el costo por porción; el stock está en unidades de presentación
+    portions = qty / prod.portion_qty if prod.portion_qty else qty
+    value = round(portions * float(prod.unit_price or 0), 2)
+
+    prod.stock_qty = max(0.0, available - qty)
+
+    # Asegura que existan las categorías (siembra las de por defecto la primera vez) y la de mermas
+    cats = await finance_service.list_expense_categories(db, current_user.clinic_id)
+    key = "material_perdido"
+    if not any(c.key == key for c in cats):
+        db.add(ExpenseCategory(
+            clinic_id=current_user.clinic_id, key=key, label="Material dañado o vencido",
+            sort_order=len(cats), covered_by_op_costs=False,
+        ))
+
+    unit = prod.presentation_unit or "unidades"
+    reasons = {"vencido": "vencido", "dañado": "dañado", "perdido": "perdido", "otro": "baja"}
+    reason = reasons.get(body.reason, "baja")
+    description = f"Material {reason}: {qty:g} {unit} de {prod.name}" + (f" — {body.note}" if body.note else "")
+    tx = None
+    if value > 0:
+        tx = FinanceTransaction(
+            clinic_id=current_user.clinic_id,
+            type="egreso",
+            category=key,
+            description=description,
+            amount_cordobas=Decimal(str(value)),
+            original_amount=Decimal(str(value)),
+            original_currency="NIO",
+            transaction_date=_date.today(),
+            created_by_id=current_user.id,
+        )
+        db.add(tx)
+    await db.flush()
+    await audit_service.log(
+        db, clinic_id=current_user.clinic_id, user_id=current_user.id,
+        action="product.write_off", resource_type="cost_product", resource_id=str(prod.id),
+        description=f"Baja de inventario: {qty:g} {unit} de {prod.name} ({reason}) por C${value:,.2f}",
+    )
+    await db.commit()
+    return {"success": True, "data": {"qty": qty, "value": value, "stock_qty": prod.stock_qty, "registered_expense": tx is not None}}
 
 
 @router.patch("/products/{product_id}/min-stock", response_model=ProductOut)

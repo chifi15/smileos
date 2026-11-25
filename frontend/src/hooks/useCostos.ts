@@ -189,6 +189,19 @@ export function useUpdateCostProductStock() {
   });
 }
 
+export function useWriteOffCostProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, qty, reason, note }: { id: string; qty: number; reason: string; note?: string }) =>
+      api.post(`/api/v1/costos/products/${id}/write-off`, { qty, reason, note }).then((r) => r.data.data as { qty: number; value: number; stock_qty: number; registered_expense: boolean }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: PRODUCTS_KEY });
+      qc.invalidateQueries({ queryKey: ["finances"] });
+      qc.invalidateQueries({ queryKey: ["report-summary"] });
+    },
+  });
+}
+
 export function useUpdateCostProductMinStock() {
   const qc = useQueryClient();
   return useMutation({
