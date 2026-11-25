@@ -1,5 +1,6 @@
 "use client";
 
+import FinanceSummaryPanel from "@/components/finance/FinanceSummaryPanel";
 import React, { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { colorForProduct, materialColor } from "@/lib/material-colors";
 import { useCostTreatments, useCostProducts, type ApiTreatment } from "@/hooks/useCostos";
@@ -2557,28 +2558,26 @@ export default function FinancesPage() {
 
       {/* ── Cuadros de resumen ── */}
       {loadingSummary ? (
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-7 gap-4">
-          {[...Array(7)].map((_, i) => <div key={i} className="h-20 rounded-xl bg-slate-100 dark:bg-gray-700 animate-pulse" />)}
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+          {[...Array(6)].map((_, i) => <div key={i} className="h-20 rounded-xl bg-slate-100 dark:bg-gray-700 animate-pulse" />)}
         </div>
       ) : summary && showSummary ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4">
-          <SummaryCard label="Ingresos Brutos" value={summary.ingresos_brutos}
-            color="bg-green-50 border-green-200 dark:bg-green-900/40 dark:border-green-700" sub={`${summary.count_ingresos} transacciones`} />
-          <SummaryCard label="Egresos" value={summary.egresos}
-            color="bg-red-50 border-red-200 dark:bg-red-900/40 dark:border-red-700" sub={`${summary.count_egresos} transacciones`} />
-          <SummaryCard label="Costos Operativos" value={summary.costos_operativos}
-            color="bg-amber-50 border-amber-200 dark:bg-amber-900/40 dark:border-amber-700" sub="De procedimientos" />
-          <SummaryCard label="Ganancia Clínica (15%)" value={summary.ganancia_clinica ?? 0}
-            color="bg-emerald-50 border-emerald-200 dark:bg-emerald-900/40 dark:border-emerald-700" sub="Margen sobre costos op." />
-          <SummaryCard label="Ingreso Neto" value={summary.ingreso_neto}
-            color={summary.ingreso_neto >= 0 ? "bg-blue-50 border-blue-200 dark:bg-blue-900/40 dark:border-blue-700" : "bg-rose-50 border-rose-200 dark:bg-rose-900/40 dark:border-rose-700"}
-            sub="Bruto − egresos" />
-          <SummaryCard label="Ingreso Neto (c/ Op.)" value={summary.ingreso_neto_con_op}
-            color={summary.ingreso_neto_con_op >= 0 ? "bg-indigo-50 border-indigo-200 dark:bg-indigo-900/40 dark:border-indigo-700" : "bg-rose-50 border-rose-200 dark:bg-rose-900/40 dark:border-rose-700"}
-            sub={(summary.egresos_cubiertos ?? 0) > 0 ? "− egresos no cubiertos − costos op." : "− egresos − costos op."} />
-          <SummaryCard label="Honorarios Dr." value={honorariosData?.total_honorarios ?? 0}
-            color="bg-purple-50 border-purple-200 dark:bg-purple-900/40 dark:border-purple-700" sub="De procedimientos facturados" />
-        </div>
+        <FinanceSummaryPanel
+          ingresos={summary.ingresos_brutos}
+          egresos={summary.egresos}
+          egresosCubiertos={summary.egresos_cubiertos ?? 0}
+          costosOp={summary.costos_operativos}
+          countIngresos={summary.count_ingresos}
+          countEgresos={summary.count_egresos}
+          extras={
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <SummaryCard label="Ganancia Clínica (15%)" value={summary.ganancia_clinica ?? 0}
+                color="bg-emerald-50 border-emerald-200 dark:bg-emerald-900/40 dark:border-emerald-700" sub="Margen sobre costos operativos" />
+              <SummaryCard label="Honorarios Dr." value={honorariosData?.total_honorarios ?? 0}
+                color="bg-purple-50 border-purple-200 dark:bg-purple-900/40 dark:border-purple-700" sub="De tratamientos facturados" />
+            </div>
+          }
+        />
       ) : null}
 
       <div className="flex gap-1 bg-slate-100 dark:bg-gray-700 rounded-xl p-1 w-fit">

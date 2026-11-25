@@ -30,12 +30,12 @@ import {
   ChevronUp,
   ExternalLink,
   Target,
-  Wallet,
   ShoppingCart,
   Boxes,
 } from "lucide-react";
 import { categoryLabel, categoryColor } from "@/types/costos";
 import Spinner from "@/components/ui/Spinner";
+import FinanceSummaryPanel from "@/components/finance/FinanceSummaryPanel";
 import BudgetVsActualCard from "@/components/reports/BudgetVsActualCard";
 import DrilldownModal, { type DrilldownSelection } from "@/components/reports/DrilldownModal";
 import PlanGate from "@/components/ui/PlanGate";
@@ -75,47 +75,6 @@ const EXPENSE_LABELS: Record<string, string> = {
 
 function fmt(n: number) {
   return `C$${n.toLocaleString("es-NI", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-}
-
-function KpiCard({
-  label,
-  value,
-  sub,
-  icon: Icon,
-  color,
-  positive,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-  icon: React.ElementType;
-  color: string;
-  positive?: boolean;
-}) {
-  return (
-    <div className="rounded-xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shadow-sm p-4">
-      <div className="flex items-start justify-between gap-2">
-        <div className="min-w-0 flex-1">
-          <p className="text-xs text-slate-500 dark:text-gray-400 leading-tight">{label}</p>
-          <p
-            className={`mt-1 text-lg font-bold leading-tight break-words ${
-              positive === true
-                ? "text-green-600 dark:text-green-400"
-                : positive === false
-                ? "text-red-500 dark:text-red-400"
-                : "text-slate-800 dark:text-white"
-            }`}
-          >
-            {value}
-          </p>
-          {sub && <p className="mt-0.5 text-[10px] text-slate-400 dark:text-gray-500 leading-tight">{sub}</p>}
-        </div>
-        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${color}`}>
-          <Icon size={16} />
-        </div>
-      </div>
-    </div>
-  );
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
@@ -570,60 +529,15 @@ export default function ReportesPage() {
       {loadingSummary ? (
         <div className="flex justify-center py-8"><Spinner /></div>
       ) : summary ? (
-        <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-          <KpiCard
-            label="Facturación bruta"
-            value={fmt(summary.ingresos_brutos)}
-            sub={`${summary.count_ingresos} transacciones`}
-            icon={DollarSign}
-            color="bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
-          />
-          <KpiCard
-            label="Total egresos"
-            value={fmt(summary.egresos)}
-            sub={`${summary.count_egresos} transacciones`}
-            icon={TrendingDown}
-            color="bg-red-100 text-red-500 dark:bg-red-900/30 dark:text-red-400"
-            positive={false}
-          />
-          <KpiCard
-            label="Costos operativos"
-            value={fmt(summary.costos_operativos)}
-            sub="Materiales por tratamiento"
-            icon={Activity}
-            color="bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
-          />
-          <KpiCard
-            label="Ingreso neto"
-            value={fmt(summary.ingreso_neto)}
-            sub="Bruto − egresos"
-            icon={TrendingUp}
-            color="bg-emerald-100 text-emerald-600 dark:bg-emerald-900/30 dark:text-emerald-400"
-            positive={summary.ingreso_neto >= 0}
-          />
-          <KpiCard
-            label="Utilidad neta"
-            value={fmt(summary.utilidad_neta)}
-            sub="− egresos no cubiertos − costos op."
-            icon={TrendingUp}
-            color="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
-            positive={summary.utilidad_neta >= 0}
-          />
-          <KpiCard
-            label="Margen"
-            value={`${summary.margen_pct}%`}
-            sub="Utilidad / facturación"
-            icon={Activity}
-            color={
-              summary.margen_pct >= 40
-                ? "bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400"
-                : summary.margen_pct >= 20
-                ? "bg-amber-100 text-amber-600 dark:bg-amber-900/30 dark:text-amber-400"
-                : "bg-red-100 text-red-500 dark:bg-red-900/30 dark:text-red-400"
-            }
-            positive={summary.margen_pct >= 0}
-          />
-        </div>
+        <FinanceSummaryPanel
+          ingresos={summary.ingresos_brutos}
+          egresos={summary.egresos}
+          egresosCubiertos={summary.egresos_cubiertos ?? 0}
+          costosOp={summary.costos_operativos}
+          countIngresos={summary.count_ingresos}
+          countEgresos={summary.count_egresos}
+          onUtilityClick={() => setInfoCard("flujo")}
+        />
       ) : null}
 
       {/* ── Métricas Clave ── */}
@@ -636,12 +550,11 @@ export default function ReportesPage() {
           : 0;
         const breakEven = avgMargin > 0 ? Math.ceil(totalFixedCosts / avgMargin) : null;
         const stockValue = allProducts.reduce((s, p) => s + (p.stock_qty ?? 0) * p.unit_price, 0);
-        const freeCapital = summary.utilidad_neta;
-
+        
         return (
           <div className="rounded-xl bg-white dark:bg-gray-800 border border-slate-100 dark:border-gray-700 shadow-sm p-5">
             <h2 className="text-sm font-semibold text-slate-700 dark:text-gray-200 mb-4">Métricas clave del mes</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
 
               {/* Ticket promedio */}
               <div
@@ -699,28 +612,6 @@ export default function ReportesPage() {
                     </p>
                   </>
                 )}
-              </div>
-
-              {/* Capital libre */}
-              <div
-                onClick={() => setInfoCard("flujo")}
-                title="Clic para ver qué significa y de dónde sale"
-                className="cursor-pointer rounded-xl border border-slate-100 dark:border-gray-700 bg-slate-50 dark:bg-gray-700/40 p-4 hover:border-blue-300 dark:hover:border-blue-600 transition-colors">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${freeCapital >= 0 ? "bg-green-100 dark:bg-green-900/30" : "bg-red-100 dark:bg-red-900/30"}`}>
-                    <Wallet size={15} className={freeCapital >= 0 ? "text-green-600 dark:text-green-400" : "text-red-500 dark:text-red-400"} />
-                  </div>
-                  <span className="text-xs font-semibold text-slate-600 dark:text-gray-300 uppercase tracking-wide">Flujo libre del mes</span>
-                  <span className="ml-auto text-[10px] text-slate-400 dark:text-gray-500">ⓘ ver detalle</span>
-                </div>
-                <p className={`text-2xl font-bold ${freeCapital >= 0 ? "text-green-700 dark:text-green-400" : "text-red-600 dark:text-red-400"}`}>
-                  {fmt(freeCapital)}
-                </p>
-                <p className="text-xs text-slate-400 dark:text-gray-500 mt-1">
-                  {freeCapital >= 0
-                    ? "Puedes usar este monto sin afectar operaciones"
-                    : "El mes cierra en números rojos"}
-                </p>
               </div>
 
               {/* Stock inmovilizado */}
@@ -1312,7 +1203,7 @@ export default function ReportesPage() {
           .filter((r) => r.value > 0)
           .sort((a, b) => b.value - a.value);
         const stockValue = allProducts.reduce((s, p) => s + (p.stock_qty ?? 0) * p.unit_price, 0);
-        const title = infoCard === "ticket" ? "Ticket promedio por paciente" : infoCard === "flujo" ? "Flujo libre del mes" : "Capital en stock";
+        const title = infoCard === "ticket" ? "Ticket promedio por paciente" : infoCard === "flujo" ? "Utilidad del mes" : "Capital en stock";
         const Row = ({ label, value, strong, color }: { label: string; value: string; strong?: boolean; color?: string }) => (
           <tr className={strong ? "font-semibold text-slate-700 dark:text-gray-200" : ""}>
             <td className={strong ? "pt-1.5" : "py-0.5"}>{label}</td>
@@ -1348,7 +1239,7 @@ export default function ReportesPage() {
                   <>
                     <div>
                       <p className="font-semibold text-slate-700 dark:text-gray-200 mb-1">¿Qué significa?</p>
-                      <p>Lo que queda del mes después de restar a los ingresos los egresos que no estaban ya incluidos y los costos operativos de los tratamientos. Es el mismo número de “Utilidad neta”.</p>
+                      <p>Lo que ganaste este mes por tus tratamientos: ingresos menos el costo de cada tratamiento y menos los egresos que no estaban ya incluidos en ese costo.</p>
                     </div>
                     <div>
                       <p className="font-semibold text-slate-700 dark:text-gray-200 mb-1">¿De dónde sale?</p>
@@ -1358,7 +1249,7 @@ export default function ReportesPage() {
                         <Row label="   · de ellos, categorías “ya cubiertas” (no se restan)" value={fmt(summary.egresos_cubiertos ?? 0)} color="text-slate-400 dark:text-gray-500" />
                         <Row label="− Egresos que sí se restan" value={fmt(summary.egresos - (summary.egresos_cubiertos ?? 0))} color="text-red-500 dark:text-red-400" />
                         <Row label="− Costos operativos de los tratamientos (materiales, honorarios, parte de costos fijos)" value={fmt(summary.costos_operativos)} color="text-amber-600 dark:text-amber-400" />
-                        <Row label="Flujo libre" value={fmt(summary.utilidad_neta)} strong />
+                        <Row label="Utilidad" value={fmt(summary.utilidad_neta)} strong />
                       </tbody></table>
                     </div>
                     <p className="text-[11px] text-slate-400 dark:text-gray-500">
