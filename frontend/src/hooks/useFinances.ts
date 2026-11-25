@@ -331,6 +331,7 @@ export interface ExpenseCategoryItem {
   key: string;
   label: string;
   sort_order: number;
+  covered_by_op_costs?: boolean;
 }
 
 const EXPENSE_CATS_KEY = ["finances", "expense-categories"] as const;
@@ -363,8 +364,8 @@ export function useCreateExpenseCategory() {
 export function useUpdateExpenseCategory() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, label }: { id: string; label: string }) => {
-      const { data } = await apiClient.patch<ExpenseCategoryItem>(`/api/v1/finances/expense-categories/${id}`, { label });
+    mutationFn: async ({ id, label, covered_by_op_costs }: { id: string; label?: string; covered_by_op_costs?: boolean }) => {
+      const { data } = await apiClient.patch<ExpenseCategoryItem>(`/api/v1/finances/expense-categories/${id}`, { label, covered_by_op_costs });
       return data;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: EXPENSE_CATS_KEY }),

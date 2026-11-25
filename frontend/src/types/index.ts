@@ -694,6 +694,7 @@ export interface FinanceTransaction {
 export interface FinanceSummary {
   ingresos_brutos: number;
   egresos: number;
+  egresos_cubiertos?: number;
   costos_operativos: number;
   ganancia_clinica: number;
   ingreso_neto: number;

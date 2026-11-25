@@ -76,3 +76,6 @@ class ExpenseCategory(Base):
     key: Mapped[str] = mapped_column(String(100), nullable=False)
     label: Mapped[str] = mapped_column(String(200), nullable=False)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    # True: el gasto ya está incluido en costos operativos (honorarios, costos fijos o materiales).
+    # Se registra igual, pero no se resta de la utilidad para no contarlo dos veces.
+    covered_by_op_costs: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false", default=False)

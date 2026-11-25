@@ -602,7 +602,7 @@ export default function ReportesPage() {
           <KpiCard
             label="Utilidad neta"
             value={fmt(summary.utilidad_neta)}
-            sub="− costos operativos"
+            sub="− egresos no cubiertos − costos op."
             icon={TrendingUp}
             color="bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400"
             positive={summary.utilidad_neta >= 0}
@@ -1245,14 +1245,14 @@ export default function ReportesPage() {
                 <div className="rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-100 dark:border-blue-900/40 p-3">
                   <p className="font-semibold text-slate-700 dark:text-gray-200 mb-1">¿Se toman en cuenta los egresos (facturas, laboratorio, limpieza, seguridad, pagos)?</p>
                   <p className="mb-1.5">
-                    <strong>No directamente.</strong> Los egresos que registras en Finanzas ({fmt(summary.egresos)} este mes) no entran en esta cuenta. El cálculo solo usa dos cosas:
+                    <strong>No directamente.</strong> Los egresos que registras en Finanzas ({fmt(summary.egresos)} este mes) no entran en esta cuenta; sirven para controlar el gasto real. El cálculo solo usa dos cosas:
                   </p>
                   <ul className="list-disc pl-4 space-y-1">
                     <li>Los <strong>costos fijos</strong> que configuraste en Costos → Costos Fijos (lo que pongas ahí, como renta, limpieza o seguridad, sí cuenta).</li>
                     <li>El <strong>costo operativo de cada tratamiento</strong> (materiales + honorarios del doctor + parte de costos fijos), que sale de la plantilla del tratamiento en Costos, no de lo que pagaste realmente. Por eso el pago al doctor y los materiales sí están incluidos, pero como estimación de la plantilla.</li>
                   </ul>
                   <p className="mt-1.5">
-                    Quedan fuera los pagos reales de facturas a depósitos dentales, laboratorio, limpieza, seguridad, doctor y asistente. Si alguno de esos gastos no está en tus costos fijos ni en los tratamientos, el punto de equilibrio real es mayor al mostrado.
+                    Los pagos reales (facturas de depósitos, laboratorio, limpieza, seguridad, doctor, asistente) no se usan en este cálculo. Si alguno de esos gastos no está en tus costos fijos ni en los tratamientos, el punto de equilibrio real es mayor al mostrado. En la Utilidad neta y el Flujo libre, los egresos de categorías marcadas “Ya cubierta” (Finanzas → Categorías de egreso) no se restan, para no contarlos dos veces.
                   </p>
                   <p className="mt-1.5">
                     Además, el costo operativo ya incluye una parte de los costos fijos, así que estos se restan una vez en la ganancia por tratamiento y otra vez en el numerador; esto hace que el número sea algo más alto de lo necesario.
@@ -1312,19 +1312,21 @@ export default function ReportesPage() {
                   <>
                     <div>
                       <p className="font-semibold text-slate-700 dark:text-gray-200 mb-1">¿Qué significa?</p>
-                      <p>Lo que queda del mes después de restar los egresos y los costos operativos a los ingresos. Es el mismo número de “Utilidad neta”.</p>
+                      <p>Lo que queda del mes después de restar a los ingresos los egresos que no estaban ya incluidos y los costos operativos de los tratamientos. Es el mismo número de “Utilidad neta”.</p>
                     </div>
                     <div>
                       <p className="font-semibold text-slate-700 dark:text-gray-200 mb-1">¿De dónde sale?</p>
                       <table className="w-full"><tbody>
                         <Row label="Ingresos del mes (Finanzas)" value={fmt(summary.ingresos_brutos)} color="text-green-600 dark:text-green-400" />
-                        <Row label="− Egresos registrados (Finanzas: facturas, laboratorio, renta, pagos…)" value={fmt(summary.egresos)} color="text-red-500 dark:text-red-400" />
+                        <Row label="Egresos registrados en Finanzas (total)" value={fmt(summary.egresos)} color="text-slate-500 dark:text-gray-400" />
+                        <Row label="   · de ellos, categorías “ya cubiertas” (no se restan)" value={fmt(summary.egresos_cubiertos ?? 0)} color="text-slate-400 dark:text-gray-500" />
+                        <Row label="− Egresos que sí se restan" value={fmt(summary.egresos - (summary.egresos_cubiertos ?? 0))} color="text-red-500 dark:text-red-400" />
                         <Row label="− Costos operativos de los tratamientos (materiales, honorarios, parte de costos fijos)" value={fmt(summary.costos_operativos)} color="text-amber-600 dark:text-amber-400" />
                         <Row label="Flujo libre" value={fmt(summary.utilidad_neta)} strong />
                       </tbody></table>
                     </div>
                     <p className="text-[11px] text-slate-400 dark:text-gray-500">
-                      Ojo: algunos gastos pueden contarse dos veces. Por ejemplo, un pago a un doctor o la compra de materiales registrados como egreso, que además ya van dentro del costo operativo del tratamiento. Si ves el flujo más bajo de lo real, revisa esto. Tampoco es dinero en caja: no distingue pagos pendientes ni cobros por recibir.
+                      Para no contar un gasto dos veces, en Finanzas → Categorías de egreso marca como “Ya cubierta” las categorías que ya están en honorarios, costos fijos o materiales (luz, doctor, asistente, limpieza, materiales…). Se siguen registrando con su monto y fecha exactos, pero no se restan aquí. Las categorías sin marcar sí se restan. Tampoco es dinero en caja: no distingue pagos pendientes ni cobros por recibir.
                     </p>
                   </>
                 )}

@@ -429,6 +429,18 @@ function ExpenseCategoryManager({ onClose }: { onClose: () => void }) {
               ) : (
                 <>
                   <span className="flex-1 text-sm text-slate-700 dark:text-gray-300">{cat.label}</span>
+                  <label
+                    className="flex items-center gap-1.5 text-[11px] text-slate-500 dark:text-gray-400 cursor-pointer select-none"
+                    title="Se registra con su monto y fecha, pero no se resta de la utilidad porque ya está incluido en honorarios, costos fijos o materiales de los tratamientos"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={!!cat.covered_by_op_costs}
+                      onChange={(e) => updateCat.mutate({ id: cat.id, covered_by_op_costs: e.target.checked })}
+                      className="rounded border-slate-300 dark:border-gray-600"
+                    />
+                    Ya cubierta
+                  </label>
                   <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                     <button onClick={() => startEdit(cat)} className="rounded p-1.5 text-slate-400 hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-500" title="Editar"><Pencil size={13} /></button>
                     <button
@@ -443,6 +455,9 @@ function ExpenseCategoryManager({ onClose }: { onClose: () => void }) {
         </div>
 
         <div className="border-t border-slate-100 dark:border-gray-700 px-5 py-4 shrink-0">
+          <p className="mb-3 text-[11px] leading-snug text-slate-400 dark:text-gray-500">
+            <strong>Ya cubierta</strong>: marca las categorías cuyo gasto ya está incluido en honorarios, costos fijos o materiales de los tratamientos (luz, doctor, asistente, limpieza, materiales…). Se siguen registrando con su monto y fecha exactos, pero no se restan otra vez en la utilidad.
+          </p>
           <div className="flex gap-2">
             <input
               value={newLabel}
@@ -2560,7 +2575,7 @@ export default function FinancesPage() {
             sub="Bruto − egresos" />
           <SummaryCard label="Ingreso Neto (c/ Op.)" value={summary.ingreso_neto_con_op}
             color={summary.ingreso_neto_con_op >= 0 ? "bg-indigo-50 border-indigo-200 dark:bg-indigo-900/40 dark:border-indigo-700" : "bg-rose-50 border-rose-200 dark:bg-rose-900/40 dark:border-rose-700"}
-            sub="− egresos − costos op." />
+            sub={(summary.egresos_cubiertos ?? 0) > 0 ? "− egresos no cubiertos − costos op." : "− egresos − costos op."} />
           <SummaryCard label="Honorarios Dr." value={honorariosData?.total_honorarios ?? 0}
             color="bg-purple-50 border-purple-200 dark:bg-purple-900/40 dark:border-purple-700" sub="De procedimientos facturados" />
         </div>

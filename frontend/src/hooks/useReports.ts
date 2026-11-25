@@ -13,6 +13,7 @@ export interface MonthTrend {
 export interface ReportSummary {
   ingresos_brutos: number;
   egresos: number;
+  egresos_cubiertos?: number;
   costos_operativos: number;
   ingreso_neto: number;
   utilidad_neta: number;

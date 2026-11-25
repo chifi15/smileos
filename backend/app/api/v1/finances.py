@@ -611,6 +611,7 @@ class ExpenseCategoryOut(BaseModel):
     key: str
     label: str
     sort_order: int
+    covered_by_op_costs: bool = False
 
     class Config:
         from_attributes = True
@@ -620,13 +621,25 @@ class ExpenseCategoryIn(BaseModel):
     label: str
 
 
+class ExpenseCategoryPatch(BaseModel):
+    label: str | None = None
+    covered_by_op_costs: bool | None = None
+
+
+def _cat_out(c) -> dict:
+    return {
+        "id": str(c.id), "key": c.key, "label": c.label, "sort_order": c.sort_order,
+        "covered_by_op_costs": bool(c.covered_by_op_costs),
+    }
+
+
 @router.get("/expense-categories", response_model=list[ExpenseCategoryOut])
 async def get_expense_categories(
     user: Annotated[object, require_permission("view_patients")],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     cats = await finance_service.list_expense_categories(db, user.clinic_id)
-    return [{"id": str(c.id), "key": c.key, "label": c.label, "sort_order": c.sort_order} for c in cats]
+    return [_cat_out(c) for c in cats]
 
 
 @router.post("/expense-categories", response_model=ExpenseCategoryOut, status_code=201)
@@ -636,21 +649,25 @@ async def create_expense_category(
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
     cat = await finance_service.create_expense_category(db, user.clinic_id, body.label.strip())
-    return {"id": str(cat.id), "key": cat.key, "label": cat.label, "sort_order": cat.sort_order}
+    return _cat_out(cat)
 
 
 @router.patch("/expense-categories/{cat_id}", response_model=ExpenseCategoryOut)
 async def update_expense_category(
     cat_id: uuid.UUID,
-    body: ExpenseCategoryIn,
+    body: ExpenseCategoryPatch,
     user: Annotated[object, require_permission("manage_patients")],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
-    cat = await finance_service.update_expense_category(db, user.clinic_id, cat_id, body.label.strip())
+    cat = await finance_service.update_expense_category(
+        db, user.clinic_id, cat_id,
+        label=body.label.strip() if body.label else None,
+        covered_by_op_costs=body.covered_by_op_costs,
+    )
     if not cat:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Categoría no encontrada")
-    return {"id": str(cat.id), "key": cat.key, "label": cat.label, "sort_order": cat.sort_order}
+    return _cat_out(cat)
 
 
 @router.delete("/expense-categories/{cat_id}", status_code=204)

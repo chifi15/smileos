@@ -69,6 +69,10 @@ async def get_summary(
     rows = await list_transactions(db, clinic_id, year, month)
     ingresos = sum(float(t.amount_cordobas) for t in rows if t.type == "ingreso")
     egresos = sum(float(t.amount_cordobas) for t in rows if t.type == "egreso")
+    covered_keys = await get_covered_category_keys(db, clinic_id)
+    egresos_cubiertos = sum(
+        float(t.amount_cordobas) for t in rows if t.type == "egreso" and t.category in covered_keys
+    )
     from app.models.costos import CostTreatment
     treats_result = await db.execute(
         select(CostTreatment).where(CostTreatment.clinic_id == clinic_id)
@@ -101,7 +105,8 @@ async def get_summary(
         "costos_operativos": round(costos_op, 2),
         "ganancia_clinica": round(ganancia_clinica, 2),
         "ingreso_neto": round(ingresos - egresos, 2),
-        "ingreso_neto_con_op": round(ingresos - egresos - costos_op, 2),
+        "egresos_cubiertos": round(egresos_cubiertos, 2),
+        "ingreso_neto_con_op": round(ingresos - (egresos - egresos_cubiertos) - costos_op, 2),
         "count_ingresos": sum(1 for t in rows if t.type == "ingreso"),
         "count_egresos": sum(1 for t in rows if t.type == "egreso"),
     }
@@ -669,6 +674,18 @@ DEFAULT_EXPENSE_CATEGORIES = [
 ]
 
 
+async def get_covered_category_keys(db: AsyncSession, clinic_id: uuid.UUID) -> set[str]:
+    """Claves de categorías de egreso marcadas como ya cubiertas por costos operativos."""
+    from app.models.finance import ExpenseCategory
+    result = await db.execute(
+        select(ExpenseCategory.key).where(
+            ExpenseCategory.clinic_id == clinic_id,
+            ExpenseCategory.covered_by_op_costs.is_(True),
+        )
+    )
+    return set(result.scalars().all())
+
+
 async def list_expense_categories(db: AsyncSession, clinic_id: uuid.UUID):
     from app.models.finance import ExpenseCategory
     result = await db.execute(
@@ -699,7 +716,10 @@ async def create_expense_category(db: AsyncSession, clinic_id: uuid.UUID, label:
     return cat
 
 
-async def update_expense_category(db: AsyncSession, clinic_id: uuid.UUID, cat_id: uuid.UUID, label: str):
+async def update_expense_category(
+    db: AsyncSession, clinic_id: uuid.UUID, cat_id: uuid.UUID,
+    label: str | None = None, covered_by_op_costs: bool | None = None,
+):
     from app.models.finance import ExpenseCategory
     result = await db.execute(
         select(ExpenseCategory).where(ExpenseCategory.id == cat_id, ExpenseCategory.clinic_id == clinic_id)
@@ -707,7 +727,10 @@ async def update_expense_category(db: AsyncSession, clinic_id: uuid.UUID, cat_id
     cat = result.scalar_one_or_none()
     if not cat:
         return None
-    cat.label = label
+    if label:
+        cat.label = label
+    if covered_by_op_costs is not None:
+        cat.covered_by_op_costs = covered_by_op_costs
     await db.commit()
     await db.refresh(cat)
     return cat

@@ -13,7 +13,25 @@ MONTH_NAMES = [
 ]
 
 
+async def _covered_expr(db: AsyncSession, clinic_id: uuid.UUID):
+    """Expresión SQL: monto de egresos en categorías ya cubiertas por costos operativos (no se restan de la utilidad)."""
+    from app.services.finance_service import get_covered_category_keys
+    keys = await get_covered_category_keys(db, clinic_id)
+    if not keys:
+        return func.coalesce(func.sum(case((FinanceTransaction.id.is_(None), 0), else_=0)), 0)
+    return func.sum(
+        case(
+            (
+                (FinanceTransaction.type == "egreso") & (FinanceTransaction.category.in_(list(keys))),
+                FinanceTransaction.amount_cordobas,
+            ),
+            else_=0,
+        )
+    )
+
+
 async def get_monthly_trend(db: AsyncSession, clinic_id: uuid.UUID, year: int) -> list[dict]:
+    covered = await _covered_expr(db, clinic_id)
     rows = await db.execute(
         select(
             extract("month", FinanceTransaction.transaction_date).label("month"),
@@ -32,6 +50,7 @@ async def get_monthly_trend(db: AsyncSession, clinic_id: uuid.UUID, year: int) -
                     else_=0,
                 )
             ).label("costos_op"),
+            covered.label("cubiertos"),
         )
         .where(
             FinanceTransaction.clinic_id == clinic_id,
@@ -49,10 +68,11 @@ async def get_monthly_trend(db: AsyncSession, clinic_id: uuid.UUID, year: int) -
         ingresos = float(r.ingresos or 0)
         egresos = float(r.egresos or 0)
         costos_op = float(r.costos_op or 0)
+        cubiertos = float(r.cubiertos or 0)
         by_month[m]["ingresos"] = round(ingresos, 2)
         by_month[m]["egresos"] = round(egresos, 2)
         by_month[m]["costos_op"] = round(costos_op, 2)
-        by_month[m]["utilidad"] = round(ingresos - egresos - costos_op, 2)
+        by_month[m]["utilidad"] = round(ingresos - (egresos - cubiertos) - costos_op, 2)
     return list(by_month.values())
 
 
@@ -228,6 +248,7 @@ async def get_full_summary(
     year: int,
     month: int,
 ) -> dict:
+    covered = await _covered_expr(db, clinic_id)
     filters = [
         FinanceTransaction.clinic_id == clinic_id,
         extract("year", FinanceTransaction.transaction_date) == year,
@@ -250,6 +271,7 @@ async def get_full_summary(
                     else_=0,
                 )
             ).label("costos_op"),
+            covered.label("cubiertos"),
             func.count(
                 case((FinanceTransaction.type == "ingreso", FinanceTransaction.id))
             ).label("n_ingresos"),
@@ -263,11 +285,13 @@ async def get_full_summary(
     ingresos = float(r.ingresos or 0)
     egresos = float(r.egresos or 0)
     costos_op = float(r.costos_op or 0)
-    utilidad = ingresos - egresos - costos_op
+    cubiertos = float(r.cubiertos or 0)
+    utilidad = ingresos - (egresos - cubiertos) - costos_op
     margen = round(utilidad / ingresos * 100, 1) if ingresos > 0 else 0.0
     return {
         "ingresos_brutos": round(ingresos, 2),
         "egresos": round(egresos, 2),
+        "egresos_cubiertos": round(cubiertos, 2),
         "costos_operativos": round(costos_op, 2),
         "ingreso_neto": round(ingresos - egresos, 2),
         "utilidad_neta": round(utilidad, 2),
