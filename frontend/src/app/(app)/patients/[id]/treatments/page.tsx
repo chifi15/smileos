@@ -5,9 +5,9 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, Plus, ClipboardList, Trash2, RotateCcw } from "lucide-react";
+import { ChevronLeft, Plus, ClipboardList, Trash2, RotateCcw, Pencil } from "lucide-react";
 import { usePatient } from "@/hooks/usePatients";
-import { usePatientPlans, useDeletePlan, useDeletedPlans, useRestorePlan } from "@/hooks/useTreatments";
+import { usePatientPlans, useDeletePlan, useDeletedPlans, useRestorePlan, useUpdatePlan } from "@/hooks/useTreatments";
 import {
   TreatmentPlan,
   PLAN_STATUS_LABELS,
@@ -54,14 +54,64 @@ function DeletePlanModal({
   );
 }
 
+function RenamePlanModal({
+  plan,
+  patientId,
+  onClose,
+}: {
+  plan: TreatmentPlan;
+  patientId: string;
+  onClose: () => void;
+}) {
+  const [title, setTitle] = useState(plan.title);
+  const update = useUpdatePlan(patientId, plan.id, onClose);
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const t = title.trim();
+    if (!t) return;
+    if (t === plan.title) {
+      onClose();
+      return;
+    }
+    update.mutate({ title: t });
+  }
+
+  return (
+    <Modal open onClose={onClose} title="Editar nombre del plan" size="sm">
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <input
+          type="text"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          maxLength={300}
+          autoFocus
+          required
+          className="w-full rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+        <div className="flex justify-end gap-3">
+          <Button variant="secondary" type="button" onClick={onClose}>
+            Cancelar
+          </Button>
+          <Button type="submit" loading={update.isPending}>
+            Guardar
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
 function PlanCard({
   plan,
   patientId,
   onDelete,
+  onRename,
 }: {
   plan: TreatmentPlan;
   patientId: string;
   onDelete: (plan: TreatmentPlan) => void;
+  onRename: (plan: TreatmentPlan) => void;
 }) {
   const total = plan.items.length;
   const done = plan.items.filter((i) => i.status === "completed").length;
@@ -112,6 +162,18 @@ function PlanCard({
         </div>
       </Link>
 
+      {/* Botón editar nombre — visible al hacer hover */}
+      {plan.status !== "completed" && (
+        <button
+          onClick={(e) => { e.preventDefault(); onRename(plan); }}
+          className="absolute top-3 right-11 opacity-0 group-hover:opacity-100 p-1.5 rounded-lg text-slate-300 hover:text-blue-500 hover:bg-blue-50 dark:hover:bg-blue-900/20 transition-all"
+          title="Editar nombre"
+          aria-label="Editar nombre del plan"
+        >
+          <Pencil size={15} />
+        </button>
+      )}
+
       {/* Botón eliminar — visible al hacer hover */}
       <button
         onClick={(e) => { e.preventDefault(); onDelete(plan); }}
@@ -131,6 +193,7 @@ export default function PatientTreatmentsPage() {
   const { data: deletedPlans = [] } = useDeletedPlans(id);
   const restore = useRestorePlan(id);
   const [planToDelete, setPlanToDelete] = useState<TreatmentPlan | null>(null);
+  const [planToRename, setPlanToRename] = useState<TreatmentPlan | null>(null);
   const [showTrash, setShowTrash] = useState(false);
 
   const active = plans.filter((p) => p.status === "active");
@@ -220,7 +283,7 @@ export default function PatientTreatmentsPage() {
               </h2>
               <div className="grid gap-3 sm:grid-cols-2">
                 {active.map((p) => (
-                  <PlanCard key={p.id} plan={p} patientId={id} onDelete={setPlanToDelete} />
+                  <PlanCard key={p.id} plan={p} patientId={id} onDelete={setPlanToDelete} onRename={setPlanToRename} />
                 ))}
               </div>
             </div>
@@ -232,12 +295,20 @@ export default function PatientTreatmentsPage() {
               </h2>
               <div className="grid gap-3 sm:grid-cols-2">
                 {rest.map((p) => (
-                  <PlanCard key={p.id} plan={p} patientId={id} onDelete={setPlanToDelete} />
+                  <PlanCard key={p.id} plan={p} patientId={id} onDelete={setPlanToDelete} onRename={setPlanToRename} />
                 ))}
               </div>
             </div>
           )}
         </>
+      )}
+
+      {planToRename && (
+        <RenamePlanModal
+          plan={planToRename}
+          patientId={id}
+          onClose={() => setPlanToRename(null)}
+        />
       )}
 
       {planToDelete && (
