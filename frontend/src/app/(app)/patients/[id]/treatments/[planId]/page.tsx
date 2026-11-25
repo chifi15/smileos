@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, Plus, Trash2, Play, CheckCircle2, XCircle, ScanLine, RotateCcw, Wallet, X, Pencil } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Play, CheckCircle2, XCircle, ScanLine, RotateCcw, Wallet, X, Pencil, FileDown } from "lucide-react";
 import { usePlan, useDeleteItem, useStartItem, useCancelItem, useUpdatePlan, useReopenItem, usePlanPayments, useCreatePayment, useDeletePayment, useUpdateItem, useUpdatePayment } from "@/hooks/useTreatments";
 import { usePatient } from "@/hooks/usePatients";
+import { useClinicSettings } from "@/hooks/useSettings";
+import toast from "react-hot-toast";
 import AddItemModal from "@/components/treatments/AddItemModal";
 import CompleteItemModal from "@/components/treatments/CompleteItemModal";
 import ImportFromOdontogramModal from "@/components/treatments/ImportFromOdontogramModal";
@@ -251,6 +253,8 @@ export default function TreatmentPlanDetailPage() {
   const { data: patient } = usePatient(patientId);
   const { data: plan, isLoading } = usePlan(patientId, planId);
   const { data: payments = [] } = usePlanPayments(patientId, planId);
+  const { data: clinic } = useClinicSettings();
+  const [generatingPdf, setGeneratingPdf] = useState(false);
   const [showAddItem, setShowAddItem] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showAddPayment, setShowAddPayment] = useState(false);
@@ -288,6 +292,40 @@ export default function TreatmentPlanDetailPage() {
   const totalAbonado = payments.reduce((s, p) => s + p.amount, 0);
   const saldo = totalPrice - totalAbonado;
   const pctPago = totalPrice > 0 ? Math.min(100, Math.round((totalAbonado / totalPrice) * 100)) : 0;
+
+  async function handleDownloadPdf() {
+    if (!plan) return;
+    setGeneratingPdf(true);
+    try {
+      const { downloadTreatmentPlanPdf } = await import("@/lib/treatment-plan-pdf");
+      downloadTreatmentPlanPdf({
+        clinic: {
+          name: clinic?.display_name ?? "Clínica",
+          legalName: clinic?.legal_name,
+          phone: clinic?.phone,
+          email: clinic?.email,
+          address: clinic?.address_line1,
+        },
+        patientName: patient?.full_name ?? "Paciente",
+        doctorName: plan.created_by?.full_name,
+        plan: {
+          title: plan.title,
+          diagnosis: plan.diagnosis,
+          notes: plan.notes,
+          items: plan.items.map((i) => ({
+            procedure_name: i.procedure_name,
+            tooth_fdi: i.tooth_fdi,
+            quoted_price: i.quoted_price,
+            status: i.status,
+          })),
+        },
+      });
+    } catch {
+      toast.error("No se pudo generar el PDF.");
+    } finally {
+      setGeneratingPdf(false);
+    }
+  }
 
   const statusOptions = [
     { value: "active", label: "Activo" },
@@ -379,17 +417,28 @@ export default function TreatmentPlanDetailPage() {
               {plan.created_by && ` por ${plan.created_by.full_name}`}
             </p>
           </div>
-          {plan.status !== "completed" && (
-            <div className="w-40 shrink-0">
-              <Select
-                value={plan.status as string}
-                onChange={(e) =>
-                  updatePlan.mutate({ status: e.target.value as "active" | "on_hold" | "abandoned" })
-                }
-                options={statusOptions}
-              />
-            </div>
-          )}
+          <div className="flex items-center gap-2 shrink-0">
+            <Button
+              variant="secondary"
+              onClick={handleDownloadPdf}
+              loading={generatingPdf}
+              title="Descargar el plan y sus costos en PDF para el paciente"
+            >
+              <FileDown size={16} />
+              PDF para el paciente
+            </Button>
+            {plan.status !== "completed" && (
+              <div className="w-40">
+                <Select
+                  value={plan.status as string}
+                  onChange={(e) =>
+                    updatePlan.mutate({ status: e.target.value as "active" | "on_hold" | "abandoned" })
+                  }
+                  options={statusOptions}
+                />
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Progress */}
