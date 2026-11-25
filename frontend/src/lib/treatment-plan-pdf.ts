@@ -55,6 +55,87 @@ import { GROUPS, groupForTooth, type GroupKey } from "@/lib/plan-groups";
 export { GROUPS, groupForTooth };
 export type { GroupKey };
 
+// ─── Notación FDI con punto (1.1, 2.6…) ──────────────────────────────────────
+/** "16, 26" → "1.6, 2.6" */
+export const fdiDot = (v: string | null | undefined) =>
+  (v ?? "").replace(/([1-8])([1-8])/g, "$1.$2");
+
+// Ancho relativo de cada diente (1 = central … 8 = tercer molar) para repartirlos en la arcada
+const TOOTH_W: Record<number, number> = { 1: 8, 2: 6.5, 3: 7.5, 4: 7, 5: 7, 6: 10, 7: 9.5, 8: 9 };
+
+/** Dibuja la guía de piezas FDI (vista oclusal) resaltando las piezas del plan. */
+function drawToothChart(
+  doc: jsPDF,
+  x0: number,
+  y0: number,
+  width: number,
+  marked: Set<string>,
+  colors: { ink: [number, number, number]; muted: [number, number, number]; accent: [number, number, number]; line: [number, number, number] },
+): number {
+  const a = Math.min(66, width / 2 - 12); // semieje horizontal
+  const b = 22; // profundidad de la arcada
+  const cx = x0 + width / 2;
+  const r = 4.6; // radio máx. de los círculos
+
+  const arch = (nums: number[], baseY: number, up: boolean) => {
+    // Longitud acumulada de la semielipse (muestreo)
+    const N = 400;
+    const pts: { x: number; y: number; len: number }[] = [];
+    let len = 0;
+    for (let i = 0; i <= N; i++) {
+      const t = Math.PI - (Math.PI * i) / N;
+      const x = cx + a * Math.cos(t);
+      const y = up ? baseY - b * Math.sin(t) : baseY + b * Math.sin(t);
+      if (i > 0) len += Math.hypot(x - pts[i - 1].x, y - pts[i - 1].y);
+      pts.push({ x, y, len });
+    }
+    const widths = nums.map((n) => TOOTH_W[n % 10]);
+    const totalW = widths.reduce((s, w) => s + w, 0);
+    let acc = 0;
+    nums.forEach((n, i) => {
+      const mid = ((acc + widths[i] / 2) / totalW) * len;
+      acc += widths[i];
+      const p = pts.find((q) => q.len >= mid) ?? pts[N];
+      const rad = Math.min(r, ((widths[i] / totalW) * len * 0.92) / 2);
+      const isMarked = marked.has(String(n));
+      doc.setLineWidth(isMarked ? 0.5 : 0.25);
+      doc.setDrawColor(...(isMarked ? colors.accent : colors.line));
+      doc.setFillColor(...(isMarked ? colors.accent : ([255, 255, 255] as [number, number, number])));
+      doc.circle(p.x, p.y, rad, "FD");
+      doc.setFont("helvetica", isMarked ? "bold" : "normal");
+      doc.setFontSize(isMarked ? 6.6 : 6.2);
+      doc.setTextColor(...(isMarked ? ([255, 255, 255] as [number, number, number]) : colors.ink));
+      doc.text(`${Math.floor(n / 10)}.${n % 10}`, p.x, p.y + 0.9, { align: "center" });
+    });
+  };
+
+  const upperTop = y0 + 6;
+  const upperBase = upperTop + b + r; // línea base (extremos) de la arcada superior
+  arch([18, 17, 16, 15, 14, 13, 12, 11, 21, 22, 23, 24, 25, 26, 27, 28], upperBase, true);
+  const lowerTop = upperBase + r + 9;
+  arch([48, 47, 46, 45, 44, 43, 42, 41, 31, 32, 33, 34, 35, 36, 37, 38], lowerTop, false);
+  const bottom = lowerTop + b + r;
+
+  // Etiquetas
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(7.5);
+  doc.setTextColor(...colors.muted);
+  doc.text("SUPERIOR", cx, upperBase - b * 0.45, { align: "center" });
+  doc.text("INFERIOR", cx, lowerTop + b * 0.45 + 2, { align: "center" });
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(7);
+  doc.text("Derecha del paciente", x0, (upperBase + lowerTop) / 2 + 1);
+  doc.text("Izquierda del paciente", x0 + width, (upperBase + lowerTop) / 2 + 1, { align: "right" });
+  // Línea media
+  doc.setDrawColor(...colors.line);
+  doc.setLineWidth(0.2);
+  doc.setLineDashPattern([1.2, 1.2], 0);
+  doc.line(cx, y0 + 3, cx, bottom + 1);
+  doc.setLineDashPattern([], 0);
+
+  return bottom - y0;
+}
+
 // ─── Utilidades ──────────────────────────────────────────────────────────────
 const money = (n: number) =>
   `C$ ${new Intl.NumberFormat("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(n)}`;
@@ -155,6 +236,41 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
   }
   y += 4;
 
+  // ── Guía de piezas dentales (FDI) ──
+  const marked = new Set<string>();
+  for (const it of plan.items) {
+    if (it.status === "cancelled") continue;
+    for (const m of it.tooth_fdi?.match(/[1-4][1-8]/g) ?? []) marked.add(m);
+  }
+  ensure(92);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(11);
+  doc.setTextColor(...INK);
+  doc.text("Guía de piezas dentales (sistema FDI)", M, y);
+  y += 3;
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(...MUTED);
+  const guide = doc.splitTextToSize(
+    "Vista oclusal. El primer número indica el cuadrante y el segundo la pieza (1.1 = incisivo central superior derecho). " +
+      "Compare el número de la pieza que se le indique con las fotos.",
+    contentW,
+  );
+  doc.text(guide, M, y + 1.5);
+  y += guide.length * 3.6 + 3;
+  const chartH = drawToothChart(doc, M, y, contentW, marked, { ink: INK, muted: MUTED, accent: ACCENT, line: LINE });
+  y += chartH + 3;
+  if (marked.size > 0) {
+    doc.setFillColor(...ACCENT);
+    doc.circle(M + 2, y + 1, 1.6, "F");
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(...MUTED);
+    doc.text("Piezas que se tratarán en este plan", M + 5.5, y + 2.1);
+    y += 4;
+  }
+  y += 6;
+
   // ── Fotos generales del paciente ──
   const overview = input.photos?.overview ?? [];
   if (overview.length > 0) {
@@ -222,7 +338,7 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
       sub += price;
       body.push([
         { content: String(n), styles: { halign: "center" } },
-        { content: it.tooth_fdi?.trim() || "—", styles: { halign: "center" } },
+        { content: fdiDot(it.tooth_fdi?.trim()) || "—", styles: { halign: "center" } },
         { content: it.procedure_name ?? "Procedimiento" },
         { content: it.quoted_price == null ? "—" : money(price), styles: { halign: "right" } },
       ]);
