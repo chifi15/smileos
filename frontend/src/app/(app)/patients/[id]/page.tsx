@@ -28,6 +28,7 @@ import { usePatient, useDeactivatePatient, useDeletePatientPermanent } from "@/h
 import { useCreateTransaction, useExchangeRate, useDoctors } from "@/hooks/useFinances";
 import { useCostTreatments, useCostProducts, type ApiTreatment } from "@/hooks/useCostos";
 import { useRewardsConfig } from "@/hooks/useRewards";
+import { getMaterialsForSpec, autoSelectAltGroups, calcOpCost, type UsedMaterial } from "@/lib/finance-cost";
 import { useClinicFeatures } from "@/hooks/useSettings";
 import {
   REWARDS_LEVEL_LABELS,
@@ -40,8 +41,6 @@ import Button from "@/components/ui/Button";
 import Spinner from "@/components/ui/Spinner";
 
 const today = new Date().toISOString().split("T")[0];
-
-type UsedMaterial = { productId: string; qty: number; altGroup?: string | null };
 
 function QuickPaymentModal({
   patientId,
@@ -65,6 +64,8 @@ function QuickPaymentModal({
   const [aptId, setAptId] = useState("");
   const [usedMaterials, setUsedMaterials] = useState<UsedMaterial[] | null>(null);
   const [quantity, setQuantity] = useState("1");
+  const [sessions, setSessions] = useState("1");
+  const [scaleFees, setScaleFees] = useState(true);
   const [doctorId, setDoctorId] = useState("");
 
   const { data: exchangeRate = 37 } = useExchangeRate();
@@ -85,50 +86,20 @@ function QuickPaymentModal({
     return new Intl.NumberFormat("es-NI", { minimumFractionDigits: 2 }).format(n);
   }
 
-  function autoSelectAltGroups(mats: UsedMaterial[]): UsedMaterial[] {
-    const seen = new Set<string>();
-    const result: UsedMaterial[] = [];
-    for (const m of mats) {
-      if (m.altGroup) {
-        if (seen.has(m.altGroup)) continue;
-        seen.add(m.altGroup);
-      }
-      result.push(m);
-    }
-    return result;
-  }
-
-  function calcMatCost(mats: UsedMaterial[]): number {
-    return mats.reduce((sum, m) => {
-      const p = products.find((pr) => pr.id === m.productId);
-      const unitCost = p?.total_cost ?? p?.unit_price ?? 0;
-      return sum + unitCost * m.qty;
-    }, 0);
-  }
-
-  function loadMaterials(treatId: string, appointmentId: string) {
-    const t = treatments.find((tr) => tr.id === treatId);
-    if (!t) { setUsedMaterials(null); return; }
-    const apt =
-      t.appointments.find((a) => a.id === appointmentId) ??
-      (t.appointments.length === 1 ? t.appointments[0] : null);
-    if (!apt) { setUsedMaterials(null); return; }
-    setUsedMaterials(apt.materials.map((m) => ({ productId: m.productId, qty: m.quantity, altGroup: m.altGroup ?? null })));
-  }
-
   function handleTreatmentChange(id: string) {
     setCtId(id);
     setAptId("");
-    setUsedMaterials(null);
+    setQuantity("1");
+    setSessions("1");
+    setScaleFees(true);
     if (id) {
       const t = treatments.find((tr) => tr.id === id);
       if (t) {
         setDescription(t.name);
-        if (t.appointments.length === 1) {
-          loadMaterials(id, t.appointments[0].id);
-        }
+        setUsedMaterials(getMaterialsForSpec(t, ""));
       }
     } else {
+      setUsedMaterials(null);
       setDescription("Pago de tratamiento");
     }
   }
@@ -169,35 +140,42 @@ function QuickPaymentModal({
 
   function handleAptChange(id: string) {
     setAptId(id);
-    setUsedMaterials(null);
-    if (id && ctId) loadMaterials(ctId, id);
+    if (treatment) setUsedMaterials(getMaterialsForSpec(treatment, id));
   }
 
-  // Cost preview
-  const resolvedForPreview = usedMaterials ? autoSelectAltGroups(usedMaterials) : null;
+  // Costo operativo: misma fórmula que en Finanzas
+  const resolvedForPreview = usedMaterials ? autoSelectAltGroups(usedMaterials, products) : null;
   const qty = Math.max(1, parseInt(quantity) || 1);
+  const sess = Math.max(1, parseInt(sessions) || 1);
+  const cost = treatment
+    ? calcOpCost({
+        treatment,
+        appointmentId: aptId,
+        materials: resolvedForPreview,
+        products,
+        qty,
+        sessions: sess,
+        scaleFees,
+      })
+    : null;
+  const feeQty = scaleFees ? qty : 1;
   let costLabel: React.ReactNode = null;
 
-  if (treatment) {
-    const marginPct = treatment.clinic_margin_pct ?? 0;
-    const profFees = (treatment.professional_fee_per_hour || 0) * (treatment.total_hours || 0);
-    const fixedCosts = treatment.fixed_costs || 0;
-    const totalApts = treatment.appointments.length || 1;
-    const matCost = resolvedForPreview !== null ? calcMatCost(resolvedForPreview) : 0;
-    const honDisplay = profFees * qty;
-    const fixedDisplay = fixedCosts * totalApts * qty;
-    const rawCost = matCost + honDisplay + fixedDisplay;
-    const ganancia = rawCost * marginPct;
-    const costPreview = Math.round((rawCost + ganancia) * 100) / 100;
+  if (cost) {
     costLabel = (
       <span className="flex flex-wrap gap-x-1 items-center text-xs">
-        {matCost > 0 && <><span>Mat. <strong>C${fmt(matCost)}</strong></span><span className="text-slate-400">+</span></>}
-        <span>Hon. <strong>C${fmt(honDisplay)}</strong></span>
+        {cost.matCost > 0 && <><span>Mat. <strong>C${fmt(cost.matCost)}</strong></span><span className="text-slate-400">+</span></>}
+        <span>Hon. <strong>C${fmt(cost.hon)}</strong></span>
         <span className="text-slate-400">+</span>
-        <span>C.Fijos <strong>C${fmt(fixedDisplay)}</strong></span>
-        {marginPct > 0 && <><span className="text-slate-400">+</span><span className="text-emerald-600">Gan. <strong>C${fmt(ganancia)}</strong></span></>}
+        <span>C.Fijos <strong>C${fmt(cost.fixed)}</strong></span>
+        {(feeQty > 1 || (!aptId && sess > 1)) && (
+          <span className="text-slate-400 text-[10px]">
+            {!aptId && sess > 1 && `÷${sess}ses.`}{!aptId && sess > 1 && feeQty > 1 && " "}{feeQty > 1 && `×${feeQty}`}
+          </span>
+        )}
+        {cost.marginPct > 0 && <><span className="text-slate-400">+</span><span className="text-emerald-600">Gan. <strong>C${fmt(cost.ganancia)}</strong></span></>}
         <span className="text-slate-400">=</span>
-        <strong>C${fmt(costPreview)}</strong>
+        <strong>C${fmt(cost.total)}</strong>
       </span>
     );
   }
@@ -206,7 +184,7 @@ function QuickPaymentModal({
     e.preventDefault();
     if (!amount || parseFloat(amount) <= 0) return;
     if (!date) return; // fecha incompleta o inválida
-    const qtyVal = Math.max(1, parseInt(quantity) || 1);
+    const qtyVal = qty;
     create.mutate(
       {
         type: "ingreso",
@@ -221,8 +199,11 @@ function QuickPaymentModal({
           cost_treatment_id: ctId,
           cost_appointment_id: aptId || undefined,
           quantity: qtyVal,
-          deducted_materials: usedMaterials !== null
-            ? usedMaterials.map((m) => ({ productId: m.productId, qty: m.qty, altGroup: m.altGroup ?? null }))
+          ...(sess > 1 && !aptId && { sessions: sess }),
+          scale_fees_by_quantity: scaleFees,
+          ...(cost && { operational_cost_override: cost.total }),
+          deducted_materials: resolvedForPreview !== null
+            ? resolvedForPreview.map((m) => ({ productId: m.productId, qty: m.qty, altGroup: m.altGroup ?? null }))
             : undefined,
         }),
       },
@@ -304,13 +285,52 @@ function QuickPaymentModal({
                 onChange={(e) => handleAptChange(e.target.value)}
                 className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
               >
-                <option value="">— Seleccionar cita —</option>
+                <option value="">— Todas las citas —</option>
                 {treatment.appointments.map((a) => (
                   <option key={a.id} value={a.id}>
                     Cita {a.number}: {a.name}
                   </option>
                 ))}
               </select>
+            </div>
+          )}
+
+          {/* Cantidad / Sesiones / Honorarios y costos fijos */}
+          {treatment && (
+            <div className="flex items-end gap-3">
+              <div className="w-24 shrink-0">
+                <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Cantidad</label>
+                <input
+                  type="number" min="1" step="1" value={quantity}
+                  onChange={(e) => setQuantity(e.target.value)}
+                  className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+              {!aptId && (
+                <div className="w-24 shrink-0">
+                  <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Sesiones</label>
+                  <input
+                    type="number" min="1" step="1" value={sessions}
+                    onChange={(e) => setSessions(e.target.value)}
+                    title="El costo operativo se divide entre las sesiones."
+                    className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  />
+                </div>
+              )}
+              {qty > 1 && (
+                <div className="shrink-0">
+                  <label className="block text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">Hon. y costos fijos</label>
+                  <select
+                    value={scaleFees ? "qty" : "one"}
+                    onChange={(e) => setScaleFees(e.target.value === "qty")}
+                    title="Elige si honorarios y costos fijos se cobran por cada unidad (×cantidad) o una sola vez (×1)."
+                    className="w-full rounded-lg border border-slate-200 dark:border-gray-600 dark:bg-gray-700 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-green-500"
+                  >
+                    <option value="qty">×{qty} (por cada uno)</option>
+                    <option value="one">×1 (una sola vez)</option>
+                  </select>
+                </div>
+              )}
             </div>
           )}
 
