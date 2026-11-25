@@ -446,3 +446,36 @@ export function useSetDoctorCommission() {
     onSuccess: () => qc.invalidateQueries({ queryKey: ["report-doctor-account"] }),
   });
 }
+
+export interface Distribution {
+  cobrado: number;
+  doctores: { doctor_name: string; pct: number | null; monto: number }[];
+  doctores_total: number;
+  reposicion_pct: number;
+  reposicion: number;
+  mejoras_pct: number;
+  mejoras: number;
+  duena: number;
+  doctores_sin_pct: string[];
+}
+
+export function useDistribution(year: number, month: number | null) {
+  return useQuery({
+    queryKey: ["report-distribution", year, month],
+    queryFn: async () => {
+      const params = month ? `year=${year}&month=${month}` : `year=${year}`;
+      const { data } = await apiClient.get<{ data: Distribution }>(`${base}/distribution?${params}`);
+      return data.data;
+    },
+  });
+}
+
+export function useSetDistributionConfig() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (v: { reposicion_pct: number; mejoras_pct: number }) => {
+      await apiClient.put(`${base}/distribution-config`, v);
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["report-distribution"] }),
+  });
+}

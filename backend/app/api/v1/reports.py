@@ -236,3 +236,32 @@ async def doctor_commission(
     if not ok:
         raise HTTPException(status_code=404, detail="Doctor no encontrado")
     return {"success": True}
+
+
+@router.get("/finances/distribution")
+async def distribution(
+    user: Annotated[object, require_permission("view_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    year: int = Query(...),
+    month: int | None = Query(default=None),
+):
+    data = await reports_service.get_distribution(db, user.clinic_id, year, month)
+    return {"success": True, "data": data}
+
+
+@router.put("/finances/distribution-config")
+async def distribution_config(
+    body: dict,
+    user: Annotated[object, require_permission("manage_patients")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    from fastapi import HTTPException
+    try:
+        rep = float(body.get("reposicion_pct"))
+        mej = float(body.get("mejoras_pct"))
+    except (ValueError, TypeError):
+        raise HTTPException(status_code=422, detail="Datos inválidos")
+    if not (0 <= rep <= 100 and 0 <= mej <= 100 and rep + mej <= 100):
+        raise HTTPException(status_code=422, detail="Los porcentajes deben estar entre 0 y 100 y sumar máximo 100")
+    await reports_service.set_distribution_config(db, user.clinic_id, rep, mej)
+    return {"success": True}

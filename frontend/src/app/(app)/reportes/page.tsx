@@ -36,6 +36,7 @@ import {
 import { categoryLabel, categoryColor } from "@/types/costos";
 import Spinner from "@/components/ui/Spinner";
 import FinanceSummaryPanel from "@/components/finance/FinanceSummaryPanel";
+import DistributionCard from "@/components/reports/DistributionCard";
 import DoctorAccountCard from "@/components/reports/DoctorAccountCard";
 import BudgetVsActualCard from "@/components/reports/BudgetVsActualCard";
 import DrilldownModal, { type DrilldownSelection } from "@/components/reports/DrilldownModal";
@@ -859,6 +860,8 @@ export default function ReportesPage() {
           </table>
         </TableCard>
       </div>
+
+      <DistributionCard year={year} month={filterMonth} />
 
       <DoctorAccountCard year={year} month={filterMonth} />
 
