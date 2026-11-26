@@ -508,15 +508,15 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
     y += 3;
 
     const full = total * (1 - DISCOUNT_FULL_PCT / 100);
-    const half = total * (1 - DISCOUNT_HALF_PCT / 100);
+    const twoPays = total * (1 - DISCOUNT_HALF_PCT / 100); // plan completo pagado en 2 partes
     autoTable(doc, {
       startY: y,
       margin: { left: M, right: M, bottom: 22 },
       head: [["Forma de pago", "Descuento", "Total a pagar", "Ahorro"]],
       body: [
-        ["Pago completo del plan", `${DISCOUNT_FULL_PCT}%`, money(full), money(total - full)],
-        ["Pago de la mitad del plan", `${DISCOUNT_HALF_PCT}%`, money(half), money(total - half)],
-        ["Pago por tratamiento individual", "Sin descuento", money(total), money(0)],
+        ["Plan completo en un solo pago", `${DISCOUNT_FULL_PCT}%`, money(full), money(total - full)],
+        [`Plan completo en 2 pagos (2 × ${money(twoPays / 2)}): una mitad y luego la otra`, `${DISCOUNT_HALF_PCT}%`, money(twoPays), money(total - twoPays)],
+        ["Pago por tratamiento individual (sin pagar el plan completo)", "Sin descuento", money(total), money(0)],
       ],
       theme: "grid",
       styles: { font: "helvetica", fontSize: 9, cellPadding: 2.2, textColor: INK, lineColor: LINE, lineWidth: 0.2 },
@@ -532,9 +532,9 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
 
   // ── Términos y condiciones ──
   const terms: string[] = showPrices ? [
-    `Si el paciente paga el plan completo, se le otorga un ${DISCOUNT_FULL_PCT}% de descuento sobre el costo total.`,
-    `Si el paciente paga la mitad del plan, se le otorga un ${DISCOUNT_HALF_PCT}% de descuento sobre el costo total.`,
-    "Si el paciente paga por tratamiento individual, no se aplica ningún descuento.",
+    `Si el paciente paga el plan completo en un solo pago, se le otorga un ${DISCOUNT_FULL_PCT}% de descuento sobre el costo total.`,
+    `Si el paciente paga el plan completo en 2 pagos (una mitad primero y la otra mitad después), se le otorga un ${DISCOUNT_HALF_PCT}% de descuento sobre el costo total del plan.`,
+    "Si el paciente paga por tratamiento individual, sin pagar el plan completo, no se aplica ningún descuento.",
     `Los costos de este plan son vigentes por ${VALIDITY_DAYS} días a partir de la fecha de elaboración o entrega del plan (hasta el ${longDate(validUntil)}).`,
   ] : [];
   if (plan.notes?.trim()) terms.push(plan.notes.trim());
