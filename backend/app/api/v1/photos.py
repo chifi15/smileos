@@ -1,3 +1,4 @@
+import asyncio
 import uuid
 from datetime import date
 from typing import Annotated
@@ -105,6 +106,8 @@ async def get_photo(
 
 
 _THUMB_WIDTHS = (200, 400, 800)
+# Una miniatura a la vez: el servidor tiene solo 512 MB de RAM y varias en paralelo lo reiniciaban.
+_THUMB_LOCK = asyncio.Semaphore(1)
 
 
 def _make_thumb(data: bytes, width: int) -> bytes:
@@ -113,8 +116,11 @@ def _make_thumb(data: bytes, width: int) -> bytes:
     from PIL import Image, ImageOps
 
     img = Image.open(io.BytesIO(data))
+    if img.format == "JPEG":
+        # Decodifica el JPEG ya reducido (usa una fracción de la memoria: clave en 512 MB de RAM).
+        img.draft("RGB", (width * 2, width * 2))
     img = ImageOps.exif_transpose(img)
-    img.thumbnail((width, width * 4))
+    img.thumbnail((width, width * 4), reducing_gap=2.0)
     if img.mode not in ("RGB", "L"):
         bg = Image.new("RGB", img.size, (255, 255, 255))
         alpha = img.convert("RGBA")
@@ -151,8 +157,10 @@ async def get_photo_file(
             if await run_in_threadpool(storage.file_exists, thumb_path):
                 thumb = await run_in_threadpool(storage.read_file, thumb_path)
             else:
-                original = await run_in_threadpool(storage.read_file, photo.storage_path)
-                thumb = await run_in_threadpool(_make_thumb, original, width)
+                async with _THUMB_LOCK:
+                    original = await run_in_threadpool(storage.read_file, photo.storage_path)
+                    thumb = await run_in_threadpool(_make_thumb, original, width)
+                    del original
                 await run_in_threadpool(storage.save_file, thumb_path, thumb)
             return StreamingResponse(iter([thumb]), media_type="image/jpeg", headers=headers)
         except (FileNotFoundError, OSError):
