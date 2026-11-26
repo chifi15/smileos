@@ -48,8 +48,8 @@ export default function PreciosIdealesPage() {
   const update = useUpdateCostTreatment();
 
   const [margin, setMargin] = useState(15);      // % de ganancia de la clínica sobre el costo
-  const [discount, setDiscount] = useState(12);  // descuento máximo que quiero poder dar
-  const [rate, setRate] = useState(37);          // C$ por USD
+  const [discount, setDiscount] = useState(15);  // descuento máximo que quiero poder dar
+  const [rate, setRate] = useState(37.15);       // C$ por USD
   const [step, setStep] = useState(10);
   const [applying, setApplying] = useState<string | null>(null);
 
