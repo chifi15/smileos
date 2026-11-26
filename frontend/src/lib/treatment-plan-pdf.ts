@@ -55,6 +55,7 @@ export interface PlanPdfInput {
 // ─── Reglas comerciales ──────────────────────────────────────────────────────
 export const DISCOUNT_FULL_PCT = 10;
 export const DISCOUNT_HALF_PCT = 5;
+export const DISCOUNT_HEMI_PCT = 3;
 export const VALIDITY_DAYS = 15;
 
 import { GROUPS, groupForTooth, parseTeeth, type GroupKey } from "@/lib/plan-groups";
@@ -403,6 +404,7 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
   const photoRows = new Map<number, { rows: { photo: PdfPhoto; x: number; y: number; w: number }[]; h: number }>();
   let n = 0;
   let total = 0;
+  const hemiSubtotals: { label: string; sub: number }[] = []; // solo hemiarcadas reales (no «varias» ni «general»)
   for (const g of GROUPS) {
     const list = byGroup.get(g.key);
     if (!list || list.length === 0) continue;
@@ -458,6 +460,7 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
       ]);
     }
     total += sub;
+    if ((['sd', 'si', 'ii', 'id'] as string[]).includes(g.key) && sub > 0) hemiSubtotals.push({ label: g.label, sub });
     if (showPrices) {
       body.push([
         { content: `Subtotal · ${g.label.toLowerCase()}`, colSpan: 3, styles: { halign: "right", fontStyle: "bold", textColor: MUTED } },
@@ -516,6 +519,14 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
       body: [
         ["Plan completo en un solo pago", `${DISCOUNT_FULL_PCT}%`, money(full), money(total - full)],
         [`Plan completo en 2 pagos (2 × ${money(twoPays / 2)}): una mitad y luego la otra`, `${DISCOUNT_HALF_PCT}%`, money(twoPays), money(total - twoPays)],
+        ...(hemiSubtotals.length >= 2
+          ? hemiSubtotals.map((h) => [
+              `Solo la ${h.label.toLowerCase()}, pagada completa`,
+              `${DISCOUNT_HEMI_PCT}%`,
+              money(h.sub * (1 - DISCOUNT_HEMI_PCT / 100)),
+              money(h.sub * (DISCOUNT_HEMI_PCT / 100)),
+            ])
+          : []),
         ["Pago por tratamiento individual (sin pagar el plan completo)", "Sin descuento", money(total), money(0)],
       ],
       theme: "grid",
@@ -534,6 +545,9 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
   const terms: string[] = showPrices ? [
     `Si el paciente paga el plan completo en un solo pago, se le otorga un ${DISCOUNT_FULL_PCT}% de descuento sobre el costo total.`,
     `Si el paciente paga el plan completo en 2 pagos (una mitad primero y la otra mitad después), se le otorga un ${DISCOUNT_HALF_PCT}% de descuento sobre el costo total del plan.`,
+    ...(hemiSubtotals.length >= 2
+      ? [`Si el paciente paga por hemiarcada, cada hemiarcada completa de una sola vez, se le otorga un ${DISCOUNT_HEMI_PCT}% de descuento sobre el costo de esa hemiarcada. Aplica si se realiza solo una o varias hemiarcadas, o si se completa el plan por etapas, una hemiarcada a la vez.`]
+      : []),
     "Si el paciente paga por tratamiento individual, sin pagar el plan completo, no se aplica ningún descuento.",
     `Los costos de este plan son vigentes por ${VALIDITY_DAYS} días a partir de la fecha de elaboración o entrega del plan (hasta el ${longDate(validUntil)}).`,
   ] : [];
