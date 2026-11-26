@@ -439,7 +439,7 @@ function SortablePhotoCard({
       )}
 
       <AuthImage
-        src={`/api/v1/patients/${patientId}/photos/${photo.id}/file`}
+        src={`/api/v1/patients/${patientId}/photos/${photo.id}/file?w=400`}
         alt={photo.caption ?? ""}
         className="aspect-square w-full"
       />

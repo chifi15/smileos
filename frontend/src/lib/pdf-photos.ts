@@ -44,6 +44,9 @@ export interface PdfPhotoSelection {
 export const photoUrl = (patientId: string, photoId: string) =>
   `/api/v1/patients/${patientId}/photos/${photoId}/file`;
 
+/** Miniatura liviana (ancho máximo en px) para cuadrículas y vistas previas. */
+export const photoThumbUrl = (patientId: string, photoId: string, w = 400) => `${photoUrl(patientId, photoId)}?w=${w}`;
+
 const blobCache = new Map<string, Blob>();
 
 export async function fetchPhotoBlob(patientId: string, photoId: string): Promise<Blob> {

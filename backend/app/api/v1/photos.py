@@ -104,25 +104,67 @@ async def get_photo(
     return {"success": True, "data": _serialize(photo)}
 
 
+_THUMB_WIDTHS = (200, 400, 800)
+
+
+def _make_thumb(data: bytes, width: int) -> bytes:
+    """Reduce la imagen a `width` px de ancho máximo (JPEG liviano). Respeta la orientación EXIF."""
+    import io
+    from PIL import Image, ImageOps
+
+    img = Image.open(io.BytesIO(data))
+    img = ImageOps.exif_transpose(img)
+    img.thumbnail((width, width * 4))
+    if img.mode not in ("RGB", "L"):
+        bg = Image.new("RGB", img.size, (255, 255, 255))
+        alpha = img.convert("RGBA")
+        bg.paste(alpha, mask=alpha.split()[-1])
+        img = bg
+    out = io.BytesIO()
+    img.convert("RGB").save(out, "JPEG", quality=78, optimize=True)
+    return out.getvalue()
+
+
 @router.get("/{photo_id}/file")
 async def get_photo_file(
     patient_id: uuid.UUID,
     photo_id: uuid.UUID,
     user: Annotated[object, require_permission("view_photos")],
     db: Annotated[AsyncSession, Depends(get_db)],
+    w: int | None = Query(default=None, ge=1, le=4000, description="Ancho máximo de la miniatura"),
 ):
-    """Sirve el archivo de imagen directamente (autenticado)."""
-    photo = await photo_service.get_photo(db, user.clinic_id, patient_id, photo_id)
+    """Sirve el archivo de imagen directamente (autenticado). Con ?w= devuelve una miniatura liviana."""
+    from fastapi.concurrency import run_in_threadpool
     from app.core import storage
+
+    photo = await photo_service.get_photo(db, user.clinic_id, patient_id, photo_id)
+    headers = {
+        "Content-Disposition": f'inline; filename="{photo.filename}"',
+        # Las fotos no cambian: el navegador puede reutilizarlas sin volver a pedirlas.
+        "Cache-Control": "private, max-age=86400",
+    }
+
+    if w:
+        width = next((t for t in _THUMB_WIDTHS if w <= t), _THUMB_WIDTHS[-1])
+        thumb_path = f"{photo.storage_path}.w{width}.jpg"
+        try:
+            if await run_in_threadpool(storage.file_exists, thumb_path):
+                thumb = await run_in_threadpool(storage.read_file, thumb_path)
+            else:
+                original = await run_in_threadpool(storage.read_file, photo.storage_path)
+                thumb = await run_in_threadpool(_make_thumb, original, width)
+                await run_in_threadpool(storage.save_file, thumb_path, thumb)
+            return StreamingResponse(iter([thumb]), media_type="image/jpeg", headers=headers)
+        except (FileNotFoundError, OSError):
+            raise NotFoundError("Archivo de fotografía")
+        except Exception:
+            pass  # si falla la miniatura, se sirve el original
+
     try:
-        data = storage.read_file(photo.storage_path)
+        data = await run_in_threadpool(storage.read_file, photo.storage_path)
     except (FileNotFoundError, OSError):
         raise NotFoundError("Archivo de fotografía")
-    return StreamingResponse(
-        iter([data]),
-        media_type=photo.mime_type,
-        headers={"Content-Disposition": f'inline; filename="{photo.filename}"'},
-    )
+    return StreamingResponse(iter([data]), media_type=photo.mime_type, headers=headers)
 
 
 @router.patch("/{photo_id}")

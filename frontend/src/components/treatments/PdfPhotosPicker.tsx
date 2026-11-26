@@ -5,7 +5,7 @@ import { SlidersHorizontal } from "lucide-react";
 import AuthImage from "@/components/ui/AuthImage";
 import PhotoCropModal from "@/components/treatments/PhotoCropModal";
 import { usePatientPhotos, useUpdatePhotoEdit } from "@/hooks/usePhotos";
-import { photoUrl, isEdited, normalizeEdit, type PhotoEdit, type PdfPhotoSelection } from "@/lib/pdf-photos";
+import { photoThumbUrl, isEdited, normalizeEdit, type PhotoEdit, type PdfPhotoSelection } from "@/lib/pdf-photos";
 import { PHOTO_TYPE_LABELS, type PatientPhoto, type PhotoType } from "@/types";
 
 export const photoLabel = (p: PatientPhoto) =>
@@ -131,7 +131,7 @@ export default function PdfPhotosPicker({ patientId, groups, value, onChange }: 
                 className={`relative overflow-hidden rounded-lg border-2 ${sel ? "border-blue-500" : "border-transparent"}`}
               >
                 <button type="button" onClick={() => toggleOverview(p.id)} className="block w-full text-left">
-                  <AuthImage src={photoUrl(patientId, p.id)} className="h-16 w-full object-cover" />
+                  <AuthImage src={photoThumbUrl(patientId, p.id, 200)} className="h-16 w-full object-cover" />
                   <span className="absolute bottom-0 inset-x-0 truncate bg-black/55 px-1 py-0.5 text-[10px] text-white">
                     {photoLabel(p)}
                   </span>
@@ -186,7 +186,7 @@ export default function PdfPhotosPicker({ patientId, groups, value, onChange }: 
                           className={`relative overflow-hidden rounded-lg border-2 ${sel ? "border-blue-500" : "border-transparent"}`}
                         >
                           <button type="button" onClick={() => toggleGroupPhoto(g.key, p.id)} className="block w-full text-left">
-                            <AuthImage src={photoUrl(patientId, p.id)} className="h-16 w-full object-cover" />
+                            <AuthImage src={photoThumbUrl(patientId, p.id, 200)} className="h-16 w-full object-cover" />
                             <span className="absolute bottom-0 inset-x-0 truncate bg-black/55 px-1 py-0.5 text-[10px] text-white">
                               {photoLabel(p)}
                             </span>
