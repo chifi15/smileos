@@ -688,7 +688,7 @@ export default function ReportesPage() {
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Bar dataKey="ingresos" name="Ingresos" fill="#22c55e" radius={[3, 3, 0, 0]} />
               <Bar dataKey="egresos" name="Egresos" fill="#ef4444" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="utilidad_presupuestada" name="Utilidad" fill="#3b82f6" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="utilidad_presupuestada" name="Utilidad presupuestada" fill="#3b82f6" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : null}
