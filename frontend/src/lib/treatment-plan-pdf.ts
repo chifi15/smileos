@@ -565,7 +565,7 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
     ...(planDiscountsT && hemiSubtotals.length >= 2
       ? [`Si el paciente paga por hemiarcada, cada hemiarcada completa de una sola vez, se le otorga un ${DISCOUNT_HEMI_PCT}% de descuento sobre el costo de esa hemiarcada, siempre que la hemiarcada tenga ${MIN_ITEMS_DISCOUNT} o más procedimientos. Aplica si se realiza solo una o varias hemiarcadas, o si se completa el plan por etapas, una hemiarcada a la vez.`]
       : []),
-    `Los descuentos aplican desde ${MIN_ITEMS_DISCOUNT} procedimientos. Si el paciente paga por tratamiento individual, sin pagar el plan completo, no se aplica ningún descuento.`,
+    `Los descuentos aplican solo cuando se pagan ${MIN_ITEMS_DISCOUNT} o más procedimientos juntos (el plan completo o una hemiarcada completa). Si se paga un procedimiento a la vez, cada uno a su precio, no se aplica ningún descuento.`,
     `Los costos de este plan son vigentes por ${VALIDITY_DAYS} días a partir de la fecha de elaboración o entrega del plan (hasta el ${longDate(validUntil)}).`,
   ] : [];
   if (plan.notes?.trim()) terms.push(plan.notes.trim());
