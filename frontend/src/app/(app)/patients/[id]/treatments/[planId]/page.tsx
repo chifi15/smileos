@@ -346,6 +346,12 @@ export default function TreatmentPlanDetailPage() {
   const reopenItem = useReopenItem(patientId, planId);
   const updatePlan = useUpdatePlan(patientId, planId);
   const reorderItems = useReorderItems(patientId, planId);
+
+  // Hooks siempre antes de cualquier return temprano
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
   const deletePayment = useDeletePayment(patientId, planId);
 
   if (isLoading) {
@@ -372,10 +378,6 @@ export default function TreatmentPlanDetailPage() {
     return ts.length ? Math.min(...ts.map((x) => +x)) : 999;
   };
   const applyOrder = (list: typeof orderedItems) => reorderItems.mutate(list.map((i) => i.id));
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
-  );
   const handleItemDragEnd = (e: DragEndEvent) => {
     const { active, over } = e;
     if (!over || active.id === over.id) return;
