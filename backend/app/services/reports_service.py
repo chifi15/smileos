@@ -73,10 +73,11 @@ async def get_monthly_trend(db: AsyncSession, clinic_id: uuid.UUID, year: int) -
         by_month[m]["ingresos"] = round(ingresos, 2)
         by_month[m]["egresos"] = round(egresos, 2)
         by_month[m]["costos_op"] = round(costos_op, 2)
-        # Utilidad real: ingresos menos TODOS los egresos registrados (sin excepciones de "ya cubierto").
-        by_month[m]["utilidad"] = round(ingresos - egresos, 2)
-        # Utilidad presupuestada: ingresos menos los costos operativos calculados de cada tratamiento cobrado.
-        by_month[m]["utilidad_presupuestada"] = round(ingresos - costos_op, 2)
+        # Utilidad real: ingresos − TODOS los egresos − costos operativos (suma completa, sin excepciones).
+        by_month[m]["utilidad"] = round(ingresos - egresos - costos_op, 2)
+        # Utilidad presupuestada: ingresos − egresos NO cubiertos − costos operativos
+        # (los egresos "ya cubiertos" ya van incluidos en los costos operativos).
+        by_month[m]["utilidad_presupuestada"] = round(ingresos - (egresos - cubiertos) - costos_op, 2)
     return list(by_month.values())
 
 

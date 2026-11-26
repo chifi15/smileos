@@ -688,7 +688,7 @@ export default function ReportesPage() {
               <Legend wrapperStyle={{ fontSize: 12 }} />
               <Bar dataKey="ingresos" name="Ingresos" fill="#22c55e" radius={[3, 3, 0, 0]} />
               <Bar dataKey="egresos" name="Egresos" fill="#ef4444" radius={[3, 3, 0, 0]} />
-              <Bar dataKey="utilidad" name="Utilidad" fill="#3b82f6" radius={[3, 3, 0, 0]} />
+              <Bar dataKey="utilidad_presupuestada" name="Utilidad" fill="#3b82f6" radius={[3, 3, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
         ) : null}
@@ -1375,8 +1375,8 @@ export default function ReportesPage() {
                 <th className="px-4 py-2 font-medium text-right">Ingresos</th>
                 <th className="px-4 py-2 font-medium text-right">Egresos</th>
                 <th className="px-4 py-2 font-medium text-right" title="Costo operativo calculado de los tratamientos cobrados (materiales, honorarios y gastos fijos)">Costos op.</th>
-                <th className="px-4 py-2 font-medium text-right" title="Ingresos − todos los egresos registrados">Utilidad real</th>
-                <th className="px-4 py-2 font-medium text-right" title="Ingresos − costos operativos de los tratamientos cobrados">Utilidad presupuestada</th>
+                <th className="px-4 py-2 font-medium text-right" title="Ingresos − todos los egresos − costos operativos">Utilidad real</th>
+                <th className="px-4 py-2 font-medium text-right" title="Ingresos − egresos no cubiertos − costos operativos (los egresos ya cubiertos van dentro de los costos operativos)">Utilidad presupuestada</th>
               </tr>
             </thead>
             <tbody>
