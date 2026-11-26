@@ -246,9 +246,6 @@ export default function PreciosIdealesPage() {
                       <div className="text-xs font-semibold text-green-700 dark:text-green-400">
                         {r.cost > 0 ? ((dProfit / r.cost) * 100).toFixed(1) : 0}% del costo
                       </div>
-                      <div className="text-[11px] text-slate-400 dark:text-gray-500">
-                        ({dPrice > 0 ? ((dProfit / dPrice) * 100).toFixed(1) : 0}% de lo que paga)
-                      </div>
                     </td>
 
                     <td className="border-l border-slate-100 dark:border-gray-700 px-3 py-3 text-right tabular-nums">
