@@ -548,10 +548,10 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
   const terms: string[] = showPrices ? [
     ...(planDiscountsT ? [
       `Pago único: si el paciente paga el plan completo en un solo pago, antes de iniciar el tratamiento, se le otorga un ${fullPaymentPct(total)}% de descuento sobre el costo total.`,
-      `Pago en 2 pagos: si el paciente paga el plan completo en 2 pagos, se le otorga un ${DISCOUNT_HALF_PCT}% de descuento sobre el costo total del plan. La primera mitad se paga antes de iniciar el tratamiento y la segunda mitad al completarse la mitad del plan, o a más tardar a los 30 días de iniciado, lo que ocurra primero.`,
-      "Si el segundo pago no se realiza en el plazo indicado, el paciente pierde el descuento y el saldo restante se cobra a precio normal.",
+      `Pago en 2 pagos: si el paciente paga el plan completo en 2 pagos, se le otorga un ${DISCOUNT_HALF_PCT}% de descuento sobre el costo total del plan. La primera mitad se paga antes de iniciar el tratamiento y la segunda mitad al completarse la mitad del plan.`,
+      "Si el segundo pago no se realiza al completarse la mitad del plan, el paciente pierde el descuento en todo el plan: deberá pagar el total a precio normal, restando lo que ya pagó.",
     ] : []),
-    `Los descuentos aplican solo al pagar el plan completo (en un solo pago o en 2 pagos) y cuando el plan tiene ${MIN_ITEMS_DISCOUNT} o más procedimientos. Si se paga un procedimiento a la vez, cada uno a su precio, no se aplica ningún descuento.`,
+    "Si el paciente paga por tratamiento individual, sin pagar el plan completo, no se aplica ningún descuento.",
     `Los costos de este plan son vigentes por ${VALIDITY_DAYS} días a partir de la fecha de elaboración o entrega del plan (hasta el ${longDate(validUntil)}).`,
   ] : [];
   if (plan.notes?.trim()) terms.push(plan.notes.trim());
