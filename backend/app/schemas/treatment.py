@@ -77,5 +77,9 @@ class TreatmentItemUpdate(BaseModel):
     sort_order: int | None = None
 
 
+class TreatmentItemReorder(BaseModel):
+    order: list[uuid.UUID]
+
+
 class CompleteItemRequest(BaseModel):
     appointment_id: uuid.UUID | None = None

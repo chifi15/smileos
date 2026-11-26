@@ -48,6 +48,8 @@ export interface PlanPdfInput {
   showPrices?: boolean;
   /** Mostrar la guía de piezas FDI (por defecto sí). */
   showChart?: boolean;
+  /** 'plan' respeta el orden de los procedimientos tal como vienen; 'fdi' los ordena por pieza (por defecto). */
+  itemOrder?: "plan" | "fdi";
 }
 
 // ─── Reglas comerciales ──────────────────────────────────────────────────────
@@ -442,7 +444,7 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
       const ts = parseTeeth(it.tooth_fdi);
       return ts.length ? Math.min(...ts.map((t) => +t[1] * 10 + +t[0])) : Number.MAX_SAFE_INTEGER;
     };
-    list.sort((a, b) => toothKey(a) - toothKey(b));
+    if (input.itemOrder !== "plan") list.sort((a, b) => toothKey(a) - toothKey(b));
     let sub = 0;
     for (const it of list) {
       n += 1;

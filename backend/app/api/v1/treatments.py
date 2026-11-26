@@ -16,6 +16,7 @@ from app.schemas.treatment import (
     TreatmentItemCreate,
     TreatmentItemUpdate,
     CompleteItemRequest,
+    TreatmentItemReorder,
 )
 from app.services import treatment_service, audit_service
 
@@ -244,6 +245,18 @@ async def add_item(
         description=f'Agregó "{proc_name}" al plan "{plan.title}"',
         patient_id=patient_id,
     )
+    return {"success": True, "data": _serialize_plan(plan)}
+
+
+@router.put("/{plan_id}/items/reorder")
+async def reorder_items(
+    patient_id: uuid.UUID,
+    plan_id: uuid.UUID,
+    body: TreatmentItemReorder,
+    user: Annotated[object, require_permission("manage_treatments")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    plan = await treatment_service.reorder_items(db, user.clinic_id, patient_id, plan_id, body.order)
     return {"success": True, "data": _serialize_plan(plan)}
 
 

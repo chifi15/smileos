@@ -5,8 +5,8 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, Plus, Trash2, Play, CheckCircle2, XCircle, ScanLine, RotateCcw, Wallet, X, Pencil, FileDown } from "lucide-react";
-import { usePlan, useDeleteItem, useStartItem, useCancelItem, useUpdatePlan, useReopenItem, usePlanPayments, useCreatePayment, useDeletePayment, useUpdateItem, useUpdatePayment } from "@/hooks/useTreatments";
+import { ChevronLeft, Plus, Trash2, Play, CheckCircle2, XCircle, ScanLine, RotateCcw, Wallet, X, Pencil, FileDown, ChevronUp, ChevronDown, ArrowUpDown } from "lucide-react";
+import { usePlan, useDeleteItem, useStartItem, useCancelItem, useUpdatePlan, useReopenItem, usePlanPayments, useCreatePayment, useDeletePayment, useUpdateItem, useUpdatePayment, useReorderItems } from "@/hooks/useTreatments";
 import { usePatient } from "@/hooks/usePatients";
 import { useClinicSettings } from "@/hooks/useSettings";
 import { useDoctors } from "@/hooks/useFinances";
@@ -292,6 +292,7 @@ export default function TreatmentPlanDetailPage() {
   const [pdfDoctorId, setPdfDoctorId] = useState("");
   const [pdfShowPrices, setPdfShowPrices] = useState(true);
   const [pdfShowChart, setPdfShowChart] = useState(true);
+  const [pdfItemOrder, setPdfItemOrder] = useState<"plan" | "fdi">("fdi");
   const [pdfPhotos, setPdfPhotos] = useState<PdfPhotoSelection>({ overview: [], groups: {} });
   const { data: patientPhotos = [] } = usePatientPhotos(patientId);
   const [showAddItem, setShowAddItem] = useState(false);
@@ -307,6 +308,7 @@ export default function TreatmentPlanDetailPage() {
   const cancelItem = useCancelItem(patientId, planId);
   const reopenItem = useReopenItem(patientId, planId);
   const updatePlan = useUpdatePlan(patientId, planId);
+  const reorderItems = useReorderItems(patientId, planId);
   const deletePayment = useDeletePayment(patientId, planId);
 
   if (isLoading) {
@@ -322,6 +324,31 @@ export default function TreatmentPlanDetailPage() {
       <div className="p-6 text-center text-sm text-slate-500">Plan no encontrado.</div>
     );
   }
+
+  // Orden elegido por el doctor (estable: empates por fecha de creación)
+  const orderedItems = [...plan.items].sort(
+    (a, b) => a.sort_order - b.sort_order || (a.created_at ?? "").localeCompare(b.created_at ?? ""),
+  );
+  const fdiKey = (t: string | null) => {
+    const ts = (t ?? "").replace(/([1-8])\.([1-8])/g, "$1$2").match(/[1-8][1-8]/g) ?? [];
+    return ts.length ? Math.min(...ts.map((x) => +x[1] * 10 + +x[0])) : 999;
+  };
+  const applyOrder = (list: typeof orderedItems) => reorderItems.mutate(list.map((i) => i.id));
+  const moveItem = (idx: number, dir: -1 | 1) => {
+    const next = [...orderedItems];
+    const j = idx + dir;
+    if (j < 0 || j >= next.length) return;
+    [next[idx], next[j]] = [next[j], next[idx]];
+    applyOrder(next);
+  };
+  const sortBy = (kind: "price_asc" | "price_desc" | "priority" | "fdi") => {
+    const next = [...orderedItems];
+    if (kind === "price_asc") next.sort((a, b) => (a.quoted_price ?? Infinity) - (b.quoted_price ?? Infinity));
+    if (kind === "price_desc") next.sort((a, b) => (b.quoted_price ?? -1) - (a.quoted_price ?? -1));
+    if (kind === "priority") next.sort((a, b) => Number(b.priority === "urgent") - Number(a.priority === "urgent"));
+    if (kind === "fdi") next.sort((a, b) => fdiKey(a.tooth_fdi) - fdiKey(b.tooth_fdi));
+    applyOrder(next);
+  };
 
   const totalPrice = plan.items.reduce((s, i) => s + (i.quoted_price ?? 0), 0);
   const doneCount = plan.items.filter((i) => i.status === "completed").length;
@@ -362,6 +389,9 @@ export default function TreatmentPlanDetailPage() {
       if (phs.length > 0) groups[g.key] = phs.map((ph) => ({ photoId: ph.id, edit: normalizeEdit(ph.pdf_edit as Partial<PhotoEdit> | null) }));
     }
     setPdfPhotos({ overview, groups });
+    // Si el doctor ya ordenó los procedimientos a mano, el PDF respeta ese orden por defecto
+    const orders = new Set(plan.items.map((i) => i.sort_order));
+    setPdfItemOrder(orders.size > 1 ? "plan" : "fdi");
     setShowPdfOptions(true);
   }
 
@@ -381,6 +411,7 @@ export default function TreatmentPlanDetailPage() {
         photos,
         showPrices: pdfShowPrices,
         showChart: pdfShowChart,
+        itemOrder: pdfItemOrder,
         clinic: {
           name: clinic?.display_name ?? "Clínica",
           legalName: clinic?.legal_name,
@@ -394,7 +425,7 @@ export default function TreatmentPlanDetailPage() {
           title: plan.title,
           diagnosis: plan.diagnosis,
           notes: plan.notes,
-          items: plan.items.map((i) => ({
+          items: orderedItems.map((i) => ({
             procedure_name: i.procedure_name,
             tooth_fdi: i.tooth_fdi,
             quoted_price: i.quoted_price,
@@ -444,6 +475,15 @@ export default function TreatmentPlanDetailPage() {
           <p className="text-xs text-slate-400 dark:text-gray-500">
             Aparece en el PDF junto al espacio de firma. Se recuerda para la próxima vez.
           </p>
+          <Select
+            label="Orden de los procedimientos"
+            value={pdfItemOrder}
+            onChange={(e) => setPdfItemOrder(e.target.value as "plan" | "fdi")}
+            options={[
+              { value: "plan", label: "Mi orden (el que dejé en el plan)" },
+              { value: "fdi", label: "Por pieza FDI (incisivos a molares)" },
+            ]}
+          />
           <label className="flex items-start gap-2.5 rounded-lg border border-slate-200 dark:border-gray-600 px-3 py-2.5 cursor-pointer">
             <input
               type="checkbox"
@@ -607,9 +647,30 @@ export default function TreatmentPlanDetailPage() {
           </div>
         ) : (
           <div className="divide-y divide-slate-50 dark:divide-gray-700">
-            {plan.items
-              .sort((a, b) => a.sort_order - b.sort_order)
-              .map((item) => {
+            {orderedItems.length > 1 && (
+              <div className="flex flex-wrap items-center gap-2 px-5 py-2.5 text-xs text-slate-500 dark:text-gray-400">
+                <span className="flex items-center gap-1 font-medium"><ArrowUpDown size={13} /> Ordenar por:</span>
+                {([
+                  ["fdi", "Pieza (FDI)"],
+                  ["priority", "Prioridad"],
+                  ["price_asc", "Precio ↑"],
+                  ["price_desc", "Precio ↓"],
+                ] as const).map(([k, label]) => (
+                  <button
+                    key={k}
+                    type="button"
+                    disabled={reorderItems.isPending}
+                    onClick={() => sortBy(k)}
+                    className="rounded-md border border-slate-200 dark:border-gray-600 px-2 py-1 hover:bg-slate-50 dark:hover:bg-gray-700 disabled:opacity-50"
+                  >
+                    {label}
+                  </button>
+                ))}
+                <span className="text-slate-400">o usa las flechas de cada fila. Este orden sale en el PDF.</span>
+              </div>
+            )}
+            {orderedItems
+              .map((item, idx) => {
                 const status = item.status as TreatmentItemStatus;
                 const canAct = plan.status === "active";
                 const isWorking =
@@ -666,6 +727,27 @@ export default function TreatmentPlanDetailPage() {
                         <p className="mt-1 text-xs text-slate-400">{item.notes}</p>
                       )}
                     </div>
+
+                    {orderedItems.length > 1 && (
+                      <div className="flex shrink-0 flex-col">
+                        <button
+                          title="Subir"
+                          disabled={idx === 0 || reorderItems.isPending}
+                          onClick={() => moveItem(idx, -1)}
+                          className="rounded p-0.5 text-slate-400 hover:text-blue-600 disabled:opacity-30"
+                        >
+                          <ChevronUp size={15} />
+                        </button>
+                        <button
+                          title="Bajar"
+                          disabled={idx === orderedItems.length - 1 || reorderItems.isPending}
+                          onClick={() => moveItem(idx, 1)}
+                          className="rounded p-0.5 text-slate-400 hover:text-blue-600 disabled:opacity-30"
+                        >
+                          <ChevronDown size={15} />
+                        </button>
+                      </div>
+                    )}
 
                     {/* Actions */}
                     {(canAct || ["completed", "cancelled"].includes(status)) && (

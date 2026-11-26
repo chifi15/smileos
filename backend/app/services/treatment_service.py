@@ -306,6 +306,23 @@ async def update_item(
     return await get_treatment_plan(db, clinic_id, patient_id, plan_id)
 
 
+async def reorder_items(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    patient_id: uuid.UUID,
+    plan_id: uuid.UUID,
+    order: list[uuid.UUID],
+) -> TreatmentPlan:
+    """Guarda el orden de los ítems del plan (sort_order = posición). Los que no vengan van al final."""
+    plan = await get_treatment_plan(db, clinic_id, patient_id, plan_id)
+    pos = {iid: i for i, iid in enumerate(order)}
+    rest = len(order)
+    for item in sorted(plan.items, key=lambda it: (pos.get(it.id, rest), it.sort_order)):
+        item.sort_order = pos.get(item.id, rest) + 1
+    await db.flush()
+    return await get_treatment_plan(db, clinic_id, patient_id, plan_id)
+
+
 async def remove_item(
     db: AsyncSession,
     clinic_id: uuid.UUID,

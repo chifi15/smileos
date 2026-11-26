@@ -158,6 +158,23 @@ export function useUpdateItem(patientId: string, planId: string) {
   });
 }
 
+export function useReorderItems(patientId: string, planId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (order: string[]) => {
+      const { data } = await apiClient.put<{ data: TreatmentPlan }>(
+        `${base(patientId)}/${planId}/items/reorder`,
+        { order }
+      );
+      return data.data;
+    },
+    onSuccess: (plan) => {
+      qc.setQueryData(["treatments", patientId, planId], plan);
+    },
+    onError: () => toast.error("Error al guardar el orden."),
+  });
+}
+
 export function useDeleteItem(patientId: string, planId: string) {
   const qc = useQueryClient();
   return useMutation({
