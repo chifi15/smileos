@@ -332,8 +332,8 @@ export default function TreatmentPlanDetailPage() {
     );
     const groups: PdfPhotoSelection["groups"] = {};
     for (const g of pdfPhotoGroups) {
-      const ph = patientPhotos.find((p) => p.photo_type === `hemi_${g.key}`);
-      if (ph) groups[g.key] = { photoId: ph.id, edit: normalizeEdit(ph.pdf_edit as Partial<PhotoEdit> | null) };
+      const phs = patientPhotos.filter((p) => p.photo_type === `hemi_${g.key}`);
+      if (phs.length > 0) groups[g.key] = phs.map((ph) => ({ photoId: ph.id, edit: normalizeEdit(ph.pdf_edit as Partial<PhotoEdit> | null) }));
     }
     setPdfPhotos({ overview, groups });
     setShowPdfOptions(true);
@@ -349,7 +349,7 @@ export default function TreatmentPlanDetailPage() {
         const p = patientPhotos.find((x) => x.id === id);
         return p ? photoLabel(p) : "";
       };
-      const hasPhotos = pdfPhotos.overview.length > 0 || Object.keys(pdfPhotos.groups).length > 0;
+      const hasPhotos = pdfPhotos.overview.length > 0 || Object.values(pdfPhotos.groups).some((l) => (l?.length ?? 0) > 0);
       const photos = hasPhotos ? await buildPdfPhotos(patientId, pdfPhotos, labelOf) : undefined;
       downloadTreatmentPlanPdf({
         photos,

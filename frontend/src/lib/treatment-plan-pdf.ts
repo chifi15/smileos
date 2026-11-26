@@ -21,8 +21,8 @@ export interface PdfPhoto {
 export interface PlanPdfPhotos {
   /** Fotos generales (sonrisa, laterales, oclusales…) mostradas antes de la tabla. */
   overview: PdfPhoto[];
-  /** Foto (recortada) para mostrar bajo el encabezado de cada hemiarcada. */
-  byGroup: Partial<Record<string, PdfPhoto>>;
+  /** Fotos (recortadas) para mostrar bajo el encabezado de cada hemiarcada. */
+  byGroup: Partial<Record<string, PdfPhoto[]>>;
 }
 
 export interface PlanPdfInput {
@@ -398,7 +398,7 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
 
   const cols = showPrices ? 4 : 3;
   const body: CellDef[][] = [];
-  const photoRows = new Map<number, { photo: PdfPhoto; w: number; h: number }>();
+  const photoRows = new Map<number, { rows: { photo: PdfPhoto; x: number; y: number; w: number }[]; h: number }>();
   let n = 0;
   let total = 0;
   for (const g of GROUPS) {
@@ -407,20 +407,35 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
     body.push([
       { content: g.label, colSpan: cols, styles: { fillColor: SOFT, fontStyle: "bold", textColor: ACCENT } },
     ]);
-    const gp = input.photos?.byGroup?.[g.key];
-    if (gp) {
-      const h = 54;
-      const w = boxW(gp, h, 90);
-      photoRows.set(body.length, { photo: gp, w, h });
-      body.push([{ content: "", colSpan: cols, styles: { minCellHeight: h + 4 } }]);
+    const gps = input.photos?.byGroup?.[g.key] ?? [];
+    if (gps.length > 0) {
+      // Misma altura para todas; las del mismo tipo (horizontal/vertical) quedan del mismo tamaño.
+      const h = gps.length <= 2 ? 54 : 40;
+      const availW = contentW - 6;
+      const gapP = 4;
+      const placed: { photo: PdfPhoto; x: number; y: number; w: number }[] = [];
+      let lineIdx = 0;
+      let line: { photo: PdfPhoto; w: number }[] = [];
+      const flush = () => {
+        const tw = line.reduce((t, q) => t + q.w, 0) + gapP * (line.length - 1);
+        let x = (availW - tw) / 2;
+        for (const q of line) {
+          placed.push({ photo: q.photo, x, y: lineIdx * (h + gapP), w: q.w });
+          x += q.w + gapP;
+        }
+        line = [];
+        lineIdx += 1;
+      };
+      for (const ph of gps) {
+        const w = boxW(ph, h, availW);
+        const used = line.reduce((t, q) => t + q.w + gapP, 0);
+        if (line.length > 0 && used + w > availW) flush();
+        line.push({ photo: ph, w });
+      }
+      if (line.length > 0) flush();
+      photoRows.set(body.length, { rows: placed, h });
+      body.push([{ content: "", colSpan: cols, styles: { minCellHeight: lineIdx * (h + gapP) + 2 } }]);
     }
-    // Orden FDI dentro de la hemiarcada: de incisivos (1) a molares (8) según el dígito de pieza.
-    // Sort estable: ítems de la misma pieza conservan su orden original.
-    const toothKey = (it: PlanPdfItem) => {
-      const t = parseTeeth(it.tooth_fdi)[0];
-      return t ? +t[1] * 10 + +t[0] : Number.MAX_SAFE_INTEGER;
-    };
-    list.sort((a, b) => toothKey(a) - toothKey(b));
     let sub = 0;
     for (const it of list) {
       n += 1;
@@ -467,7 +482,7 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
       if (d.section !== "body") return;
       const pr = photoRows.get(d.row.index);
       if (!pr) return;
-      drawPhotoBox(doc, pr.photo, d.cell.x + 2, d.cell.y + 2, pr.w, pr.h);
+      for (const q of pr.rows) drawPhotoBox(doc, q.photo, d.cell.x + 3 + q.x, d.cell.y + 2 + q.y, q.w, pr.h);
     },
   });
   y = lastY() + 9;

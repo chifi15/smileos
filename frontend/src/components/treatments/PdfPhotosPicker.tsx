@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { SlidersHorizontal, Check } from "lucide-react";
+import { SlidersHorizontal } from "lucide-react";
 import AuthImage from "@/components/ui/AuthImage";
-import Select from "@/components/ui/Select";
 import PhotoCropModal from "@/components/treatments/PhotoCropModal";
 import { usePatientPhotos, useUpdatePhotoEdit } from "@/hooks/usePhotos";
 import { photoUrl, isEdited, normalizeEdit, type PhotoEdit, type PdfPhotoSelection } from "@/lib/pdf-photos";
@@ -26,7 +25,7 @@ interface Props {
   onChange: (v: PdfPhotoSelection) => void;
 }
 
-type Editing = { kind: "overview"; photoId: string } | { kind: "group"; key: string } | null;
+type Editing = { kind: "overview"; photoId: string } | { kind: "group"; key: string; photoId: string } | null;
 
 export default function PdfPhotosPicker({ patientId, groups, value, onChange }: Props) {
   const { data: photos = [], isLoading } = usePatientPhotos(patientId);
@@ -59,12 +58,11 @@ export default function PdfPhotosPicker({ patientId, groups, value, onChange }: 
     onChange({ ...value, overview: sortOverview(next) });
   }
 
-  function setGroupPhoto(key: string, photoId: string) {
-    const groupsNext = { ...value.groups };
-    if (!photoId) delete groupsNext[key];
-    else groupsNext[key] = { photoId, edit: editOf(photoId) };
-    onChange({ ...value, groups: groupsNext });
-    if (photoId) setEditing({ kind: "group", key });
+  function toggleGroupPhoto(key: string, photoId: string) {
+    const cur = value.groups[key] ?? [];
+    const has = cur.some((g) => g.photoId === photoId);
+    const next = has ? cur.filter((g) => g.photoId !== photoId) : [...cur, { photoId, edit: editOf(photoId) }];
+    onChange({ ...value, groups: { ...value.groups, [key]: next } });
   }
 
   let modal: React.ReactNode = null;
@@ -90,7 +88,7 @@ export default function PdfPhotosPicker({ patientId, groups, value, onChange }: 
       );
     }
   } else if (editing?.kind === "group") {
-    const cur = value.groups[editing.key];
+    const cur = value.groups[editing.key]?.find((g) => g.photoId === editing.photoId);
     if (cur) {
       modal = (
         <PhotoCropModal
@@ -100,7 +98,13 @@ export default function PdfPhotosPicker({ patientId, groups, value, onChange }: 
           initial={cur.edit}
           onClose={() => setEditing(null)}
           onSave={(edit) => {
-            onChange({ ...value, groups: { ...value.groups, [editing.key]: { photoId: cur.photoId, edit } } });
+            onChange({
+              ...value,
+              groups: {
+                ...value.groups,
+                [editing.key]: (value.groups[editing.key] ?? []).map((g) => (g.photoId === cur.photoId ? { ...g, edit } : g)),
+              },
+            });
             persist(cur.photoId, edit);
             setEditing(null);
           }}
@@ -108,9 +112,6 @@ export default function PdfPhotosPicker({ patientId, groups, value, onChange }: 
       );
     }
   }
-
-  const editBtn =
-    "flex items-center gap-1 rounded-lg border border-slate-200 dark:border-gray-600 px-2.5 py-2 text-xs text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700";
 
   return (
     <div className="space-y-4">
@@ -160,33 +161,54 @@ export default function PdfPhotosPicker({ patientId, groups, value, onChange }: 
 
       {groups.length > 0 && (
         <div>
-          <p className="text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">Foto por hemiarcada</p>
+          <p className="text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">Fotos por hemiarcada</p>
           <p className="text-xs text-slate-400 dark:text-gray-500 mb-2">
-            Se preselecciona la foto de categoría «Hemiarcada». Aparece bajo el costo de esa hemiarcada; puedes girarla,
-            invertirla o recortarla.
+            Se preseleccionan las fotos de categoría «Hemiarcada». Puedes elegir una o varias por hemiarcada; salen bajo
+            el encabezado de esa hemiarcada, y las de la misma orientación (horizontal o vertical) con el mismo tamaño.
+            Con el icono puedes girar, invertir o recortar cada una.
           </p>
-          <div className="space-y-2">
+          <div className="space-y-3">
             {groups.map((g) => {
-              const sel = value.groups[g.key];
+              const sels = value.groups[g.key] ?? [];
               return (
-                <div key={g.key} className="flex items-end gap-2">
-                  <div className="flex-1">
-                    <Select
-                      label={g.label}
-                      value={sel?.photoId ?? ""}
-                      onChange={(e) => setGroupPhoto(g.key, e.target.value)}
-                      options={[
-                        { value: "", label: "— Sin foto —" },
-                        ...photos.map((p) => ({ value: p.id, label: photoLabel(p) })),
-                      ]}
-                    />
+                <div key={g.key}>
+                  <p className="text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">{g.label}</p>
+                  <div className="grid grid-cols-4 gap-2">
+                    {photos.map((p) => {
+                      const idx = sels.findIndex((s) => s.photoId === p.id);
+                      const sel = idx >= 0 ? sels[idx] : null;
+                      return (
+                        <div
+                          key={p.id}
+                          className={`relative overflow-hidden rounded-lg border-2 ${sel ? "border-blue-500" : "border-transparent"}`}
+                        >
+                          <button type="button" onClick={() => toggleGroupPhoto(g.key, p.id)} className="block w-full text-left">
+                            <AuthImage src={photoUrl(patientId, p.id)} className="h-16 w-full object-cover" />
+                            <span className="absolute bottom-0 inset-x-0 truncate bg-black/55 px-1 py-0.5 text-[10px] text-white">
+                              {photoLabel(p)}
+                            </span>
+                          </button>
+                          {sel && (
+                            <>
+                              <span className="absolute top-1 left-1 flex h-5 w-5 items-center justify-center rounded-full bg-blue-600 text-[10px] font-bold text-white">
+                                {idx + 1}
+                              </span>
+                              <button
+                                type="button"
+                                title="Girar / invertir / recortar"
+                                onClick={() => setEditing({ kind: "group", key: g.key, photoId: p.id })}
+                                className={`absolute top-1 right-1 flex h-5 w-5 items-center justify-center rounded-full text-white ${
+                                  isEdited(sel.edit) ? "bg-green-600" : "bg-black/60"
+                                }`}
+                              >
+                                <SlidersHorizontal size={11} />
+                              </button>
+                            </>
+                          )}
+                        </div>
+                      );
+                    })}
                   </div>
-                  {sel && (
-                    <button type="button" onClick={() => setEditing({ kind: "group", key: g.key })} className={`mb-0.5 ${editBtn}`}>
-                      <SlidersHorizontal size={13} />
-                      {isEdited(sel.edit) ? <><Check size={12} className="text-green-600" /> Editada</> : "Editar"}
-                    </button>
-                  )}
                 </div>
               );
             })}

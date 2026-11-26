@@ -37,8 +37,8 @@ export function normalizeEdit(raw: Partial<PhotoEdit> | null | undefined): Photo
 export interface PdfPhotoSelection {
   /** fotos generales, en orden de aparición */
   overview: { photoId: string; edit: PhotoEdit }[];
-  /** foto por hemiarcada */
-  groups: Record<string, { photoId: string; edit: PhotoEdit } | undefined>;
+  /** fotos por hemiarcada (una o varias) */
+  groups: Record<string, { photoId: string; edit: PhotoEdit }[] | undefined>;
 }
 
 export const photoUrl = (patientId: string, photoId: string) =>
@@ -143,8 +143,8 @@ export async function buildPdfPhotos(
   );
   const byGroup: PlanPdfPhotos["byGroup"] = {};
   for (const [key, sel] of Object.entries(selection.groups)) {
-    if (!sel) continue;
-    byGroup[key] = await renderPhotoForPdf(patientId, sel.photoId, sel.edit, undefined, 1000);
+    if (!sel || sel.length === 0) continue;
+    byGroup[key] = await Promise.all(sel.map((s) => renderPhotoForPdf(patientId, s.photoId, s.edit, undefined, 1000)));
   }
   return { overview, byGroup };
 }
