@@ -1,6 +1,6 @@
 import uuid
 from typing import Literal
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 
 
 # ─── Catálogo ─────────────────────────────────────────────────────────────────
@@ -68,6 +68,8 @@ class TreatmentItemCreate(BaseModel):
 
 
 class TreatmentItemUpdate(BaseModel):
+    # Nombre mostrado en el plan/PDF. Cadena vacía = volver al nombre original del tratamiento.
+    custom_name: str | None = Field(default=None, max_length=200)
     tooth_fdi: str | None = None
     priority: Literal["normal", "urgent"] | None = None
     notes: str | None = None

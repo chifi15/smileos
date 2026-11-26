@@ -45,6 +45,7 @@ def _serialize_item(item) -> dict:
         "id": str(item.id),
         "procedure_id": str(item.display_id) if item.display_id else None,
         "procedure_name": item.display_name,
+        "original_procedure_name": item.catalog_name,
         "procedure_code": item.procedure.code if item.procedure else None,
         "status": item.status,
         "priority": item.priority,

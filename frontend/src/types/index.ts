@@ -270,6 +270,7 @@ export interface TreatmentItem {
   id: string;
   procedure_id: string;
   procedure_name: string | null;
+  original_procedure_name?: string | null;
   procedure_code: string | null;
   status: TreatmentItemStatus;
   priority: TreatmentItemPriority;

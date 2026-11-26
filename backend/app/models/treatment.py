@@ -96,6 +96,8 @@ class TreatmentPlanItem(UUIDMixin, TimestampMixin, Base):
     notes: Mapped[str | None] = mapped_column(Text)
     quoted_price: Mapped[float | None] = mapped_column(Numeric(10, 2))
     sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    # Nombre editable para mostrar en el plan y el PDF (p. ej. "Prótesis fija"); no cambia costos ni catálogo
+    custom_name: Mapped[str | None] = mapped_column(String(200))
 
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
@@ -109,10 +111,14 @@ class TreatmentPlanItem(UUIDMixin, TimestampMixin, Base):
         return self.cost_treatment_id or self.procedure_id
 
     @property
-    def display_name(self) -> str | None:
+    def catalog_name(self) -> str | None:
         if self.cost_treatment:
             return self.cost_treatment.name
         return self.procedure.name if self.procedure else None
+
+    @property
+    def display_name(self) -> str | None:
+        return self.custom_name or self.catalog_name
 
 
 class TreatmentPayment(UUIDMixin, TimestampMixin, Base):

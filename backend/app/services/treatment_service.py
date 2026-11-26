@@ -294,6 +294,11 @@ async def update_item(
     if item.status == "completed":
         raise ValidationError("No se puede modificar un ítem completado.")
 
+    if "custom_name" in data:
+        name = (data["custom_name"] or "").strip()
+        # Sin nombre, o igual al original: se vuelve al nombre del tratamiento
+        data["custom_name"] = None if not name or name == item.catalog_name else name
+
     for k, v in data.items():
         setattr(item, k, v)
 

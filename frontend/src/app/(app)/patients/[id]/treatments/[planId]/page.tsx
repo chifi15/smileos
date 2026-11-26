@@ -134,6 +134,7 @@ function EditPriceModal({
   planId,
   itemId,
   procedureName,
+  originalName,
   currentPrice,
   onClose,
 }: {
@@ -141,9 +142,11 @@ function EditPriceModal({
   planId: string;
   itemId: string;
   procedureName: string | null;
+  originalName: string | null;
   currentPrice: number | null;
   onClose: () => void;
 }) {
+  const [name, setName] = useState(procedureName ?? "");
   const [discount, setDiscount] = useState("");
   const [finalPrice, setFinalPrice] = useState(
     currentPrice != null ? String(currentPrice) : ""
@@ -172,21 +175,44 @@ function EditPriceModal({
     e.preventDefault();
     const p = parseFloat(finalPrice);
     if (isNaN(p) || p < 0) return;
-    update.mutate({ itemId, quoted_price: p }, { onSuccess: onClose });
+    update.mutate({ itemId, quoted_price: p, custom_name: name.trim() }, { onSuccess: onClose });
   }
 
   const discountNum = parseFloat(discount);
   const isValidDiscount = !isNaN(discountNum) && discountNum > 0 && discountNum <= 100;
 
   return (
-    <Modal open onClose={onClose} title="Editar precio" size="sm">
+    <Modal open onClose={onClose} title="Editar tratamiento" size="sm">
       <form onSubmit={handleSubmit} className="space-y-4">
-        <p className="text-sm text-slate-600 dark:text-gray-400">
-          <span className="font-medium text-slate-800 dark:text-white">{procedureName}</span>
+        <div>
+          <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">
+            Nombre del tratamiento
+          </label>
+          <input
+            type="text"
+            maxLength={200}
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            placeholder={originalName ?? "Nombre"}
+            className="w-full rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+          />
+          <p className="mt-1 text-xs text-slate-400 dark:text-gray-500">
+            Solo cambia cómo se muestra en el plan y el PDF (p. ej. «Prótesis fija»); no afecta costos.
+            {originalName && name.trim() !== originalName && (
+              <>
+                {" "}
+                <button type="button" className="text-blue-600 hover:underline" onClick={() => setName(originalName)}>
+                  Restaurar «{originalName}»
+                </button>
+              </>
+            )}
+          </p>
           {currentPrice != null && (
-            <> — precio original: <span className="font-semibold">C$ {fmt(currentPrice)}</span></>
+            <p className="mt-2 text-sm text-slate-600 dark:text-gray-400">
+              Precio original: <span className="font-semibold">C$ {fmt(currentPrice)}</span>
+            </p>
           )}
-        </p>
+        </div>
 
         <div>
           <label className="block text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">
@@ -201,7 +227,6 @@ function EditPriceModal({
             onChange={(e) => handleDiscountChange(e.target.value)}
             placeholder="0"
             className="w-full rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-slate-800 dark:text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-            autoFocus
           />
           {isValidDiscount && currentPrice != null && (
             <p className="mt-1 text-xs text-emerald-600 dark:text-emerald-400">
@@ -230,7 +255,7 @@ function EditPriceModal({
             Cancelar
           </Button>
           <Button type="submit" loading={update.isPending}>
-            Guardar precio
+            Guardar cambios
           </Button>
         </div>
       </form>
@@ -251,6 +276,7 @@ interface CompleteTarget {
 interface EditPriceTarget {
   itemId: string;
   procedureName: string | null;
+  originalName: string | null;
   currentPrice: number | null;
 }
 
@@ -349,7 +375,7 @@ export default function TreatmentPlanDetailPage() {
         const p = patientPhotos.find((x) => x.id === id);
         return p ? photoLabel(p) : "";
       };
-      const hasPhotos = pdfPhotos.overview.length > 0 || Object.values(pdfPhotos.groups).some((l) => (l?.length ?? 0) > 0);
+      const hasPhotos = pdfPhotos.overview.length > 0 || Object.keys(pdfPhotos.groups).some((k) => (pdfPhotos.groups[k]?.length ?? 0) > 0);
       const photos = hasPhotos ? await buildPdfPhotos(patientId, pdfPhotos, labelOf) : undefined;
       downloadTreatmentPlanPdf({
         photos,
@@ -646,11 +672,12 @@ export default function TreatmentPlanDetailPage() {
                       <div className="flex shrink-0 gap-1">
                         {canAct && (
                           <button
-                            title="Editar precio"
+                            title="Editar nombre y precio"
                             className="rounded-md p-1.5 text-slate-400 hover:bg-blue-50 hover:text-blue-600 dark:hover:bg-blue-900/20 transition-colors"
                             onClick={() => setEditPriceTarget({
                               itemId: item.id,
                               procedureName: item.procedure_name,
+                              originalName: item.original_procedure_name ?? null,
                               currentPrice: item.quoted_price ?? null,
                             })}
                           >
@@ -864,6 +891,7 @@ export default function TreatmentPlanDetailPage() {
           planId={planId}
           itemId={editPriceTarget.itemId}
           procedureName={editPriceTarget.procedureName}
+          originalName={editPriceTarget.originalName}
           currentPrice={editPriceTarget.currentPrice}
           onClose={() => setEditPriceTarget(null)}
         />

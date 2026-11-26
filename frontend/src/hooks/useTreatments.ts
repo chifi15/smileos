@@ -141,19 +141,19 @@ export function useAddMultipleItems(patientId: string, planId: string, onSuccess
 export function useUpdateItem(patientId: string, planId: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async ({ itemId, quoted_price }: { itemId: string; quoted_price: number | null }) => {
+    mutationFn: async ({ itemId, quoted_price, custom_name }: { itemId: string; quoted_price?: number | null; custom_name?: string }) => {
       const { data } = await apiClient.patch<{ data: TreatmentPlan }>(
         `${base(patientId)}/${planId}/items/${itemId}`,
-        { quoted_price }
+        { quoted_price, custom_name }
       );
       return data.data;
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["treatments", patientId, planId] });
-      toast.success("Precio actualizado.");
+      toast.success("Tratamiento actualizado.");
     },
     onError: (err: any) => {
-      toast.error(err?.response?.data?.detail || "Error al actualizar el precio.");
+      toast.error(err?.response?.data?.detail || "Error al actualizar el tratamiento.");
     },
   });
 }
