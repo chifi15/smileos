@@ -339,6 +339,7 @@ export default function TreatmentPlanDetailPage() {
   const [completeTarget, setCompleteTarget] = useState<CompleteTarget | null>(null);
   const [editPriceTarget, setEditPriceTarget] = useState<EditPriceTarget | null>(null);
   const [editingTitle, setEditingTitle] = useState(false);
+  const [chosenOption, setChosenOption] = useState<number | null>(null);
 
   const deleteItem = useDeleteItem(patientId, planId);
   const startItem = useStartItem(patientId, planId);
@@ -395,7 +396,25 @@ export default function TreatmentPlanDetailPage() {
     applyOrder(next);
   };
 
-  const totalPrice = plan.items.reduce((s, i) => s + (i.quoted_price ?? 0), 0);
+  // Opciones alternativas («Opción 1)», «Opción 2)»…): el paciente elige UNA, así que no se suman entre sí.
+  const optionNumOf = (name?: string | null) => {
+    const m = /^\s*Opci[oó]n\s*(\d+)\s*[).:\-]/i.exec(name ?? "");
+    return m ? Number(m[1]) : null;
+  };
+  const hasOptions = new Set(plan.items.map((i) => optionNumOf(i.procedure_name)).filter((x) => x !== null)).size >= 2;
+  const optSums = new Map<number, number>();
+  let baseSum = 0;
+  for (const i of plan.items) {
+    const price = i.quoted_price ?? 0;
+    const on = hasOptions ? optionNumOf(i.procedure_name) : null;
+    if (on !== null) optSums.set(on, (optSums.get(on) ?? 0) + price);
+    else baseSum += price;
+  }
+  const optionKeys = [...optSums.keys()].sort((a, b) => a - b);
+  const activeOption = hasOptions ? (chosenOption !== null && optSums.has(chosenOption) ? chosenOption : optionKeys[0]) : null;
+  const totalPrice = hasOptions
+    ? baseSum + (optSums.get(activeOption as number) ?? 0)
+    : plan.items.reduce((s, i) => s + (i.quoted_price ?? 0), 0);
   const doneCount = plan.items.filter((i) => i.status === "completed").length;
   const pct = plan.items.length > 0 ? Math.round((doneCount / plan.items.length) * 100) : 0;
 
@@ -650,7 +669,7 @@ export default function TreatmentPlanDetailPage() {
             </div>
             {totalPrice > 0 && (
               <p className="mt-2 text-right text-sm font-medium text-slate-600 dark:text-gray-400">
-                Total cotizado: C$ {totalPrice.toLocaleString("es-NI", { minimumFractionDigits: 2 })}
+                Total cotizado{hasOptions ? ` (Opción ${activeOption})` : ""}: C$ {totalPrice.toLocaleString("es-NI", { minimumFractionDigits: 2 })}
               </p>
             )}
           </div>
@@ -875,9 +894,28 @@ export default function TreatmentPlanDetailPage() {
         {/* Resumen financiero */}
         {totalPrice > 0 && (
           <div className="px-5 pt-4 pb-3 border-b border-slate-50 dark:border-gray-700">
+            {hasOptions && (
+              <div className="mb-3 flex flex-wrap items-center gap-2 text-xs">
+                <span className="text-slate-500 dark:text-gray-400">El paciente eligió:</span>
+                {optionKeys.map((k) => (
+                  <button
+                    key={k}
+                    onClick={() => setChosenOption(k)}
+                    className={cn(
+                      "rounded-full border px-3 py-1 font-medium transition-colors",
+                      activeOption === k
+                        ? "border-blue-500 bg-blue-50 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300"
+                        : "border-slate-200 dark:border-gray-600 text-slate-500 dark:text-gray-400 hover:bg-slate-50 dark:hover:bg-gray-700",
+                    )}
+                  >
+                    Opción {k} · C$ {fmt(baseSum + (optSums.get(k) ?? 0))}
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-3 mb-3">
               <div className="rounded-lg bg-slate-50 dark:bg-gray-700/50 p-3 text-center">
-                <p className="text-xs text-slate-500 dark:text-gray-400 mb-0.5">Total del plan</p>
+                <p className="text-xs text-slate-500 dark:text-gray-400 mb-0.5">Total del plan{hasOptions ? ` (Opción ${activeOption})` : ""}</p>
                 <p className="text-sm font-semibold text-slate-800 dark:text-white">C$ {fmt(totalPrice)}</p>
               </div>
               <div className="rounded-lg bg-emerald-50 dark:bg-emerald-900/20 p-3 text-center">
