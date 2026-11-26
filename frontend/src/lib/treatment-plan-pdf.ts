@@ -390,6 +390,13 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
       photoRows.set(body.length, { photo: gp, w, h });
       body.push([{ content: "", colSpan: cols, styles: { minCellHeight: h + 4 } }]);
     }
+    // Orden FDI dentro de la hemiarcada: de incisivos (1) a molares (8) según el dígito de pieza.
+    // Sort estable: ítems de la misma pieza conservan su orden original.
+    const toothKey = (it: PlanPdfItem) => {
+      const t = parseTeeth(it.tooth_fdi)[0];
+      return t ? +t[1] * 10 + +t[0] : Number.MAX_SAFE_INTEGER;
+    };
+    list.sort((a, b) => toothKey(a) - toothKey(b));
     let sub = 0;
     for (const it of list) {
       n += 1;
