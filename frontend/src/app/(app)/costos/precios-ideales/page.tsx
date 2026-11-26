@@ -188,6 +188,11 @@ export default function PreciosIdealesPage() {
                       <div className="font-medium text-green-700 dark:text-green-400">{fmtC(r.ideal - r.cost)}</div>
                       <div className="text-xs text-slate-400 dark:text-gray-500">
                         con {discount}% desc.: {fmtC(r.ideal * (1 - discount / 100) - r.cost)}
+                        {r.cost > 0 && (
+                          <span className="font-semibold text-green-700 dark:text-green-400">
+                            {" "}({(((r.ideal * (1 - discount / 100) - r.cost) / r.cost) * 100).toFixed(1)}%)
+                          </span>
+                        )}
                       </div>
                     </td>
                     <td className="px-3 py-3 text-right">
