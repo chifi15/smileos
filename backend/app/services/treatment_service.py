@@ -151,9 +151,25 @@ async def list_treatment_plans(
             TreatmentPlan.deleted_at.is_(None),
         )
         .options(*_plan_load_options())
-        .order_by(TreatmentPlan.created_at.desc())
+        .order_by(TreatmentPlan.sort_order.asc(), TreatmentPlan.created_at.desc())
     )
     return list(result.scalars().all())
+
+
+async def reorder_plans(
+    db: AsyncSession,
+    clinic_id: uuid.UUID,
+    patient_id: uuid.UUID,
+    order: list[uuid.UUID],
+) -> list[TreatmentPlan]:
+    """Guarda el orden manual de los planes del paciente (sort_order = posición)."""
+    plans = await list_treatment_plans(db, clinic_id, patient_id)
+    pos = {pid: i + 1 for i, pid in enumerate(order)}
+    rest = len(order) + 1
+    for plan in plans:
+        plan.sort_order = pos.get(plan.id, rest)
+    await db.flush()
+    return await list_treatment_plans(db, clinic_id, patient_id)
 
 
 async def create_treatment_plan(

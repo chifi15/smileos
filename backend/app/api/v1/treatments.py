@@ -17,6 +17,7 @@ from app.schemas.treatment import (
     TreatmentItemUpdate,
     CompleteItemRequest,
     TreatmentItemReorder,
+    TreatmentPlanReorder,
 )
 from app.services import treatment_service, audit_service
 
@@ -76,6 +77,7 @@ def _serialize_plan(plan) -> dict:
         "diagnosis": plan.diagnosis,
         "status": plan.status,
         "notes": plan.notes,
+        "sort_order": plan.sort_order,
         "abandoned_reason": plan.abandoned_reason,
         "completed_at": _iso(plan.completed_at),
         "abandoned_at": _iso(plan.abandoned_at),
@@ -86,6 +88,17 @@ def _serialize_plan(plan) -> dict:
 
 
 # ─── Planes ───────────────────────────────────────────────────────────────────
+
+@router.put("/reorder")
+async def reorder_plans(
+    patient_id: uuid.UUID,
+    body: TreatmentPlanReorder,
+    user: Annotated[object, require_permission("manage_treatments")],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    plans = await treatment_service.reorder_plans(db, user.clinic_id, patient_id, body.order)
+    return {"success": True, "data": [_serialize_plan(p) for p in plans]}
+
 
 @router.get("/deleted")
 async def list_deleted_plans(

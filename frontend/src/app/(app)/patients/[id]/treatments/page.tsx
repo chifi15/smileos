@@ -5,9 +5,20 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, Plus, ClipboardList, Trash2, RotateCcw, Pencil } from "lucide-react";
+import { ChevronLeft, Plus, ClipboardList, Trash2, RotateCcw, Pencil, GripVertical } from "lucide-react";
+import {
+  DndContext,
+  DragEndEvent,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { SortableContext, arrayMove, rectSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import { usePatient } from "@/hooks/usePatients";
-import { usePatientPlans, useDeletePlan, useDeletedPlans, useRestorePlan } from "@/hooks/useTreatments";
+import { usePatientPlans, useDeletePlan, useDeletedPlans, useRestorePlan, useReorderPlans } from "@/hooks/useTreatments";
 import {
   TreatmentPlan,
   PLAN_STATUS_LABELS,
@@ -71,8 +82,28 @@ function PlanCard({
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
   const totalPrice = plan.items.reduce((s, i) => s + (i.quoted_price ?? 0), 0);
 
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: plan.id });
+
   return (
-    <div className="relative group rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 hover:border-blue-200 hover:shadow-md transition-all">
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.6 : 1,
+        zIndex: isDragging ? 10 : undefined,
+      }}
+      className="relative group rounded-xl bg-white dark:bg-gray-800 shadow-sm border border-slate-100 dark:border-gray-700 hover:border-blue-200 hover:shadow-md transition-all"
+    >
+      {/* Asa para arrastrar y ordenar los planes */}
+      <div
+        {...attributes}
+        {...listeners}
+        title="Arrastra para ordenar"
+        className="absolute -top-2 -left-2 z-10 cursor-grab active:cursor-grabbing rounded-md bg-white dark:bg-gray-700 p-1 shadow border border-slate-200 dark:border-gray-600 text-slate-400 hover:text-blue-500 opacity-0 group-hover:opacity-100 transition-opacity touch-none"
+      >
+        <GripVertical size={14} />
+      </div>
       <Link
         href={`/patients/${patientId}/treatments/${plan.id}`}
         className="block p-5"
@@ -148,9 +179,26 @@ export default function PatientTreatmentsPage() {
   const [planToDelete, setPlanToDelete] = useState<TreatmentPlan | null>(null);
   const [planToRename, setPlanToRename] = useState<TreatmentPlan | null>(null);
   const [showTrash, setShowTrash] = useState(false);
+  const reorderPlans = useReorderPlans(id);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
 
   const active = plans.filter((p) => p.status === "active");
   const rest = plans.filter((p) => p.status !== "active");
+
+  // Reordena dentro de «Activos» o «Historial» y guarda el orden completo
+  const handleDragEnd = (group: TreatmentPlan[], other: TreatmentPlan[], groupIsActive: boolean) => (e: DragEndEvent) => {
+    const { active: a, over } = e;
+    if (!over || a.id === over.id) return;
+    const from = group.findIndex((p) => p.id === a.id);
+    const to = group.findIndex((p) => p.id === over.id);
+    if (from < 0 || to < 0) return;
+    const moved = arrayMove(group, from, to);
+    const full = groupIsActive ? [...moved, ...other] : [...other, ...moved];
+    reorderPlans.mutate(full.map((p) => p.id));
+  };
 
   return (
     <div className="p-6 space-y-5">
@@ -234,11 +282,15 @@ export default function PatientTreatmentsPage() {
               <h2 className="mb-3 text-sm font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">
                 Activos
               </h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {active.map((p) => (
-                  <PlanCard key={p.id} plan={p} patientId={id} onDelete={setPlanToDelete} onRename={setPlanToRename} />
-                ))}
-              </div>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd(active, rest, true)}>
+                <SortableContext items={active.map((p) => p.id)} strategy={rectSortingStrategy}>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {active.map((p) => (
+                      <PlanCard key={p.id} plan={p} patientId={id} onDelete={setPlanToDelete} onRename={setPlanToRename} />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             </div>
           )}
           {rest.length > 0 && (
@@ -246,11 +298,15 @@ export default function PatientTreatmentsPage() {
               <h2 className="mb-3 text-sm font-semibold text-slate-500 dark:text-gray-400 uppercase tracking-wide">
                 Historial
               </h2>
-              <div className="grid gap-3 sm:grid-cols-2">
-                {rest.map((p) => (
-                  <PlanCard key={p.id} plan={p} patientId={id} onDelete={setPlanToDelete} onRename={setPlanToRename} />
-                ))}
-              </div>
+              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd(rest, active, false)}>
+                <SortableContext items={rest.map((p) => p.id)} strategy={rectSortingStrategy}>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {rest.map((p) => (
+                      <PlanCard key={p.id} plan={p} patientId={id} onDelete={setPlanToDelete} onRename={setPlanToRename} />
+                    ))}
+                  </div>
+                </SortableContext>
+              </DndContext>
             </div>
           )}
         </>

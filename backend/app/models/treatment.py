@@ -50,6 +50,8 @@ class TreatmentPlan(UUIDMixin, TimestampMixin, Base):
     diagnosis: Mapped[str | None] = mapped_column(Text)
     status: Mapped[str] = mapped_column(String(20), default="active", nullable=False)
     notes: Mapped[str | None] = mapped_column(Text)
+    # Orden manual en la lista del paciente (0 = sin ordenar: los nuevos salen primero)
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False, server_default="0")
 
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     abandoned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

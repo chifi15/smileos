@@ -77,6 +77,10 @@ class TreatmentItemUpdate(BaseModel):
     sort_order: int | None = None
 
 
+class TreatmentPlanReorder(BaseModel):
+    order: list[uuid.UUID]
+
+
 class TreatmentItemReorder(BaseModel):
     order: list[uuid.UUID]
 

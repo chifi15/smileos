@@ -294,6 +294,7 @@ export interface TreatmentPlan {
   abandoned_reason: string | null;
   completed_at: string | null;
   abandoned_at: string | null;
+  sort_order?: number;
   created_at: string;
   updated_at: string;
   items: TreatmentItem[];

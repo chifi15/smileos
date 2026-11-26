@@ -158,6 +158,37 @@ export function useUpdateItem(patientId: string, planId: string) {
   });
 }
 
+export function useReorderPlans(patientId: string) {
+  const qc = useQueryClient();
+  const key = ["treatments", patientId, "list"];
+  return useMutation({
+    mutationFn: async (order: string[]) => {
+      const { data } = await apiClient.put<{ data: TreatmentPlan[] }>(`${base(patientId)}/reorder`, { order });
+      return data.data;
+    },
+    // Optimista: la lista se reordena al instante y luego se confirma con el servidor
+    onMutate: async (order: string[]) => {
+      await qc.cancelQueries({ queryKey: key });
+      const prev = qc.getQueryData<TreatmentPlan[]>(key);
+      if (prev) {
+        const pos = new Map(order.map((id, i) => [id, i + 1]));
+        const next = prev
+          .map((p) => ({ ...p, sort_order: pos.get(p.id) ?? order.length + 1 }))
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+        qc.setQueryData<TreatmentPlan[]>(key, next);
+      }
+      return { prev };
+    },
+    onSuccess: (plans) => {
+      qc.setQueryData(key, plans);
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(key, ctx.prev);
+      toast.error("Error al guardar el orden.");
+    },
+  });
+}
+
 export function useReorderItems(patientId: string, planId: string) {
   const qc = useQueryClient();
   return useMutation({
