@@ -405,6 +405,18 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
     byGroup.set(k, [...(byGroup.get(k) ?? []), it]);
   }
 
+  // Opciones alternativas: procedimientos cuyo nombre empieza con «Opción 1)», «Opción 2)»…  El paciente elige UNA,
+  // así que no se suman entre sí: cada opción se cotiza como base del plan + esa opción.
+  const optionNumOf = (name?: string | null) => {
+    const m = /^\s*Opci[oó]n\s*(\d+)\s*[).:\-]/i.exec(name ?? "");
+    return m ? Number(m[1]) : null;
+  };
+  const distinctOptions = new Set(items.map((i) => optionNumOf(i.procedure_name)).filter((x): x is number => x !== null));
+  const useOptions = distinctOptions.size >= 2;
+  const optTotals = new Map<number, number>();
+  const optCounts = new Map<number, number>();
+  let baseCount = 0;
+
   const cols = showPrices ? 4 : 3;
   const body: CellDef[][] = [];
   const photoRows = new Map<number, { rows: { photo: PdfPhoto; x: number; y: number; w: number }[]; h: number }>();
@@ -456,7 +468,14 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
     for (const it of list) {
       n += 1;
       const price = it.quoted_price ?? 0;
-      sub += price;
+      const on = useOptions ? optionNumOf(it.procedure_name) : null;
+      if (on !== null) {
+        optTotals.set(on, (optTotals.get(on) ?? 0) + price);
+        optCounts.set(on, (optCounts.get(on) ?? 0) + 1);
+      } else {
+        sub += price;
+        baseCount += 1;
+      }
       body.push([
         { content: String(n), styles: { halign: "center" } },
         { content: fdiDot(it.tooth_fdi?.trim()) || "—", styles: { halign: "center" } },
@@ -467,7 +486,7 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
     total += sub;
     if (showPrices) {
       body.push([
-        { content: `Subtotal · ${g.label.toLowerCase()}`, colSpan: 3, styles: { halign: "right", fontStyle: "bold", textColor: MUTED } },
+        { content: `Subtotal · ${g.label.toLowerCase()}${useOptions && list.some((q) => optionNumOf(q.procedure_name) !== null) ? " (sin opciones)" : ""}`, colSpan: 3, styles: { halign: "right", fontStyle: "bold", textColor: MUTED } },
         { content: money(sub), styles: { halign: "right", fontStyle: "bold" } },
       ]);
     }
@@ -485,10 +504,21 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
     head: [showPrices ? ["#", "Pieza", "Procedimiento", "Costo"] : ["#", "Pieza", "Procedimiento"]],
     body,
     foot: showPrices
-      ? [[
-          { content: "COSTO TOTAL DEL PLAN", colSpan: 3, styles: { halign: "right" } },
-          { content: money(total), styles: { halign: "right" } },
-        ]]
+      ? useOptions
+        ? [
+            [
+              { content: "COSTO BASE DEL PLAN (sin las opciones)", colSpan: 3, styles: { halign: "right" } },
+              { content: money(total), styles: { halign: "right" } },
+            ],
+            ...[...optTotals.keys()].sort((a, b) => a - b).map((k) => [
+              { content: `TOTAL ELIGIENDO LA OPCIÓN ${k}`, colSpan: 3, styles: { halign: "right" as const } },
+              { content: money(total + (optTotals.get(k) ?? 0)), styles: { halign: "right" as const } },
+            ]),
+          ]
+        : [[
+            { content: "COSTO TOTAL DEL PLAN", colSpan: 3, styles: { halign: "right" } },
+            { content: money(total), styles: { halign: "right" } },
+          ]]
       : undefined,
     showFoot: "lastPage",
     theme: "grid",
@@ -514,40 +544,54 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
     doc.text("Opciones de pago", M, y);
     y += 3;
 
-    const fullPct = fullPaymentPct(total);
-    const full = total * (1 - fullPct / 100);
-    const twoPays = total * (1 - DISCOUNT_HALF_PCT / 100); // plan completo pagado en 2 partes
-    const planDiscounts = n >= MIN_ITEMS_DISCOUNT; // con un solo procedimiento no hay descuentos: es un tratamiento individual
-    autoTable(doc, {
-      startY: y,
-      margin: { left: M, right: M, bottom: 22 },
-      head: [["Forma de pago", "Descuento", "Total a pagar", "Ahorro"]],
-      body: [
-        ...(planDiscounts
-          ? [
-              ["Plan completo en un solo pago", `${fullPct}%`, money(full), money(total - full)],
-              [`Plan completo en 2 pagos (2 × ${money(twoPays / 2)}): una mitad y luego la otra`, `${DISCOUNT_HALF_PCT}%`, money(twoPays), money(total - twoPays)],
-            ]
-          : []),
-        ["Pago por tratamiento individual (sin pagar el plan completo)", "Sin descuento", money(total), money(0)],
-      ],
-      theme: "grid",
-      styles: { font: "helvetica", fontSize: 9, cellPadding: 2.2, textColor: INK, lineColor: LINE, lineWidth: 0.2 },
-      headStyles: { fillColor: SOFT, textColor: INK, fontStyle: "bold" },
-      columnStyles: {
-        1: { halign: "center", cellWidth: 28 },
-        2: { halign: "right", cellWidth: 36, fontStyle: "bold" },
-        3: { halign: "right", cellWidth: 30 },
-      },
-    });
+    const scenarios = useOptions
+      ? [...optTotals.keys()].sort((x, z) => x - z).map((k) => ({ title: `Si elige la Opción ${k}`, tot: total + (optTotals.get(k) ?? 0), cnt: baseCount + (optCounts.get(k) ?? 0) }))
+      : [{ title: "", tot: total, cnt: n }];
+    for (const sc of scenarios) {
+      const fullPct = fullPaymentPct(sc.tot);
+      const full = sc.tot * (1 - fullPct / 100);
+      const twoPays = sc.tot * (1 - DISCOUNT_HALF_PCT / 100); // plan completo pagado en 2 partes
+      const planDiscounts = sc.cnt >= MIN_ITEMS_DISCOUNT; // con un solo procedimiento no hay descuentos: es un tratamiento individual
+      if (sc.title) {
+        ensure(40);
+        doc.setFont("helvetica", "bold");
+        doc.setFontSize(10);
+        doc.setTextColor(...ACCENT);
+        doc.text(`${sc.title} · total ${money(sc.tot)}`, M, y + 3);
+        y += 5;
+      }
+      autoTable(doc, {
+        startY: y,
+        margin: { left: M, right: M, bottom: 22 },
+        head: [["Forma de pago", "Descuento", "Total a pagar", "Ahorro"]],
+        body: [
+          ...(planDiscounts
+            ? [
+                ["Plan completo en un solo pago", `${fullPct}%`, money(full), money(sc.tot - full)],
+                [`Plan completo en 2 pagos (2 × ${money(twoPays / 2)}): una mitad y luego la otra`, `${DISCOUNT_HALF_PCT}%`, money(twoPays), money(sc.tot - twoPays)],
+              ]
+            : []),
+          ["Pago por tratamiento individual (sin pagar el plan completo)", "Sin descuento", money(sc.tot), money(0)],
+        ],
+        theme: "grid",
+        styles: { font: "helvetica", fontSize: 9, cellPadding: 2.2, textColor: INK, lineColor: LINE, lineWidth: 0.2 },
+        headStyles: { fillColor: SOFT, textColor: INK, fontStyle: "bold" },
+        columnStyles: {
+          1: { halign: "center", cellWidth: 28 },
+          2: { halign: "right", cellWidth: 36, fontStyle: "bold" },
+          3: { halign: "right", cellWidth: 30 },
+        },
+      });
+      y = lastY() + (sc === scenarios[scenarios.length - 1] ? 0 : 6);
+    }
     y = lastY() + 9;
   }
 
   // ── Términos y condiciones ──
-  const planDiscountsT = n >= MIN_ITEMS_DISCOUNT;
+  const planDiscountsT = (useOptions ? baseCount + Math.min(...optCounts.values()) : n) >= MIN_ITEMS_DISCOUNT;
   const terms: string[] = showPrices ? [
     ...(planDiscountsT ? [
-      `Pago único: si el paciente paga el plan completo en un solo pago, antes de iniciar el tratamiento, se le otorga un ${fullPaymentPct(total)}% de descuento sobre el costo total. El descuento según el monto del plan es: ${[...FULL_PAYMENT_TIERS].reverse().map((t, i, arr) => (i === arr.length - 1 ? `${t.pct}% desde ${money(t.min)}` : i === 0 ? `${t.pct}% si el plan es menor a ${money(arr[i + 1].min)}` : `${t.pct}% desde ${money(t.min)} hasta ${money(arr[i + 1].min - 1)}`)).join("; ")}.`,
+      `Pago único: si el paciente paga el plan completo en un solo pago, antes de iniciar el tratamiento, se le otorga ${useOptions ? "el descuento que corresponde al total de la opción elegida" : `un ${fullPaymentPct(total)}% de descuento sobre el costo total`}. El descuento según el monto del plan es: ${[...FULL_PAYMENT_TIERS].reverse().map((t, i, arr) => (i === arr.length - 1 ? `${t.pct}% desde ${money(t.min)}` : i === 0 ? `${t.pct}% si el plan es menor a ${money(arr[i + 1].min)}` : `${t.pct}% desde ${money(t.min)} hasta ${money(arr[i + 1].min - 1)}`)).join("; ")}.`,
       `Pago en 2 pagos: si el paciente paga el plan completo en 2 pagos, se le otorga un ${DISCOUNT_HALF_PCT}% de descuento sobre el costo total del plan. La primera mitad se paga antes de iniciar el tratamiento y la segunda mitad al completarse la mitad del plan.`,
       "Si el segundo pago no se realiza al completarse la mitad del plan, el paciente pierde el descuento en todo el plan: deberá pagar el total a precio normal, restando lo que ya pagó.",
     ] : []),
