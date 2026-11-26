@@ -53,7 +53,7 @@ function Body({ d }: { d: Distribution }) {
         <span className="font-semibold text-slate-700 dark:text-gray-200">{fmt(d.cobrado)}</span>
       </div>
       {d.doctores.map((x) => (
-        <Line key={x.doctor_name} label={`Para ${x.doctor_name}`} hint={`${x.pct}% de lo cobrado en sus tratamientos`} amount={x.monto} total={d.cobrado} />
+        <Line key={x.doctor_name} label={`Para ${x.doctor_name}`} hint="Honorarios por horas de trabajo de los tratamientos cobrados" amount={x.monto} total={d.cobrado} />
       ))}
       <Line
         label="Reposición de materiales y gastos"

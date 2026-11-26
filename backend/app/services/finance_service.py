@@ -355,6 +355,18 @@ async def get_income_by_patient(
     ]
 
 
+def tx_honorario(tx, ct) -> tuple[float, float]:
+    """Honorario de un cobro: (por unidad, total) = tarifa/hora × horas del tratamiento,
+    prorrateado si el cobro es de una cita puntual y escalado por cantidad si aplica."""
+    total_fee = ct.professional_fee_per_hour * ct.total_hours
+    if tx.cost_appointment_id and ct.appointments:
+        fee_per_unit = total_fee / max(len(ct.appointments), 1)
+    else:
+        fee_per_unit = total_fee
+    qty = tx.procedure_quantity or 1
+    return fee_per_unit, fee_per_unit * (qty if tx.scale_fees_by_quantity else 1)
+
+
 async def get_honorarios_by_procedure(
     db: AsyncSession,
     clinic_id: uuid.UUID,
@@ -392,15 +404,8 @@ async def get_honorarios_by_procedure(
             ct = cost_map_catalog.get(unified_proc_id)
         if not ct:
             continue
-        total_fee = ct.professional_fee_per_hour * ct.total_hours
-        # Si la transacción es por una cita específica, prorratear entre el total de citas
-        if tx.cost_appointment_id and ct.appointments:
-            n_apts = len(ct.appointments)
-            fee_per_unit = total_fee / max(n_apts, 1)
-        else:
-            fee_per_unit = total_fee
+        fee_per_unit, fee = tx_honorario(tx, ct)
         qty = tx.procedure_quantity or 1
-        fee = fee_per_unit * (qty if tx.scale_fees_by_quantity else 1)
         proc_name = (tx.procedure.name if tx.procedure else tx.cost_treatment.name if tx.cost_treatment else "—")
 
         if unified_proc_id not in procedure_totals:

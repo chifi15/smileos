@@ -1,11 +1,10 @@
 "use client";
 
-import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
 import Spinner from "@/components/ui/Spinner";
-import { useDoctorAccount, useSetDoctorCommission } from "@/hooks/useReports";
+import { useDoctorAccount } from "@/hooks/useReports";
 import { useUpdateExpenseCategory } from "@/hooks/useFinances";
 
 function fmt(n: number) {
@@ -13,30 +12,6 @@ function fmt(n: number) {
 }
 function fmtDate(iso: string) {
   return new Date(iso + "T00:00:00").toLocaleDateString("es-NI", { day: "2-digit", month: "short" });
-}
-
-function PctInput({ doctorId, pct }: { doctorId: string; pct: number | null }) {
-  const setPct = useSetDoctorCommission();
-  const [val, setVal] = useState(pct != null ? String(pct) : "");
-  function save() {
-    const trimmed = val.trim();
-    const n = trimmed === "" ? null : parseFloat(trimmed);
-    if (n !== null && (isNaN(n) || n < 0 || n > 100)) return;
-    if (n === pct) return;
-    setPct.mutate({ doctor_id: doctorId, pct: n });
-  }
-  return (
-    <div className="inline-flex items-center gap-1">
-      <input
-        type="number" min="0" max="100" step="any" value={val} placeholder="—"
-        onChange={(e) => setVal(e.target.value)}
-        onBlur={save}
-        onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); }}
-        className="w-16 rounded-lg border border-slate-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-2 py-1 text-right text-xs text-slate-700 dark:text-gray-200"
-      />
-      <span className="text-slate-400">%</span>
-    </div>
-  );
 }
 
 export default function DoctorAccountCard({ year, month }: { year: number; month: number | null }) {
@@ -49,7 +24,7 @@ export default function DoctorAccountCard({ year, month }: { year: number; month
       <div className="px-4 py-3 border-b border-slate-100 dark:border-gray-700">
         <p className="text-sm font-semibold text-slate-700 dark:text-gray-200">Cuenta del doctor</p>
         <p className="mt-0.5 text-[11px] text-slate-400 dark:text-gray-500">
-          Le corresponde = % de lo cobrado en los tratamientos que tienen a ese doctor asignado. Pagado = egresos con su nombre en categorías marcadas “Pago a doctor”.
+          Honorarios = horas de trabajo × tarifa por hora de cada tratamiento cobrado con ese doctor asignado (según Costos Operativos). Pagado = egresos con su nombre en categorías marcadas “Pago a doctor”.
         </p>
       </div>
       {isLoading ? (
@@ -64,9 +39,8 @@ export default function DoctorAccountCard({ year, month }: { year: number; month
                 <thead>
                   <tr className="text-left text-slate-400 dark:text-gray-500 border-b border-slate-100 dark:border-gray-700">
                     <th className="px-4 py-2 font-medium">Doctor</th>
-                    <th className="px-4 py-2 font-medium">Porcentaje</th>
                     <th className="px-4 py-2 font-medium text-right">Cobrado</th>
-                    <th className="px-4 py-2 font-medium text-right">Le corresponde</th>
+                    <th className="px-4 py-2 font-medium text-right">Honorarios (le corresponde)</th>
                     <th className="px-4 py-2 font-medium text-right">Pagado</th>
                     <th className="px-4 py-2 font-medium text-right">Saldo</th>
                   </tr>
@@ -76,9 +50,8 @@ export default function DoctorAccountCard({ year, month }: { year: number; month
                     <tr key={r.doctor_id} className="border-b border-slate-50 dark:border-gray-700/50">
                       <td className="px-4 py-2.5 font-medium text-slate-700 dark:text-gray-200">
                         {r.doctor_name}
-                        <span className="block text-[10px] font-normal text-slate-400">{r.n_cobros} cobros</span>
+                        <span className="block text-[10px] font-normal text-slate-400">{r.n_cobros} cobros{r.cobros_sin_tratamiento > 0 && ` · ${r.cobros_sin_tratamiento} sin tratamiento de costos (no suman honorarios)`}</span>
                       </td>
-                      <td className="px-4 py-2.5"><PctInput key={`${r.doctor_id}-${r.pct}`} doctorId={r.doctor_id} pct={r.pct} /></td>
                       <td className="px-4 py-2.5 text-right text-slate-600 dark:text-gray-300">{fmt(r.cobrado)}</td>
                       <td className="px-4 py-2.5 text-right text-slate-600 dark:text-gray-300">{r.corresponde != null ? fmt(r.corresponde) : "—"}</td>
                       <td className="px-4 py-2.5 text-right text-slate-600 dark:text-gray-300">

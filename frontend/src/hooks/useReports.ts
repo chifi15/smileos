@@ -409,6 +409,7 @@ export interface DoctorAccountRow {
   pagado: number;
   saldo: number | null;
   otros_pagos: number;
+  cobros_sin_tratamiento: number;
 }
 
 export interface DoctorAccount {

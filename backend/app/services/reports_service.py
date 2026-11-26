@@ -1009,7 +1009,7 @@ async def get_doctor_account(
     year: int,
     month: int | None = None,
 ) -> dict:
-    """Cuenta por doctor: cobrado en sus tratamientos, lo que le corresponde (según su %), lo pagado y el saldo."""
+    """Cuenta por doctor: cobrado en sus tratamientos, honorarios que le corresponden (horas × tarifa), lo pagado y el saldo."""
     from app.models.finance import ExpenseCategory, DoctorCommission
 
     doctors = list((await db.execute(
@@ -1045,6 +1045,27 @@ async def get_doctor_account(
             .group_by(FinanceTransaction.doctor_id)
         )
     }
+
+    # Honorarios por horas de trabajo: tarifa/hora × horas de cada tratamiento cobrado (Costos Operativos)
+    from app.models.costos import CostTreatment
+    from app.services.finance_service import tx_honorario
+    cts = list((await db.execute(
+        select(CostTreatment).where(CostTreatment.clinic_id == clinic_id).options(selectinload(CostTreatment.appointments))
+    )).scalars().all())
+    ct_by_id = {str(c.id): c for c in cts}
+    ct_by_catalog = {str(c.procedure_catalog_id): c for c in cts if c.procedure_catalog_id}
+    honorarios: dict = {}
+    sin_costo: dict = {}
+    for tx in (await db.execute(
+        select(FinanceTransaction).where(*base, FinanceTransaction.type == "ingreso", FinanceTransaction.doctor_id.isnot(None))
+    )).scalars().all():
+        ct = ct_by_id.get(str(tx.cost_treatment_id)) if tx.cost_treatment_id else (
+            ct_by_catalog.get(str(tx.procedure_id)) if tx.procedure_id else None
+        )
+        if not ct:
+            sin_costo[tx.doctor_id] = sin_costo.get(tx.doctor_id, 0) + 1
+            continue
+        honorarios[tx.doctor_id] = honorarios.get(tx.doctor_id, 0.0) + tx_honorario(tx, ct)[1]
     pagos_rows = await db.execute(
         select(FinanceTransaction.doctor_id, FinanceTransaction.category, func.sum(FinanceTransaction.amount_cordobas).label("total"))
         .where(*base, FinanceTransaction.type == "egreso", FinanceTransaction.doctor_id.isnot(None))
@@ -1061,9 +1082,9 @@ async def get_doctor_account(
         c_tot, c_n = cobrado.get(d.id, (0.0, 0))
         pct = pct_by_doc.get(d.id)
         paid = pagado.get(d.id, 0.0)
-        if c_tot == 0 and pct is None and paid == 0 and otros.get(d.id, 0.0) == 0:
+        if c_tot == 0 and paid == 0 and otros.get(d.id, 0.0) == 0:
             continue
-        corresponde = round(c_tot * pct / 100, 2) if pct is not None else None
+        corresponde = round(honorarios.get(d.id, 0.0), 2)
         rows.append({
             "doctor_id": str(d.id),
             "doctor_name": d.full_name,
@@ -1072,8 +1093,9 @@ async def get_doctor_account(
             "cobrado": round(c_tot, 2),
             "corresponde": corresponde,
             "pagado": round(paid, 2),
-            "saldo": round(corresponde - paid, 2) if corresponde is not None else None,
+            "saldo": round(corresponde - paid, 2),
             "otros_pagos": round(otros.get(d.id, 0.0), 2),
+            "cobros_sin_tratamiento": sin_costo.get(d.id, 0),
         })
 
     # Revisión: cobros sin doctor
@@ -1200,14 +1222,14 @@ async def get_distribution(db: AsyncSession, clinic_id: uuid.UUID, year: int, mo
     fijos = fijos_mensual * n_meses
 
     doctores = [
-        {"doctor_name": r["doctor_name"], "pct": r["pct"], "monto": r["corresponde"] or 0.0}
+        {"doctor_name": r["doctor_name"], "pct": None, "monto": r["corresponde"] or 0.0}
         for r in acct["rows"] if r["corresponde"]
     ]
     doctores_total = round(sum(d["monto"] for d in doctores), 2)
     reposicion = round(materiales + laboratorio + fijos, 2)
     mejoras = round(mejoras_mensual * n_meses, 2)
     duena = round(cobrado - doctores_total - reposicion - mejoras, 2)
-    sin_pct = [r["doctor_name"] for r in acct["rows"] if r["pct"] is None and r["cobrado"] > 0]
+    sin_pct: list[str] = []  # ya no se trabaja por porcentaje: los honorarios salen de las horas de cada tratamiento
     return {
         "cobrado": round(cobrado, 2),
         "doctores": doctores,
