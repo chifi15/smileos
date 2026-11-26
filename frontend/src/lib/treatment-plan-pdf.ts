@@ -438,11 +438,11 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
       photoRows.set(body.length, { rows: placed, h });
       body.push([{ content: "", colSpan: cols, styles: { minCellHeight: lineIdx * (h + gapP) + 2 } }]);
     }
-    // Orden FDI dentro de la hemiarcada: de incisivos (1) a molares (8) según el dígito de pieza.
+    // Orden FDI: cuadrante 1→4 y, dentro de cada uno, de la pieza más cercana a la línea media (1) a la más distal (8).
     // Sort estable: ítems de la misma pieza conservan su orden original.
     const toothKey = (it: PlanPdfItem) => {
       const ts = parseTeeth(it.tooth_fdi);
-      return ts.length ? Math.min(...ts.map((t) => +t[1] * 10 + +t[0])) : Number.MAX_SAFE_INTEGER;
+      return ts.length ? Math.min(...ts.map((t) => +t)) : Number.MAX_SAFE_INTEGER; // cuadrante y luego pieza (1.1 … 1.8, 2.1 …)
     };
     if (input.itemOrder !== "plan") list.sort((a, b) => toothKey(a) - toothKey(b));
     let sub = 0;

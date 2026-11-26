@@ -368,7 +368,8 @@ export default function TreatmentPlanDetailPage() {
   );
   const fdiKey = (t: string | null) => {
     const ts = (t ?? "").replace(/([1-8])\.([1-8])/g, "$1$2").match(/[1-8][1-8]/g) ?? [];
-    return ts.length ? Math.min(...ts.map((x) => +x[1] * 10 + +x[0])) : 999;
+    // Cuadrante 1, 2, 3, 4 y, dentro de cada uno, de la línea media hacia atrás (1 → 8)
+    return ts.length ? Math.min(...ts.map((x) => +x)) : 999;
   };
   const applyOrder = (list: typeof orderedItems) => reorderItems.mutate(list.map((i) => i.id));
   const sensors = useSensors(
