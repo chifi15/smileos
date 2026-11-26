@@ -211,6 +211,8 @@ async def get_treatment_plan(
             TreatmentPlan.deleted_at.is_(None),
         )
         .options(*_plan_load_options())
+        # Recarga columnas expiradas (updated_at tras un flush) para poder serializar sin IO perezoso
+        .execution_options(populate_existing=True)
     )
     plan = result.scalar_one_or_none()
     if not plan:
@@ -524,6 +526,7 @@ async def _check_plan_completion(db: AsyncSession, plan_id: uuid.UUID) -> None:
     if not active:
         plan.status = "completed"
         plan.completed_at = datetime.now(timezone.utc)
+        await db.flush()
 
 
 # ─── Abonos ───────────────────────────────────────────────────────────────────
