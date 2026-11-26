@@ -53,7 +53,9 @@ export interface PlanPdfInput {
 }
 
 // ─── Reglas comerciales ──────────────────────────────────────────────────────
-export const DISCOUNT_FULL_PCT = 10;
+export const DISCOUNT_FULL_PCT = 12; // pago único
+export const DISCOUNT_FULL_LARGE_PCT = 15; // pago único en planes grandes
+export const LARGE_PLAN_MIN = 25000; // total (C$) desde el cual el plan se considera grande
 export const DISCOUNT_HALF_PCT = 5;
 export const DISCOUNT_HEMI_PCT = 3;
 export const VALIDITY_DAYS = 15;
@@ -510,14 +512,16 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
     doc.text("Opciones de pago", M, y);
     y += 3;
 
-    const full = total * (1 - DISCOUNT_FULL_PCT / 100);
+    const isLarge = total >= LARGE_PLAN_MIN;
+    const fullPct = isLarge ? DISCOUNT_FULL_LARGE_PCT : DISCOUNT_FULL_PCT;
+    const full = total * (1 - fullPct / 100);
     const twoPays = total * (1 - DISCOUNT_HALF_PCT / 100); // plan completo pagado en 2 partes
     autoTable(doc, {
       startY: y,
       margin: { left: M, right: M, bottom: 22 },
       head: [["Forma de pago", "Descuento", "Total a pagar", "Ahorro"]],
       body: [
-        ["Plan completo en un solo pago", `${DISCOUNT_FULL_PCT}%`, money(full), money(total - full)],
+        ["Plan completo en un solo pago", `${fullPct}%`, money(full), money(total - full)],
         [`Plan completo en 2 pagos (2 × ${money(twoPays / 2)}): una mitad y luego la otra`, `${DISCOUNT_HALF_PCT}%`, money(twoPays), money(total - twoPays)],
         ...(hemiSubtotals.length >= 2
           ? hemiSubtotals.map((h) => [
@@ -543,7 +547,7 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
 
   // ── Términos y condiciones ──
   const terms: string[] = showPrices ? [
-    `Si el paciente paga el plan completo en un solo pago, se le otorga un ${DISCOUNT_FULL_PCT}% de descuento sobre el costo total.`,
+    `Si el paciente paga el plan completo en un solo pago, se le otorga un ${total >= LARGE_PLAN_MIN ? DISCOUNT_FULL_LARGE_PCT : DISCOUNT_FULL_PCT}% de descuento sobre el costo total.`,
     `Si el paciente paga el plan completo en 2 pagos (una mitad primero y la otra mitad después), se le otorga un ${DISCOUNT_HALF_PCT}% de descuento sobre el costo total del plan.`,
     ...(hemiSubtotals.length >= 2
       ? [`Si el paciente paga por hemiarcada, cada hemiarcada completa de una sola vez, se le otorga un ${DISCOUNT_HEMI_PCT}% de descuento sobre el costo de esa hemiarcada. Aplica si se realiza solo una o varias hemiarcadas, o si se completa el plan por etapas, una hemiarcada a la vez.`]
