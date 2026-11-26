@@ -41,6 +41,52 @@ function NumField({ label, value, onChange, suffix, step = 1 }: {
   );
 }
 
+
+function Explainer({ margin, discount, step }: { margin: number; discount: number; step: number }) {
+  const [open, setOpen] = useState(true);
+  const cost = 10000;
+  const base = cost * (1 + margin / 100);
+  const ideal = roundUp(base / (1 - discount / 100), step);
+  const discounted = ideal * (1 - discount / 100);
+  const c = (n: number) => fmtC(Math.round(n));
+  return (
+    <div className="mb-5 rounded-xl border border-blue-100 dark:border-blue-800/30 bg-blue-50 dark:bg-blue-900/20">
+      <button onClick={() => setOpen((v) => !v)} className="flex w-full items-center justify-between px-4 py-3 text-left text-sm font-semibold text-blue-800 dark:text-blue-300">
+        ¿Cómo se calcula? (ejemplo con un tratamiento de {c(cost)} de costo)
+        <span className="text-xs font-normal">{open ? "Ocultar" : "Ver"}</span>
+      </button>
+      {open && (
+        <div className="space-y-3 px-4 pb-4 text-sm text-blue-900 dark:text-blue-200">
+          <p>
+            <strong>Costo</strong> = materiales + honorarios + costos fijos. Si cobras exactamente el costo, no ganas ni pierdes.
+          </p>
+          <ol className="list-decimal space-y-1 pl-5">
+            <li>La clínica quiere ganar <strong>{margin}%</strong> sobre el costo: {c(cost)} + {c(cost * margin / 100)} = <strong>{c(base)}</strong>.</li>
+            <li>
+              Pero vas a dar hasta <strong>{discount}%</strong> de descuento. Si el precio fuera {c(base)}, el descuento se comería la ganancia.
+              Por eso el precio de lista se sube a <strong>{c(ideal)}</strong> (= {c(base)} ÷ {(1 - discount / 100).toFixed(2)}). Ese es el <strong>precio ideal</strong>.
+            </li>
+          </ol>
+          <div className="grid gap-2 sm:grid-cols-2">
+            <div className="rounded-lg bg-white/70 dark:bg-gray-800/60 p-3">
+              <p className="text-xs font-semibold uppercase text-slate-500 dark:text-gray-400">Paciente NO pide descuento</p>
+              <p>Paga {c(ideal)} → la clínica se queda con <strong>{c(ideal - cost)}</strong> ({(((ideal - cost) / cost) * 100).toFixed(0)}% del costo). Ganancia extra.</p>
+            </div>
+            <div className="rounded-lg bg-white/70 dark:bg-gray-800/60 p-3">
+              <p className="text-xs font-semibold uppercase text-slate-500 dark:text-gray-400">Paciente pide el {discount}%</p>
+              <p>Paga {c(discounted)} → la clínica se queda con <strong>{c(discounted - cost)}</strong> ({(((discounted - cost) / cost) * 100).toFixed(1)}% del costo). Tu ganancia mínima asegurada.</p>
+            </div>
+          </div>
+          <p className="text-xs text-blue-700 dark:text-blue-300">
+            El {margin}% y el {discount}% no se suman: el descuento se paga con el colchón que ya viene dentro del precio ideal.
+            Mientras no des más de {discount}% de descuento, la clínica siempre gana al menos {margin}% sobre el costo.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function PreciosIdealesPage() {
   const { data: treatments = [], isLoading } = useCostTreatments();
   const { data: apiProducts = [] } = useCostProducts();
@@ -135,6 +181,8 @@ export default function PreciosIdealesPage() {
         </p>
       </div>
 
+      <Explainer margin={margin} discount={discount} step={step} />
+
       {rows.length === 0 ? (
         <p className="py-16 text-center text-slate-400 dark:text-gray-500">Aún no hay tratamientos en Costos operativos.</p>
       ) : (
@@ -145,10 +193,10 @@ export default function PreciosIdealesPage() {
                 <th className="px-4 py-3 font-medium">Tratamiento</th>
                 <th className="px-3 py-3 text-right font-medium">Costo</th>
                 <th className="px-3 py-3 text-right font-medium">Precio actual</th>
-                <th className="px-3 py-3 text-right font-medium">Con {discount}% desc.</th>
-                <th className="px-3 py-3 text-right font-medium">Precio ideal</th>
-                <th className="px-3 py-3 text-right font-medium">Con {discount}% desc. paga</th>
-                <th className="px-3 py-3 text-right font-medium">Clínica se queda</th>
+                <th className="px-3 py-3 text-right font-medium">Precio actual con {discount}% desc.<div className="text-[10px] font-normal">(lo que ganarías hoy)</div></th>
+                <th className="px-3 py-3 text-right font-medium">Precio ideal<div className="text-[10px] font-normal">(precio de lista)</div></th>
+                <th className="px-3 py-3 text-right font-medium">Cobrar con {discount}% desc.<div className="text-[10px] font-normal">(paga el paciente)</div></th>
+                <th className="px-3 py-3 text-right font-medium">Clínica se queda<div className="text-[10px] font-normal">(con precio ideal)</div></th>
                 <th className="px-3 py-3 text-right font-medium" />
               </tr>
             </thead>
