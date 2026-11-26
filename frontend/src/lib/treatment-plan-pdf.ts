@@ -60,9 +60,9 @@ export { GROUPS, groupForTooth };
 export type { GroupKey };
 
 // ─── Notación FDI con punto (1.1, 2.6…) ──────────────────────────────────────
-/** "16, 26" → "1.6, 2.6" */
+/** "26, 16" → "1.6, 2.6" (ordenadas por cuadrante y luego de incisivo a molar) */
 export const fdiDot = (v: string | null | undefined) => {
-  const t = parseTeeth(v);
+  const t = [...parseTeeth(v)].sort();
   return t.length > 0 ? t.map((x) => `${x[0]}.${x[1]}`).join(", ") : (v ?? "");
 };
 
@@ -436,6 +436,13 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
       photoRows.set(body.length, { rows: placed, h });
       body.push([{ content: "", colSpan: cols, styles: { minCellHeight: lineIdx * (h + gapP) + 2 } }]);
     }
+    // Orden FDI dentro de la hemiarcada: de incisivos (1) a molares (8) según el dígito de pieza.
+    // Sort estable: ítems de la misma pieza conservan su orden original.
+    const toothKey = (it: PlanPdfItem) => {
+      const ts = parseTeeth(it.tooth_fdi);
+      return ts.length ? Math.min(...ts.map((t) => +t[1] * 10 + +t[0])) : Number.MAX_SAFE_INTEGER;
+    };
+    list.sort((a, b) => toothKey(a) - toothKey(b));
     let sub = 0;
     for (const it of list) {
       n += 1;
