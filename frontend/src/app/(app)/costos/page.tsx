@@ -5,7 +5,7 @@ import Link from "next/link";
 import {
   Calculator, Package, ChevronRight, ChevronDown,
   TrendingUp, Plus, Calendar, Trash2, X, GripVertical, Pencil, Check, Copy, BadgeDollarSign,
-  Upload, Download, AlertCircle, CheckCircle2,
+  Upload, Download, AlertCircle, CheckCircle2, Target,
 } from "lucide-react";
 import { DndContext, closestCenter, PointerSensor, KeyboardSensor, useSensor, useSensors, type DragEndEvent } from "@dnd-kit/core";
 import { arrayMove, SortableContext, sortableKeyboardCoordinates, useSortable, rectSortingStrategy } from "@dnd-kit/sortable";
@@ -581,6 +581,9 @@ export default function CostosPage() {
           <p className="text-sm text-slate-500 dark:text-gray-400 mt-0.5">Calcula y compara el costo por tratamiento dividido por citas</p>
         </div>
         <div className="flex items-center gap-2">
+          <Link href="/costos/precios-ideales">
+            <Button variant="secondary" size="sm"><Target size={15} /> Precios ideales</Button>
+          </Link>
           <Link href="/costos/honorarios">
             <Button variant="secondary" size="sm"><BadgeDollarSign size={15} /> Honorarios</Button>
           </Link>
