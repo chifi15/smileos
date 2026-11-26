@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { format, parseISO } from "date-fns";
 import { es } from "date-fns/locale";
-import { ChevronLeft, Plus, Trash2, Play, CheckCircle2, XCircle, ScanLine, RotateCcw, Wallet, X, Pencil, FileDown, ChevronUp, ChevronDown, ArrowUpDown } from "lucide-react";
+import { ChevronLeft, Plus, Trash2, Play, CheckCircle2, XCircle, ScanLine, RotateCcw, Wallet, X, Pencil, FileDown, GripVertical, ArrowUpDown } from "lucide-react";
 import { usePlan, useDeleteItem, useStartItem, useCancelItem, useUpdatePlan, useReopenItem, usePlanPayments, useCreatePayment, useDeletePayment, useUpdateItem, useUpdatePayment, useReorderItems } from "@/hooks/useTreatments";
 import { usePatient } from "@/hooks/usePatients";
 import { useClinicSettings } from "@/hooks/useSettings";
@@ -17,6 +17,17 @@ import ImportFromOdontogramModal from "@/components/treatments/ImportFromOdontog
 import Badge from "@/components/ui/Badge";
 import Button from "@/components/ui/Button";
 import Select from "@/components/ui/Select";
+import {
+  DndContext,
+  DragEndEvent,
+  PointerSensor,
+  TouchSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+} from "@dnd-kit/core";
+import { SortableContext, arrayMove, verticalListSortingStrategy, useSortable } from "@dnd-kit/sortable";
+import { CSS } from "@dnd-kit/utilities";
 import Spinner from "@/components/ui/Spinner";
 import Modal from "@/components/ui/Modal";
 import EditPlanModal from "@/components/treatments/EditPlanModal";
@@ -126,6 +137,32 @@ function PaymentFormModal({
         </div>
       </form>
     </Modal>
+  );
+}
+
+/** Fila arrastrable: se toma de cualquier parte de la fila (los botones siguen funcionando). */
+function SortableItemRow({ id, children }: { id: string; children: React.ReactNode }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id });
+  return (
+    <div
+      ref={setNodeRef}
+      style={{
+        transform: CSS.Transform.toString(transform),
+        transition,
+        opacity: isDragging ? 0.6 : 1,
+        zIndex: isDragging ? 10 : undefined,
+        position: "relative",
+      }}
+      {...attributes}
+      {...listeners}
+      className={cn(
+        "flex items-start gap-4 px-5 py-4 bg-white dark:bg-gray-800 cursor-grab active:cursor-grabbing",
+        isDragging && "shadow-lg ring-2 ring-blue-300 rounded-lg",
+      )}
+    >
+      <GripVertical size={16} className="mt-0.5 shrink-0 text-slate-300 dark:text-gray-600" />
+      {children}
+    </div>
   );
 }
 
@@ -334,12 +371,17 @@ export default function TreatmentPlanDetailPage() {
     return ts.length ? Math.min(...ts.map((x) => +x[1] * 10 + +x[0])) : 999;
   };
   const applyOrder = (list: typeof orderedItems) => reorderItems.mutate(list.map((i) => i.id));
-  const moveItem = (idx: number, dir: -1 | 1) => {
-    const next = [...orderedItems];
-    const j = idx + dir;
-    if (j < 0 || j >= next.length) return;
-    [next[idx], next[j]] = [next[j], next[idx]];
-    applyOrder(next);
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 8 } }),
+  );
+  const handleItemDragEnd = (e: DragEndEvent) => {
+    const { active, over } = e;
+    if (!over || active.id === over.id) return;
+    const from = orderedItems.findIndex((i) => i.id === active.id);
+    const to = orderedItems.findIndex((i) => i.id === over.id);
+    if (from < 0 || to < 0) return;
+    applyOrder(arrayMove(orderedItems, from, to));
   };
   const sortBy = (kind: "price_asc" | "price_desc" | "priority" | "fdi") => {
     const next = [...orderedItems];
@@ -666,18 +708,20 @@ export default function TreatmentPlanDetailPage() {
                     {label}
                   </button>
                 ))}
-                <span className="text-slate-400">o usa las flechas de cada fila. Este orden sale en el PDF.</span>
+                <span className="text-slate-400">o arrastra cada fila para moverla. Este orden sale en el PDF.</span>
               </div>
             )}
+            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleItemDragEnd}>
+              <SortableContext items={orderedItems.map((i) => i.id)} strategy={verticalListSortingStrategy}>
             {orderedItems
-              .map((item, idx) => {
+              .map((item) => {
                 const status = item.status as TreatmentItemStatus;
                 const canAct = plan.status === "active";
                 const isWorking =
                   deleteItem.isPending || startItem.isPending || cancelItem.isPending || reopenItem.isPending;
 
                 return (
-                  <div key={item.id} className="flex items-start gap-4 px-5 py-4">
+                  <SortableItemRow key={item.id} id={item.id}>
                     {/* Status indicator */}
                     <div className="mt-0.5">
                       {status === "completed" ? (
@@ -727,27 +771,6 @@ export default function TreatmentPlanDetailPage() {
                         <p className="mt-1 text-xs text-slate-400">{item.notes}</p>
                       )}
                     </div>
-
-                    {orderedItems.length > 1 && (
-                      <div className="flex shrink-0 flex-col">
-                        <button
-                          title="Subir"
-                          disabled={idx === 0 || reorderItems.isPending}
-                          onClick={() => moveItem(idx, -1)}
-                          className="rounded p-0.5 text-slate-400 hover:text-blue-600 disabled:opacity-30"
-                        >
-                          <ChevronUp size={15} />
-                        </button>
-                        <button
-                          title="Bajar"
-                          disabled={idx === orderedItems.length - 1 || reorderItems.isPending}
-                          onClick={() => moveItem(idx, 1)}
-                          className="rounded p-0.5 text-slate-400 hover:text-blue-600 disabled:opacity-30"
-                        >
-                          <ChevronDown size={15} />
-                        </button>
-                      </div>
-                    )}
 
                     {/* Actions */}
                     {(canAct || ["completed", "cancelled"].includes(status)) && (
@@ -824,9 +847,11 @@ export default function TreatmentPlanDetailPage() {
                         </button>
                       </div>
                     )}
-                  </div>
+                  </SortableItemRow>
                 );
               })}
+              </SortableContext>
+            </DndContext>
           </div>
         )}
       </div>

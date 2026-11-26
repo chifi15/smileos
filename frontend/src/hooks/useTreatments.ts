@@ -168,10 +168,27 @@ export function useReorderItems(patientId: string, planId: string) {
       );
       return data.data;
     },
+    // Optimista: la lista se reordena al instante y luego se confirma con el servidor
+    onMutate: async (order: string[]) => {
+      const key = ["treatments", patientId, planId];
+      await qc.cancelQueries({ queryKey: key });
+      const prev = qc.getQueryData<TreatmentPlan>(key);
+      if (prev) {
+        const pos = new Map(order.map((id, i) => [id, i + 1]));
+        qc.setQueryData<TreatmentPlan>(key, {
+          ...prev,
+          items: prev.items.map((it) => ({ ...it, sort_order: pos.get(it.id) ?? it.sort_order })),
+        });
+      }
+      return { prev };
+    },
     onSuccess: (plan) => {
       qc.setQueryData(["treatments", patientId, planId], plan);
     },
-    onError: () => toast.error("Error al guardar el orden."),
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(["treatments", patientId, planId], ctx.prev);
+      toast.error("Error al guardar el orden.");
+    },
   });
 }
 
