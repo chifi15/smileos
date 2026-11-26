@@ -47,7 +47,7 @@ function Op({ children }: { children: ReactNode }) {
  *  2) Ganancia: ingresos − costos de los tratamientos − egresos que NO están ya cubiertos.
  */
 export default function FinanceSummaryPanel({
-  ingresos, egresos, egresosCubiertos, costosOp, countIngresos, countEgresos, onUtilityClick, extras, breakdown,
+  ingresos, egresos, egresosCubiertos, costosOp, countIngresos, countEgresos, onUtilityClick, extras, breakdown, honorariosPendientes,
 }: {
   ingresos: number;
   egresos: number;
@@ -56,6 +56,8 @@ export default function FinanceSummaryPanel({
   countIngresos?: number;
   countEgresos?: number;
   onUtilityClick?: () => void;
+  /** Honorarios de los doctores generados en el período y aún no pagados (suma de saldos a favor). */
+  honorariosPendientes?: number;
   extras?: ReactNode;
   /** Egresos del mes por categoría, para mostrar de dónde sale cada número. */
   breakdown?: { key: string; label: string; total: number; covered: boolean }[];
@@ -64,6 +66,7 @@ export default function FinanceSummaryPanel({
   const dineroQueQuedo = ingresos - egresos;
   const utilidad = ingresos - costosOp - egresosQueRestan;
   const utilidadSinCubiertas = ingresos - costosOp - egresos;
+  const margenPesimista = ingresos > 0 ? Math.round((utilidadSinCubiertas / ingresos) * 1000) / 10 : 0;
   const margen = ingresos > 0 ? Math.round((utilidad / ingresos) * 1000) / 10 : 0;
 
   return (
@@ -91,6 +94,15 @@ export default function FinanceSummaryPanel({
           <Op>=</Op>
           <Card label="Dinero que quedó" value={dineroQueQuedo} tone="blue" big hint="Sin importar si el gasto ya estaba en un tratamiento" />
         </div>
+        {honorariosPendientes != null && (
+          <div className="mt-3 grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_auto_1fr] gap-3">
+            <Card label="Dinero que quedó" value={dineroQueQuedo} tone="blue" />
+            <Op>−</Op>
+            <Card label="Honorarios pendientes de pagar" value={honorariosPendientes} tone="amber" hint="Lo que les corresponde a los doctores menos lo ya pagado" />
+            <Op>=</Op>
+            <Card label="Dinero libre tras honorarios" value={dineroQueQuedo - honorariosPendientes} tone="blue" big hint="Lo que realmente puedes disponer" />
+          </div>
+        )}
       </section>
 
       {/* 2 · Ganancia */}
@@ -108,15 +120,15 @@ export default function FinanceSummaryPanel({
           <Op>=</Op>
           <Card label="Utilidad" value={utilidad} tone="blue" big onClick={onUtilityClick} hint={`Margen ${margen}%${onUtilityClick ? " · clic para ver detalle" : ""}`} />
         </div>
-        <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
-          <div className="rounded-lg border border-slate-100 dark:border-gray-700 px-3 py-2 text-slate-500 dark:text-gray-400">
-            Egresos “Ya cubierta” (no se restaron): <strong className="text-slate-700 dark:text-gray-200">{money(egresosCubiertos)}</strong>
-            <span className="block text-[11px] text-slate-400 dark:text-gray-500">Ya están dentro del costo de los tratamientos.</span>
-          </div>
-          <div className="rounded-lg border border-slate-100 dark:border-gray-700 px-3 py-2 text-slate-500 dark:text-gray-400">
-            Utilidad si NO marcaras ninguna como cubierta: <strong className={utilidadSinCubiertas < 0 ? "text-red-600 dark:text-red-400" : "text-slate-700 dark:text-gray-200"}>{money(utilidadSinCubiertas)}</strong>
-            <span className="block text-[11px] text-slate-400 dark:text-gray-500">Resta todos los egresos y además los costos de los tratamientos (cuenta dos veces lo cubierto).</span>
-          </div>
+        <div className="mt-3 text-[11px] text-slate-400 dark:text-gray-500">Utilidad pesimista: cuenta dos veces lo “Ya cubierta” (una como egreso y otra dentro del costo de los tratamientos).</div>
+        <div className="mt-1 grid grid-cols-1 sm:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] gap-3">
+          <Card label="Ingresos" value={ingresos} tone="green" />
+          <Op>−</Op>
+          <Card label="Costo de los tratamientos" value={costosOp} tone="amber" />
+          <Op>−</Op>
+          <Card label="Egresos (todos)" value={egresos} tone="red" hint={`Incluye ${money(egresosCubiertos)} “Ya cubierta”`} />
+          <Op>=</Op>
+          <Card label="Utilidad pesimista" value={utilidadSinCubiertas} tone="blue" big hint={`Margen ${margenPesimista}%`} />
         </div>
       </section>
 

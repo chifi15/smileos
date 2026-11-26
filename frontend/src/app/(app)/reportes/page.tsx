@@ -51,6 +51,7 @@ import {
   useTopProceduresQuoted,
   useTopExpenses,
   useDoctorReport,
+  useDoctorAccount,
   useTopPatients,
   useTopMaterials,
   useIncomeDetail,
@@ -491,6 +492,7 @@ export default function ReportesPage() {
   const { data: topExp } = useTopExpenses(year, filterMonth);
   const { data: topExpMonth } = useTopExpenses(year, month);
   const { data: doctors } = useDoctorReport(year, filterMonth);
+  const { data: doctorAccountMonth } = useDoctorAccount(year, month);
   const { data: topPatients } = useTopPatients(year, filterMonth);
   const { data: topMaterials } = useTopMaterials(year, filterMonth);
   const { data: incomeDetail } = useIncomeDetail(year, filterMonth);
@@ -549,6 +551,7 @@ export default function ReportesPage() {
           countIngresos={summary.count_ingresos}
           countEgresos={summary.count_egresos}
           onUtilityClick={() => setInfoCard("flujo")}
+          honorariosPendientes={doctorAccountMonth ? doctorAccountMonth.rows.reduce((t, r) => t + Math.max(r.saldo ?? 0, 0), 0) : undefined}
           breakdown={topExpMonth?.map((e) => ({ key: e.category, label: e.category_label, total: e.total, covered: !!e.covered }))}
         />
 
