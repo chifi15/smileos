@@ -190,8 +190,13 @@ export default function PreciosIdealesPage() {
                         con {discount}% desc.: {fmtC(r.ideal * (1 - discount / 100) - r.cost)}
                         {r.cost > 0 && (
                           <span className="font-semibold text-green-700 dark:text-green-400">
-                            {" "}({(((r.ideal * (1 - discount / 100) - r.cost) / r.cost) * 100).toFixed(1)}%)
+                            {" "}({(((r.ideal * (1 - discount / 100) - r.cost) / r.cost) * 100).toFixed(1)}% del costo)
                           </span>
+                        )}
+                        {r.ideal > 0 && (
+                          <div className="text-xs text-slate-500 dark:text-gray-400">
+                            = {(((r.ideal * (1 - discount / 100) - r.cost) / (r.ideal * (1 - discount / 100))) * 100).toFixed(1)}% de lo que paga el paciente
+                          </div>
                         )}
                       </div>
                     </td>
