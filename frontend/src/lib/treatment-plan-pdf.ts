@@ -464,6 +464,8 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
   autoTable(doc, {
     startY: y,
     margin: { left: M, right: M, bottom: 22 },
+    // Filas completas: si la fila de fotos no cabe, pasa entera a la página siguiente (no se corta sobre el pie).
+    rowPageBreak: "avoid",
     head: [showPrices ? ["#", "Pieza", "Procedimiento", "Costo"] : ["#", "Pieza", "Procedimiento"]],
     body,
     foot: showPrices
