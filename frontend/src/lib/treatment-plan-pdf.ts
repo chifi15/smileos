@@ -547,7 +547,7 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
   const planDiscountsT = n >= MIN_ITEMS_DISCOUNT;
   const terms: string[] = showPrices ? [
     ...(planDiscountsT ? [
-      `Pago único: si el paciente paga el plan completo en un solo pago, antes de iniciar el tratamiento, se le otorga un ${fullPaymentPct(total)}% de descuento sobre el costo total.`,
+      `Pago único: si el paciente paga el plan completo en un solo pago, antes de iniciar el tratamiento, se le otorga un ${fullPaymentPct(total)}% de descuento sobre el costo total. El descuento según el monto del plan es: ${[...FULL_PAYMENT_TIERS].reverse().map((t, i, arr) => (i === arr.length - 1 ? `${t.pct}% desde ${money(t.min)}` : i === 0 ? `${t.pct}% si el plan es menor a ${money(arr[i + 1].min)}` : `${t.pct}% desde ${money(t.min)} hasta ${money(arr[i + 1].min - 1)}`)).join("; ")}.`,
       `Pago en 2 pagos: si el paciente paga el plan completo en 2 pagos, se le otorga un ${DISCOUNT_HALF_PCT}% de descuento sobre el costo total del plan. La primera mitad se paga antes de iniciar el tratamiento y la segunda mitad al completarse la mitad del plan.`,
       "Si el segundo pago no se realiza al completarse la mitad del plan, el paciente pierde el descuento en todo el plan: deberá pagar el total a precio normal, restando lo que ya pagó.",
     ] : []),
