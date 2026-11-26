@@ -189,21 +189,34 @@ export default function PreciosIdealesPage() {
         <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-gray-700 bg-white dark:bg-gray-800">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-slate-100 dark:border-gray-700 text-left text-xs text-slate-500 dark:text-gray-400">
-                <th className="px-4 py-3 font-medium">Tratamiento</th>
-                <th className="px-3 py-3 text-right font-medium">Costo</th>
-                <th className="px-3 py-3 text-right font-medium">Precio actual</th>
-                <th className="px-3 py-3 text-right font-medium">Precio actual con {discount}% desc.<div className="text-[10px] font-normal">(lo que ganarías hoy)</div></th>
-                <th className="px-3 py-3 text-right font-medium">Precio ideal<div className="text-[10px] font-normal">(precio de lista)</div></th>
-                <th className="px-3 py-3 text-right font-medium">Cobrar con {discount}% desc.<div className="text-[10px] font-normal">(paga el paciente)</div></th>
-                <th className="px-3 py-3 text-right font-medium">Clínica se queda<div className="text-[10px] font-normal">(con precio ideal)</div></th>
-                <th className="px-3 py-3 text-right font-medium" />
+              <tr className="text-xs text-slate-500 dark:text-gray-400">
+                <th rowSpan={2} className="px-4 py-3 text-left font-medium align-bottom">Tratamiento</th>
+                <th rowSpan={2} className="px-3 py-3 text-right font-medium align-bottom">Costo</th>
+                <th colSpan={2} className="border-l border-slate-100 dark:border-gray-700 bg-green-50/60 dark:bg-green-900/10 px-3 py-2 text-center font-semibold text-green-700 dark:text-green-400">
+                  Precio ideal, sin descuento
+                </th>
+                <th colSpan={2} className="border-l border-slate-100 dark:border-gray-700 bg-blue-50/60 dark:bg-blue-900/10 px-3 py-2 text-center font-semibold text-blue-700 dark:text-blue-400">
+                  Con {discount}% de descuento
+                </th>
+                <th colSpan={2} className="border-l border-slate-100 dark:border-gray-700 px-3 py-2 text-center font-semibold">
+                  Tu precio actual
+                </th>
+              </tr>
+              <tr className="border-b border-slate-100 dark:border-gray-700 text-xs text-slate-500 dark:text-gray-400">
+                <th className="border-l border-slate-100 dark:border-gray-700 bg-green-50/60 dark:bg-green-900/10 px-3 py-2 text-right font-medium">Paciente paga</th>
+                <th className="bg-green-50/60 dark:bg-green-900/10 px-3 py-2 text-right font-medium">Clínica gana</th>
+                <th className="border-l border-slate-100 dark:border-gray-700 bg-blue-50/60 dark:bg-blue-900/10 px-3 py-2 text-right font-medium">Paciente paga</th>
+                <th className="bg-blue-50/60 dark:bg-blue-900/10 px-3 py-2 text-right font-medium">Clínica gana</th>
+                <th className="border-l border-slate-100 dark:border-gray-700 px-3 py-2 text-right font-medium">Precio</th>
+                <th className="px-3 py-2 text-right font-medium">Estado</th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => {
                 const diff = r.ideal - r.current;
                 const loses = r.profitWithDisc < 0;
+                const dPrice = r.ideal * (1 - discount / 100);
+                const dProfit = dPrice - r.cost;
                 return (
                   <tr key={r.raw.id} className="border-b border-slate-50 dark:border-gray-700/50 last:border-0">
                     <td className="px-4 py-3">
@@ -212,47 +225,43 @@ export default function PreciosIdealesPage() {
                       </Link>
                     </td>
                     <td className="px-3 py-3 text-right tabular-nums text-slate-600 dark:text-gray-300">{fmtC(r.cost)}</td>
-                    <td className="px-3 py-3 text-right tabular-nums">
-                      <div className="font-medium text-slate-800 dark:text-gray-100">{fmtC(r.current)}</div>
-                      <div className="text-xs text-slate-400 dark:text-gray-500">${(r.current / rate).toFixed(0)}</div>
-                    </td>
-                    <td className="px-3 py-3 text-right tabular-nums">
-                      <div className={`font-medium ${loses ? "text-red-600 dark:text-red-400" : r.pctWithDisc < margin ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"}`}>
-                        {r.pctWithDisc.toFixed(0)}% de ganancia
-                      </div>
-                      <div className="text-xs text-slate-400 dark:text-gray-500">
-                        {r.profitWithDisc >= 0 ? "+" : "−"}{fmtC(Math.abs(r.profitWithDisc))}
-                      </div>
-                    </td>
-                    <td className="px-3 py-3 text-right tabular-nums">
-                      <div className="font-bold text-blue-700 dark:text-blue-400">{fmtC(r.ideal)}</div>
+
+                    <td className="border-l border-slate-100 dark:border-gray-700 px-3 py-3 text-right tabular-nums">
+                      <div className="font-bold text-slate-800 dark:text-gray-100">{fmtC(r.ideal)}</div>
                       <div className="text-xs text-slate-400 dark:text-gray-500">${(r.ideal / rate).toFixed(0)}</div>
-                    </td>
-                    <td className="px-3 py-3 text-right tabular-nums">
-                      <div className="font-bold text-slate-800 dark:text-gray-100">{fmtC(r.ideal * (1 - discount / 100))}</div>
-                      <div className="text-xs text-slate-400 dark:text-gray-500">${((r.ideal * (1 - discount / 100)) / rate).toFixed(0)}</div>
                     </td>
                     <td className="px-3 py-3 text-right tabular-nums">
                       <div className="font-medium text-green-700 dark:text-green-400">{fmtC(r.ideal - r.cost)}</div>
                       <div className="text-xs text-slate-400 dark:text-gray-500">
-                        con {discount}% desc.: {fmtC(r.ideal * (1 - discount / 100) - r.cost)}
-                        {r.cost > 0 && (
-                          <span className="font-semibold text-green-700 dark:text-green-400">
-                            {" "}({(((r.ideal * (1 - discount / 100) - r.cost) / r.cost) * 100).toFixed(1)}% del costo)
-                          </span>
-                        )}
-                        {r.ideal > 0 && (
-                          <div className="text-xs text-slate-500 dark:text-gray-400">
-                            = {(((r.ideal * (1 - discount / 100) - r.cost) / (r.ideal * (1 - discount / 100))) * 100).toFixed(1)}% de lo que paga el paciente
-                          </div>
-                        )}
+                        {r.cost > 0 ? (((r.ideal - r.cost) / r.cost) * 100).toFixed(0) : 0}% del costo
+                      </div>
+                    </td>
+
+                    <td className="border-l border-slate-100 dark:border-gray-700 px-3 py-3 text-right tabular-nums">
+                      <div className="font-bold text-blue-700 dark:text-blue-400">{fmtC(dPrice)}</div>
+                      <div className="text-xs text-slate-400 dark:text-gray-500">${(dPrice / rate).toFixed(0)}</div>
+                    </td>
+                    <td className="px-3 py-3 text-right tabular-nums">
+                      <div className="font-medium text-green-700 dark:text-green-400">{fmtC(dProfit)}</div>
+                      <div className="text-xs font-semibold text-green-700 dark:text-green-400">
+                        {r.cost > 0 ? ((dProfit / r.cost) * 100).toFixed(1) : 0}% del costo
+                      </div>
+                      <div className="text-[11px] text-slate-400 dark:text-gray-500">
+                        ({dPrice > 0 ? ((dProfit / dPrice) * 100).toFixed(1) : 0}% de lo que paga)
+                      </div>
+                    </td>
+
+                    <td className="border-l border-slate-100 dark:border-gray-700 px-3 py-3 text-right tabular-nums">
+                      <div className="font-medium text-slate-800 dark:text-gray-100">{fmtC(r.current)}</div>
+                      <div className="text-xs text-slate-400 dark:text-gray-500">${(r.current / rate).toFixed(0)}</div>
+                      <div className={`text-[11px] ${loses ? "text-red-600 dark:text-red-400" : r.pctWithDisc < margin ? "text-amber-600 dark:text-amber-400" : "text-green-600 dark:text-green-400"}`}>
+                        con desc. la clínica gana {r.pctWithDisc.toFixed(0)}%
                       </div>
                     </td>
                     <td className="px-3 py-3 text-right">
                       {r.ok ? (
                         <span className="inline-flex items-center gap-1 text-xs font-medium text-green-600 dark:text-green-400">
                           <Check size={13} /> Bien
-                          {diff < 0 && <span className="text-slate-400 dark:text-gray-500">(sobra {fmtC(-diff)})</span>}
                         </span>
                       ) : (
                         <div className="flex items-center justify-end gap-2">
