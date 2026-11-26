@@ -78,6 +78,32 @@ const PROC_COLORS: RGB[] = [
   [13, 148, 136], [219, 39, 119], [161, 98, 7], [71, 85, 105], [8, 145, 178],
 ];
 
+// Caja estándar por orientación (4:3 horizontal, 3:4 vertical) para que las fotos de la misma
+// orientación siempre se vean del mismo tamaño en el PDF.
+const isPortrait = (p: PdfPhoto) => p.height > p.width;
+const boxW = (p: PdfPhoto, h: number, maxW: number) => (isPortrait(p) ? Math.min(maxW, (h * 3) / 4) : Math.min(maxW, (h * 4) / 3));
+
+/** Dibuja la foto llenando la caja (recorte centrado); si la proporción difiere mucho, la ajusta sin recortar. */
+function drawPhotoBox(doc: jsPDF, p: PdfPhoto, x: number, y: number, w: number, h: number) {
+  const r = p.width / p.height;
+  const br = w / h;
+  if (Math.abs(r / br - 1) > 0.35) {
+    const k = Math.min(w / p.width, h / p.height);
+    const iw = p.width * k;
+    const ih = p.height * k;
+    doc.addImage(p.dataUrl, "JPEG", x + (w - iw) / 2, y + (h - ih) / 2, iw, ih);
+    return;
+  }
+  const iw = r > br ? h * r : w;
+  const ih = r > br ? h : w / r;
+  doc.saveGraphicsState();
+  doc.rect(x, y, w, h, null);
+  doc.clip();
+  doc.discardPath();
+  doc.addImage(p.dataUrl, "JPEG", x + (w - iw) / 2, y + (h - ih) / 2, iw, ih);
+  doc.restoreGraphicsState();
+}
+
 /** Dibuja la guía de piezas FDI (vista oclusal) resaltando las piezas del plan. */
 function drawToothChart(
   doc: jsPDF,
@@ -341,22 +367,20 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
     const cols = Math.min(3, overview.length);
     const gap = 4;
     const cellW = (contentW - gap * (cols - 1)) / cols;
-    const maxH = 52;
+    const H = Math.min(52, (cellW * 3) / 4); // misma altura para toda la fila
     for (let i = 0; i < overview.length; i += cols) {
       const row = overview.slice(i, i + cols);
-      const heights = row.map((p) => Math.min(maxH, (cellW * p.height) / p.width));
-      const rowH = Math.max(...heights) + 5;
+      const rowH = H + 5;
       ensure(rowH + 4);
       row.forEach((p, j) => {
-        const h = heights[j];
-        const w = h === maxH ? (maxH * p.width) / p.height : cellW;
+        const w = boxW(p, H, cellW);
         const x = M + j * (cellW + gap) + (cellW - w) / 2;
-        doc.addImage(p.dataUrl, "JPEG", x, y, w, h);
+        drawPhotoBox(doc, p, x, y, w, H);
         if (p.label) {
           doc.setFont("helvetica", "normal");
           doc.setFontSize(8);
           doc.setTextColor(...MUTED);
-          doc.text(p.label, M + j * (cellW + gap) + cellW / 2, y + h + 3.4, { align: "center" });
+          doc.text(p.label, M + j * (cellW + gap) + cellW / 2, y + H + 3.4, { align: "center" });
         }
       });
       y += rowH + 2;
@@ -385,8 +409,8 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
     ]);
     const gp = input.photos?.byGroup?.[g.key];
     if (gp) {
-      const h = Math.min(50, (90 * gp.height) / gp.width);
-      const w = (h * gp.width) / gp.height;
+      const h = 54;
+      const w = boxW(gp, h, 90);
       photoRows.set(body.length, { photo: gp, w, h });
       body.push([{ content: "", colSpan: cols, styles: { minCellHeight: h + 4 } }]);
     }
@@ -443,7 +467,7 @@ export function buildTreatmentPlanPdf(input: PlanPdfInput): jsPDF {
       if (d.section !== "body") return;
       const pr = photoRows.get(d.row.index);
       if (!pr) return;
-      doc.addImage(pr.photo.dataUrl, "JPEG", d.cell.x + 2, d.cell.y + 2, pr.w, pr.h);
+      drawPhotoBox(doc, pr.photo, d.cell.x + 2, d.cell.y + 2, pr.w, pr.h);
     },
   });
   y = lastY() + 9;
