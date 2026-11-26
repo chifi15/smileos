@@ -163,18 +163,21 @@ export default function PdfPhotosPicker({ patientId, groups, value, onChange }: 
         <div>
           <p className="text-sm font-medium text-slate-700 dark:text-gray-300 mb-1">Fotos por hemiarcada</p>
           <p className="text-xs text-slate-400 dark:text-gray-500 mb-2">
-            Se preseleccionan las fotos de categoría «Hemiarcada». Puedes elegir una o varias por hemiarcada; salen bajo
-            el encabezado de esa hemiarcada, y las de la misma orientación (horizontal o vertical) con el mismo tamaño.
-            Con el icono puedes girar, invertir o recortar cada una.
+            Aquí aparecen solo las fotos que subiste con la categoría de cada hemiarcada (y se preseleccionan). Si subes
+            más de una, puedes incluirlas todas; las de la misma orientación salen con el mismo tamaño. Con el icono
+            puedes girar, invertir o recortar cada una.
           </p>
           <div className="space-y-3">
             {groups.map((g) => {
               const sels = value.groups[g.key] ?? [];
+              // Solo las fotos subidas con la categoría de esta hemiarcada
+              const groupPhotos = photos.filter((p) => p.photo_type === `hemi_${g.key}`);
+              if (groupPhotos.length === 0) return null;
               return (
                 <div key={g.key}>
                   <p className="text-xs font-medium text-slate-600 dark:text-gray-400 mb-1">{g.label}</p>
                   <div className="grid grid-cols-4 gap-2">
-                    {photos.map((p) => {
+                    {groupPhotos.map((p) => {
                       const idx = sels.findIndex((s) => s.photoId === p.id);
                       const sel = idx >= 0 ? sels[idx] : null;
                       return (
