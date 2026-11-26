@@ -61,7 +61,7 @@ async def get_monthly_trend(db: AsyncSession, clinic_id: uuid.UUID, year: int) -
         .order_by(extract("month", FinanceTransaction.transaction_date))
     )
     by_month: dict[int, dict] = {
-        m: {"month": m, "mes": MONTH_NAMES[m], "ingresos": 0.0, "egresos": 0.0, "costos_op": 0.0, "utilidad": 0.0}
+        m: {"month": m, "mes": MONTH_NAMES[m], "ingresos": 0.0, "egresos": 0.0, "costos_op": 0.0, "utilidad": 0.0, "utilidad_presupuestada": 0.0}
         for m in range(1, 13)
     }
     for r in rows:
@@ -73,7 +73,10 @@ async def get_monthly_trend(db: AsyncSession, clinic_id: uuid.UUID, year: int) -
         by_month[m]["ingresos"] = round(ingresos, 2)
         by_month[m]["egresos"] = round(egresos, 2)
         by_month[m]["costos_op"] = round(costos_op, 2)
-        by_month[m]["utilidad"] = round(ingresos - (egresos - cubiertos) - costos_op, 2)
+        # Utilidad real: ingresos menos TODOS los egresos registrados (sin excepciones de "ya cubierto").
+        by_month[m]["utilidad"] = round(ingresos - egresos, 2)
+        # Utilidad presupuestada: ingresos menos los costos operativos calculados de cada tratamiento cobrado.
+        by_month[m]["utilidad_presupuestada"] = round(ingresos - costos_op, 2)
     return list(by_month.values())
 
 

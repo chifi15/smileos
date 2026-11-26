@@ -8,6 +8,7 @@ export interface MonthTrend {
   egresos: number;
   costos_op: number;
   utilidad: number;
+  utilidad_presupuestada: number;
 }
 
 export interface ReportSummary {

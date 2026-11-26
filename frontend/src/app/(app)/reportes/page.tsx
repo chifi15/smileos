@@ -1374,8 +1374,9 @@ export default function ReportesPage() {
                 <th className="px-4 py-2 font-medium">Mes</th>
                 <th className="px-4 py-2 font-medium text-right">Ingresos</th>
                 <th className="px-4 py-2 font-medium text-right">Egresos</th>
-                <th className="px-4 py-2 font-medium text-right">Costos op.</th>
-                <th className="px-4 py-2 font-medium text-right">Utilidad real</th>
+                <th className="px-4 py-2 font-medium text-right" title="Costo operativo calculado de los tratamientos cobrados (materiales, honorarios y gastos fijos)">Costos op.</th>
+                <th className="px-4 py-2 font-medium text-right" title="Ingresos − todos los egresos registrados">Utilidad real</th>
+                <th className="px-4 py-2 font-medium text-right" title="Ingresos − costos operativos de los tratamientos cobrados">Utilidad presupuestada</th>
               </tr>
             </thead>
             <tbody>
@@ -1387,6 +1388,9 @@ export default function ReportesPage() {
                   <td className="px-4 py-2.5 text-right text-amber-600 dark:text-amber-400">{r.costos_op > 0 ? fmt(r.costos_op) : <span className="text-slate-300 dark:text-gray-600">—</span>}</td>
                   <td className={`px-4 py-2.5 text-right font-semibold ${r.utilidad >= 0 ? "text-blue-600 dark:text-blue-400" : "text-red-600 dark:text-red-400"}`}>
                     {fmt(r.utilidad)}
+                  </td>
+                  <td className={`px-4 py-2.5 text-right font-semibold ${r.utilidad_presupuestada >= 0 ? "text-slate-600 dark:text-gray-300" : "text-red-600 dark:text-red-400"}`}>
+                    {fmt(r.utilidad_presupuestada)}
                   </td>
                 </tr>
               ))}
@@ -1406,6 +1410,9 @@ export default function ReportesPage() {
                   </td>
                   <td className="px-4 py-2.5 text-right text-sm font-bold text-blue-600 dark:text-blue-400">
                     {fmt(trend.reduce((s, r) => s + r.utilidad, 0))}
+                  </td>
+                  <td className="px-4 py-2.5 text-right text-sm font-bold text-slate-600 dark:text-gray-300">
+                    {fmt(trend.reduce((s, r) => s + r.utilidad_presupuestada, 0))}
                   </td>
                 </tr>
               </tfoot>
