@@ -147,6 +147,7 @@ export default function PreciosIdealesPage() {
                 <th className="px-3 py-3 text-right font-medium">Precio actual</th>
                 <th className="px-3 py-3 text-right font-medium">Con {discount}% desc.</th>
                 <th className="px-3 py-3 text-right font-medium">Precio ideal</th>
+                <th className="px-3 py-3 text-right font-medium">Clínica se queda</th>
                 <th className="px-3 py-3 text-right font-medium" />
               </tr>
             </thead>
@@ -177,6 +178,12 @@ export default function PreciosIdealesPage() {
                     <td className="px-3 py-3 text-right tabular-nums">
                       <div className="font-bold text-blue-700 dark:text-blue-400">{fmtC(r.ideal)}</div>
                       <div className="text-xs text-slate-400 dark:text-gray-500">${(r.ideal / rate).toFixed(0)}</div>
+                    </td>
+                    <td className="px-3 py-3 text-right tabular-nums">
+                      <div className="font-medium text-green-700 dark:text-green-400">{fmtC(r.ideal - r.cost)}</div>
+                      <div className="text-xs text-slate-400 dark:text-gray-500">
+                        con {discount}% desc.: {fmtC(r.ideal * (1 - discount / 100) - r.cost)}
+                      </div>
                     </td>
                     <td className="px-3 py-3 text-right">
                       {r.ok ? (
